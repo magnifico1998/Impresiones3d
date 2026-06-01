@@ -1406,23 +1406,28 @@ function renderResumen() {
   const pedidosFiltrados = getPedidosPeriodo(desde, hasta);
   const completados = pedidosFiltrados.filter(p => (p.estado === 'completado' || p.estado === 'listo') && p.precioVenta);
   const totalVentas  = completados.reduce((s,p) => s + p.precioVenta, 0);
+  
+  // NUEVO CÁLCULO: Solo suma Electricidad y Mano de Obra
   const totalCostos  = completados.reduce((s,p) => {
-    const cp = p.piezas.reduce((a, pz) => a + ((pz.costoUnitario || pz.total) * pz.cantidad), 0);
-    const ci = (p.insumos||[]).reduce((a,i) => a + i.precio*i.qty, 0);
-    return s + cp + ci;
+    const cp = p.piezas.reduce((a, pz) => a + (((pz.costeElec || 0) + (pz.costeMO || 0)) * pz.cantidad), 0);
+    return s + cp;
   }, 0);
+
   const ganancia  = totalVentas - totalCostos;
   const rentab    = totalVentas > 0 ? (ganancia / totalVentas * 100) : 0;
   const pendientesGlobal = pedidos.filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && p.precioVenta);
   const totalPendiente = pendientesGlobal.reduce((s,p) => s + p.precioVenta, 0);
+  
   document.getElementById('res-ventas').textContent   = fmt(totalVentas);
   document.getElementById('res-costos').textContent   = fmt(totalCostos);
   document.getElementById('res-ganancia').textContent = fmt(ganancia);
   document.getElementById('res-ganancia').style.color = ganancia >= 0 ? 'var(--accent)' : 'var(--danger)';
   document.getElementById('res-rent').textContent     = rentab.toFixed(1) + '%';
   document.getElementById('res-rent').style.color     = rentab >= 0 ? 'var(--accent)' : 'var(--danger)';
+  
   const resPend = document.getElementById('res-pendiente');
   if(resPend) resPend.textContent = fmt(totalPendiente);
+  
   renderChartVentas(completados, desde, hasta);
   renderHorasImpresoras(pedidosFiltrados);
   renderTablaPeriodo(completados);
@@ -1626,11 +1631,11 @@ function renderTablaPeriodo(completados) {
       <th>Entrega</th>
     </tr></thead>
     <tbody>`+sortedCompletados.map(p=>{
-      const cp = p.piezas.reduce((s, pz) => s + ((pz.costoUnitario || pz.total) * pz.cantidad), 0);
-      const ci=(p.insumos||[]).reduce((s,i)=>s+i.precio*i.qty,0);
-      const costo=cp+ci;
-      const gan=p.precioVenta-costo;
-      const margen=p.precioVenta>0?(gan/p.precioVenta*100).toFixed(1):0;
+      // NUEVO CÁLCULO PARA LA TABLA: Solo Electricidad y Mano de Obra
+      const costo = p.piezas.reduce((s, pz) => s + (((pz.costeElec || 0) + (pz.costeMO || 0)) * pz.cantidad), 0);
+      const gan = p.precioVenta - costo;
+      const margen = p.precioVenta > 0 ? (gan / p.precioVenta * 100).toFixed(1) : 0;
+      
       return `<tr>
         <td style="font-weight:500;white-space:nowrap">${p.cliente}</td>
         <td style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.desc||'—'}</td>
@@ -1793,24 +1798,31 @@ renderResumen = function() {
   const gastos = comprasPeriodo.reduce((s,c)=>s+(c.total||c.precio),0);
   const elG = document.getElementById('res-gastos');
   if(elG) elG.textContent = fmt(gastos);
+  
   const elVentas  = document.getElementById('res-ventas');
   const elCostos  = document.getElementById('res-costos');
   const elGan     = document.getElementById('res-ganancia');
   const elRent    = document.getElementById('res-rent');
+  
   if(elVentas&&elCostos&&elGan&&elRent){
     const pedCom = getPedidosPeriodo(desde,hasta).filter(p=>(p.estado==='completado'||p.estado==='listo')&&p.precioVenta);
     const v = pedCom.reduce((s,p)=>s+p.precioVenta,0);
+    
+    // NUEVO CÁLCULO NETO FINAL: Ventas - (Electricidad + Mano Obra) - Gastos(Compras)
     const cp2 = pedCom.reduce((s, p) => {
-        const c2 = p.piezas.reduce((a, pz) => a + ((pz.costoUnitario || pz.total) * pz.cantidad), 0) + (p.insumos || []).reduce((a, i) => a + i.precio * i.qty, 0);
+        const c2 = p.piezas.reduce((a, pz) => a + (((pz.costeElec || 0) + (pz.costeMO || 0)) * pz.cantidad), 0);
         return s + c2;
     }, 0);
+    
     const ganNeta = v - cp2 - gastos;
     const rentNeta = v>0?(ganNeta/v*100):0;
+    
     elGan.textContent = fmt(ganNeta);
     elGan.style.color = ganNeta>=0?'var(--accent)':'var(--danger)';
     elRent.textContent = rentNeta.toFixed(1)+'%';
     elRent.style.color = rentNeta>=0?'var(--accent)':'var(--danger)';
   }
+  
   const tc = document.getElementById('res-compras-tabla');
   if(tc){
     if(!comprasPeriodo.length){tc.innerHTML='<div class="empty">Sin compras en el período.</div>';return;}
