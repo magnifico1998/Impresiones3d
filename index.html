@@ -569,6 +569,8 @@ select option{background:var(--bg3)}
       <div><label class="fl">Fecha del pedido</label><input type="date" id="m-fecha-pedido"></div>
       <div><label class="fl">Fecha max. entrega</label><input type="date" id="m-fecha-entrega"></div>
     </div>
+    <label class="fl">Nota general del pedido</label>
+    <textarea id="m-nota-general" placeholder="Ej: Envío por correo, abonó seña 50%, pagar con transferencia..." style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;outline:none;resize:vertical;min-height:70px;transition:border-color .15s;line-height:1.5" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
     <div class="modal-footer">
       <button class="btn" onclick="cerrarModal('modal-pedido')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarPedido()">Guardar pedido</button>
@@ -613,6 +615,9 @@ select option{background:var(--bg3)}
         </div>
       </div>
     </div>
+    <div class="sep"></div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nota general del pedido</div>
+    <textarea id="det-nota-general" placeholder="Ej: Envío por correo, abonó seña 50%, pagar con transferencia..." style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;outline:none;resize:vertical;min-height:70px;transition:border-color .15s;line-height:1.5" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
     <div class="modal-footer">
       <button class="btn btn-danger btn-sm" onclick="eliminarPedidoActual()">Eliminar pedido</button>
       <button class="btn" onclick="cerrarModal('modal-detalle')">Cerrar</button>
@@ -996,7 +1001,7 @@ function abrirModalNuevoPedido(postAgregar=false){
   _postCrearPedido=postAgregar;
   editPedidoId=null;
   document.getElementById('modal-pedido-title').textContent='Nuevo pedido';
-  ['m-cliente','m-desc','m-fecha-pedido','m-fecha-entrega'].forEach(id=>document.getElementById(id).value='');
+  ['m-cliente','m-desc','m-fecha-pedido','m-fecha-entrega','m-nota-general'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('m-estado').value='pendiente';
   document.getElementById('modal-pedido').classList.add('open');
 }
@@ -1009,10 +1014,11 @@ function abrirModalEditarPedido(id){
   document.getElementById('m-estado').value=p.estado;
   document.getElementById('m-fecha-pedido').value=p.fechaPedido||p.fecha||'';
   document.getElementById('m-fecha-entrega').value=p.fechaEntrega||'';
+  document.getElementById('m-nota-general').value=p.notaGeneral||'';
   document.getElementById('modal-pedido').classList.add('open');
 }
 function guardarPedido(){
-  const d={cliente:document.getElementById('m-cliente').value||'Sin nombre',desc:document.getElementById('m-desc').value||'',estado:document.getElementById('m-estado').value,fechaPedido:document.getElementById('m-fecha-pedido').value,fechaEntrega:document.getElementById('m-fecha-entrega').value};
+  const d={cliente:document.getElementById('m-cliente').value||'Sin nombre',desc:document.getElementById('m-desc').value||'',estado:document.getElementById('m-estado').value,fechaPedido:document.getElementById('m-fecha-pedido').value,fechaEntrega:document.getElementById('m-fecha-entrega').value,notaGeneral:document.getElementById('m-nota-general').value||''};
   if(editPedidoId!==null){const p=pedidos.find(x=>x.id===editPedidoId);if(p)Object.assign(p,d);}
   else{const nuevo={id:newId(),piezas:[],precioVenta:0,insumos:[],...d,creado:new Date().toLocaleDateString('es-AR')};pedidos.push(nuevo);editPedidoId=nuevo.id;}
   cerrarModal('modal-pedido');renderPedidos();updateStats();
@@ -1047,6 +1053,7 @@ function abrirDetallePedido(id){
   if(p.fechaEntrega)metaStr+=` · Entrega: ${p.fechaEntrega}`+(esUrgente(p)?' ⚠':'');
   document.getElementById('det-meta').textContent=metaStr;
   document.getElementById('det-precio-venta').value=p.precioVenta||'';
+  document.getElementById('det-nota-general').value=p.notaGeneral||'';
   renderDetallePiezas(p);renderDetalleInsumos(p);actualizarTotalDetalle(p);
   document.getElementById('modal-detalle').classList.add('open');
 }
@@ -1186,6 +1193,7 @@ function actualizarGanancia(){const p=pedidos.find(x=>x.id===pedidoDetalleId);ac
 function guardarDetalle(){
   const p=pedidos.find(x=>x.id===pedidoDetalleId);if(!p)return;
   p.precioVenta=parseFloat(document.getElementById('det-precio-venta').value)||0;
+  p.notaGeneral=document.getElementById('det-nota-general').value||'';
   p.insumos=[];
   document.querySelectorAll('.det-ins-check').forEach(cb=>{if(cb.checked){const qty=parseFloat(cb.closest('.insumo-row').querySelector('.det-ins-qty')?.value||1);p.insumos.push({nombre:cb.dataset.nombre,precio:parseFloat(cb.dataset.precio),qty});}});
   cerrarModal('modal-detalle');renderPedidos();updateStats();
@@ -1207,6 +1215,7 @@ function renderPedidos(){
       <div style="flex:1;min-width:0">
         <div style="font-weight:600;font-size:14px;margin-bottom:2px">${p.cliente}</div>
         <div style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.desc||'Sin descripción'}</div>
+        ${p.notaGeneral?`<div style="font-size:11px;color:var(--warn);font-family:var(--mono);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📝 ${p.notaGeneral}</div>`:''}
         ${p.fechaEntrega?`<div style="font-size:11px;font-family:var(--mono);margin-top:2px;color:${urgente?'var(--danger)':'var(--text3)'}">` + (urgente?'⚠ ':'') + `Entrega: ${p.fechaEntrega}</div>`:''}${p.fechaPedido?`<div style="font-size:10px;color:var(--text3);font-family:var(--mono)">Pedido: ${p.fechaPedido}</div>`:''}
       </div>
       <div style="display:flex;align-items:center;gap:20px;flex-shrink:0">
