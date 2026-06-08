@@ -1019,7 +1019,18 @@ function abrirModalEditarPedido(id){
 }
 function guardarPedido(){
   const d={cliente:document.getElementById('m-cliente').value||'Sin nombre',desc:document.getElementById('m-desc').value||'',estado:document.getElementById('m-estado').value,fechaPedido:document.getElementById('m-fecha-pedido').value,fechaEntrega:document.getElementById('m-fecha-entrega').value,notaGeneral:document.getElementById('m-nota-general').value||''};
-  if(editPedidoId!==null){const p=pedidos.find(x=>x.id===editPedidoId);if(p)Object.assign(p,d);}
+  if(editPedidoId!==null){
+    const p=pedidos.find(x=>x.id===editPedidoId);
+    if(p){
+      const eraCompletado = p.estado === 'completado';
+      Object.assign(p,d);
+      if(p.estado === 'completado' && !eraCompletado && !p.fechaCompletado) {
+        p.fechaCompletado = new Date().toISOString().slice(0,10);
+      } else if(p.estado !== 'completado') {
+        p.fechaCompletado = null;
+      }
+    }
+  }
   else{const nuevo={id:newId(),piezas:[],precioVenta:0,insumos:[],...d,creado:new Date().toLocaleDateString('es-AR')};pedidos.push(nuevo);editPedidoId=nuevo.id;}
   cerrarModal('modal-pedido');renderPedidos();updateStats();
   if(_postCrearPedido){_postCrearPedido=false;setTimeout(()=>agregarPiezaAPedido(),150);}
@@ -1035,6 +1046,11 @@ function cambiarEstadoPedidoRapido(e, id, nuevoEstado) {
   const p = pedidos.find(x => x.id === id);
   if(!p) return;
   p.estado = nuevoEstado;
+  if (nuevoEstado === 'completado' && !p.fechaCompletado) {
+    p.fechaCompletado = new Date().toISOString().slice(0,10);
+  } else if (nuevoEstado !== 'completado') {
+    p.fechaCompletado = null;
+  }
   guardarEstado();
   renderPedidos();
   updateStats();
@@ -1459,10 +1475,20 @@ function getPeriodoFechas() {
   }
   return { desde, hasta };
 }
+function getFechaVenta(p) {
+  // Para ventas, usar fechaCompletado si existe, sino fechaPedido, sino creado
+  if (p.fechaCompletado) return p.fechaCompletado;
+  if (p.fechaPedido) return p.fechaPedido;
+  if (p.creado) return parseFechaCreado(p.creado);
+  return null;
+}
 function getPedidosPeriodo(desde, hasta) {
   return pedidos.filter(p => {
-    if (!p.fecha && !p.creado) return true;
-    const fechaRef = p.fecha || p.creado;
+    // Para pedidos completados, filtrar por fechaCompletado
+    const fechaRef = (p.estado === 'completado' && p.fechaCompletado)
+      ? p.fechaCompletado
+      : (p.fechaPedido || p.fecha || p.creado);
+    if (!fechaRef) return true;
     let d;
     if (fechaRef.includes('-') && fechaRef.length === 10) {
       d = new Date(fechaRef + 'T12:00:00');
@@ -1559,7 +1585,7 @@ function agruparPorDia(pedidos, desde, hasta) {
     cur.setDate(cur.getDate()+1);
   }
   pedidos.forEach(p => {
-    const f = p.fecha||(p.creado?parseFechaCreado(p.creado):null);
+    const f = getFechaVenta(p);
     if(f && map[f]!==undefined) map[f] += p.precioVenta||0;
   });
   return Object.entries(map).map(([k,v])=>({label:k.slice(5),ventas:v}));
@@ -1573,7 +1599,8 @@ function agruparPorSemana(pedidos, desde, hasta) {
     cur.setDate(cur.getDate()+7);
   }
   pedidos.forEach(p => {
-    const f = p.fecha ? new Date(p.fecha+'T12:00:00') : null;
+    const fStr = getFechaVenta(p);
+    const f = fStr ? new Date(fStr + 'T12:00:00') : null;
     if(!f) return;
     const sem = semanas.find(s=>f>=s.desde&&f<=s.hasta);
     if(sem) sem.ventas += p.precioVenta||0;
@@ -1589,8 +1616,9 @@ function agruparPorMes(pedidos, desde, hasta) {
     cur.setMonth(cur.getMonth()+1);
   }
   pedidos.forEach(p => {
-    const f = p.fecha ? p.fecha.slice(0,7) : null;
-    if(f && map[f]!==undefined) map[f] += p.precioVenta||0;
+    const f = getFechaVenta(p);
+    const mes = f ? f.slice(0,7) : null;
+    if(mes && map[mes]!==undefined) map[mes] += p.precioVenta||0;
   });
   return Object.entries(map).map(([k,v])=>({label:k.slice(5)+'/'+k.slice(2,4),ventas:v}));
 }
@@ -1626,7 +1654,10 @@ function renderHorasImpresoras(pedidosFiltrados) {
 function renderTablaPeriodo(completados) {
   const cont = document.getElementById('res-tabla');
   if(!completados.length){ cont.innerHTML='<div class="empty">Sin pedidos completados en el período.</div>'; return; }
-  const sortedCompletados = [...completados].sort((a, b) => getTimestamp(b) - getTimestamp(a));
+  const sortedCompletados = [...completados].sort((a, b) => {
+    const fa = getFechaVenta(a)||''; const fb = getFechaVenta(b)||'';
+    return fb.localeCompare(fa);
+  });
   cont.innerHTML=`<div class="res-tabla-wrap"><table class="data-table" style="width:100%">
     <thead><tr>
       <th>Cliente</th>
@@ -1636,15 +1667,14 @@ function renderTablaPeriodo(completados) {
       <th style="text-align:right">Precio venta</th>
       <th style="text-align:right">Ganancia</th>
       <th style="text-align:right">Margen</th>
-      <th>Pedido</th>
+      <th>Completado</th>
       <th>Entrega</th>
     </tr></thead>
     <tbody>`+sortedCompletados.map(p=>{
-      // NUEVO CÁLCULO PARA LA TABLA: Solo Electricidad y Mano de Obra
       const costo = p.piezas.reduce((s, pz) => s + (((pz.costeElec || 0) + (pz.costeMO || 0)) * pz.cantidad), 0);
       const gan = p.precioVenta - costo;
       const margen = p.precioVenta > 0 ? (gan / p.precioVenta * 100).toFixed(1) : 0;
-      
+      const fechaMostrar = p.fechaCompletado || p.fechaPedido || p.creado || '—';
       return `<tr>
         <td style="font-weight:500;white-space:nowrap">${p.cliente}</td>
         <td style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.desc||'—'}</td>
@@ -1653,7 +1683,7 @@ function renderTablaPeriodo(completados) {
         <td style="font-family:var(--mono);text-align:right;color:var(--accent);font-weight:600">${fmt(p.precioVenta)}</td>
         <td style="font-family:var(--mono);text-align:right;font-weight:600" class="${gan>=0?'td-pos':'td-neg'}">${fmt(gan)}</td>
         <td style="font-family:var(--mono);text-align:right;color:${parseFloat(margen)>=0?'var(--accent)':'var(--danger)'}">${margen}%</td>
-        <td style="font-family:var(--mono);color:var(--text3);white-space:nowrap">${p.fechaPedido||p.creado||'—'}</td>
+        <td style="font-family:var(--mono);color:${p.fechaCompletado?'var(--accent)':'var(--text3)'};white-space:nowrap">${fechaMostrar}</td>
         <td style="font-family:var(--mono);color:var(--text3);white-space:nowrap">${p.fechaEntrega||'—'}</td>
       </tr>`;
     }).join('')+'</tbody></table></div>';
