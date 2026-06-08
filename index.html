@@ -545,7 +545,7 @@ select option{background:var(--bg3)}
         <div class="sep"></div>
         <label class="fl">Electricidad ($/kWh)</label><input type="number" id="cfg-kwh" value="120" step="1" oninput="saveCfg()">
         <label class="fl">Mano de obra ($/hora)</label><input type="number" id="cfg-mo" value="500" step="50" oninput="saveCfg()">
-        <label class="fl">Margen (%)</label><input type="number" id="cfg-margen" value="30" step="5" oninput="saveCfg()">
+        <label class="fl">Margen (%)</label><input type="number" id="cfg-margen" value="100" step="5" oninput="saveCfg()">
         <label class="fl">Desperdicio (%)</label><input type="number" id="cfg-desperdicio" value="5" step="1" oninput="saveCfg()">
         <div class="sep"></div>
         <button class="btn btn-primary btn-sm" onclick="aplicarCfgCalc()">Aplicar a la calculadora</button>
@@ -700,7 +700,7 @@ let cfg={
   filamentos:[{nombre:'PLA Blanco',precio:17000},{nombre:'PLA Negro',precio:18000},{nombre:'PLA Rojo',precio:18500},{nombre:'PLA Azul',precio:18500},{nombre:'PETG Transparente',precio:22000},{nombre:'ABS Gris',precio:19000},{nombre:'TPU',precio:28000}],
   impresoras:[{nombre:'Bambu X1',watts:350,mant:200},{nombre:'Prusa MK4',watts:200,mant:150},{nombre:'Ender 3',watts:120,mant:80}],
   insumos:[{nombre:'Soporte/raft',precio:500},{nombre:'Adhesivo de cama',precio:300},{nombre:'Lijado',precio:800},{nombre:'Pintado',precio:1500},{nombre:'Empaque / envío',precio:700}],
-  kwh:120,mo:500,margen:30,desperdicio:5
+  kwh:120,mo:500,margen:100,desperdicio:5
 };
 const fmt=n=>'$'+Math.round(Number(n)).toLocaleString('es-AR');
 const formatH=s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return h>0?(m>0?`${h}h ${m}m`:`${h}h`):`${m}m`;};
