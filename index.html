@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Print3D Manager</title>
+<title>Manager3D</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
@@ -129,6 +129,9 @@ select option{background:var(--bg3)}
 .bib-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
 .bib-card:hover{border-color:var(--accent)}
 .bib-card.selected{border-color:var(--accent);background:var(--accentDim2)}
+.card.bib-selected{border-color:var(--accent);background:var(--accentDim2)}
+.version-row{display:grid;grid-template-columns:56px 1fr 1fr 24px;gap:6px;margin-bottom:6px;align-items:center}
+.version-row input,.version-row select{font-size:12px;padding:5px 6px}
 .bib-search{position:relative}
 .bib-search input{padding-left:32px}
 .bib-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
@@ -159,6 +162,14 @@ select option{background:var(--bg3)}
 .prod-control input::-webkit-outer-spin-button, .prod-control input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .prod-control input[type=number] { -moz-appearance: textfield; }
 .prod-status { font-size:11px; font-family:var(--mono); text-align:right; flex-grow:1; }
+.det-ver-row { display:grid; grid-template-columns:84px 1fr 1fr auto; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+.det-ver-row:last-child { border-bottom:none; }
+.det-ver-realizados { display:flex; align-items:center; gap:3px; }
+.det-ver-realizados input { width:38px; font-size:12px; padding:3px 4px; text-align:center; background:var(--bg2); border:1px solid var(--border); border-radius:4px; color:var(--text1); }
+.det-ver-realizados span { font-size:11px; color:var(--text3); font-family:var(--mono); white-space:nowrap; }
+.det-ver-badge { font-size:10px; font-family:var(--mono); padding:2px 6px; border-radius:10px; white-space:nowrap; font-weight:700; }
+.det-ver-badge.ok { background:rgba(0,200,100,.15); color:var(--accent); }
+.det-ver-badge.pend { background:rgba(255,180,0,.12); color:var(--warn); }
 .prod-status-faltan { color:var(--warn); }
 .prod-status-ok { color:var(--accent); font-weight:600; }
 </style>
@@ -172,7 +183,7 @@ select option{background:var(--bg3)}
     </svg>
   </div>
   <div style="text-align:center;">
-    <h1 style="font-family:var(--sans); font-size:24px; font-weight:600; color:var(--text); letter-spacing:-.5px; margin-bottom:6px;">Print3D Manager</h1>
+    <h1 style="font-family:var(--sans); font-size:24px; font-weight:600; color:var(--text); letter-spacing:-.5px; margin-bottom:6px;">Manager3D</h1>
     <p style="font-family:var(--sans); font-size:13px; color:var(--text2);">Ingresá con tu cuenta para sincronizar tus datos en la nube</p>
   </div>
   <button id="btn-login-google" class="btn btn-primary" style="font-size:14px; padding:10px 20px; display:flex; align-items:center; gap:10px; border-radius:var(--radius2); box-shadow:var(--shadow);">
@@ -192,7 +203,7 @@ select option{background:var(--bg3)}
       <polygon points="10,6 14,8 14,12 10,14 6,12 6,8"/>
     </svg>
   </div>
-  <span class="header-title">Print3D Manager</span>
+  <span class="header-title">Manager3D</span>
 </header>
 <div class="layout">
 <nav class="sidebar">
@@ -331,12 +342,15 @@ select option{background:var(--bg3)}
         <div class="r-row total"><span>Costo total</span><span id="r-total">$0</span></div>
         <div class="r-row price"><span>Precio venta</span><span id="r-precio">$0</span></div>
       </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:12px;justify-content:center" onclick="agregarPiezaAPedido()">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Agregar a pedido
-      </button>
-      <button class="btn" style="width:100%;margin-top:6px;justify-content:center" onclick="abrirModalGuardarBiblioteca()">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h9l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M7 4v5h6V4M7 13h6"/></svg>Guardar en biblioteca
-      </button>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="abrirModalGuardarBiblioteca()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h9l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M7 4v5h6V4M7 13h6"/></svg>Guardar en biblioteca
+        </button>
+        <button class="btn" style="flex:1;justify-content:center" onclick="agregarPiezaAPedido()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Agregar a pedido
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px;line-height:1.4">Guardar en biblioteca habilita versiones, colores y precio de venta editable por pieza. "Agregar a pedido" es para productos simples que no necesitás guardar.</div>
     </div>
   </div>
 </div>
@@ -526,6 +540,13 @@ select option{background:var(--bg3)}
       <span id="bib-count" style="font-size:12px;color:var(--text3);font-family:var(--mono)"></span>
     </div>
   </div>
+  <div class="card" id="bib-toolbar" style="display:none;padding:10px 16px;margin-bottom:12px;align-items:center;gap:12px;position:sticky;bottom:12px;z-index:30;border-color:var(--accent);background:var(--bg2);box-shadow:var(--shadow)">
+    <span id="bib-toolbar-count" style="font-size:13px;font-weight:500;flex:1"></span>
+    <button class="btn btn-sm" onclick="cancelarSeleccionBib()">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="abrirModalArmarPedido()">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:13px;height:13px"><path d="M10 4v12M4 10h12"/></svg>Crear pedido
+    </button>
+  </div>
   <div id="bib-page-lista"></div>
 </div>
 <div class="page" id="page-config">
@@ -535,6 +556,8 @@ select option{background:var(--bg3)}
     <div>
       <div class="card"><div class="card-title">Filamentos</div><div id="cfg-filamentos"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addFilamento()">+ Agregar</button></div>
       <div class="card"><div class="card-title">Impresoras</div><div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">Nombre · W · Mant $/h</div><div id="cfg-impresoras"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addImpresora()">+ Agregar</button></div>
+      <div class="card"><div class="card-title">Colores disponibles</div><div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">Usados al armar versiones de un pedido</div><div id="cfg-colores"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addColor()">+ Agregar</button></div>
+      <div class="card"><div class="card-title">Métodos de envío</div><div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">Opciones del desplegable de envío en cada pedido</div><div id="cfg-envios"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addMetodoEnvio()">+ Agregar</button></div>
     </div>
     <div>
       <div class="card"><div class="card-title">Insumos y accesorios</div><div id="cfg-insumos"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addInsumo()">+ Agregar</button></div>
@@ -591,8 +614,8 @@ select option{background:var(--bg3)}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
       <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Piezas / G-codes</div>
-      <button class="btn btn-primary btn-sm" onclick="irACalculadoraParaPedido()">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Agregar pieza
+      <button class="btn btn-primary btn-sm" onclick="agregarDesdeBiblioteca()">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Agregar producto
       </button>
     </div>
     <div id="det-piezas"></div>
@@ -606,16 +629,38 @@ select option{background:var(--bg3)}
       <div class="cost-line strong"><span>Costo total</span><span id="det-costo-total">$0</span></div>
       <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:12px">
         <div>
-          <label class="fl" style="margin-top:0">Precio de venta ($)</label>
-          <input type="number" id="det-precio-venta" placeholder="0" oninput="actualizarGanancia()">
+          <label class="fl" style="margin-top:0">Ganancia ($) <span style="color:var(--text3);text-transform:none">— venta menos costo total</span></label>
+          <input type="text" id="det-ganancia-box" readonly style="background:var(--bg);color:var(--text2);cursor:not-allowed">
         </div>
         <div style="text-align:right;padding-top:14px">
-          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Ganancia</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Precio de venta</div>
           <div id="det-ganancia" style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--accent)">$0</div>
+        </div>
+      </div>
+      <input type="hidden" id="det-precio-venta">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:10px">
+        <div>
+          <label class="fl" style="margin-top:0">Envío ($) <span style="color:var(--text3);text-transform:none">opcional, no se cuenta como venta</span></label>
+          <input type="number" id="det-envio" placeholder="0" oninput="actualizarGanancia()">
+        </div>
+        <div style="text-align:right;padding-top:10px">
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px">Total a abonar (c/envío)</div>
+          <div id="det-total-envio" style="font-size:28px;font-weight:800;font-family:var(--mono);color:var(--text)">$0</div>
         </div>
       </div>
     </div>
     <div class="sep"></div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Datos de envío</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div>
+        <label class="fl" style="margin-top:0">Método de envío</label>
+        <select id="det-metodo-envio"><option value="">— Sin especificar —</option></select>
+      </div>
+      <div>
+        <label class="fl" style="margin-top:0">Número de seguimiento</label>
+        <input type="text" id="det-num-seguimiento" placeholder="Ej: AR123456789">
+      </div>
+    </div>
     <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nota general del pedido</div>
     <textarea id="det-nota-general" placeholder="Ej: Envío por correo, abonó seña 50%, pagar con transferencia..." style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;outline:none;resize:vertical;min-height:70px;transition:border-color .15s;line-height:1.5" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
     <div class="modal-footer">
@@ -690,9 +735,54 @@ select option{background:var(--bg3)}
     </div>
   </div>
 </div>
+<div class="modal-overlay" id="modal-armar-pedido">
+  <div class="modal modal-wide">
+    <div class="modal-title">Armar pedido desde biblioteca</div>
+    <div class="modal-sub">Revisá cantidades y precios estimados antes de crear el pedido.</div>
+    <label class="fl">Pedido destino</label>
+    <select id="arp-destino" onchange="onDestinoArmarPedidoChange()"></select>
+    <div id="arp-destino-fijo-label" style="display:none;font-size:11px;color:var(--accent);font-family:var(--mono);margin-top:4px"></div>
+    <div id="arp-nuevo-datos" style="margin-top:4px">
+      <label class="fl">Cliente</label>
+      <input type="text" id="arp-cliente" placeholder="Nombre del cliente" list="lista-nombres-clientes">
+      <label class="fl">Descripción del proyecto</label>
+      <input type="text" id="arp-desc" placeholder="Ej: Pedido de figuras">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="fl">Fecha del pedido</label><input type="date" id="arp-fecha-pedido"></div>
+        <div><label class="fl">Fecha max. entrega</label><input type="date" id="arp-fecha-entrega"></div>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Productos seleccionados</div>
+    <div id="ap2-lista"></div>
+    <div class="sep"></div>
+    <div class="total-section">
+      <div class="cost-line strong"><span>Presupuesto estimado</span><span id="arp-presupuesto">$0</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+        <div>
+          <label class="fl" style="margin-top:0">Monto final ($)</label>
+          <input type="number" id="arp-monto-final" placeholder="0" oninput="onMontoFinalInput()">
+        </div>
+        <div>
+          <label class="fl" style="margin-top:0">Envío ($) <span style="color:var(--text3);text-transform:none">opcional</span></label>
+          <input type="number" id="arp-envio" placeholder="0">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="cancelarArmarPedido()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarArmarPedido()">Crear pedido</button>
+    </div>
+  </div>
+</div>
 <script>
 let pedidos=[], compras=[], biblioteca=[], clientes=[], editPedidoId=null, editCompraId=null, pedidoDetalleId=null, gcodeData=null, presupuestoActual=null;
 let _postCrearPedido=false;
+let bibSeleccionados=new Set();
+let pedidoObjetivoBib=null;
+let armarPedidoItems=[];
+let arpMontoFinalTocado=false;
+let _arpVerCounter=1;
 let _idCounter=1;
 const newId=()=>_idCounter++;
 const LS_PEDIDOS = 'p3d_pedidos', LS_COMPRAS = 'p3d_compras', LS_CFG = 'p3d_cfg', LS_COUNTER = 'p3d_counter', LS_BIB = 'p3d_bib', LS_CLIENTES= 'p3d_clientes'; 
@@ -700,6 +790,8 @@ let cfg={
   filamentos:[{nombre:'PLA Blanco',precio:17000},{nombre:'PLA Negro',precio:18000},{nombre:'PLA Rojo',precio:18500},{nombre:'PLA Azul',precio:18500},{nombre:'PETG Transparente',precio:22000},{nombre:'ABS Gris',precio:19000},{nombre:'TPU',precio:28000}],
   impresoras:[{nombre:'Bambu X1',watts:350,mant:200},{nombre:'Prusa MK4',watts:200,mant:150},{nombre:'Ender 3',watts:120,mant:80}],
   insumos:[{nombre:'Soporte/raft',precio:500},{nombre:'Adhesivo de cama',precio:300},{nombre:'Lijado',precio:800},{nombre:'Pintado',precio:1500},{nombre:'Empaque / envío',precio:700}],
+  colores:[{nombre:'Blanco',hex:'#f5f5f5'},{nombre:'Negro',hex:'#1a1a1a'},{nombre:'Rojo',hex:'#e53935'},{nombre:'Azul',hex:'#1e88e5'},{nombre:'Verde',hex:'#43a047'},{nombre:'Gris',hex:'#9e9e9e'},{nombre:'Amarillo',hex:'#fdd835'}],
+  metodosEnvio:['Correo Argentino','Andreani','Retiro en persona','Envío propio'],
   kwh:120,mo:500,margen:100,desperdicio:5
 };
 const fmt=n=>'$'+Math.round(Number(n)).toLocaleString('es-AR');
@@ -733,6 +825,13 @@ function navTo(page,el){
   if(page==='resumen')renderResumen();
   if(page==='compras'){renderCompras();updateComprasStats();}
   if(page==='biblioteca')renderBibliotecaPage();
+  if(page==='calc'){
+    document.getElementById('precio-kwh').value=cfg.kwh;
+    document.getElementById('mano-obra').value=cfg.mo;
+    document.getElementById('margen').value=cfg.margen;
+    document.getElementById('desperdicio').value=cfg.desperdicio;
+    calcular();
+  }
 }
 function dzOver(e){e.preventDefault();document.getElementById('drop-zone').classList.add('over');}
 function dzLeave(){document.getElementById('drop-zone').classList.remove('over');}
@@ -884,6 +983,8 @@ function resetGcode(){
   clearStatus();
 }
 function parsearGcode(text,nombre){
+  // Intentar primero detectar el formato multi-material (footer con filament_type;filament_colour;filament used [g] por herramienta)
+  if(intentarParsearGcodeMultiMaterial(text,nombre)) return;
   let gramos=null,tiempo=null,filamento=null;
   for(const line of text.split('\n')){
     if(gramos===null){const m=line.match(/filament\s+used\s*[=:]\s*([\d.]+)\s*g/i)||line.match(/;\s*filament_used\s*=\s*([\d.]+)/i);if(m)gramos=parseFloat(m[1]);}
@@ -900,6 +1001,44 @@ function parsearGcode(text,nombre){
     <div class="chip"><small>Tiempo</small><span>${tiempo!==null?formatH(tiempo*3600):'—'}</span></div>
   </div>`;
   document.getElementById('gcode-resultado').style.display='block';
+}
+function intentarParsearGcodeMultiMaterial(text,nombre){
+  // Formato compartido por BambuStudio/OrcaSlicer/AnycubicSlicerNext en .gcode plano (no .3mf):
+  // un bloque de comentarios al final con listas separadas por ";" (una entrada por herramienta/slot)
+  const mUsed = text.match(/;\s*filament used \[g\]\s*=\s*([0-9.,\s]+)/i);
+  const mType = text.match(/;\s*filament_type\s*=\s*([^\r\n]+)/i);
+  if(!mUsed || !mType) return false;
+  const tiposArr = mType[1].split(';').map(s=>s.trim()).filter(Boolean);
+  if(tiposArr.length<2) return false; // no es multi-herramienta, dejar que lo maneje el parser simple
+  const gramosArr = mUsed[1].split(',').map(s=>parseFloat(s.trim())||0);
+  const mColor = text.match(/;\s*filament_colour\s*=\s*([^\r\n]+)/i) || text.match(/;\s*extruder_colour\s*=\s*([^\r\n]+)/i);
+  const coloresArr = mColor ? mColor[1].split(';').map(s=>s.trim()) : [];
+  const mTiempo = text.match(/;\s*estimated printing time \(normal mode\)\s*=\s*([^\r\n]+)/i);
+  const horas = mTiempo ? (parseTiempoStr(mTiempo[1])||0) : 0;
+  const totalSeg = horas*3600;
+  const fils=[];
+  for(let i=0;i<tiposArr.length;i++){
+    const g = gramosArr[i]||0;
+    if(g<=0) continue; // solo herramientas realmente usadas
+    fils.push({id:String(i), type:tiposArr[i]||'PLA', color:coloresArr[i]||'#888888', usedG:g});
+  }
+  if(!fils.length) return false;
+  const matMap={};
+  fils.forEach(f=>{
+    const k=`${f.type}|${f.color}`;
+    if(!matMap[k])matMap[k]={type:f.type,color:f.color,totalG:0,precioKg:0};
+    matMap[k].totalG+=f.usedG;
+  });
+  Object.values(matMap).forEach(m=>{
+    const match=cfg.filamentos.find(f=>f.nombre.toLowerCase().includes(m.type.toLowerCase()));
+    m.precioKg=match?match.precio:(cfg.filamentos[0]?.precio||18000);
+  });
+  const placa={idx:'1',nombre,pred:totalSeg,fils,sel:true};
+  gcodeData={tipo:'bambu',placas:[placa],matMap,totalSeg,nombre};
+  const nM=Object.keys(matMap).length,tG=Object.values(matMap).reduce((s,m)=>s+m.totalG,0);
+  setStatus(`✓ G-code multi-material detectado · ${nM} material${nM>1?'es':''} · ${tG.toFixed(1)}g · ${formatH(totalSeg)}`,'success');
+  mostrarBambu();
+  return true;
 }
 const parseTiempoStr=str=>{const sh=str.match(/(\d+)\s*h/i),sm=str.match(/(\d+)\s*m/i),ss=str.match(/(\d+)\s*s/i);let t=0;if(sh)t+=parseInt(sh[1]);if(sm)t+=parseInt(sm[1])/60;if(ss)t+=parseInt(ss[1])/3600;if(!t){const mn=str.match(/(\d+)/);if(mn)t=parseInt(mn[1])/60;}return t||null;};
 function calcular(){
@@ -984,11 +1123,13 @@ function confirmarAgregarPieza(){
     costeMant:pz.costeMant||0, costeMO:pz.costeMO, horas:pz.horas,
     impresoraNombre:pz.impresoraNombre||null,
     costoUnitario: pz.total,
+    precioVenta: pz.precio||0,
     cantidad: pz.cantidad,
     elaborados: 0,
     notas:''
   };
   pedido.piezas.push(nuevaPieza);
+  recalcularVentaPedido(pedido);
   cerrarModal('modal-agregar-pieza');
   limpiarCalculadora();
   renderPedidos();updateStats();
@@ -1060,6 +1201,14 @@ function cambiarEstadoPedidoRapido(e, id, nuevoEstado) {
   }
   mostrarToast('Estado actualizado a: ' + badgeText(nuevoEstado));
 }
+function agregarDesdeBiblioteca(){
+  if(!biblioteca.length){ mostrarToast('No hay productos guardados en la Biblioteca todavía.', 'error'); return; }
+  pedidoObjetivoBib = pedidoDetalleId;
+  cerrarModal('modal-detalle');
+  bibSeleccionados.clear();
+  navTo('biblioteca', document.querySelectorAll('.nav-item')[5]);
+  mostrarToast('Seleccioná los productos y presioná "Crear pedido" para agregarlos a este pedido.', 'info');
+}
 function abrirDetallePedido(id){
   pedidoDetalleId=id;
   const p=pedidos.find(x=>x.id===id);if(!p)return;
@@ -1069,7 +1218,13 @@ function abrirDetallePedido(id){
   if(p.fechaEntrega)metaStr+=` · Entrega: ${p.fechaEntrega}`+(esUrgente(p)?' ⚠':'');
   document.getElementById('det-meta').textContent=metaStr;
   document.getElementById('det-precio-venta').value=p.precioVenta||'';
+  document.getElementById('det-envio').value=p.envio||'';
   document.getElementById('det-nota-general').value=p.notaGeneral||'';
+  const selMetodo=document.getElementById('det-metodo-envio');
+  if(selMetodo){
+    selMetodo.innerHTML='<option value="">— Sin especificar —</option>'+(cfg.metodosEnvio||[]).map(m=>`<option value="${m}" ${m===p.metodoEnvio?'selected':''}>${m}</option>`).join('');
+  }
+  document.getElementById('det-num-seguimiento').value=p.numeroSeguimiento||'';
   renderDetallePiezas(p);renderDetalleInsumos(p);actualizarTotalDetalle(p);
   document.getElementById('modal-detalle').classList.add('open');
 }
@@ -1086,6 +1241,8 @@ function renderDetallePiezas(p){
   p.piezas.forEach(pz => {
      if(pz.elaborados === undefined) pz.elaborados = 0;
      if(pz.completada === undefined) pz.completada = false;
+     // init realizados on each version
+     if(pz.versiones) pz.versiones.forEach(v=>{ if(v.realizados===undefined) v.realizados=0; });
   });
   const totalPiezas = p.piezas.reduce((t, pz) => t + pz.cantidad, 0);
   const totalHechas = p.piezas.reduce((t, pz) => t + pz.elaborados, 0);
@@ -1103,38 +1260,145 @@ function renderDetallePiezas(p){
       pz.completada = (pz.elaborados >= pz.cantidad);
       const costoTotalPieza = (pz.costoUnitario || pz.total) * pz.cantidad;
       const faltan = pz.cantidad - pz.elaborados;
+      if(!pz.versiones) pz.versiones = [];
+      const tieneVersiones = pz.cantidad > 1;
+
+      // Status badge
       let prodStatusHTML = '';
-      if(pz.completada) {
-         prodStatusHTML = `<div class="prod-status prod-status-ok">✓ COMPLETADO</div>`;
-      } else if (faltan > 0) {
-         prodStatusHTML = `<div class="prod-status prod-status-faltan">FALTAN ${faltan}</div>`;
-      } else {
-         prodStatusHTML = `<div class="prod-status"></div>`;
+      if(pz.completada) prodStatusHTML = `<div class="prod-status prod-status-ok">✓ COMPLETADO</div>`;
+      else if(faltan > 0) prodStatusHTML = `<div class="prod-status prod-status-faltan">FALTAN ${faltan}</div>`;
+      else prodStatusHTML = `<div class="prod-status"></div>`;
+
+      // Versiones editables
+      let versionesHTML = '';
+      if(tieneVersiones) {
+        // Ensure all versions have IDs (migration for older saved data)
+        pz.versiones.forEach(v=>{ if(v.id===undefined) v.id=_arpVerCounter++; if(v.realizados===undefined) v.realizados=0; });
+        const rows = pz.versiones.map(v => {
+          const hex = colorHexPorNombre(v.color);
+          const dot = hex ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${hex};border:1px solid var(--border);flex-shrink:0;margin-right:3px"></span>` : '';
+          const vReal = v.realizados||0;
+          const vDone = vReal >= v.cantidad;
+          const badge = vDone
+            ? `<span class="det-ver-badge ok">✓ LISTO</span>`
+            : `<span class="det-ver-badge pend">${vReal}/${v.cantidad}</span>`;
+          const colorOpts = (cfg.colores||[]).map(c=>`<option value="${c.nombre}" ${c.nombre===v.color?'selected':''}>${c.nombre}</option>`).join('');
+          return `<div class="det-ver-row">
+            <div class="det-ver-realizados">
+              <input type="number" value="${vReal}" min="0" max="${v.cantidad}"
+                onchange="actualizarVersionDetallePieza(${p.id},${pz.id},${v.id},'realizados',this.value)">
+              <span>/ <input type="number" value="${v.cantidad}" min="1" max="${pz.cantidad - pz.versiones.filter(x=>x.id!==v.id).reduce((s,x)=>s+x.cantidad,0)}" style="width:34px;font-size:11px;padding:2px 3px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text1);text-align:center"
+                onchange="actualizarVersionDetallePieza(${p.id},${pz.id},${v.id},'cantidad',this.value)"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:3px">
+              ${dot}
+              <select style="flex:1;font-size:11px;padding:3px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text1)"
+                onchange="actualizarVersionDetallePieza(${p.id},${pz.id},${v.id},'color',this.value)">
+                <option value="">Sin color</option>
+                ${colorOpts}
+              </select>
+            </div>
+            <input type="text" value="${v.comentario||''}" placeholder="Comentario..."
+              style="font-size:11px;padding:3px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text1)"
+              onchange="actualizarVersionDetallePieza(${p.id},${pz.id},${v.id},'comentario',this.value)">
+            <div style="display:flex;gap:4px;align-items:center">
+              ${badge}
+              <button class="btn btn-danger btn-sm" style="padding:1px 5px;font-size:11px" onclick="quitarVersionEnDetalle(${p.id},${pz.id},${v.id})">✕</button>
+            </div>
+          </div>`;
+        }).join('');
+        const sumReal = pz.versiones.reduce((s,v)=>s+(v.realizados||0),0);
+        const sumAsignado = pz.versiones.reduce((s,v)=>s+v.cantidad,0);
+        const faltanAsignar = pz.cantidad - sumAsignado;
+        versionesHTML = `<div style="margin-top:10px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+            <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono)">Versiones</span>
+            <span style="font-size:11px;font-family:var(--mono);color:var(--text2)">Realizadas: <strong>${sumReal}/${pz.cantidad}</strong></span>
+          </div>
+          <div style="margin-bottom:6px;font-size:11px;font-family:var(--mono);color:${faltanAsignar===0?'var(--accent)':'var(--warn)'}">${faltanAsignar===0?'✓ Cantidades asignadas completas':'⚠ Faltan asignar '+faltanAsignar+' unidad(es) entre versiones'}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;display:grid;grid-template-columns:84px 1fr 1fr auto;gap:6px">
+            <span>Real / Total</span><span>Color</span><span>Comentario</span><span></span>
+          </div>
+          ${rows}
+          ${faltanAsignar>0?`<button class="btn btn-sm" style="margin-top:8px;width:100%;font-size:11px" onclick="agregarVersionEnDetalle(${p.id},${pz.id})">+ Agregar versión (faltan ${faltanAsignar})</button>`:''}
+        </div>`;
       }
+
+      // Precio estimado (from library-sourced pieces)
+      const precioEstHTML = pz.precioEstimado
+        ? `<div style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-top:2px">Precio est. ${fmt(pz.precioEstimado)}/u</div>`
+        : '';
+
+      // Precio de venta: editable, prominent (top), sums up to the pedido's total venta
+      const precioVentaUnit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado||0);
+      const ventaSubtotal = precioVentaUnit * pz.cantidad;
+
+      // Costo: read-only note, shown at the bottom of the piece
+      const costoNotaHTML = `<div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:6px">Costo: ${fmt(costoTotalPieza)}</div>`;
+
+      // prod-control: if real versiones exist, show derived elaborados as read-only; otherwise editable manually
+      const tieneVersionesReal = pz.versiones.length > 0;
+      const controlHTML = tieneVersionesReal
+        ? `<div class="prod-control">
+             <label>Cantidad</label>
+             <input type="number" value="${pz.cantidad}" min="1" onchange="actualizarProduccion(${p.id}, ${pz.id}, 'cantidad', this.value)">
+             <label>Realizados</label>
+             <span style="font-family:var(--mono);font-size:13px;font-weight:600;padding:0 4px">${pz.elaborados}/${pz.cantidad}</span>
+             ${prodStatusHTML}
+           </div>`
+        : `<div class="prod-control">
+             <label>Cantidad</label>
+             <input type="number" value="${pz.cantidad}" min="1" onchange="actualizarProduccion(${p.id}, ${pz.id}, 'cantidad', this.value)">
+             <label>Elaborados</label>
+             <input type="number" value="${pz.elaborados}" min="0" max="${pz.cantidad}" onchange="actualizarProduccion(${p.id}, ${pz.id}, 'elaborados', this.value)">
+             ${prodStatusHTML}
+           </div>`;
+
       return `<div class="pieza-card${pz.completada?' completada':''}">
         <div class="pieza-header">
           <div style="flex:1;min-width:0">
             <div style="font-weight:500;font-size:13px;${pz.completada?'text-decoration:line-through;color:var(--text3)':''}">${pz.nombre}</div>
             ${pz.archivoNombre?`<div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px">${pz.archivoNombre}</div>`:''}
             ${pz.impresoraNombre?`<div style="font-size:11px;font-family:var(--mono);color:var(--text3);margin-top:4px">🖨 ${pz.impresoraNombre}</div>`:''}
+            ${precioEstHTML}
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-            <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent)">${fmt(costoTotalPieza)}</span>
+            <input type="number" value="${ventaSubtotal}" min="0" step="0.01" title="Precio de venta (editable)"
+              style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);background:transparent;border:none;text-align:right;width:90px;padding:2px 0"
+              onchange="actualizarPrecioVentaPieza(${p.id},${pz.id},this.value)">
             <button class="btn btn-danger btn-sm" onclick="eliminarPieza(${p.id},${pz.id})">✕</button>
           </div>
         </div>
-        <div class="prod-control">
-           <label>Cantidad</label>
-           <input type="number" value="${pz.cantidad}" min="1" onchange="actualizarProduccion(${p.id}, ${pz.id}, 'cantidad', this.value)">
-           <label>Elaborados</label>
-           <input type="number" value="${pz.elaborados}" min="0" max="${pz.cantidad}" onchange="actualizarProduccion(${p.id}, ${pz.id}, 'elaborados', this.value)">
-           ${prodStatusHTML}
-        </div>
+        ${controlHTML}
+        ${versionesHTML}
+        ${costoNotaHTML}
         <div style="margin-top:8px">
           <input type="text" class="pieza-nota-input" placeholder="Añadir nota a esta pieza (color, detalle...)" value="${pz.notas||''}" onchange="actualizarNotaPieza(${p.id}, ${pz.id}, this.value)">
         </div>
       </div>`
     }).join('');
+}
+function recalcularVentaPedido(p){
+  if(!p) return;
+  p.precioVenta = p.piezas.reduce((s,pz)=>{
+    const unit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado||0);
+    return s + unit*pz.cantidad;
+  },0);
+  const inp = document.getElementById('det-precio-venta');
+  if(inp) inp.value = p.precioVenta;
+}
+function actualizarPrecioVentaPieza(pedidoId, piezaId, valor){
+  const p = pedidos.find(x=>x.id===pedidoId); if(!p) return;
+  const pz = p.piezas.find(x=>x.id===piezaId); if(!pz) return;
+  const totalIngresado = Math.max(0, parseFloat(valor)||0);
+  // The input represents the piece's total sale amount; store as per-unit internally
+  pz.precioVenta = pz.cantidad > 0 ? totalIngresado / pz.cantidad : totalIngresado;
+  recalcularVentaPedido(p);
+  guardarEstado();
+  renderDetallePiezas(p);
+  actualizarTotalDetalle(p);
+  renderPedidos();
+  updateStats();
 }
 function actualizarProduccion(pedidoId, piezaId, campo, valor) {
     const p = pedidos.find(x => x.id === pedidoId); if (!p) return;
@@ -1146,15 +1410,19 @@ function actualizarProduccion(pedidoId, piezaId, campo, valor) {
         if(pz.elaborados > pz.cantidad) {
             pz.elaborados = pz.cantidad;
         }
+        recalcularVentaPedido(p);
     } else if (campo === 'elaborados') {
         pz.elaborados = Math.max(0, Math.min(val, pz.cantidad));
     }
     pz.completada = (pz.elaborados >= pz.cantidad);
     const todasCompletadas = p.piezas.every(item => item.elaborados >= item.cantidad);
+    const algunaEmpezada = p.piezas.some(item => item.elaborados > 0);
     if(todasCompletadas && p.estado !== 'completado' && p.estado !== 'cancelado') {
         p.estado = 'listo';
         mostrarToast(`✓ Todas las piezas listas. Pedido "${p.cliente}" pasó a "Listo para entregar"`, 'success');
-    } else if (!todasCompletadas && p.estado === 'listo') {
+    } else if(!todasCompletadas && p.estado === 'listo') {
+        p.estado = 'progreso';
+    } else if(!todasCompletadas && algunaEmpezada && p.estado === 'pendiente') {
         p.estado = 'progreso';
     }
     guardarEstado();
@@ -1166,6 +1434,73 @@ function actualizarProduccion(pedidoId, piezaId, campo, valor) {
     document.getElementById('det-meta').textContent = metaStr;
     renderPedidos();
     updateStats();
+}
+function actualizarVersionDetallePieza(pedidoId, piezaId, verId, campo, valor) {
+  const p = pedidos.find(x=>x.id===pedidoId); if(!p) return;
+  const pz = p.piezas.find(x=>x.id===piezaId); if(!pz||!pz.versiones) return;
+  // verId is passed as number from template (no quotes), === works
+  const v = pz.versiones.find(x=>x.id===verId); if(!v) return;
+  const needsRerender = campo==='realizados' || campo==='cantidad';
+  if(campo==='realizados') {
+    v.realizados = Math.max(0, Math.min(parseInt(valor)||0, v.cantidad));
+    pz.elaborados = pz.versiones.reduce((s,ver)=>s+(ver.realizados||0), 0);
+    pz.completada = (pz.elaborados >= pz.cantidad);
+    const todasCompletadas = p.piezas.every(item=>item.elaborados>=item.cantidad);
+    const algunaEmpezada = p.piezas.some(item=>item.elaborados>0);
+    if(todasCompletadas && p.estado!=='completado' && p.estado!=='cancelado') {
+      p.estado='listo';
+      mostrarToast(`✓ Todas las piezas listas. Pedido "${p.cliente}" pasó a "Listo para entregar"`, 'success');
+    } else if(!todasCompletadas && p.estado==='listo') {
+      p.estado='progreso';
+    } else if(!todasCompletadas && algunaEmpezada && p.estado==='pendiente') {
+      p.estado='progreso';
+    }
+  } else if(campo==='cantidad') {
+    const otras = pz.versiones.filter(x=>x.id!==verId).reduce((s,x)=>s+x.cantidad,0);
+    const maxPermitido = Math.max(1, pz.cantidad - otras);
+    let val = parseInt(valor)||1;
+    v.cantidad = Math.max(1, Math.min(val, maxPermitido));
+    // clamp realizados to new cantidad
+    if(v.realizados > v.cantidad) v.realizados = v.cantidad;
+    pz.elaborados = pz.versiones.reduce((s,ver)=>s+(ver.realizados||0), 0);
+    pz.completada = (pz.elaborados >= pz.cantidad);
+  } else if(campo==='color') {
+    v.color = valor;
+  } else if(campo==='comentario') {
+    v.comentario = valor;
+  }
+  guardarEstado();
+  if(needsRerender) {
+    renderDetallePiezas(p);
+    actualizarTotalDetalle(p);
+    let metaStr = `${p.desc||'Sin descripción'} · ${badgeText(p.estado)}`;
+    if(p.fechaPedido) metaStr += ` · Pedido: ${p.fechaPedido}`;
+    if(p.fechaEntrega) metaStr += ` · Entrega: ${p.fechaEntrega}` + (esUrgente(p)?' ⚠':'');
+    document.getElementById('det-meta').textContent = metaStr;
+    renderPedidos(); updateStats();
+  }
+}
+function agregarVersionEnDetalle(pedidoId, piezaId) {
+  const p = pedidos.find(x=>x.id===pedidoId); if(!p) return;
+  const pz = p.piezas.find(x=>x.id===piezaId); if(!pz) return;
+  if(!pz.versiones) pz.versiones = [];
+  const asignado = pz.versiones.reduce((s,v)=>s+v.cantidad,0);
+  const restante = pz.cantidad - asignado;
+  if(restante<=0) return;
+  pz.versiones.push({id:_arpVerCounter++, cantidad:restante, color:'', comentario:'', realizados:0});
+  guardarEstado();
+  renderDetallePiezas(p);
+}
+function quitarVersionEnDetalle(pedidoId, piezaId, verId) {
+  const p = pedidos.find(x=>x.id===pedidoId); if(!p) return;
+  const pz = p.piezas.find(x=>x.id===piezaId); if(!pz||!pz.versiones) return;
+  pz.versiones = pz.versiones.filter(v=>v.id!==verId);
+  pz.elaborados = pz.versiones.reduce((s,v)=>s+(v.realizados||0), 0);
+  pz.completada = (pz.elaborados >= pz.cantidad);
+  // if no versions left, keep the array but empty (user can add more)
+  guardarEstado();
+  renderDetallePiezas(p);
+  actualizarTotalDetalle(p);
 }
 function renderDetalleInsumos(p){
   const cont=document.getElementById('det-insumos');
@@ -1189,6 +1524,7 @@ function eliminarPieza(pedidoId,piezaId){
   if(todasCompletadas && p.estado !== 'completado' && p.estado !== 'cancelado') {
       p.estado = 'listo';
   }
+  recalcularVentaPedido(p);
   renderDetallePiezas(p);actualizarTotalDetalle(p);renderPedidos();updateStats();
 }
 function actualizarTotalDetalle(p){
@@ -1198,18 +1534,28 @@ function actualizarTotalDetalle(p){
   document.querySelectorAll('.det-ins-check').forEach(cb=>{if(cb.checked){const qty=parseFloat(cb.closest('.insumo-row').querySelector('.det-ins-qty')?.value||1);costoIns+=(parseFloat(cb.dataset.precio)||0)*qty;}});
   const costoTotal=costoPiezas+costoIns;
   const precioVenta=parseFloat(document.getElementById('det-precio-venta')?.value||0)||0;
+  const envioVal=parseFloat(document.getElementById('det-envio')?.value||0)||0;
   const ganancia=precioVenta-costoTotal;
   document.getElementById('det-costo-piezas').textContent=fmt(costoPiezas);
   document.getElementById('det-costo-insumos').textContent=fmt(costoIns);
   document.getElementById('det-costo-total').textContent=fmt(costoTotal);
+  // Big bold spot now shows total venta (precio de venta)
   const el=document.getElementById('det-ganancia');
-  el.textContent=fmt(ganancia);el.style.color=ganancia>=0?'var(--accent)':'var(--danger)';
+  el.textContent=fmt(precioVenta);
+  // Ganancia now lives in the readonly box, colored by sign
+  const ganBox=document.getElementById('det-ganancia-box');
+  if(ganBox){ ganBox.value=fmt(ganancia); ganBox.style.color = ganancia>=0?'var(--accent)':'var(--danger)'; }
+  const telEl=document.getElementById('det-total-envio');
+  if(telEl) telEl.textContent=fmt(precioVenta+envioVal);
 }
 function actualizarGanancia(){const p=pedidos.find(x=>x.id===pedidoDetalleId);actualizarTotalDetalle(p);}
 function guardarDetalle(){
   const p=pedidos.find(x=>x.id===pedidoDetalleId);if(!p)return;
   p.precioVenta=parseFloat(document.getElementById('det-precio-venta').value)||0;
+  p.envio=parseFloat(document.getElementById('det-envio').value)||0;
   p.notaGeneral=document.getElementById('det-nota-general').value||'';
+  p.metodoEnvio=document.getElementById('det-metodo-envio')?.value||'';
+  p.numeroSeguimiento=document.getElementById('det-num-seguimiento')?.value||'';
   p.insumos=[];
   document.querySelectorAll('.det-ins-check').forEach(cb=>{if(cb.checked){const qty=parseFloat(cb.closest('.insumo-row').querySelector('.det-ins-qty')?.value||1);p.insumos.push({nombre:cb.dataset.nombre,precio:parseFloat(cb.dataset.precio),qty});}});
   cerrarModal('modal-detalle');renderPedidos();updateStats();
@@ -1408,6 +1754,16 @@ function renderConfig(){
   document.getElementById('cfg-filamentos').innerHTML=cfg.filamentos.map((f,i)=>`<div class="cfg-row"><input value="${f.nombre}" onchange="cfg.filamentos[${i}].nombre=this.value;refreshSelects()"><input type="number" value="${f.precio}" onchange="cfg.filamentos[${i}].precio=parseFloat(this.value)||0;refreshSelects()"><button class="btn btn-danger btn-sm" onclick="cfg.filamentos.splice(${i},1);renderConfig();refreshSelects()">✕</button></div>`).join('');
   document.getElementById('cfg-impresoras').innerHTML=cfg.impresoras.map((imp,i)=>`<div style="display:grid;grid-template-columns:1fr 64px 74px auto;gap:6px;align-items:center;margin-bottom:8px"><input value="${imp.nombre}" onchange="cfg.impresoras[${i}].nombre=this.value;refreshSelects()" placeholder="Nombre"><input type="number" value="${imp.watts}" onchange="cfg.impresoras[${i}].watts=parseFloat(this.value)||0;refreshSelects()" placeholder="W" title="Watts" style="font-size:12px"><input type="number" value="${imp.mant||0}" onchange="cfg.impresoras[${i}].mant=parseFloat(this.value)||0;guardarEstado()" placeholder="$/h" title="Mant $/hora" style="font-size:12px"><button class="btn btn-danger btn-sm" onclick="cfg.impresoras.splice(${i},1);renderConfig();refreshSelects()">✕</button></div>`).join('');
   document.getElementById('cfg-insumos').innerHTML=cfg.insumos.map((ins,i)=>`<div class="cfg-row"><input value="${ins.nombre}" onchange="cfg.insumos[${i}].nombre=this.value;refreshInsumos()"><input type="number" value="${ins.precio}" onchange="cfg.insumos[${i}].precio=parseFloat(this.value)||0;refreshInsumos()"><button class="btn btn-danger btn-sm" onclick="cfg.insumos.splice(${i},1);renderConfig();refreshInsumos()">✕</button></div>`).join('');
+  const colCont=document.getElementById('cfg-colores');
+  if(colCont){
+    cfg.colores=cfg.colores||[];
+    colCont.innerHTML=cfg.colores.map((c,i)=>`<div class="cfg-row" style="grid-template-columns:1fr 46px auto"><input value="${c.nombre}" oninput="cfg.colores[${i}].nombre=this.value;guardarEstado()"><input type="color" value="${c.hex||'#cccccc'}" style="padding:2px;height:34px" oninput="cfg.colores[${i}].hex=this.value;guardarEstado()"><button class="btn btn-danger btn-sm" onclick="cfg.colores.splice(${i},1);renderConfig();guardarEstado()">✕</button></div>`).join('');
+  }
+  const envCont=document.getElementById('cfg-envios');
+  if(envCont){
+    cfg.metodosEnvio=cfg.metodosEnvio||[];
+    envCont.innerHTML=cfg.metodosEnvio.map((m,i)=>`<div class="cfg-row" style="grid-template-columns:1fr auto"><input value="${m}" oninput="cfg.metodosEnvio[${i}]=this.value;guardarEstado()"><button class="btn btn-danger btn-sm" onclick="cfg.metodosEnvio.splice(${i},1);renderConfig();guardarEstado()">✕</button></div>`).join('');
+  }
   document.getElementById('cfg-kwh').value=cfg.kwh;document.getElementById('cfg-mo').value=cfg.mo;document.getElementById('cfg-margen').value=cfg.margen;document.getElementById('cfg-desperdicio').value=cfg.desperdicio;
   const defSel=document.getElementById('cfg-impresora-default');
   if(defSel){defSel.innerHTML='<option value="">— Ninguna —</option>'+cfg.impresoras.map((imp,i)=>`<option value="${i}" ${String(cfg.impresoraDefault)===String(i)?'selected':''}>${imp.nombre}</option>`).join('');} 
@@ -1420,10 +1776,12 @@ function saveCfg(){
   const defSel=document.getElementById('cfg-impresora-default');
   if(defSel)cfg.impresoraDefault=defSel.value;
 }
-function aplicarCfgCalc(){document.getElementById('precio-kwh').value=cfg.kwh;document.getElementById('mano-obra').value=cfg.mo;document.getElementById('margen').value=cfg.margen;calcular();navTo('calc',document.querySelectorAll('.nav-item')[3]);}
+function aplicarCfgCalc(){document.getElementById('precio-kwh').value=cfg.kwh;document.getElementById('mano-obra').value=cfg.mo;document.getElementById('margen').value=cfg.margen;document.getElementById('desperdicio').value=cfg.desperdicio;calcular();navTo('calc',document.querySelectorAll('.nav-item')[3]);}
 function addFilamento(){cfg.filamentos.push({nombre:'Nuevo filamento',precio:18000});renderConfig();refreshSelects();}
 function addImpresora(){cfg.impresoras.push({nombre:'Nueva impresora',watts:150,mant:100});renderConfig();refreshSelects();}
 function addInsumo(){cfg.insumos.push({nombre:'Nuevo insumo',precio:500});renderConfig();refreshInsumos();}
+function addColor(){cfg.colores=cfg.colores||[];cfg.colores.push({nombre:'Nuevo color',hex:'#cccccc'});renderConfig();guardarEstado();}
+function addMetodoEnvio(){cfg.metodosEnvio=cfg.metodosEnvio||[];cfg.metodosEnvio.push('Nuevo método');renderConfig();guardarEstado();}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 let chartVentas = null;
 function renderResumen() {
@@ -2130,15 +2488,19 @@ function renderBibliotecaPage() {
   if (countEl) countEl.textContent = `${lista.length} producto${lista.length!==1?'s':''}`;
   if (!lista.length) {
     cont.innerHTML = `<div class="card"><div class="bib-empty">${biblioteca.length?'Sin resultados para esa búsqueda.':'La biblioteca está vacía.<br>Calculá un producto y guardalo con el botón "Guardar en biblioteca".'}</div></div>`;
+    actualizarBibToolbar();
     return;
   }
   cont.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">` +
     lista.map(p=>`
-    <div class="card" style="margin-bottom:0">
+    <div class="card${bibSeleccionados.has(p.id)?' bib-selected':''}" style="margin-bottom:0">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:14px;margin-bottom:2px">${p.nombre}</div>
-          ${p.desc?`<div style="font-size:12px;color:var(--text2)">${p.desc}</div>`:''}
+        <div style="display:flex;gap:8px;flex:1;min-width:0">
+          <input type="checkbox" style="width:auto;margin-top:3px;accent-color:var(--accent);cursor:pointer;flex-shrink:0" ${bibSeleccionados.has(p.id)?'checked':''} onchange="toggleBibSeleccion(${p.id}, this.checked)" title="Seleccionar para armar pedido">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px;margin-bottom:2px">${p.nombre}</div>
+            ${p.desc?`<div style="font-size:12px;color:var(--text2)">${p.desc}</div>`:''}
+          </div>
         </div>
         <div style="display:flex;align-items:center;gap:4px;margin-left:8px;flex-shrink:0">
           <span style="font-size:11px;background:var(--bg3);border:1px solid var(--border);padding:2px 8px;border-radius:20px;font-family:var(--mono);white-space:nowrap">${p.cat||'General'}</span>
@@ -2159,6 +2521,286 @@ function renderBibliotecaPage() {
       </div>
       <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:6px;text-align:right">Guardado: ${p.fechaGuardado||'—'}</div>
     </div>`).join('') + '</div>';
+  actualizarBibToolbar();
+}
+function toggleBibSeleccion(id, checked){
+  if(checked) bibSeleccionados.add(id); else bibSeleccionados.delete(id);
+  actualizarBibToolbar();
+}
+function actualizarBibToolbar(){
+  const bar = document.getElementById('bib-toolbar');
+  if(!bar) return;
+  const n = bibSeleccionados.size;
+  if(n>0){
+    bar.style.display='flex';
+    document.getElementById('bib-toolbar-count').textContent = `${n} producto${n>1?'s':''} seleccionado${n>1?'s':''}`;
+  } else {
+    bar.style.display='none';
+  }
+}
+function cancelarSeleccionBib(){
+  bibSeleccionados.clear();
+  pedidoObjetivoBib = null;
+  renderBibliotecaPage();
+}
+function coloresOptionsHTML(seleccionado){
+  const cols = cfg.colores||[];
+  let html = '<option value="">— Sin color —</option>';
+  html += cols.map(c=>`<option value="${c.nombre}" ${c.nombre===seleccionado?'selected':''}>${c.nombre}</option>`).join('');
+  return html;
+}
+function colorHexPorNombre(nombre){
+  const c = (cfg.colores||[]).find(x=>x.nombre===nombre);
+  return c?.hex || '#8b92a8';
+}
+function abrirModalArmarPedido(){
+  if(!bibSeleccionados.size){ mostrarToast('Seleccioná al menos un producto.', 'error'); return; }
+  const ids = biblioteca.filter(p=>bibSeleccionados.has(p.id)).map(p=>p.id);
+  armarPedidoItems = ids.map(id=>{
+    const prod = biblioteca.find(p=>p.id===id);
+    if(!prod) return null;
+    const cantidad = prod.cantidad||1;
+    return {
+      prodId: id,
+      nombre: prod.nombre,
+      cantidad,
+      precioEstimado: prod.precioSugUnitario || prod.costoUnitario || 0,
+      versiones: cantidad>1 ? [{id:_arpVerCounter++, cantidad, color:'', comentario:''}] : []
+    };
+  }).filter(Boolean);
+  arpMontoFinalTocado = false;
+  document.getElementById('arp-envio').value='';
+  document.getElementById('arp-cliente').value='';
+  document.getElementById('arp-desc').value='';
+  document.getElementById('arp-fecha-pedido').value=new Date().toISOString().slice(0,10);
+  document.getElementById('arp-fecha-entrega').value='';
+  const pedidosActivos = pedidos.filter(p=>p.estado!=='cancelado'&&p.estado!=='completado');
+  const sel = document.getElementById('arp-destino');
+  sel.innerHTML = '<option value="nuevo">+ Crear pedido nuevo</option>' +
+    pedidosActivos.map(p=>`<option value="${p.id}">${p.cliente} — ${p.desc||'Sin descripción'} [${badgeText(p.estado)}]</option>`).join('');
+  const destinoFijo = pedidos.find(p=>p.id===pedidoObjetivoBib && p.estado!=='cancelado'&&p.estado!=='completado');
+  const destinoLabel = document.getElementById('arp-destino-fijo-label');
+  if(destinoFijo){
+    sel.value = String(destinoFijo.id);
+    sel.disabled = true;
+    if(destinoLabel){ destinoLabel.style.display='block'; destinoLabel.textContent = `📦 Agregando productos al pedido de "${destinoFijo.cliente}" — ${destinoFijo.desc||'sin descripción'}`; }
+  } else {
+    sel.value='nuevo';
+    sel.disabled = false;
+    if(destinoLabel) destinoLabel.style.display='none';
+  }
+  onDestinoArmarPedidoChange();
+  renderArmarPedidoLista();
+  document.getElementById('modal-armar-pedido').classList.add('open');
+}
+function onDestinoArmarPedidoChange(){
+  const v = document.getElementById('arp-destino').value;
+  document.getElementById('arp-nuevo-datos').style.display = v==='nuevo' ? 'block' : 'none';
+}
+function calcularTotalArmarPedido(){
+  return armarPedidoItems.reduce((s,it)=>s+(it.cantidad*it.precioEstimado),0);
+}
+function actualizarTotalesArmarPedido(){
+  const total = calcularTotalArmarPedido();
+  const pEl = document.getElementById('arp-presupuesto');
+  if(pEl) pEl.textContent = fmt(total);
+  const mEl = document.getElementById('arp-monto-final');
+  if(mEl && !arpMontoFinalTocado) mEl.value = Math.round(total);
+}
+function renderArmarPedidoLista(){
+  const cont = document.getElementById('ap2-lista');
+  if(!armarPedidoItems.length){
+    cont.innerHTML = '<div class="empty">No hay productos seleccionados.</div>';
+    actualizarTotalesArmarPedido();
+    return;
+  }
+  cont.innerHTML = armarPedidoItems.map((it,idx)=>{
+    const subtotal = it.cantidad*it.precioEstimado;
+    const asignado = it.versiones.reduce((s,v)=>s+v.cantidad,0);
+    const restante = it.cantidad - asignado;
+    let versionesHTML='';
+    if(it.cantidad>1){
+      versionesHTML = `<div style="background:rgba(255,255,255,.03);border:1px dashed var(--border2);border-radius:8px;padding:10px;margin-top:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Versiones</span>
+          <span style="font-size:11px;font-family:var(--mono);color:${restante===0?'var(--accent)':'var(--warn)'}">${restante===0?'✓ Completo':'Faltan asignar '+restante}</span>
+        </div>
+        ${it.versiones.map(v=>`<div class="version-row">
+          <input type="number" min="1" max="${it.cantidad}" value="${v.cantidad}" onchange="onVersionCantidadChange(${idx},${v.id},this.value)">
+          <select onchange="onVersionColorChange(${idx},${v.id},this.value)">${coloresOptionsHTML(v.color)}</select>
+          <input type="text" placeholder="Comentario..." value="${v.comentario||''}" oninput="onVersionComentarioChange(${idx},${v.id},this.value)">
+          <button class="btn btn-danger btn-sm" style="padding:2px 5px" onclick="quitarVersion(${idx},${v.id})">✕</button>
+        </div>`).join('')}
+        ${restante>0?`<button class="btn btn-sm" style="width:100%" onclick="agregarVersion(${idx})">+ Agregar versión (faltan ${restante})</button>`:''}
+      </div>`;
+    }
+    return `<div class="card" style="margin-bottom:10px;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+        <div style="font-weight:600;font-size:13px">${it.nombre}</div>
+        <button class="btn btn-ghost btn-sm" onclick="quitarItemArmarPedido(${idx})">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:90px 1fr 1fr;gap:8px;align-items:end">
+        <div><label class="fl" style="margin-top:0">Cant.</label><input type="number" min="1" value="${it.cantidad}" onchange="onCantidadItemChange(${idx},this.value)"></div>
+        <div><label class="fl" style="margin-top:0">Precio est. /u ($)</label><input type="number" min="0" value="${it.precioEstimado}" oninput="onPrecioItemChange(${idx},this.value)"></div>
+        <div style="text-align:right"><label class="fl" style="margin-top:0">Subtotal</label><div id="arp-sub-${idx}" style="font-family:var(--mono);font-weight:600;padding:8px 0">${fmt(subtotal)}</div></div>
+      </div>
+      ${versionesHTML}
+    </div>`;
+  }).join('');
+  actualizarTotalesArmarPedido();
+}
+function onPrecioItemChange(idx, valor){
+  const it = armarPedidoItems[idx]; if(!it) return;
+  it.precioEstimado = parseFloat(valor)||0;
+  const subEl = document.getElementById('arp-sub-'+idx);
+  if(subEl) subEl.textContent = fmt(it.cantidad*it.precioEstimado);
+  actualizarTotalesArmarPedido();
+}
+function onCantidadItemChange(idx, valor){
+  const it = armarPedidoItems[idx]; if(!it) return;
+  const cant = Math.max(1, parseInt(valor)||1);
+  it.cantidad = cant;
+  if(cant<=1){
+    it.versiones = [];
+  } else if(!it.versiones || !it.versiones.length){
+    // no versions yet (was cantidad=1 before): seed one covering full qty
+    it.versiones = [{id:_arpVerCounter++, cantidad:cant, color:'', comentario:''}];
+  } else {
+    // keep existing versions; if new qty is smaller than what's assigned, trim from the end
+    let asignado = it.versiones.reduce((s,v)=>s+v.cantidad,0);
+    while(asignado > cant && it.versiones.length){
+      const last = it.versiones[it.versiones.length-1];
+      const exceso = asignado - cant;
+      if(last.cantidad > exceso){
+        last.cantidad -= exceso;
+        asignado -= exceso;
+      } else {
+        asignado -= last.cantidad;
+        it.versiones.pop();
+      }
+    }
+    // if new qty is larger, leave the difference unassigned so the user can add a distinct new version
+  }
+  renderArmarPedidoLista();
+}
+function onVersionCantidadChange(idx, verId, valor){
+  const it = armarPedidoItems[idx]; if(!it) return;
+  const v = it.versiones.find(x=>x.id===verId); if(!v) return;
+  const otras = it.versiones.filter(x=>x.id!==verId).reduce((s,x)=>s+x.cantidad,0);
+  const maxPermitido = Math.max(1, it.cantidad - otras);
+  let val = parseInt(valor)||1;
+  val = Math.max(1, Math.min(val, maxPermitido));
+  v.cantidad = val;
+  renderArmarPedidoLista();
+}
+function onVersionColorChange(idx, verId, valor){
+  const it = armarPedidoItems[idx]; if(!it) return;
+  const v = it.versiones.find(x=>x.id===verId); if(v) v.color = valor;
+}
+function onVersionComentarioChange(idx, verId, valor){
+  const it = armarPedidoItems[idx]; if(!it) return;
+  const v = it.versiones.find(x=>x.id===verId); if(v) v.comentario = valor;
+}
+function agregarVersion(idx){
+  const it = armarPedidoItems[idx]; if(!it) return;
+  const asignado = it.versiones.reduce((s,v)=>s+v.cantidad,0);
+  const restante = it.cantidad - asignado;
+  if(restante<=0) return;
+  it.versiones.push({id:_arpVerCounter++, cantidad:restante, color:'', comentario:''});
+  renderArmarPedidoLista();
+}
+function quitarVersion(idx, verId){
+  const it = armarPedidoItems[idx]; if(!it) return;
+  it.versiones = it.versiones.filter(v=>v.id!==verId);
+  renderArmarPedidoLista();
+}
+function quitarItemArmarPedido(idx){
+  const it = armarPedidoItems[idx]; if(!it) return;
+  bibSeleccionados.delete(it.prodId);
+  armarPedidoItems.splice(idx,1);
+  renderArmarPedidoLista();
+}
+function onMontoFinalInput(){ arpMontoFinalTocado = true; }
+function construirPiezaDesdeBibParaPedido(it){
+  const prod = biblioteca.find(p=>p.id===it.prodId) || {};
+  const horas = prod.horas||0;
+  const watts = prod.watts||0;
+  const precioKwh = prod.precioKwh || cfg.kwh || 0;
+  const moHora = prod.moHora||0;
+  const horasTrab = prod.horasTrab||0;
+  const costeElec = (watts/1000)*horas*precioKwh;
+  const costeMO = moHora*horasTrab;
+  let mant=0;
+  if(prod.impresoraNombre){
+    const imp = cfg.impresoras.find(i=>i.nombre===prod.impresoraNombre);
+    if(imp) mant = imp.mant||0;
+  }
+  const costeMant = mant*horas;
+  return {
+    id: newId(),
+    nombre: it.nombre,
+    archivoNombre: prod.gcodeNombre||null,
+    filDetalle: prod.filDetalle||[],
+    costeElec, costeMant, costeMO, horas,
+    impresoraNombre: prod.impresoraNombre||null,
+    costoUnitario: prod.costoUnitario||0,
+    precioEstimado: it.precioEstimado,
+    precioVenta: it.precioEstimado || prod.precioSugUnitario || 0,
+    cantidad: it.cantidad,
+    elaborados: 0,
+    notas: '',
+    versiones: (it.versiones||[]).map(v=>({id:v.id||(_arpVerCounter++), cantidad:v.cantidad, color:v.color, comentario:v.comentario, realizados:0}))
+  };
+}
+function confirmarArmarPedido(){
+  if(!armarPedidoItems.length){ mostrarToast('No hay productos para agregar.', 'error'); return; }
+  const incompletas = armarPedidoItems.filter(it=>it.cantidad>1 && it.versiones.reduce((s,v)=>s+v.cantidad,0)!==it.cantidad);
+  if(incompletas.length){
+    if(!confirm('Hay productos con versiones sin asignar completamente (color/comentario). ¿Querés crear el pedido igual?')) return;
+  }
+  const destino = document.getElementById('arp-destino').value;
+  const montoFinal = parseFloat(document.getElementById('arp-monto-final').value)||0;
+  const envio = parseFloat(document.getElementById('arp-envio').value)||0;
+  const nuevasPiezas = armarPedidoItems.map(construirPiezaDesdeBibParaPedido);
+  let pedidoDestinoId;
+  if(destino==='nuevo'){
+    const cliente = document.getElementById('arp-cliente').value.trim() || 'Sin nombre';
+    const desc = document.getElementById('arp-desc').value.trim();
+    const nuevo = {
+      id:newId(), cliente, desc, estado:'pendiente',
+      fechaPedido: document.getElementById('arp-fecha-pedido').value || new Date().toISOString().slice(0,10),
+      fechaEntrega: document.getElementById('arp-fecha-entrega').value || '',
+      notaGeneral:'', piezas:nuevasPiezas, precioVenta:montoFinal, envio:envio||0,
+      insumos:[], creado:new Date().toLocaleDateString('es-AR')
+    };
+    pedidos.push(nuevo);
+    pedidoDestinoId = nuevo.id;
+  } else {
+    const p = pedidos.find(x=>x.id===parseInt(destino));
+    if(!p){ mostrarToast('Pedido destino no encontrado.', 'error'); return; }
+    p.piezas.push(...nuevasPiezas);
+    p.precioVenta = (p.precioVenta||0) + montoFinal;
+    if(envio) p.envio = (p.envio||0) + envio;
+    pedidoDestinoId = p.id;
+  }
+  bibSeleccionados.clear();
+  armarPedidoItems = [];
+  pedidoObjetivoBib = null;
+  document.getElementById('arp-destino').disabled = false;
+  cerrarModal('modal-armar-pedido');
+  guardarEstado();
+  renderBibliotecaPage();
+  renderPedidos();
+  updateStats();
+  mostrarToast('✓ Pedido armado con éxito.');
+  navTo('pedidos', document.querySelectorAll('.nav-item')[1]);
+  setTimeout(()=>abrirDetallePedido(pedidoDestinoId),100);
+}
+function cancelarArmarPedido(){
+  pedidoObjetivoBib = null;
+  const sel = document.getElementById('arp-destino');
+  if(sel) sel.disabled = false;
+  cerrarModal('modal-armar-pedido');
 }
 function cargarDesdeBibliotecaYNavegar(id) {
   cargarDesdeBiblioteca(id);
@@ -2188,6 +2830,12 @@ function cargarEstado() {
   try {
     const savedCfg = localStorage.getItem(LS_CFG);
     if (savedCfg) cfg = JSON.parse(savedCfg);
+    if (!cfg.colores || !cfg.colores.length) {
+      cfg.colores = [{nombre:'Blanco',hex:'#f5f5f5'},{nombre:'Negro',hex:'#1a1a1a'},{nombre:'Rojo',hex:'#e53935'},{nombre:'Azul',hex:'#1e88e5'},{nombre:'Verde',hex:'#43a047'},{nombre:'Gris',hex:'#9e9e9e'},{nombre:'Amarillo',hex:'#fdd835'}];
+    }
+    if (!cfg.metodosEnvio || !cfg.metodosEnvio.length) {
+      cfg.metodosEnvio = ['Correo Argentino','Andreani','Retiro en persona','Envío propio'];
+    }
     const savedPedidos = localStorage.getItem(LS_PEDIDOS);
     if (savedPedidos) pedidos = JSON.parse(savedPedidos);
     const savedCompras = localStorage.getItem(LS_COMPRAS);
@@ -2235,7 +2883,7 @@ addImpresora = function() { _addImpresoraOrig(); guardarEstado(); };
 const _addInsumoOrig = addInsumo;
 addInsumo = function() { _addInsumoOrig(); guardarEstado(); };
 document.addEventListener('change', e => {
-  if (e.target.closest('#cfg-filamentos, #cfg-impresoras, #cfg-insumos, #cfg-kwh, #cfg-mo, #cfg-margen, #cfg-desperdicio')) {
+  if (e.target.closest('#cfg-filamentos, #cfg-impresoras, #cfg-insumos, #cfg-colores, #cfg-envios, #cfg-kwh, #cfg-mo, #cfg-margen, #cfg-desperdicio')) {
     guardarEstado();
   }
 });
@@ -2244,7 +2892,7 @@ function exportarBackup() {
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `print3d-manager-backup-${new Date().toLocaleDateString('es-AR').replace(/\//g,'-')}.json`;
+  a.download = `manager3d-backup-${new Date().toLocaleDateString('es-AR').replace(/\//g,'-')}.json`;
   a.click();
 }
 function importarBackup() {
@@ -2445,7 +3093,7 @@ renderClientes();
       btnLogout.style.cssText = 'margin-left: 12px; font-size:11px; padding: 4px 10px; border-radius: 6px; border:1px solid var(--border2); background:none; color:var(--text2); cursor:pointer;';
       btnLogout.innerHTML = 'Salir ➔';
       btnLogout.onclick = () => {
-        if(confirm("¿Cerrar sesión en Print3D Manager?")) {
+        if(confirm("¿Cerrar sesión en Manager3D?")) {
           bloqueoSincronizacion = true; 
           localStorage.clear(); 
           auth.signOut().then(() => location.reload());
