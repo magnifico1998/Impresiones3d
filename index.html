@@ -230,6 +230,9 @@ select option{background:var(--bg3)}
   <div class="nav-item" onclick="navTo('config',this)">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/></svg>Configuración
   </div>
+  <div class="nav-item" onclick="navTo('empresa',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 18V4a1 1 0 011-1h6a1 1 0 011 1v14M11 18v-7a1 1 0 011-1h4a1 1 0 011 1v7M6 6h.01M6 9h.01M6 12h.01M2 18h16"/></svg>Mi emprendimiento
+  </div>
 </nav>
 <main class="main">
 <div class="page" id="page-calc">
@@ -340,7 +343,13 @@ select option{background:var(--bg3)}
         <div class="r-row"><span>Insumos</span><span id="r-ins">$0</span></div>
         <div class="r-row"><span>Extras</span><span id="r-ext">$0</span></div>
         <div class="r-row total"><span>Costo total</span><span id="r-total">$0</span></div>
-        <div class="r-row price"><span>Precio venta</span><span id="r-precio">$0</span></div>
+        <div class="r-row price" style="align-items:center">
+          <span style="font-size:13px;font-weight:400;font-family:var(--sans);color:var(--text2)">Precio venta <span style="font-size:9px;color:var(--text3);text-transform:none">(editable)</span></span>
+          <span style="display:flex;align-items:center;gap:6px">
+            <input type="number" id="r-precio-input" step="1" min="0" oninput="onPrecioVentaManualInput()" style="width:110px;text-align:right;font-family:var(--mono);font-weight:700;font-size:18px;color:var(--accent);background:transparent;border:none;outline:none;padding:2px 0">
+            <button type="button" title="Recalcular según margen configurado" onclick="resetPrecioVentaManual()" style="background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:13px;padding:3px 6px;line-height:1">↺</button>
+          </span>
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="abrirModalGuardarBiblioteca()">
@@ -576,6 +585,51 @@ select option{background:var(--bg3)}
     </div>
   </div>
 </div>
+<div class="page" id="page-empresa">
+  <div class="page-title">Mi emprendimiento</div>
+  <div class="page-sub">Estos datos son visuales por ahora — se muestran en la parte superior del aplicativo.</div>
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title">Logo</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div id="emp-logo-preview" style="width:64px;height:64px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+            <svg viewBox="0 0 20 20" fill="none" stroke="var(--text3)" stroke-width="1.5" style="width:28px;height:28px"><polygon points="10,2 18,6 18,14 10,18 2,14 2,6"/><polygon points="10,6 14,8 14,12 10,14 6,12 6,8"/></svg>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm" onclick="document.getElementById('emp-logo-input').click()">Subir logo</button>
+            <button class="btn btn-danger btn-sm" onclick="quitarLogoEmpresa()">Quitar</button>
+          </div>
+          <input type="file" id="emp-logo-input" accept="image/*" style="display:none" onchange="onLogoEmpresaSeleccionado(this.files[0])">
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Datos generales</div>
+        <label class="fl" style="margin-top:0">Nombre completo / del emprendimiento</label>
+        <input type="text" id="emp-nombre" placeholder="Ej: Juan Pérez 3D Prints" oninput="saveEmpresa()">
+        <label class="fl">CUIT</label>
+        <input type="text" id="emp-cuit" placeholder="Ej: 20-12345678-9" oninput="saveEmpresa()">
+        <label class="fl">Dirección</label>
+        <input type="text" id="emp-direccion" placeholder="Ej: Av. Siempre Viva 742" oninput="saveEmpresa()">
+        <label class="fl">Código postal</label>
+        <input type="text" id="emp-cp" placeholder="Ej: X5000" oninput="saveEmpresa()">
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Contacto</div>
+        <label class="fl" style="margin-top:0">Dirección de mail</label>
+        <input type="email" id="emp-email" placeholder="Ej: contacto@miemprendimiento.com" oninput="saveEmpresa()">
+        <label class="fl">Teléfono</label>
+        <input type="text" id="emp-telefono" placeholder="Ej: +54 9 351 1234567" oninput="saveEmpresa()">
+        <label class="fl">Facebook</label>
+        <input type="text" id="emp-facebook" placeholder="Ej: facebook.com/miemprendimiento" oninput="saveEmpresa()">
+        <label class="fl">Instagram</label>
+        <input type="text" id="emp-instagram" placeholder="Ej: @miemprendimiento" oninput="saveEmpresa()">
+      </div>
+    </div>
+  </div>
+</div>
 </main>
 </div>
 <div class="modal-overlay" id="modal-pedido">
@@ -776,7 +830,7 @@ select option{background:var(--bg3)}
   </div>
 </div>
 <script>
-let pedidos=[], compras=[], biblioteca=[], clientes=[], editPedidoId=null, editCompraId=null, pedidoDetalleId=null, gcodeData=null, presupuestoActual=null;
+let pedidos=[], compras=[], biblioteca=[], clientes=[], editPedidoId=null, editCompraId=null, pedidoDetalleId=null, gcodeData=null, presupuestoActual=null, precioVentaTocado=false;
 let _postCrearPedido=false;
 let bibSeleccionados=new Set();
 let pedidoObjetivoBib=null;
@@ -785,7 +839,8 @@ let arpMontoFinalTocado=false;
 let _arpVerCounter=1;
 let _idCounter=1;
 const newId=()=>_idCounter++;
-const LS_PEDIDOS = 'p3d_pedidos', LS_COMPRAS = 'p3d_compras', LS_CFG = 'p3d_cfg', LS_COUNTER = 'p3d_counter', LS_BIB = 'p3d_bib', LS_CLIENTES= 'p3d_clientes'; 
+const LS_PEDIDOS = 'p3d_pedidos', LS_COMPRAS = 'p3d_compras', LS_CFG = 'p3d_cfg', LS_COUNTER = 'p3d_counter', LS_BIB = 'p3d_bib', LS_CLIENTES= 'p3d_clientes', LS_EMPRESA = 'p3d_empresa';
+let empresa = {nombre:'',cuit:'',direccion:'',cp:'',email:'',telefono:'',facebook:'',instagram:'',logo:''};
 let cfg={
   filamentos:[{nombre:'PLA Blanco',precio:17000},{nombre:'PLA Negro',precio:18000},{nombre:'PLA Rojo',precio:18500},{nombre:'PLA Azul',precio:18500},{nombre:'PETG Transparente',precio:22000},{nombre:'ABS Gris',precio:19000},{nombre:'TPU',precio:28000}],
   impresoras:[{nombre:'Bambu X1',watts:350,mant:200},{nombre:'Prusa MK4',watts:200,mant:150},{nombre:'Ender 3',watts:120,mant:80}],
@@ -825,6 +880,7 @@ function navTo(page,el){
   if(page==='resumen')renderResumen();
   if(page==='compras'){renderCompras();updateComprasStats();}
   if(page==='biblioteca')renderBibliotecaPage();
+  if(page==='empresa')renderFormEmpresa();
   if(page==='calc'){
     document.getElementById('precio-kwh').value=cfg.kwh;
     document.getElementById('mano-obra').value=cfg.mo;
@@ -974,6 +1030,7 @@ function renderMultiFilUI(){
 }
 function resetGcode(){
   gcodeData=null;
+  precioVentaTocado=false;
   document.getElementById('gcode-resultado').style.display='none';
   document.getElementById('tag-gcode-gramos').style.display='none';
   document.getElementById('tag-gcode-tiempo').style.display='none';
@@ -1075,7 +1132,16 @@ function calcular(){
   const costePorUnidad = costeFil+costeElec+costeMant+costeMO+costeIns+extras;
   const cantBase=parseFloat(document.getElementById('cantidad')?.value||1)||1;
   const total = costePorUnidad * cantBase;
-  const precio=total*(1+margen/100);
+  const precioSugerido=total*(1+margen/100);
+  const precioInput=document.getElementById('r-precio-input');
+  let precio;
+  if(precioVentaTocado && precioInput && precioInput.value!==''){
+    precio=parseFloat(precioInput.value)||0;
+  } else {
+    precio=Math.round(precioSugerido*100)/100;
+    if(precioInput) precioInput.value=precio;
+  }
+  const margenEfectivo = total>0 ? ((precio-total)/total*100) : 0;
   document.getElementById('r-fil').textContent=fmt(costeFil*cantBase);
   document.getElementById('r-fil-detalle').innerHTML=filDetalle.length>1?filDetalle.map(f=>`<div class="r-row sub"><span>${f.color?`<span class="color-dot" style="background:${f.color};margin-right:4px"></span>`:''}${f.label}</span><span>${fmt(f.costo*cantBase)}</span></div>`).join(''):'';
   document.getElementById('r-elec').textContent=fmt(costeElec*cantBase);
@@ -1084,18 +1150,25 @@ function calcular(){
   document.getElementById('r-ins').textContent=fmt(costeIns*cantBase);
   document.getElementById('r-ext').textContent=fmt(extras*cantBase);
   document.getElementById('r-total').textContent=fmt(total);
-  document.getElementById('r-precio').textContent=fmt(precio);
   document.getElementById('sc-costo').textContent=fmt(total);
   document.getElementById('sc-precio').textContent=fmt(precio);
   document.getElementById('sc-ganancia').textContent=fmt(precio-total);
-  document.getElementById('sc-margen').textContent=margen.toFixed(0)+'%';
+  document.getElementById('sc-margen').textContent=margenEfectivo.toFixed(0)+'%';
   presupuestoActual={
     costeFil:costeFil,filDetalle:filDetalle,costeElec:costeElec,costeMO:costeMO,costeIns:costeIns,extras:extras,
     total: costePorUnidad, 
-    precio: costePorUnidad * (1+margen/100), 
+    precio: cantBase>0 ? precio/cantBase : precio, 
     horas:horas,cantidad:cantBase,margen,costeMant:costeMant,
     nombreArchivo:gcodeData?.nombre||null,impresoraNombre:getImpresoraNombre()
   };
+}
+function onPrecioVentaManualInput(){
+  precioVentaTocado=true;
+  calcular();
+}
+function resetPrecioVentaManual(){
+  precioVentaTocado=false;
+  calcular();
 }
 function agregarPiezaAPedido(){
   if(!presupuestoActual||presupuestoActual.total===0){alert('Primero calculá el costo de la pieza.');return;}
@@ -2181,6 +2254,7 @@ function limpiarCalculadora() {
   document.getElementById('fil-precio-wrap').style.display = 'block';
   aplicarImpresoraDefault();
   presupuestoActual = null;
+  precioVentaTocado = false;
   calcular();
 }
 const _renderResumenOrig = renderResumen;
@@ -2826,6 +2900,63 @@ function guardarEstado() {
     console.warn('localStorage lleno o no disponible:', e);
   }
 }
+function cargarEmpresa(){
+  try{
+    const saved = localStorage.getItem(LS_EMPRESA);
+    if(saved) empresa = Object.assign({nombre:'',cuit:'',direccion:'',cp:'',email:'',telefono:'',facebook:'',instagram:'',logo:''}, JSON.parse(saved));
+  }catch(e){ console.warn('Error cargando datos del emprendimiento:', e); }
+  renderFormEmpresa();
+  renderEmpresaHeader();
+}
+function renderFormEmpresa(){
+  const ids=['nombre','cuit','direccion','cp','email','telefono','facebook','instagram'];
+  ids.forEach(id=>{const el=document.getElementById('emp-'+id); if(el) el.value=empresa[id]||'';});
+  const prev=document.getElementById('emp-logo-preview');
+  if(prev){
+    prev.innerHTML = empresa.logo
+      ? `<img src="${empresa.logo}" style="width:100%;height:100%;object-fit:cover">`
+      : `<svg viewBox="0 0 20 20" fill="none" stroke="var(--text3)" stroke-width="1.5" style="width:28px;height:28px"><polygon points="10,2 18,6 18,14 10,18 2,14 2,6"/><polygon points="10,6 14,8 14,12 10,14 6,12 6,8"/></svg>`;
+  }
+}
+function saveEmpresa(){
+  const ids=['nombre','cuit','direccion','cp','email','telefono','facebook','instagram'];
+  ids.forEach(id=>{const el=document.getElementById('emp-'+id); if(el) empresa[id]=el.value;});
+  try{ localStorage.setItem(LS_EMPRESA, JSON.stringify(empresa)); mostrarIndicadorGuardado(); }catch(e){ console.warn('Error guardando datos del emprendimiento:', e); }
+  renderEmpresaHeader();
+}
+function onLogoEmpresaSeleccionado(file){
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ alert('Elegí un archivo de imagen.'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    empresa.logo = e.target.result;
+    renderFormEmpresa();
+    saveEmpresa();
+  };
+  reader.readAsDataURL(file);
+}
+function quitarLogoEmpresa(){
+  empresa.logo = '';
+  renderFormEmpresa();
+  saveEmpresa();
+}
+function renderEmpresaHeader(){
+  let el = document.getElementById('header-empresa');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'header-empresa';
+    el.style.cssText = 'display:flex;align-items:center;gap:8px;margin-left:14px;padding-left:14px;border-left:1px solid var(--border)';
+    const title = document.querySelector('.header-title');
+    if(title) title.after(el);
+    else document.querySelector('.header')?.appendChild(el);
+  }
+  if(!empresa.nombre && !empresa.logo){ el.innerHTML=''; el.style.borderLeft='none'; return; }
+  el.style.borderLeft='1px solid var(--border)';
+  el.innerHTML = `
+    ${empresa.logo?`<img src="${empresa.logo}" style="width:26px;height:26px;border-radius:6px;object-fit:cover;border:1px solid var(--border);flex-shrink:0">`:''}
+    ${empresa.nombre?`<span style="font-size:13px;color:var(--text2);font-family:var(--sans);white-space:nowrap">${empresa.nombre}</span>`:''}
+  `;
+}
 function cargarEstado() {
   try {
     const savedCfg = localStorage.getItem(LS_CFG);
@@ -2888,7 +3019,7 @@ document.addEventListener('change', e => {
   }
 });
 function exportarBackup() {
-  const data = { pedidos, compras, biblioteca, clientes, cfg, _idCounter, exportado: new Date().toISOString() };
+  const data = { pedidos, compras, biblioteca, clientes, cfg, empresa, _idCounter, exportado: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -2911,9 +3042,11 @@ function importarBackup() {
         if(data.biblioteca) biblioteca = data.biblioteca;
         if(data.clientes) clientes = data.clientes;
         cfg = data.cfg;
+        if(data.empresa){ empresa = data.empresa; try{ localStorage.setItem(LS_EMPRESA, JSON.stringify(empresa)); }catch(e){} }
         _idCounter = data._idCounter || 1;
         guardarEstado();
         refreshSelects(); refreshInsumos(); renderPedidos(); renderClientes(); updateStats();
+        renderFormEmpresa(); renderEmpresaHeader();
         alert('✓ Backup restaurado correctamente.');
       } catch(err) { alert('Error al leer el archivo: ' + err.message); }
     };
@@ -2943,6 +3076,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Exponer funciones globales necesarias para el módulo de Firebase
 window.cargarEstado = cargarEstado;
+window.cargarEmpresa = cargarEmpresa;
 window.renderResumen = renderResumen;
 window.renderPedidos = renderPedidos;
 window.renderCompras = renderCompras;
@@ -2953,6 +3087,7 @@ window.calcular = calcular;
 window.updateStats = updateStats;
 
 cargarEstado();
+cargarEmpresa();
 refreshSelects();
 refreshInsumos();
 calcular();
@@ -3023,6 +3158,7 @@ renderClientes();
         if (cloud.biblioteca) localStorage.setItem('p3d_bib', JSON.stringify(cloud.biblioteca));
         if (cloud.clientes) localStorage.setItem('p3d_clientes', JSON.stringify(cloud.clientes));
         if (cloud.counter) localStorage.setItem('p3d_counter', cloud.counter.toString());
+        if (cloud.empresa) localStorage.setItem('p3d_empresa', JSON.stringify(cloud.empresa));
         
         console.log("Sincronización desde la nube completada.");
       } else {
@@ -3049,6 +3185,7 @@ renderClientes();
         biblioteca: JSON.parse(localStorage.getItem('p3d_bib') || '[]'),
         clientes: JSON.parse(localStorage.getItem('p3d_clientes') || '[]'),
         counter: parseInt(localStorage.getItem('p3d_counter') || '0', 10),
+        empresa: JSON.parse(localStorage.getItem('p3d_empresa') || '{}'),
         ultimaActualizacion: new Date().toISOString()
       };
       await setDoc(doc(db, "users", uid), dataPayload);
@@ -3064,7 +3201,7 @@ renderClientes();
     
     if (bloqueoSincronizacion) return;
 
-    if (['p3d_pedidos', 'p3d_cfg', 'p3d_compras', 'p3d_bib', 'p3d_clientes', 'p3d_counter'].includes(key)) {
+    if (['p3d_pedidos', 'p3d_cfg', 'p3d_compras', 'p3d_bib', 'p3d_clientes', 'p3d_counter', 'p3d_empresa'].includes(key)) {
       const currentUser = auth.currentUser;
       if (currentUser) {
         subirDatosANube(currentUser.uid);
@@ -3074,6 +3211,7 @@ renderClientes();
 
   function forzarRefrescoUI() {
     if (typeof window.cargarEstado === 'function') window.cargarEstado();
+    if (typeof window.cargarEmpresa === 'function') window.cargarEmpresa();
 
     if (typeof window.renderResumen === 'function') window.renderResumen();
     if (typeof window.renderPedidos === 'function') window.renderPedidos();
