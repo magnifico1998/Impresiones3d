@@ -6,6 +6,7 @@
 <title>Manager3D</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{--bg:#0f1117;--bg2:#161922;--bg3:#1e2230;--border:#2a2f3e;--border2:#343a4d;--text:#e8eaf0;--text2:#8b92a8;--text3:#555d74;--accent:#6ee7b7;--accent2:#34d399;--accentDim:rgba(110,231,183,.12);--accentDim2:rgba(110,231,183,.06);--warn:#fbbf24;--warnDim:rgba(251,191,36,.12);--danger:#f87171;--dangerDim:rgba(248,113,113,.12);--info:#60a5fa;--infoDim:rgba(96,165,250,.12);--radius:8px;--radius2:12px;--mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;--shadow:0 1px 3px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -719,6 +720,9 @@ select option{background:var(--bg3)}
     <textarea id="det-nota-general" placeholder="Ej: Envío por correo, abonó seña 50%, pagar con transferencia..." style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;outline:none;resize:vertical;min-height:70px;transition:border-color .15s;line-height:1.5" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
     <div class="modal-footer">
       <button class="btn btn-danger btn-sm" onclick="eliminarPedidoActual()">Eliminar pedido</button>
+      <button class="btn" onclick="generarPdfPedido(pedidoDetalleId)" title="Generar PDF para enviar por WhatsApp">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px;margin-right:4px;display:inline-block;vertical-align:-2px"><path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M12 2v3h3M7 11h6M7 14h4"/></svg>Generar PDF
+      </button>
       <button class="btn" onclick="cerrarModal('modal-detalle')">Cerrar</button>
       <button class="btn btn-primary" onclick="guardarDetalle()">Guardar cambios</button>
     </div>
@@ -967,9 +971,10 @@ function renderPlatesBody(){
   let rows='';
   gcodeData.placas.forEach((p,i)=>{
     const multi=p.fils.length>1;
+    const nombreLimpio=(p.nombre||'').replace(/\.(3mf|gcode|gco)$/i,'').replace(/\s*→.*$/,'').trim();
     rows+=`<tr class="plate-row"><td><input type="checkbox" ${p.sel?'checked':''} onchange="togglePlaca(${i},this.checked)"></td>
       <td style="color:var(--text3);font-family:var(--mono)">${p.idx}</td>
-      <td style="font-weight:500">${p.nombre}</td>
+      <td style="font-weight:500">${nombreLimpio}</td>
       <td>${p.fils.map(f=>`<span class="color-dot" style="background:${f.color};margin-right:2px" title="${f.type}"></span>`).join('')}
         ${multi?`<span style="font-size:11px;color:var(--text3)">${p.fils.length} mats</span>`:`<span style="font-size:12px;color:var(--text2)">${p.fils[0]?.type||''}</span>`}</td>
       <td style="font-family:var(--mono)">${p.fils.reduce((s,f)=>s+f.usedG,0).toFixed(2)}g</td>
@@ -1622,6 +1627,170 @@ function actualizarTotalDetalle(p){
   if(telEl) telEl.textContent=fmt(precioVenta+envioVal);
 }
 function actualizarGanancia(){const p=pedidos.find(x=>x.id===pedidoDetalleId);actualizarTotalDetalle(p);}
+function generarPdfPedido(pedidoId){
+  const p = pedidos.find(x=>x.id===pedidoId); if(!p){ alert('Pedido no encontrado.'); return; }
+  if(typeof window.jspdf === 'undefined'){ alert('No se pudo cargar el generador de PDF. Verificá tu conexión a internet e intentá de nuevo.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const pageW=210, pageH=297, marginX=15, contentW=pageW-marginX*2;
+  const navy=[40,48,61], lightGray=[235,237,240];
+  let y=18;
+  function checkPageBreak(neededH){ if(y+neededH>278){ doc.addPage(); y=20; } }
+
+  // Logo (si existe) + Título
+  let titleX=marginX;
+  if(empresa.logo){
+    try{
+      const fmtImg = empresa.logo.includes('image/png')?'PNG':(empresa.logo.includes('image/jpeg')||empresa.logo.includes('image/jpg'))?'JPEG':'PNG';
+      doc.addImage(empresa.logo, fmtImg, marginX, y-9, 14, 14);
+      titleX = marginX+18;
+    }catch(e){}
+  }
+  doc.setFont('helvetica','bold'); doc.setFontSize(24); doc.setTextColor(30,33,40);
+  doc.text('PEDIDO', titleX, y);
+
+  // Datos del emprendimiento (arriba a la derecha)
+  let ey=y-6;
+  doc.setFontSize(9);
+  if(empresa.nombre){ doc.setFont('helvetica','bold'); doc.text(empresa.nombre, pageW-marginX, ey, {align:'right'}); ey+=4.5; doc.setFont('helvetica','normal'); }
+  const dirLine=[empresa.direccion,empresa.cp].filter(Boolean).join(', ');
+  if(dirLine){ doc.text(dirLine, pageW-marginX, ey, {align:'right'}); ey+=4.2; }
+  if(empresa.telefono){ doc.text(empresa.telefono, pageW-marginX, ey, {align:'right'}); ey+=4.2; }
+  if(empresa.email){ doc.text(empresa.email, pageW-marginX, ey, {align:'right'}); ey+=4.2; }
+
+  y+=12;
+  doc.setDrawColor(210);doc.setLineWidth(0.3);doc.line(marginX,y,pageW-marginX,y);
+  y+=8;
+
+  // N° de pedido / Fecha
+  doc.setFontSize(10);doc.setTextColor(30,33,40);
+  doc.setFont('helvetica','bold'); doc.text('N° de pedido:', marginX, y);
+  doc.setFont('helvetica','normal'); doc.text(String(p.id).padStart(4,'0'), marginX+30, y);
+  doc.setFont('helvetica','bold'); doc.text('Fecha:', marginX+90, y);
+  doc.setFont('helvetica','normal'); doc.text(p.fechaPedido||new Date().toLocaleDateString('es-AR'), marginX+105, y);
+  y+=10;
+
+  // Vendedor / Cliente
+  const boxW=(contentW-6)/2, boxX2=marginX+boxW+6, headerH=7;
+  doc.setFillColor(...navy);
+  doc.rect(marginX,y,boxW,headerH,'F'); doc.rect(boxX2,y,boxW,headerH,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.text('VENDEDOR', marginX+3, y+5); doc.text('CLIENTE', boxX2+3, y+5);
+  y+=headerH;
+
+  const cliente = clientes.find(c=>c.nombre===p.cliente);
+  const vendLines=[empresa.nombre||'—',[empresa.direccion,empresa.cp].filter(Boolean).join(', '),empresa.telefono||'',empresa.email||''].filter(l=>l!=='');
+  const cliDireccion = cliente?[cliente.calle,cliente.altura].filter(Boolean).join(' '):'';
+  const cliLines=[p.cliente||'—',[cliDireccion,cliente?.loc,cliente?.cp].filter(Boolean).join(', '),cliente?.tel||'',cliente?.email||''].filter(l=>l!=='');
+  const maxLines=Math.max(vendLines.length,cliLines.length,1);
+  const boxBodyH=maxLines*5.2+4;
+  doc.setDrawColor(220);doc.rect(marginX,y,boxW,boxBodyH);doc.rect(boxX2,y,boxW,boxBodyH);
+  doc.setTextColor(40,40,40);doc.setFontSize(9);
+  vendLines.forEach((l,i)=>{doc.setFont('helvetica',i===0?'bold':'normal');doc.text(l,marginX+3,y+5+i*5.2,{maxWidth:boxW-6});});
+  cliLines.forEach((l,i)=>{doc.setFont('helvetica',i===0?'bold':'normal');doc.text(l,boxX2+3,y+5+i*5.2,{maxWidth:boxW-6});});
+  y+=boxBodyH+8;
+
+  // Tabla de productos
+  checkPageBreak(20);
+  doc.setFillColor(...navy);
+  doc.rect(marginX,y,contentW,7,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.text('PRODUCTOS', marginX+3, y+5);
+  y+=7;
+
+  const colN=10,colDesc=95,colCant=20,colPU=27,colTot=28;
+  const xN=marginX,xDesc=xN+colN,xCant=xDesc+colDesc,xPU=xCant+colCant,xTot=xPU+colPU;
+  doc.setFillColor(...lightGray);
+  doc.rect(marginX,y,contentW,7,'F');
+  doc.setTextColor(40,40,40);doc.setFontSize(8.5);doc.setFont('helvetica','bold');
+  doc.text('N°',xN+2,y+5);doc.text('DESCRIPCIÓN',xDesc+2,y+5);doc.text('CANT.',xCant+2,y+5);doc.text('PRECIO UNIT.',xPU+2,y+5);doc.text('TOTAL',xTot+2,y+5);
+  y+=7;
+
+  doc.setFont('helvetica','normal');doc.setFontSize(9);
+  (p.piezas||[]).forEach((pz,i)=>{
+    const unit = pz.precioVenta!==undefined?pz.precioVenta:(pz.precioEstimado||0);
+    const subtotal = unit*pz.cantidad;
+    let descExtra='';
+    if(pz.versiones && pz.versiones.length){
+      descExtra = pz.versiones.map(v=>`${v.cantidad}× ${v.color||'sin color'}${v.comentario?' ('+v.comentario+')':''}`).join(', ');
+    }
+    const rowH = descExtra?11:7;
+    checkPageBreak(rowH);
+    if(i%2===1){ doc.setFillColor(248,248,250); doc.rect(marginX,y,contentW,rowH,'F'); }
+    doc.setDrawColor(225);doc.rect(marginX,y,contentW,rowH);
+    doc.setTextColor(40,40,40);doc.setFontSize(9);doc.setFont('helvetica','normal');
+    doc.text(String(i+1),xN+2,y+5);
+    doc.text(pz.nombre||'Producto',xDesc+2,y+5,{maxWidth:colDesc-4});
+    if(descExtra){ doc.setFontSize(7.5);doc.setTextColor(120,120,120); doc.text(descExtra,xDesc+2,y+9.5,{maxWidth:colDesc-4}); }
+    doc.setFontSize(9);doc.setTextColor(40,40,40);
+    doc.text(String(pz.cantidad),xCant+2,y+5);
+    doc.text(fmt(unit),xPU+2,y+5);
+    doc.text(fmt(subtotal),xTot+2,y+5);
+    y+=rowH;
+  });
+
+  // Totales
+  y+=2;
+  checkPageBreak(25);
+  doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(40,40,40);
+  doc.setDrawColor(225);doc.rect(xPU,y,colPU,7);doc.rect(xTot,y,colTot,7);
+  doc.text('SUBTOTAL',xPU+2,y+5);doc.text(fmt(p.precioVenta||0),xTot+2,y+5);
+  y+=7;
+  if(p.envio>0){
+    doc.setFont('helvetica','normal');
+    doc.rect(xPU,y,colPU,7);doc.rect(xTot,y,colTot,7);
+    doc.text('ENVÍO',xPU+2,y+5);doc.text(fmt(p.envio),xTot+2,y+5);
+    y+=7;
+  }
+  doc.setFillColor(...lightGray);
+  doc.rect(xPU,y,colPU,8,'F');doc.rect(xTot,y,colTot,8,'F');
+  doc.setDrawColor(180);doc.rect(xPU,y,colPU,8);doc.rect(xTot,y,colTot,8);
+  doc.setFont('helvetica','bold');doc.setFontSize(10.5);
+  doc.text('TOTAL',xPU+2,y+5.5);doc.text(fmt((p.precioVenta||0)+(p.envio||0)),xTot+2,y+5.5);
+  y+=8+10;
+
+  // Datos de envío
+  if(p.metodoEnvio || p.numeroSeguimiento){
+    checkPageBreak(20);
+    doc.setFillColor(...navy);
+    doc.rect(marginX,y,contentW,7,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+    doc.text('DATOS DE ENVÍO', marginX+3, y+5);
+    y+=7;
+    const bodyLines=[];
+    if(p.metodoEnvio) bodyLines.push(`Método: ${p.metodoEnvio}`);
+    if(p.numeroSeguimiento) bodyLines.push(`N° de seguimiento: ${p.numeroSeguimiento}`);
+    const bh=bodyLines.length*6+4;
+    doc.setDrawColor(220);doc.rect(marginX,y,contentW,bh);
+    doc.setTextColor(40,40,40);doc.setFont('helvetica','normal');doc.setFontSize(9.5);
+    bodyLines.forEach((l,i)=>doc.text(l,marginX+3,y+5+i*6));
+    y+=bh+8;
+  }
+
+  // Comentarios
+  if(p.notaGeneral){
+    checkPageBreak(20);
+    doc.setFillColor(...navy);
+    doc.rect(marginX,y,contentW,7,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+    doc.text('COMENTARIOS', marginX+3, y+5);
+    y+=7;
+    doc.setFontSize(9.5);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);
+    const lines=doc.splitTextToSize(p.notaGeneral, contentW-6);
+    const bh=lines.length*5+4;
+    checkPageBreak(bh);
+    doc.setDrawColor(220);doc.rect(marginX,y,contentW,bh);
+    doc.text(lines, marginX+3, y+5.5);
+    y+=bh+8;
+  }
+
+  // Pie
+  doc.setFontSize(9);doc.setTextColor(130,130,130);doc.setFont('helvetica','normal');
+  doc.text(empresa.nombre||'', marginX, pageH-14);
+
+  const nombreArchivo = `Pedido_${(p.cliente||'cliente')}_${String(p.id).padStart(4,'0')}`.replace(/[^a-zA-Z0-9_.\-]/g,'_');
+  doc.save(nombreArchivo+'.pdf');
+}
 function guardarDetalle(){
   const p=pedidos.find(x=>x.id===pedidoDetalleId);if(!p)return;
   p.precioVenta=parseFloat(document.getElementById('det-precio-venta').value)||0;
