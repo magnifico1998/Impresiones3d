@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manager3D</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="login-screen" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:9999; flex-direction:column; align-items:center; justify-content:center; gap:24px; padding:20px;">
+  <div class="header-logo" style="width:56px; height:56px; background:var(--accentDim); border:1px solid var(--accent); border-radius:12px; display:flex; align-items:center; justify-content:center;">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px; height:32px; color:var(--accent);">
+      <polygon points="10,2 18,6 18,14 10,18 2,14 2,6"/>
+      <polygon points="10,6 14,8 14,12 10,14 6,12 6,8"/>
+    </svg>
+  </div>
+  <div style="text-align:center;">
+    <h1 style="font-family:var(--sans); font-size:24px; font-weight:600; color:var(--text); letter-spacing:-.5px; margin-bottom:6px;">Manager4D</h1>
+    <p style="font-family:var(--sans); font-size:13px; color:var(--text2);">Ingresá con tu cuenta para sincronizar tus datos en la nube</p>
+  </div>
+  <button id="btn-login-google" class="btn btn-primary" style="font-size:14px; padding:10px 20px; display:flex; align-items:center; gap:10px; border-radius:var(--radius2); box-shadow:var(--shadow);">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+    </svg>
+    Iniciar sesión con Google
+  </button>
+</div>
+<header class="header">
+  <div class="header-logo">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+      <polygon points="10,2 18,6 18,14 10,18 2,14 2,6"/>
+      <polygon points="10,6 14,8 14,12 10,14 6,12 6,8"/>
+    </svg>
+  </div>
+  <span class="header-title">Manager3D</span>
+</header>
+<div class="layout">
+<nav class="sidebar">
+  <div class="nav-label">Herramientas</div>
+  <div class="nav-item active" onclick="navTo('resumen',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="2,14 6,9 10,11 14,5 18,7"/><path d="M2 17h16"/></svg>Resumen
+  </div>
+  <div class="nav-item" onclick="navTo('pedidos',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5h12M4 10h8M4 15h10"/></svg>Pedidos
+  </div>
+  <div class="nav-item" onclick="navTo('clientes',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 10a4 4 0 100-8 4 4 0 000 8zM2 20a8 8 0 0116 0"/></svg>Clientes
+  </div>
+  <div class="nav-item" onclick="navTo('calc',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 7h6M7 10h6M7 13h3"/></svg>Calculadora
+  </div>
+  <div class="nav-item" onclick="navTo('compras',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="16" r="1.5"/><circle cx="15" cy="16" r="1.5"/><path d="M1 1h3l2.5 10h9l2-7H6"/></svg>Compras
+  </div>
+  <div class="nav-item" onclick="navTo('biblioteca',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="5" height="14" rx="1"/><rect x="10" y="3" width="5" height="9" rx="1"/><path d="M10 15h7M13 12v6"/></svg>Biblioteca
+  </div>
+  <div class="nav-label">Sistema</div>
+  <div class="nav-item" onclick="navTo('config',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42"/></svg>Configuración
+  </div>
+  <div class="nav-item" onclick="navTo('empresa',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 18V4a1 1 0 011-1h6a1 1 0 011 1v14M11 18v-7a1 1 0 011-1h4a1 1 0 011 1v7M6 6h.01M6 9h.01M6 12h.01M2 18h16"/></svg>Mi emprendimiento
+  </div>
+</nav>
+<main class="main">
+<div class="page" id="page-calc">
+  <div class="page-title">Calculadora de costos</div>
+  <div class="page-sub">Calculá el costo de cada pieza y agregala a un pedido.</div>
+  <div class="card">
+    <div class="card-title">Importar archivo</div>
+    <label class="drop-zone" id="drop-zone" ondragover="dzOver(event)" ondragleave="dzLeave()" ondrop="dzDrop(event)">
+      <div class="dz-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 3v10M6 9l4-4 4 4"/><path d="M4 15h12"/></svg></div>
+      <div style="font-size:13px;color:var(--text2);font-weight:500">Arrastrá tu archivo acá o hacé clic</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px;font-family:var(--mono)">.gcode · .gco · .3mf — Bambu Studio, PrusaSlicer, Cura</div>
+      <input type="file" id="gcode-file" accept=".gcode,.gco,.g,.txt,.3mf" onchange="leerArchivo(this.files[0])">
+    </label>
+    <div id="status-bar" class="status"></div>
+    <div id="gcode-resultado" style="display:none">
+      <div id="gcode-data"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="aplicarGcode()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 10l4 4 6-8"/></svg>Aplicar a la calculadora
+        </button>
+        <button class="btn" onclick="resetGcode()">Limpiar</button>
+      </div>
+    </div>
+    <div id="bib-buscar-wrap" style="margin-top:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div style="height:1px;flex:1;background:var(--border)"></div>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px">o desde biblioteca</span>
+        <div style="height:1px;flex:1;background:var(--border)"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div class="bib-search" style="flex:1">
+          <svg class="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><circle cx="9" cy="9" r="5"/><path d="M15 15l-3-3"/></svg>
+          <input type="text" id="bib-q" placeholder="Buscar producto guardado..." oninput="renderBibMini()" style="font-size:13px">
+        </div>
+        <select id="bib-mini-cat" onchange="renderBibMini()" style="width:140px;font-size:12px">
+          <option value="">Todas las categorías</option>
+        </select>
+      </div>
+      <div id="bib-mini-lista"></div>
+    </div>
+  </div>
+  <div class="grid4">
+    <div class="metric"><div class="metric-label">Costo total</div><div class="metric-value" id="sc-costo">$0</div></div>
+    <div class="metric"><div class="metric-label">Precio venta</div><div class="metric-value accent" id="sc-precio">$0</div></div>
+    <div class="metric"><div class="metric-label">Ganancia</div><div class="metric-value" id="sc-ganancia">$0</div></div>
+    <div class="metric"><div class="metric-label">Margen</div><div class="metric-value" id="sc-margen">0%</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Filamentos</div>
+      <div id="filamentos-body">
+        <div id="manual-fil-wrap">
+          <label class="fl">Filamento</label>
+          <select id="sel-filamento" onchange="onFilSelect()"><option value="manual">— Manual —</option></select>
+          <div id="fil-precio-wrap">
+            <label class="fl">Precio del rollo ($/kg)</label>
+            <input type="number" id="precio-rollo" value="18000" step="100" oninput="calcular()">
+          </div>
+          <label class="fl">Gramos usados (g) <span id="tag-gcode-gramos" class="pill" style="display:none">desde archivo</span></label>
+          <input type="number" id="gramos" value="50" step="0.1" oninput="calcular()">
+          <label class="fl">Desperdicio (%)</label>
+          <input type="number" id="desperdicio" value="5" step="1" min="0" max="100" oninput="calcular()">
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Electricidad y tiempo</div>
+      <label class="fl">Tiempo de impresión (horas) <span id="tag-gcode-tiempo" class="pill" style="display:none">desde archivo</span></label>
+      <input type="number" id="horas" value="2" step="0.25" oninput="calcular()">
+      <label class="fl">Impresora</label>
+      <select id="sel-impresora" onchange="onImpresoraSelect()"><option value="manual">— Manual —</option></select>
+      <div id="imp-watts-wrap">
+        <label class="fl">Consumo (W)</label>
+        <input type="number" id="watts" value="120" step="10" oninput="calcular()">
+      </div>
+      <label class="fl">Costo electricidad ($/kWh)</label>
+      <input type="number" id="precio-kwh" value="120" step="1" oninput="calcular()">
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Insumos adicionales</div>
+    <div id="lista-insumos"><div class="empty">Configurá tus insumos en Configuración.</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Mano de obra y margen</div>
+      <label class="fl">Mano de obra ($/hora)</label>
+      <input type="number" id="mano-obra" value="500" step="50" oninput="calcular()">
+      <label class="fl">Horas de trabajo manual</label>
+      <input type="number" id="horas-trabajo" value="0.5" step="0.25" oninput="calcular()">
+      <label class="fl">Gastos extra ($)</label>
+      <input type="number" id="extras" value="0" step="100" oninput="calcular()">
+      <label class="fl">Margen de ganancia (%)</label>
+      <input type="number" id="margen" value="30" step="5" min="0" oninput="calcular()">
+      <div style="height:1px;background:var(--border);margin:14px 0"></div>
+      <label class="fl">Cantidad de unidades</label>
+      <input type="number" id="cantidad" value="1" step="1" min="1" oninput="calcular()" style="font-size:16px;font-weight:600">
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:4px">El costo y precio se multiplican por la cantidad</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Resumen</div>
+      <div class="result-box">
+        <div class="r-row"><span>Filamentos</span><span id="r-fil">$0</span></div>
+        <div id="r-fil-detalle"></div>
+        <div class="r-row"><span>Electricidad</span><span id="r-elec">$0</span></div>
+        <div class="r-row"><span>Mantenimiento imp.</span><span id="r-mant">$0</span></div>
+        <div class="r-row"><span>Mano de obra</span><span id="r-mo">$0</span></div>
+        <div class="r-row"><span>Insumos</span><span id="r-ins">$0</span></div>
+        <div class="r-row"><span>Extras</span><span id="r-ext">$0</span></div>
+        <div class="r-row total"><span>Costo total</span><span id="r-total">$0</span></div>
+        <div class="r-row price" style="align-items:center">
+          <span style="font-size:13px;font-weight:400;font-family:var(--sans);color:var(--text2)">Precio venta <span style="font-size:9px;color:var(--text3);text-transform:none">(editable)</span></span>
+          <span style="display:flex;align-items:center;gap:6px">
+            <input type="number" id="r-precio-input" step="1" min="0" oninput="onPrecioVentaManualInput()" style="width:110px;text-align:right;font-family:var(--mono);font-weight:700;font-size:18px;color:var(--accent);background:transparent;border:none;outline:none;padding:2px 0">
+            <button type="button" title="Recalcular según margen configurado" onclick="resetPrecioVentaManual()" style="background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);cursor:pointer;font-size:13px;padding:3px 6px;line-height:1">↺</button>
+          </span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="abrirModalGuardarBiblioteca()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h9l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M7 4v5h6V4M7 13h6"/></svg>Guardar en biblioteca
+        </button>
+        <button class="btn" style="flex:1;justify-content:center" onclick="agregarPiezaAPedido()">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Agregar a pedido
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px;line-height:1.4">Guardar en biblioteca habilita versiones, colores y precio de venta editable por pieza. "Agregar a pedido" es para productos simples que no necesitás guardar.</div>
+    </div>
+  </div>
+</div>
+<div class="page" id="page-clientes">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div><div class="page-title">Clientes</div><div class="page-sub" style="margin-bottom:0">Administrá tus clientes y su historial de pedidos.</div></div>
+    <button class="btn btn-primary" onclick="abrirModalCliente(null)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Nuevo cliente
+    </button>
+  </div>
+  <div id="lista-clientes"><div class="empty">Todavía no hay clientes registrados.</div></div>
+</div>
+<div class="page" id="page-pedidos">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div><div class="page-title">Panel de pedidos</div><div class="page-sub" style="margin-bottom:0">Cada pedido agrupa múltiples piezas con sus G-codes.</div></div>
+    <button class="btn btn-primary" onclick="abrirModalNuevoPedido(false)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Nuevo pedido
+    </button>
+  </div>
+  <div class="grid5">
+    <div class="metric"><div class="metric-label">Total</div><div class="metric-value" id="stat-total">0</div></div>
+    <div class="metric"><div class="metric-label">En progreso</div><div class="metric-value" id="stat-prog">0</div></div>
+    <div class="metric"><div class="metric-label">Completados</div><div class="metric-value accent" id="stat-done">0</div></div>
+    <div class="metric"><div class="metric-label">Facturado</div><div class="metric-value" id="stat-fact">$0</div></div>
+    <div class="metric"><div class="metric-label">Pendiente</div><div class="metric-value" id="stat-pend" style="color:var(--warn)">$0</div></div>
+  </div>
+  <div id="lista-pedidos"><div class="empty">Todavía no hay pedidos.</div></div>
+</div>
+<div class="page active" id="page-resumen">
+  <div class="page-title">Resumen</div>
+  <div class="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-right:4px">Período</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="periodo-btns">
+        <button class="btn btn-sm periodo-btn active" data-p="7">7 días</button>
+        <button class="btn btn-sm periodo-btn" data-p="30">30 días</button>
+        <button class="btn btn-sm periodo-btn" data-p="90">90 días</button>
+        <button class="btn btn-sm periodo-btn" data-p="365">1 año</button>
+        <button class="btn btn-sm periodo-btn" data-p="0">Todo</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap">
+        <input type="date" id="fecha-desde" style="width:140px;font-size:12px;padding:5px 8px" onchange="renderResumen()">
+        <span style="font-size:12px;color:var(--text3)">→</span>
+        <input type="date" id="fecha-hasta" style="width:140px;font-size:12px;padding:5px 8px" onchange="renderResumen()">
+      </div>
+    </div>
+  </div>
+  <div class="grid6" id="resumen-kpis">
+    <div class="metric"><div class="metric-label">Ventas</div><div class="metric-value accent" id="res-ventas">$0</div></div>
+    <div class="metric"><div class="metric-label">Costos</div><div class="metric-value" id="res-costos">$0</div></div>
+    <div class="metric"><div class="metric-label">Ganancia</div><div class="metric-value" id="res-ganancia">$0</div></div>
+    <div class="metric"><div class="metric-label">Gastos compras</div><div class="metric-value" id="res-gastos" style="color:var(--danger)">$0</div></div>
+    <div class="metric"><div class="metric-label">Rentabilidad</div><div class="metric-value" id="res-rent">0%</div></div>
+    <div class="metric"><div class="metric-label">Pendiente (Global)</div><div class="metric-value" id="res-pendiente" style="color:var(--warn)">$0</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Ventas acumuladas</div>
+      <canvas id="chart-ventas" height="200"></canvas>
+      <div id="chart-empty" style="display:none;text-align:center;padding:40px;color:var(--text3);font-size:13px;font-family:var(--mono)">Sin datos en el período</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Horas de uso por impresora</div>
+      <div id="res-impresoras"><div class="empty">Sin datos.</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Pedidos completados / listos para entregar</div>
+    <div id="res-tabla"><div class="empty">Sin pedidos completados en el período.</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Compras del período</div>
+    <div id="res-compras-tabla"><div class="empty">Sin compras en el período.</div></div>
+  </div>
+</div>
+<div class="page" id="page-compras">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div><div class="page-title">Compras</div><div class="page-sub" style="margin-bottom:0">Registrá gastos en insumos, equipos y accesorios.</div></div>
+    <button class="btn btn-primary" onclick="abrirModalCompra(null)">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Nueva compra
+    </button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+    <div class="metric"><div class="metric-label">Total gastado</div><div class="metric-value" id="comp-total" style="color:var(--danger)">$0</div></div>
+    <div class="metric"><div class="metric-label">Insumos</div><div class="metric-value" id="comp-insumos">$0</div></div>
+    <div class="metric"><div class="metric-label">Equipos</div><div class="metric-value" id="comp-equipos">$0</div></div>
+    <div class="metric"><div class="metric-label">Accesorios</div><div class="metric-value" id="comp-accesorios">$0</div></div>
+  </div>
+  <div class="card" style="padding:12px 16px;margin-bottom:12px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Categoría</span>
+      <div id="comp-filtros" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm periodo-btn active" data-cat="todas">Todas</button>
+        <button class="btn btn-sm periodo-btn" data-cat="Insumos">Insumos</button>
+        <button class="btn btn-sm periodo-btn" data-cat="Equipos">Equipos</button>
+        <button class="btn btn-sm periodo-btn" data-cat="Accesorios">Accesorios</button>
+        <button class="btn btn-sm periodo-btn" data-cat="Otros">Otros</button>
+      </div>
+    </div>
+  </div>
+  <div id="lista-compras"><div class="empty">Todavía no hay compras registradas.</div></div>
+</div>
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-title" id="modal-cliente-title">Nuevo cliente</div>
+    <div class="grid2">
+      <div><label class="fl">Nombre completo</label><input type="text" id="cli-m-nombre"></div>
+      <div><label class="fl">Teléfono</label><input type="text" id="cli-m-tel"></div>
+      <div><label class="fl">Email</label><input type="text" id="cli-m-email"></div>
+      <div><label class="fl">Provincia</label><input type="text" id="cli-m-prov"></div>
+      <div><label class="fl">Localidad</label><input type="text" id="cli-m-loc"></div>
+      <div><label class="fl">Código Postal</label><input type="text" id="cli-m-cp"></div>
+      <div><label class="fl">Calle</label><input type="text" id="cli-m-calle"></div>
+      <div><label class="fl">Altura</label><input type="text" id="cli-m-altura"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="cerrarModal('modal-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCliente()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-cliente-detalle">
+  <div class="modal modal-wide">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div class="modal-title" id="cli-det-nombre"></div>
+        <div class="modal-sub" id="cli-det-info" style="margin-bottom:8px"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+         <button class="btn btn-sm" onclick="editarClienteDesdeDetalle()">Editar</button>
+         <button class="btn btn-ghost btn-sm" onclick="cerrarModal('modal-cliente-detalle')">✕</button>
+      </div>
+    </div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Historial de pedidos</div>
+    <div id="cli-det-pedidos"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="eliminarClienteDesdeDetalle()">Eliminar cliente</button>
+      <button class="btn" onclick="cerrarModal('modal-cliente-detalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-compra">
+  <div class="modal">
+    <div class="modal-title" id="modal-compra-title">Nueva compra</div>
+    <label class="fl">Descripción del producto</label>
+    <input type="text" id="comp-m-desc" placeholder="Ej: Rollo PLA 1kg blanco">
+    <label class="fl">Categoría</label>
+    <select id="comp-m-cat">
+      <option value="Insumos">Insumos</option>
+      <option value="Equipos">Equipos</option>
+      <option value="Accesorios">Accesorios</option>
+      <option value="Otros">Otros</option>
+    </select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label class="fl">Precio unitario ($)</label><input type="number" id="comp-m-precio" placeholder="0" step="100"></div>
+      <div><label class="fl">Cantidad</label><input type="number" id="comp-m-qty" value="1" min="1" step="1"></div>
+    </div>
+    <label class="fl">Proveedor (opcional)</label>
+    <input type="text" id="comp-m-proveedor" placeholder="Ej: MercadoLibre">
+    <label class="fl">Fecha de compra</label>
+    <input type="date" id="comp-m-fecha">
+    <label class="fl">Notas (opcional)</label>
+    <input type="text" id="comp-m-notas" placeholder="Notas adicionales">
+    <div class="modal-footer">
+      <button class="btn" onclick="cerrarModal('modal-compra')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCompra()">Guardar compra</button>
+    </div>
+  </div>
+</div>
+<div class="page" id="page-biblioteca">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div class="page-title">Biblioteca de productos</div>
+      <div class="page-sub" style="margin-bottom:0">Productos guardados para presupuestar sin importar el G-code cada vez.</div>
+    </div>
+  </div>
+  <div class="card" style="padding:12px 16px;margin-bottom:12px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="bib-search" style="flex:1;min-width:180px">
+        <svg class="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><circle cx="9" cy="9" r="5"/><path d="M15 15l-3-3"/></svg>
+        <input type="text" id="bib-page-q" placeholder="Buscar por nombre, material..." oninput="renderBibliotecaPage()" style="font-size:13px">
+      </div>
+      <select id="bib-page-cat" onchange="renderBibliotecaPage()" style="width:160px;font-size:13px">
+        <option value="">Todos los materiales</option>
+      </select>
+      <span id="bib-count" style="font-size:12px;color:var(--text3);font-family:var(--mono)"></span>
+    </div>
+  </div>
+  <div class="card" id="bib-toolbar" style="display:none;padding:10px 16px;margin-bottom:12px;align-items:center;gap:12px;position:sticky;bottom:12px;z-index:30;border-color:var(--accent);background:var(--bg2);box-shadow:var(--shadow)">
+    <span id="bib-toolbar-count" style="font-size:13px;font-weight:500;flex:1"></span>
+    <button class="btn btn-sm" onclick="cancelarSeleccionBib()">Cancelar</button>
+    <button class="btn btn-primary btn-sm" onclick="abrirModalArmarPedido()">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:13px;height:13px"><path d="M10 4v12M4 10h12"/></svg>Crear pedido
+    </button>
+  </div>
+  <div id="bib-page-lista"></div>
+</div>
+<div class="page" id="page-config">
+  <div class="page-title">Configuración</div>
+  <div class="page-sub">Filamentos, impresoras, insumos y valores por defecto.</div>
+  <div class="grid2">
+    <div>
+      <div class="card"><div class="card-title">Filamentos</div><div id="cfg-filamentos"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addFilamento()">+ Agregar</button></div>
+      <div class="card"><div class="card-title">Impresoras</div><div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">Nombre · W · Mant $/h</div><div id="cfg-impresoras"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addImpresora()">+ Agregar</button></div>
+      <div class="card"><div class="card-title">Colores disponibles</div><div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">Usados al armar versiones de un pedido</div><div id="cfg-colores"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addColor()">+ Agregar</button></div>
+      <div class="card"><div class="card-title">Métodos de envío</div><div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--mono)">Opciones del desplegable de envío en cada pedido</div><div id="cfg-envios"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addMetodoEnvio()">+ Agregar</button></div>
+    </div>
+    <div>
+      <div class="card"><div class="card-title">Insumos y accesorios</div><div id="cfg-insumos"></div><button class="btn btn-sm" style="margin-top:10px;width:100%" onclick="addInsumo()">+ Agregar</button></div>
+      <div class="card">
+        <div class="card-title">Valores por defecto</div>
+        <label class="fl">Impresora por defecto</label>
+        <select id="cfg-impresora-default" onchange="saveCfg();aplicarImpresoraDefault()"></select>
+        <div class="sep"></div>
+        <label class="fl">Electricidad ($/kWh)</label><input type="number" id="cfg-kwh" value="120" step="1" oninput="saveCfg()">
+        <label class="fl">Mano de obra ($/hora)</label><input type="number" id="cfg-mo" value="500" step="50" oninput="saveCfg()">
+        <label class="fl">Margen (%)</label><input type="number" id="cfg-margen" value="100" step="5" oninput="saveCfg()">
+        <label class="fl">Desperdicio (%)</label><input type="number" id="cfg-desperdicio" value="5" step="1" oninput="saveCfg()">
+        <div class="sep"></div>
+        <button class="btn btn-primary btn-sm" onclick="aplicarCfgCalc()">Aplicar a la calculadora</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="page" id="page-empresa">
+  <div class="page-title">Mi emprendimiento</div>
+  <div class="page-sub">Estos datos son visuales por ahora — se muestran en la parte superior del aplicativo.</div>
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <div class="card-title">Logo</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div id="emp-logo-preview" style="width:64px;height:64px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+            <svg viewBox="0 0 20 20" fill="none" stroke="var(--text3)" stroke-width="1.5" style="width:28px;height:28px"><polygon points="10,2 18,6 18,14 10,18 2,14 2,6"/><polygon points="10,6 14,8 14,12 10,14 6,12 6,8"/></svg>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-sm" onclick="document.getElementById('emp-logo-input').click()">Subir logo</button>
+            <button class="btn btn-danger btn-sm" onclick="quitarLogoEmpresa()">Quitar</button>
+          </div>
+          <input type="file" id="emp-logo-input" accept="image/*" style="display:none" onchange="onLogoEmpresaSeleccionado(this.files[0])">
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Datos generales</div>
+        <label class="fl" style="margin-top:0">Nombre completo / del emprendimiento</label>
+        <input type="text" id="emp-nombre" placeholder="Ej: Juan Pérez 3D Prints" oninput="saveEmpresa()">
+        <label class="fl">CUIT</label>
+        <input type="text" id="emp-cuit" placeholder="Ej: 20-12345678-9" oninput="saveEmpresa()">
+        <label class="fl">Dirección</label>
+        <input type="text" id="emp-direccion" placeholder="Ej: Av. Siempre Viva 742" oninput="saveEmpresa()">
+        <label class="fl">Código postal</label>
+        <input type="text" id="emp-cp" placeholder="Ej: X5000" oninput="saveEmpresa()">
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Contacto</div>
+        <label class="fl" style="margin-top:0">Dirección de mail</label>
+        <input type="email" id="emp-email" placeholder="Ej: contacto@miemprendimiento.com" oninput="saveEmpresa()">
+        <label class="fl">Teléfono</label>
+        <input type="text" id="emp-telefono" placeholder="Ej: +54 9 351 1234567" oninput="saveEmpresa()">
+        <label class="fl">Facebook</label>
+        <input type="text" id="emp-facebook" placeholder="Ej: facebook.com/miemprendimiento" oninput="saveEmpresa()">
+        <label class="fl">Instagram</label>
+        <input type="text" id="emp-instagram" placeholder="Ej: @miemprendimiento" oninput="saveEmpresa()">
+      </div>
+    </div>
+  </div>
+</div>
+</main>
+</div>
+<div class="modal-overlay" id="modal-pedido">
+  <div class="modal">
+    <div class="modal-title" id="modal-pedido-title">Nuevo pedido</div>
+    <div class="modal-sub">Completá los datos. Después podés agregarle piezas desde la calculadora.</div>
+    <label class="fl">Cliente</label>
+    <input type="text" id="m-cliente" placeholder="Nombre del cliente" list="lista-nombres-clientes">
+    <datalist id="lista-nombres-clientes"></datalist>
+    <label class="fl">Descripción del proyecto</label><input type="text" id="m-desc" placeholder="Ej: Avión B2 XL completo">
+    <label class="fl">Estado</label>
+    <select id="m-estado"><option value="pendiente">Pendiente</option><option value="progreso">En progreso</option><option value="listo">Listo para entregar</option><option value="completado">Completado / Entregado</option><option value="cancelado">Cancelado</option></select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label class="fl">Fecha del pedido</label><input type="date" id="m-fecha-pedido"></div>
+      <div><label class="fl">Fecha max. entrega</label><input type="date" id="m-fecha-entrega"></div>
+    </div>
+    <label class="fl">Nota general del pedido</label>
+    <textarea id="m-nota-general" placeholder="Ej: Envío por correo, abonó seña 50%, pagar con transferencia..." style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;outline:none;resize:vertical;min-height:70px;transition:border-color .15s;line-height:1.5" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+    <div class="modal-footer">
+      <button class="btn" onclick="cerrarModal('modal-pedido')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarPedido()">Guardar pedido</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal modal-wide">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px">
+      <div>
+        <div class="modal-title" id="det-titulo"></div>
+        <div id="det-meta" style="font-size:12px;color:var(--text2);font-family:var(--mono);margin-top:2px"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="btn btn-sm" onclick="editarPedidoActual()">Editar</button>
+        <button class="btn btn-ghost btn-sm" onclick="cerrarModal('modal-detalle')">✕</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Piezas / G-codes</div>
+      <button class="btn btn-primary btn-sm" onclick="agregarDesdeBiblioteca()">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 4v12M4 10h12"/></svg>Agregar producto
+      </button>
+    </div>
+    <div id="det-piezas"></div>
+    <div class="sep"></div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Insumos del pedido</div>
+    <div id="det-insumos"></div>
+    <div class="sep"></div>
+    <div class="total-section">
+      <div class="cost-line"><span>Costo piezas</span><span id="det-costo-piezas">$0</span></div>
+      <div class="cost-line"><span>Insumos</span><span id="det-costo-insumos">$0</span></div>
+      <div class="cost-line strong"><span>Costo total</span><span id="det-costo-total">$0</span></div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:12px">
+        <div>
+          <label class="fl" style="margin-top:0">Ganancia ($) <span style="color:var(--text3);text-transform:none">— venta menos costo total</span></label>
+          <input type="text" id="det-ganancia-box" readonly style="background:var(--bg);color:var(--text2);cursor:not-allowed">
+        </div>
+        <div style="text-align:right;padding-top:14px">
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono);text-transform:uppercase">Precio de venta</div>
+          <div id="det-ganancia" style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--accent)">$0</div>
+        </div>
+      </div>
+      <input type="hidden" id="det-precio-venta">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:10px">
+        <div>
+          <label class="fl" style="margin-top:0">Envío ($) <span style="color:var(--text3);text-transform:none">opcional, no se cuenta como venta</span></label>
+          <input type="number" id="det-envio" placeholder="0" oninput="actualizarGanancia()">
+        </div>
+        <div style="text-align:right;padding-top:10px">
+          <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px">Total a abonar (c/envío)</div>
+          <div id="det-total-envio" style="font-size:28px;font-weight:800;font-family:var(--mono);color:var(--text)">$0</div>
+        </div>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Datos de envío</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div>
+        <label class="fl" style="margin-top:0">Método de envío</label>
+        <select id="det-metodo-envio"><option value="">— Sin especificar —</option></select>
+      </div>
+      <div>
+        <label class="fl" style="margin-top:0">Número de seguimiento</label>
+        <input type="text" id="det-num-seguimiento" placeholder="Ej: AR123456789">
+      </div>
+    </div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nota general del pedido</div>
+    <textarea id="det-nota-general" placeholder="Ej: Envío por correo, abonó seña 50%, pagar con transferencia..." style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 10px;outline:none;resize:vertical;min-height:70px;transition:border-color .15s;line-height:1.5" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="eliminarPedidoActual()">Eliminar pedido</button>
+      <button class="btn" onclick="generarPdfPedido(pedidoDetalleId)" title="Generar PDF para enviar por WhatsApp">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px;margin-right:4px;display:inline-block;vertical-align:-2px"><path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M12 2v3h3M7 11h6M7 14h4"/></svg>Generar PDF
+      </button>
+      <button class="btn" onclick="cerrarModal('modal-detalle')">Cerrar</button>
+      <button class="btn btn-primary" onclick="guardarDetalle()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-agregar-pieza">
+  <div class="modal">
+    <div class="modal-title">Agregar pieza a pedido</div>
+    <div class="modal-sub">Nombrá la pieza y seleccioná el pedido destino.</div>
+    <label class="fl">Nombre de la pieza</label>
+    <input type="text" id="ap-nombre" placeholder="Ej: Fuselaje delantero">
+    <label class="fl">Pedido destino</label>
+    <select id="ap-pedido-sel"></select>
+    <div id="ap-resumen" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-top:12px;font-size:12px;color:var(--text2);font-family:var(--mono)"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="cerrarModal('modal-agregar-pieza')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAgregarPieza()">Agregar pieza</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-bib-guardar">
+  <div class="modal">
+    <div class="modal-title">Guardar en biblioteca</div>
+    <div class="modal-sub">Guardá este producto para reutilizarlo en futuros pedidos.</div>
+    <label class="fl">Nombre del producto</label>
+    <input type="text" id="bib-m-nombre" placeholder="Ej: Soporte de escritorio 15cm">
+    <label class="fl">Descripción / notas</label>
+    <input type="text" id="bib-m-desc" placeholder="Ej: PLA negro, 2h impresión">
+    <label class="fl">Categoría del producto</label>
+    <input type="text" id="bib-m-cat" placeholder="Ej: Soportes, Decoración, Funcional..." list="bib-cats-list">
+    <datalist id="bib-cats-list"></datalist>
+    <div id="bib-m-resumen" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-top:12px;font-size:12px;color:var(--text2);font-family:var(--mono);line-height:1.7"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="cerrarModal('modal-bib-guardar')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarGuardarBiblioteca()">Guardar producto</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-bib-editar-cat">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">Editar categoría</div>
+    <div class="modal-sub" id="bib-edit-cat-nombre" style="font-weight:500;color:var(--text)"></div>
+    <label class="fl">Categoría del producto</label>
+    <input type="text" id="bib-edit-cat-input" placeholder="Ej: Soportes, Decoración, Funcional..." list="bib-edit-cats-list">
+    <datalist id="bib-edit-cats-list"></datalist>
+    <div class="modal-footer">
+      <button class="btn" onclick="cerrarModal('modal-bib-editar-cat')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarEditarCatBiblioteca()">Guardar categoría</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-bib-usar">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-title">Seleccionar producto de biblioteca</div>
+    <div class="modal-sub">Cargá un producto guardado en la calculadora.</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div class="bib-search" style="flex:1">
+        <svg class="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><circle cx="9" cy="9" r="5"/><path d="M15 15l-3-3"/></svg>
+        <input type="text" id="bib-usar-q" placeholder="Buscar..." oninput="renderBibUsarLista()" style="font-size:13px">
+      </div>
+      <select id="bib-usar-cat" onchange="renderBibUsarLista()" style="width:140px;font-size:12px">
+        <option value="">Todas las categorías</option>
+      </select>
+    </div>
+    <div id="bib-usar-lista" class="bib-grid"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="cerrarModal('modal-bib-usar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-armar-pedido">
+  <div class="modal modal-wide">
+    <div class="modal-title">Armar pedido desde biblioteca</div>
+    <div class="modal-sub">Revisá cantidades y precios estimados antes de crear el pedido.</div>
+    <label class="fl">Pedido destino</label>
+    <select id="arp-destino" onchange="onDestinoArmarPedidoChange()"></select>
+    <div id="arp-destino-fijo-label" style="display:none;font-size:11px;color:var(--accent);font-family:var(--mono);margin-top:4px"></div>
+    <div id="arp-nuevo-datos" style="margin-top:4px">
+      <label class="fl">Cliente</label>
+      <input type="text" id="arp-cliente" placeholder="Nombre del cliente" list="lista-nombres-clientes">
+      <label class="fl">Descripción del proyecto</label>
+      <input type="text" id="arp-desc" placeholder="Ej: Pedido de figuras">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label class="fl">Fecha del pedido</label><input type="date" id="arp-fecha-pedido"></div>
+        <div><label class="fl">Fecha max. entrega</label><input type="date" id="arp-fecha-entrega"></div>
+      </div>
+    </div>
+    <div class="sep"></div>
+    <div style="font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Productos seleccionados</div>
+    <div id="ap2-lista"></div>
+    <div class="sep"></div>
+    <div class="total-section">
+      <div class="cost-line strong"><span>Presupuesto estimado</span><span id="arp-presupuesto">$0</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+        <div>
+          <label class="fl" style="margin-top:0">Monto final ($)</label>
+          <input type="number" id="arp-monto-final" placeholder="0" oninput="onMontoFinalInput()">
+        </div>
+        <div>
+          <label class="fl" style="margin-top:0">Envío ($) <span style="color:var(--text3);text-transform:none">opcional</span></label>
+          <input type="number" id="arp-envio" placeholder="0">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="cancelarArmarPedido()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarArmarPedido()">Crear pedido</button>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+
+<script type="module" src="firebase-sync.js"></script>
+</body>
+</html>
