@@ -241,6 +241,88 @@ export const AppProvider = ({ children }) => {
     }
   }, [pedidos, compras, biblioteca, clientes, empresa, cfg, idCounter, user, loading]);
 
+  const exportarBackupData = () => {
+    try {
+      const data = {
+        pedidos,
+        compras,
+        biblioteca,
+        clientes,
+        cfg,
+        empresa,
+        _idCounter: idCounter,
+        exportado: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `manager3d-backup-${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.json`;
+      a.click();
+      showToast('✓ Backup descargado correctamente.');
+    } catch (e) {
+      console.error(e);
+      showToast('Error al exportar backup.', 'error');
+    }
+  };
+
+  const restaurarBackupData = async (data) => {
+    try {
+      bloqueoSincronizacion.current = true;
+      
+      if (data.pedidos) {
+        setPedidos(data.pedidos);
+        localStorage.setItem('p3d_pedidos', JSON.stringify(data.pedidos));
+      }
+      if (data.cfg) {
+        setCfg(data.cfg);
+        localStorage.setItem('p3d_cfg', JSON.stringify(data.cfg));
+      }
+      if (data.compras) {
+        setCompras(data.compras);
+        localStorage.setItem('p3d_compras', JSON.stringify(data.compras));
+      }
+      if (data.biblioteca) {
+        setBiblioteca(data.biblioteca);
+        localStorage.setItem('p3d_bib', JSON.stringify(data.biblioteca));
+      }
+      if (data.clientes) {
+        setClientes(data.clientes);
+        localStorage.setItem('p3d_clientes', JSON.stringify(data.clientes));
+      }
+      if (data.empresa) {
+        setEmpresa(data.empresa);
+        localStorage.setItem('p3d_empresa', JSON.stringify(data.empresa));
+      }
+      
+      const nextCounter = data._idCounter || data.idCounter || 1;
+      setIdCounter(Number(nextCounter));
+      localStorage.setItem('p3d_counter', nextCounter.toString());
+      
+      // Upload to cloud immediately if logged in
+      if (user) {
+        await setDoc(doc(db, "users", user.uid), {
+          pedidos: data.pedidos || [],
+          config: data.cfg || defaultCfg,
+          compras: data.compras || [],
+          biblioteca: data.biblioteca || [],
+          clientes: data.clientes || [],
+          counter: nextCounter,
+          empresa: data.empresa || defaultEmpresa,
+          ultimaActualizacion: new Date().toISOString()
+        });
+      }
+      
+      showToast('✓ Backup restaurado correctamente.');
+      return true;
+    } catch (e) {
+      console.error(e);
+      showToast('Error al restaurar el backup.', 'error');
+      return false;
+    } finally {
+      bloqueoSincronizacion.current = false;
+    }
+  };
+
   const value = {
     pedidos,
     setPedidos,
@@ -263,7 +345,9 @@ export const AppProvider = ({ children }) => {
     activePage,
     setActivePage,
     toasts,
-    showToast
+    showToast,
+    exportarBackupData,
+    restaurarBackupData
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

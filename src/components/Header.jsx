@@ -2,7 +2,38 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function Header() {
-  const { user, logout, empresa } = useApp();
+  const { user, logout, empresa, exportarBackupData, restaurarBackupData } = useApp();
+
+  const handleImportarBackup = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (!data.pedidos || !data.cfg) {
+            alert('Archivo de backup inválido.');
+            return;
+          }
+          const exportLabel = data.exportado 
+            ? new Date(data.exportado).toLocaleDateString('es-AR') 
+            : '?';
+          if (!window.confirm(`¿Restaurar backup del ${exportLabel}? Se reemplazarán todos los datos actuales.`)) {
+            return;
+          }
+          await restaurarBackupData(data);
+        } catch (err) {
+          alert('Error al leer el archivo: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
 
   return (
     <header className="header">
@@ -13,6 +44,7 @@ export default function Header() {
         </svg>
       </div>
       <span className="header-title">Manager3D</span>
+      <span style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px' }}>v2.2</span>
       
       {(empresa.nombre || empresa.logo) && (
         <div id="header-empresa" style={{
@@ -50,24 +82,58 @@ export default function Header() {
         </div>
       )}
 
-      {user && (
+      <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
         <button 
-          onClick={logout} 
-          className="btn btn-sm"
+          onClick={exportarBackupData} 
           style={{
-            marginLeft: 'auto',
             fontSize: '11px',
             padding: '4px 10px',
             borderRadius: '6px',
             border: '1px solid var(--border2)',
             background: 'none',
             color: 'var(--text2)',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            fontFamily: 'var(--mono)'
           }}
+          title="Exportar backup JSON"
         >
-          Salir ➔
+          ⬇ backup
         </button>
-      )}
+        <button 
+          onClick={handleImportarBackup} 
+          style={{
+            fontSize: '11px',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            border: '1px solid var(--border2)',
+            background: 'none',
+            color: 'var(--text2)',
+            cursor: 'pointer',
+            fontFamily: 'var(--mono)'
+          }}
+          title="Importar backup JSON"
+        >
+          ⬆ restaurar
+        </button>
+        
+        {user && (
+          <button 
+            onClick={logout} 
+            className="btn btn-sm"
+            style={{
+              fontSize: '11px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--border2)',
+              background: 'none',
+              color: 'var(--text2)',
+              cursor: 'pointer'
+            }}
+          >
+            Salir ➔
+          </button>
+        )}
+      </div>
     </header>
   );
 }
