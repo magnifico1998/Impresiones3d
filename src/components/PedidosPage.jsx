@@ -75,7 +75,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'nowrap', gap: '12px' }}>
         <div>
           <div className="page-title">Panel de pedidos</div>
           <div className="page-sub" style={{ marginBottom: 0 }}>Cada pedido agrupa múltiples piezas con sus G-codes.</div>
