@@ -1,4 +1,7 @@
+
 let pedidos=[], compras=[], biblioteca=[], clientes=[], editPedidoId=null, editCompraId=null, pedidoDetalleId=null, gcodeData=null, presupuestoActual=null, precioVentaTocado=false;
+// ✅ NUEVO
+let subProductosActuales = [];
 let _postCrearPedido=false;
 let bibSeleccionados=new Set();
 let pedidoObjetivoBib=null;
@@ -330,6 +333,55 @@ function calcular(){
     horas:horas,cantidad:cantBase,margen,costeMant:costeMant,
     nombreArchivo:gcodeData?.nombre||null,impresoraNombre:getImpresoraNombre()
   };
+
+  // ===============================
+// ✅ PRODUCTOS COMPUESTOS
+// ===============================
+
+  function agregarSubproductoActual() {
+  if (!presupuestoActual || presupuestoActual.total === 0) {
+    mostrarToast('Primero calculá el G-code', 'error');
+    return;
+  }
+
+  const nombre = gcodeData?.nombre 
+    ? gcodeData.nombre.replace(/\.(3mf|gcode|gco)$/i,'').trim()
+    : `G-code ${subProductosActuales.length + 1}`;
+
+  subProductosActuales.push({
+    nombre,
+    ...presupuestoActual
+  });
+
+  mostrarToast(`✓ G-code agregado (${subProductosActuales.length})`);
+
+  actualizarResumenMultiProducto();
+ }
+
+function actualizarResumenMultiProducto() {
+  if (!subProductosActuales.length) return;
+
+  let total = 0;
+  let precio = 0;
+  let horas = 0;
+
+  subProductosActuales.forEach(p => {
+    total += (p.total || 0);
+    precio += (p.precio || 0);
+    horas += (p.horas || 0);
+  });
+
+  presupuestoActual = {
+    ...presupuestoActual,
+    total,
+    precio,
+    horas,
+    esCompuesto: true,
+    subProductos: [...subProductosActuales]
+  };
+
+  calcular();
+}
 }
 function onPrecioVentaManualInput(){
   precioVentaTocado=true;
@@ -577,6 +629,19 @@ function renderDetallePiezas(p){
 
       // Costo: read-only note, shown at the bottom of the piece
       const costoNotaHTML = `<div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:6px">Costo: ${fmt(costoTotalPieza)}</div>`;
+// ✅ SUBPRODUCTOS (nuevo)
+      let subHTML = '';
+
+      if (pz.subProductos && pz.subProductos.length) {
+        subHTML = `
+        <div style="margin-top:6px;font-size:11px;opacity:.7">
+      Subproductos:
+      ${pz.subProductos.map(sp => `
+        <div>• ${sp.nombre || 'G-code'} — ${fmt(sp.total || 0)}</div>
+      `).join('')}
+    </div>
+     `;
+    }
 
       // prod-control: if real versiones exist, show derived elaborados as read-only; otherwise editable manually
       const tieneVersionesReal = pz.versiones.length > 0;
@@ -614,6 +679,7 @@ function renderDetallePiezas(p){
         ${controlHTML}
         ${versionesHTML}
         ${costoNotaHTML}
+        ${subHTML}  
         <div style="margin-top:8px">
           <input type="text" class="pieza-nota-input" placeholder="Añadir nota a esta pieza (color, detalle...)" value="${pz.notas||''}" onchange="actualizarNotaPieza(${p.id}, ${pz.id}, this.value)">
         </div>
@@ -1570,6 +1636,7 @@ function esUrgente(p) {
   return diff >= 0 && diff <= 7;
 }
 function limpiarCalculadora() {
+  subProductosActuales = []; // ✅ NUEVO
   gcodeData = null;
   const gr = document.getElementById('gcode-resultado'); if(gr) gr.style.display='none';
   const gf = document.getElementById('gcode-file'); if(gf) gf.value='';
@@ -1689,6 +1756,11 @@ function confirmarGuardarBiblioteca() {
     nombre,
     desc:        document.getElementById('bib-m-desc').value.trim(),
     cat:         document.getElementById('bib-m-cat').value.trim() || 'General',
+    
+  // ✅ NUEVO
+    subProductos: presupuestoActual?.subProductos || null,
+    esCompuesto: !!presupuestoActual?.subProductos,
+
     fechaGuardado: new Date().toLocaleDateString('es-AR'),
     costoUnitario: p.total,
     precioSugUnitario: p.precio,
@@ -1731,6 +1803,13 @@ function confirmarGuardarBiblioteca() {
   renderBibMini();
 }
 function cargarDesdeBiblioteca(id) {
+  if (prod.esCompuesto && prod.subProductos) {
+  subProductosActuales = [...prod.subProductos];
+  actualizarResumenMultiProducto();
+
+  mostrarToast(`✓ Producto compuesto cargado (${subProductosActuales.length} partes)`);
+  return;
+}
   const prod = biblioteca.find(p=>p.id===id); if(!prod) return;
   gcodeData = null;
   const gr=document.getElementById('gcode-resultado'); if(gr) gr.style.display='none';
@@ -1883,7 +1962,7 @@ function renderBibliotecaPage() {
   const catSel = document.getElementById('bib-page-cat');
   if (catSel) {
     const cur = catSel.value;
-    catSel.innerHTML = '<option value="">Todos los materiales</option>' +
+    catSel.innerHTML = '<option value="">Categoria de Productos</option>' +
       cats.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join('');
   }
   const lista = biblioteca.filter(p=>{
@@ -2144,7 +2223,9 @@ function construirPiezaDesdeBibParaPedido(it){
   }
   const costeMant = mant*horas;
   return {
-    id: newId(),
+    id: newId(),    
+    subProductos: prod.subProductos || null,
+    esCompuesto: prod.esCompuesto || false,
     nombre: it.nombre,
     archivoNombre: prod.gcodeNombre||null,
     filDetalle: prod.filDetalle||[],
