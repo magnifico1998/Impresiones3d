@@ -517,6 +517,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
               {draft.piezas.map(pz => {
                 const isCompletada = (pz.elaborados || 0) >= pz.cantidad;
                 const costoTotalPieza = getCostoPieza(pz);
+                const costoNotaHTML = (
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '6px' }}>
+                    Costo: {fmt(costoTotalPieza)}
+                  </div>
+                );
                 const faltan = pz.cantidad - (pz.elaborados || 0);
 
                 const tieneVersiones = pz.cantidad > 1;
