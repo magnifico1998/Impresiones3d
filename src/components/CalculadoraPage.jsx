@@ -511,11 +511,6 @@ export default function CalculadoraPage({
     };
   }, [biblioteca, cfg]);
 
-  // Expose current calculation to global window object for ModalAgregarPieza
-  useEffect(() => {
-    window._currentPresupuesto = calcOutput.currentPresupuesto;
-  }, [calcOutput.currentPresupuesto]);
-
   // Math Calculations (Reactive)
   const calcOutput = useMemo(() => {
     const hrs = parseFloat(horas) || 0;
@@ -634,6 +629,11 @@ export default function CalculadoraPage({
     precioRollo, gramos, cantidad, selFilamento, selImpresora, insumosState,
     gcodeData, bambuMats, precioVentaTocado, precioVentaManual, cfg.impresoras
   ]);
+
+  // Expose current calculation to global window object for ModalAgregarPieza
+  useEffect(() => {
+    window._currentPresupuesto = calcOutput.currentPresupuesto;
+  }, [calcOutput.currentPresupuesto]);
 
   const handlePriceVentaManualChange = (val) => {
     setPrecioVentaManual(val);
