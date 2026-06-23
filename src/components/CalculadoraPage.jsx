@@ -757,7 +757,7 @@ export default function CalculadoraPage({
           onDrop={handleDrop}
         >
           <div className="dz-icon">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 3v10M6 9l4-4 4 4" />
               <path d="M4 15h12" />
             </svg>
@@ -948,7 +948,7 @@ export default function CalculadoraPage({
             {/* Actions apply or reset Gcode */}
             <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
               <button className="btn btn-primary" onClick={handleAplicarGcode}>
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M5 10l4 4 6-8" />
                 </svg>
                 Aplicar a la calculadora
@@ -972,7 +972,7 @@ export default function CalculadoraPage({
 
           <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
             <div className="bib-search" style={{ flex: 1 }}>
-              <svg className="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style={{ width: '14px', height: '14px' }}>
+              <svg className="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px' }}>
                 <circle cx="9" cy="9" r="5" />
                 <path d="M15 15l-3-3" />
               </svg>
@@ -1425,7 +1425,7 @@ export default function CalculadoraPage({
               style={{ flex: 1, justifyContent: 'center' }} 
               onClick={handleAddToOrder}
             >
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M10 4v12M4 10h12" />
               </svg>
               Agregar a pedido
