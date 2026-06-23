@@ -151,6 +151,8 @@ export default function CalculadoraPage({
       const next = [...prev, item];
       if (next.length === 1) {
         setGcodeData(item);
+      } else {
+        setGcodeData(buildCompositeGcode(next));
       }
       return next;
     });
