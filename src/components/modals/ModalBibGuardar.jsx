@@ -59,6 +59,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
       
       // G-code data
       gcodeNombre: p.gcodeNombre || null,
+      gcodeArchivos: p.gcodeArchivos || null,
       materiales: p.materiales || null,
       multiMat: p.multiMat || false,
       matData: p.matData || null

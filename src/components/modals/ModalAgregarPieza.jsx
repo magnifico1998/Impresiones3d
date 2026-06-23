@@ -46,6 +46,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
       id: getNewId(),
       nombre: nombre.trim() || 'Sin nombre',
       archivoNombre: pz.nombreArchivo || null,
+      gcodeArchivos: pz.gcodeArchivos || null,
       costeFil: pz.costeFil,
       filDetalle: pz.filDetalle,
       costeElec: pz.costeElec,
@@ -119,6 +120,11 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
           Costo: <strong>{fmt(presupuestoActual.total * presupuestoActual.cantidad)}</strong> · 
           Precio sugerido: <strong>{fmt(presupuestoActual.precio * presupuestoActual.cantidad)}</strong> · 
           {presupuestoActual.cantidad} unidad(es)
+          {presupuestoActual.gcodeArchivos && presupuestoActual.gcodeArchivos.length > 1 && (
+            <div style={{ marginTop: '8px', color: 'var(--text3)', fontSize: '11px' }}>
+              Archivos: {presupuestoActual.gcodeArchivos.join(', ')}
+            </div>
+          )}
         </div>
 
         <div className="modal-footer">

@@ -174,6 +174,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
       id: getNewId(),
       nombre: it.nombre,
       archivoNombre: prod.gcodeNombre || null,
+      gcodeArchivos: prod.gcodeArchivos || null,
       filDetalle: prod.filDetalle || [],
       costeElec,
       costeMant,

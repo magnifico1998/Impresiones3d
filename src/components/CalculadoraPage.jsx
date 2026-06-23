@@ -29,6 +29,7 @@ export default function CalculadoraPage({
 
   // Parsed G-code data state
   const [gcodeData, setGcodeData] = useState(null);
+  const [gcodeItems, setGcodeItems] = useState([]);
   
   // Applied status of current G-code
   const [isGcodeApplied, setIsGcodeApplied] = useState(false);
@@ -122,9 +123,9 @@ export default function CalculadoraPage({
   const handleDrop = (e) => {
     e.preventDefault();
     handleDragLeave();
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      leerArchivo(file);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length) {
+      files.forEach((file) => leerArchivo(file));
     }
   };
 
@@ -136,38 +137,78 @@ export default function CalculadoraPage({
     setStatusBar(null);
   };
 
-  const leerArchivo = (file) => {
+  const readFileText = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsText(file);
+    });
+  };
+
+  const appendGcodeItem = (item) => {
+    setGcodeItems(prev => {
+      const next = [...prev, item];
+      if (next.length === 1) {
+        setGcodeData(item);
+      }
+      return next;
+    });
+    setStatus(`Archivo agregado: ${item.nombre}`, 'success');
+    setPrecioVentaTocado(false);
+    setPrecioVentaManual('');
+  };
+
+  const handleRemoveGcodeItem = (index) => {
+    setGcodeItems(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 1) {
+        setGcodeData(next[0]);
+        setIsGcodeApplied(false);
+      } else if (next.length > 1) {
+        setGcodeData(buildCompositeGcode(next));
+        setIsGcodeApplied(false);
+      } else {
+        setGcodeData(null);
+        setIsGcodeApplied(false);
+      }
+      return next;
+    });
+  };
+
+  const leerArchivo = async (file) => {
     if (!file) return;
     clearStatus();
-    setStatus('Leyendo archivo...', 'info');
-    if (file.name.toLowerCase().endsWith('.3mf')) {
-      leer3mf(file);
-    } else {
-      const reader = new FileReader();
-      reader.onload = (e) => parsearGcode(e.target.result, file.name);
-      reader.readAsText(file);
+    setStatus(`Leyendo ${file.name}...`, 'info');
+    try {
+      let item = null;
+      if (file.name.toLowerCase().endsWith('.3mf')) {
+        item = await leer3mf(file);
+      } else {
+        const text = await readFileText(file);
+        item = parsearGcode(text, file.name);
+      }
+      if (item) {
+        appendGcodeItem(item);
+      }
+    } catch (err) {
+      setStatus('Error: ' + err.message, 'error');
     }
   };
 
   const leer3mf = async (file) => {
     setStatus('Descomprimiendo .3mf...', 'info');
-    try {
-      const zip = await JSZip.loadAsync(await file.arrayBuffer());
-      const keys = Object.keys(zip.files);
-      if (keys.includes('Metadata/slice_info.config')) {
-        setStatus('Bambu Studio detectado...', 'info');
-        parsearBambuSliceInfo(await zip.files['Metadata/slice_info.config'].async('string'), file.name);
-        return;
-      }
-      const gf = keys.find(n => n.toLowerCase().endsWith('.gcode') || n.toLowerCase().endsWith('.gco'));
-      if (gf) {
-        parsearGcode(await zip.files[gf].async('string'), file.name + ' → ' + gf);
-        return;
-      }
-      setStatus('No se encontró G-code dentro del .3mf.', 'error');
-    } catch (err) {
-      setStatus('Error: ' + err.message, 'error');
+    const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    const keys = Object.keys(zip.files);
+    if (keys.includes('Metadata/slice_info.config')) {
+      setStatus('Bambu Studio detectado...', 'info');
+      return parsearBambuSliceInfo(await zip.files['Metadata/slice_info.config'].async('string'), file.name);
     }
+    const gf = keys.find(n => n.toLowerCase().endsWith('.gcode') || n.toLowerCase().endsWith('.gco'));
+    if (gf) {
+      return parsearGcode(await zip.files[gf].async('string'), file.name + ' → ' + gf);
+    }
+    throw new Error('No se encontró G-code dentro del .3mf.');
   };
 
   const parsearBambuSliceInfo = (xmlStr, nombre) => {
@@ -177,7 +218,7 @@ export default function CalculadoraPage({
       const placas = xmlDoc.querySelectorAll('plate');
       if (!placas.length) {
         setStatus('No se encontraron placas.', 'error');
-        return;
+        return null;
       }
       let totalSeg = 0;
       const placasData = [];
@@ -208,17 +249,16 @@ export default function CalculadoraPage({
         });
       });
 
-      // Align pricing defaults
       Object.values(matMap).forEach(m => {
         const match = cfg.filamentos.find(f => f.nombre.toLowerCase().includes(m.type.toLowerCase()));
         m.precioKg = match ? match.precio : (cfg.filamentos[0]?.precio || 18000);
       });
 
       const parsedData = { tipo: 'bambu', placas: placasData, matMap, totalSeg, nombre };
-      setGcodeData(parsedData);
-      setIsGcodeApplied(false); // Wait for Apply click!
+      setStatus(`✓ ${placasData.length} placas · ${Object.keys(matMap).length} material${Object.keys(matMap).length > 1 ? 'es' : ''} · ${Object.values(matMap).reduce((s, m) => s + m.totalG, 0).toFixed(1)}g · ${formatH(totalSeg)}`, 'success');
+      setPrecioVentaTocado(false);
+      setPrecioVentaManual('');
 
-      // Initialize bambuMats preview state
       const matsObj = {};
       Object.values(matMap).forEach((m, i) => {
         matsObj[i] = { 
@@ -229,21 +269,22 @@ export default function CalculadoraPage({
           selFil: 'manual'
         };
       });
-      setBambuMats(matsObj);
 
-      const nM = Object.keys(matMap).length;
-      const tG = Object.values(matMap).reduce((s, m) => s + m.totalG, 0);
-      setStatus(`✓ ${placasData.length} placas · ${nM} material${nM > 1 ? 'es' : ''} · ${tG.toFixed(1)}g · ${formatH(totalSeg)}`, 'success');
-      
-      setPrecioVentaTocado(false);
-      setPrecioVentaManual('');
+      if (gcodeItems.length === 0) {
+        setBambuMats(matsObj);
+      }
+
+      return parsedData;
     } catch (err) {
       setStatus('Error parseando: ' + err.message, 'error');
+      return null;
     }
   };
 
   const parsearGcode = (text, nombre) => {
-    if (intentarParsearGcodeMultiMaterial(text, nombre)) return;
+    const multiParsed = intentarParsearGcodeMultiMaterial(text, nombre);
+    if (multiParsed) return multiParsed;
+
     let extractedGramos = null, extractedTiempo = null, extractedFilamento = null;
     
     for (const line of text.split('\n')) {
@@ -265,25 +306,19 @@ export default function CalculadoraPage({
       }
     }
 
-    setGcodeData({ tipo: 'gcode', gramos: extractedGramos, tiempo: extractedTiempo, filamento: extractedFilamento, nombre });
-    setIsGcodeApplied(false); // Wait for Apply click!
-    
-    if (extractedGramos !== null || extractedTiempo !== null) {
-      setStatus('Datos extraídos correctamente.', 'success');
-    } else {
-      setStatus('No se detectaron datos. Ingresalos manualmente.', 'warning');
-    }
-
+    const parsedData = { tipo: 'gcode', gramos: extractedGramos, tiempo: extractedTiempo, filamento: extractedFilamento, nombre };
+    setStatus((extractedGramos !== null || extractedTiempo !== null) ? 'Datos extraídos correctamente.' : 'No se detectaron datos. Ingresalos manualmente.', extractedGramos !== null || extractedTiempo !== null ? 'success' : 'warning');
     setPrecioVentaTocado(false);
     setPrecioVentaManual('');
+    return parsedData;
   };
 
   const intentarParsearGcodeMultiMaterial = (text, nombre) => {
     const mUsed = text.match(/;\s*filament used \[g\]\s*=\s*([0-9.,\s]+)/i);
     const mType = text.match(/;\s*filament_type\s*=\s*([^\r\n]+)/i);
-    if (!mUsed || !mType) return false;
+    if (!mUsed || !mType) return null;
     const tiposArr = mType[1].split(';').map(s => s.trim()).filter(Boolean);
-    if (tiposArr.length < 2) return false;
+    if (tiposArr.length < 2) return null;
 
     const gramosArr = mUsed[1].split(',').map(s => parseFloat(s.trim()) || 0);
     const mColor = text.match(/;\s*filament_colour\s*=\s*([^\r\n]+)/i) || text.match(/;\s*extruder_colour\s*=\s*([^\r\n]+)/i);
@@ -298,7 +333,7 @@ export default function CalculadoraPage({
       if (g <= 0) continue;
       fils.push({ id: String(i), type: tiposArr[i] || 'PLA', color: coloresArr[i] || '#888888', usedG: g });
     }
-    if (!fils.length) return false;
+    if (!fils.length) return null;
 
     const matMap = {};
     fils.forEach(f => {
@@ -316,8 +351,9 @@ export default function CalculadoraPage({
 
     const placa = { idx: '1', nombre, pred: totalSeg, fils, sel: true };
     const parsedData = { tipo: 'bambu', placas: [placa], matMap, totalSeg, nombre };
-    setGcodeData(parsedData);
-    setIsGcodeApplied(false); // Wait for Apply click!
+    setStatus(`✓ G-code multi-material detectado · ${Object.keys(matMap).length} material${Object.keys(matMap).length > 1 ? 'es' : ''} · ${Object.values(matMap).reduce((s, m) => s + m.totalG, 0).toFixed(1)}g · ${formatH(totalSeg)}`, 'success');
+    setPrecioVentaTocado(false);
+    setPrecioVentaManual('');
 
     const matsObj = {};
     Object.values(matMap).forEach((m, i) => {
@@ -329,15 +365,11 @@ export default function CalculadoraPage({
         selFil: 'manual'
       };
     });
-    setBambuMats(matsObj);
+    if (gcodeItems.length === 0) {
+      setBambuMats(matsObj);
+    }
 
-    const nM = Object.keys(matMap).length;
-    const tG = Object.values(matMap).reduce((s, m) => s + m.totalG, 0);
-    setStatus(`✓ G-code multi-material detectado · ${nM} material${nM > 1 ? 'es' : ''} · ${tG.toFixed(1)}g · ${formatH(totalSeg)}`, 'success');
-
-    setPrecioVentaTocado(false);
-    setPrecioVentaManual('');
-    return true;
+    return parsedData;
   };
 
   const parseTiempoStr = (str) => {
@@ -427,6 +459,7 @@ export default function CalculadoraPage({
 
   const handleResetGcode = () => {
     setGcodeData(null);
+    setGcodeItems([]);
     setIsGcodeApplied(false);
     setBambuMats({});
     setPrecioVentaTocado(false);
@@ -434,51 +467,84 @@ export default function CalculadoraPage({
     clearStatus();
   };
 
-  const handleAplicarGcode = () => {
-    if (!gcodeData) return;
+  const buildCompositeGcode = (items) => {
+    if (!items || !items.length) return null;
+    const isAllBambu = items.every(item => item.tipo === 'bambu');
 
-    if (gcodeData.tipo === 'bambu') {
-      const activePlates = gcodeData.placas.filter(p => p.sel);
-      const totalSeg = activePlates.reduce((sum, p) => sum + p.pred, 0);
-      
+    const composite = {
+      tipo: isAllBambu ? 'bambu' : 'gcode',
+      nombre: items.length === 1 ? items[0].nombre : `Producto compuesto (${items.length})`,
+      placas: [],
+      matMap: {},
+      totalSeg: 0,
+      gramos: 0,
+      tiempo: 0,
+      filamento: null
+    };
+
+    items.forEach(item => {
+      if (item.tipo === 'bambu') {
+        composite.placas = [...composite.placas, ...(item.placas || [])];
+        composite.totalSeg += item.totalSeg || 0;
+        Object.entries(item.matMap || {}).forEach(([k, m]) => {
+          composite.matMap[k] = composite.matMap[k] || { type: m.type, color: m.color, totalG: 0, precioKg: m.precioKg };
+          composite.matMap[k].totalG += m.totalG || 0;
+          composite.matMap[k].precioKg = composite.matMap[k].precioKg || m.precioKg;
+        });
+      } else {
+        composite.gramos += item.gramos || 0;
+        composite.tiempo += item.tiempo || 0;
+        if (!composite.filamento && item.filamento) {
+          composite.filamento = item.filamento;
+        }
+      }
+    });
+
+    if (isAllBambu) {
+      composite.placas = composite.placas.map(p => ({ ...p, sel: p.sel !== false }));
+    }
+
+    return composite;
+  };
+
+  const handleAplicarGcode = () => {
+    if (!gcodeItems.length) return;
+
+    const composite = buildCompositeGcode(gcodeItems);
+    if (!composite) return;
+
+    setGcodeData(composite);
+
+    if (composite.tipo === 'bambu') {
       const newBambuMats = {};
-      Object.keys(gcodeData.matMap).forEach((k, i) => {
-        const m = gcodeData.matMap[k];
-        const g = selectedPlatesMaterialGrams[k] || 0;
+      Object.keys(composite.matMap).forEach((k, i) => {
+        const m = composite.matMap[k];
         const currentBMat = bambuMats[i] || { precioKg: m.precioKg, selFil: 'manual' };
         newBambuMats[i] = {
           type: m.type,
           color: m.color,
-          totalG: g,
+          totalG: m.totalG,
           precioKg: currentBMat.precioKg,
           selFil: currentBMat.selFil
         };
       });
-
       setBambuMats(newBambuMats);
-      setHoras(totalSeg / 3600);
-
-      // If single material detected in plates selection, sync to manual state as well
+      setHoras((composite.totalSeg || 0) / 3600);
       const matsArray = Object.values(newBambuMats);
       if (matsArray.length === 1) {
         setGramos(matsArray[0].totalG);
         setPrecioRollo(matsArray[0].precioKg);
-        if (matsArray[0].selFil !== 'manual') {
-          setSelFilamento(matsArray[0].selFil);
-        } else {
-          setSelFilamento('manual');
-        }
+        setSelFilamento(matsArray[0].selFil !== 'manual' ? matsArray[0].selFil : 'manual');
       }
     } else {
-      // Single-material Gcode
-      if (gcodeData.gramos !== null) {
-        setGramos(gcodeData.gramos);
+      if (composite.gramos !== null) {
+        setGramos(composite.gramos);
       }
-      if (gcodeData.tiempo !== null) {
-        setHoras(gcodeData.tiempo);
+      if (composite.tiempo !== null) {
+        setHoras(composite.tiempo);
       }
-      if (gcodeData.filamento) {
-        const idx = cfg.filamentos.findIndex(f => f.nombre.toLowerCase().includes(gcodeData.filamento.toLowerCase()));
+      if (composite.filamento) {
+        const idx = cfg.filamentos.findIndex(f => f.nombre.toLowerCase().includes(composite.filamento.toLowerCase()));
         if (idx >= 0) {
           setSelFilamento(String(idx));
           setPrecioRollo(cfg.filamentos[idx].precio);
@@ -491,7 +557,7 @@ export default function CalculadoraPage({
     setIsGcodeApplied(true);
     setPrecioVentaTocado(false);
     setPrecioVentaManual('');
-    showToast('✓ Datos del archivo aplicados a la calculadora.');
+    showToast('✓ Producto compuesto aplicado a la calculadora.');
   };
 
   const handleLoadLibraryItem = (id) => {
@@ -647,8 +713,7 @@ export default function CalculadoraPage({
     // Package current calculation results for Modal saves
     const currentPresupuesto = {
       nombreArchivo: (isGcodeApplied && gcodeData) ? gcodeData.nombre : null,
-      costeFil,
-      filDetalle,
+        gcodeArchivos: gcodeItems.length ? gcodeItems.map(item => item.nombre) : ((isGcodeApplied && gcodeData) ? [gcodeData.nombre] : []),
       costeElec,
       costeMant,
       costeMO,
@@ -771,14 +836,37 @@ export default function CalculadoraPage({
           <input 
             type="file" 
             id="gcode-file"
+            multiple
             accept=".gcode,.gco,.g,.txt,.3mf" 
-            onChange={(e) => leerArchivo(e.target.files[0])} 
+            onChange={(e) => Array.from(e.target.files || []).forEach(file => leerArchivo(file))} 
           />
         </label>
 
         {statusBar && (
           <div className={`status active ${statusBar.type}`}>
             {statusBar.text}
+          </div>
+        )}
+
+        {gcodeItems.length > 0 && (
+          <div style={{ marginTop: '12px', padding: '10px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--bg3)' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
+              Archivos importados ({gcodeItems.length})
+            </div>
+            {gcodeItems.map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 500, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nombre}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+                    {item.tipo === 'bambu' ? `${item.placas.length} placas · ${formatH(item.totalSeg)}` : `${item.gramos?.toFixed(1) ?? '—'}g · ${item.tiempo ? formatH(item.tiempo * 3600) : '—'}`}
+                  </div>
+                </div>
+                <button className="btn btn-sm btn-danger" onClick={() => handleRemoveGcodeItem(idx)}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button className="btn btn-sm" onClick={handleResetGcode}>Limpiar archivos</button>
           </div>
         )}
 

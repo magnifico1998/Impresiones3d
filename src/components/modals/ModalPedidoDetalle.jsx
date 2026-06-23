@@ -540,6 +540,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                             {pz.archivoNombre}
                           </div>
                         )}
+                        {pz.gcodeArchivos && pz.gcodeArchivos.length > 1 && (
+                          <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
+                            Archivos: {pz.gcodeArchivos.join(', ')}
+                          </div>
+                        )}
                         {pz.impresoraNombre && (
                           <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text3)', marginTop: '4px' }}>
                             🖨 {pz.impresoraNombre}
