@@ -124,7 +124,7 @@ function App() {
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontFamily: 'var(--sans)', fontSize: '24px', fontWeight: 600, color: 'var(--text)', letterSpacing: '-.5px', marginBottom: '6px' }}>
-            Manager3D
+            ManagerConReact|  
           </h1>
           <p style={{ fontFamily: 'var(--sans)', fontSize: '13px', color: 'var(--text2)' }}>
             Ingresá con tu cuenta para sincronizar tus datos en la nube
