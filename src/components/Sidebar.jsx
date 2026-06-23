@@ -6,7 +6,7 @@ export default function Sidebar() {
 
   const items = [
     {
-      label: 'Herramientas',
+      label: 'Navegación',
       links: [
         {
           id: 'resumen',
