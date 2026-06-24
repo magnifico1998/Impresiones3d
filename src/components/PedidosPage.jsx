@@ -1,0 +1,232 @@
+import React, { useMemo } from 'react';
+import { useApp } from '../context/AppContext';
+
+export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
+  const { pedidos, setPedidos, showToast } = useApp();
+
+  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
+
+  const esUrgente = (p) => {
+    if (!p.fechaEntrega || p.estado === 'completado' || p.estado === 'listo' || p.estado === 'cancelado') return false;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const entr = new Date(p.fechaEntrega + 'T00:00:00');
+    const diff = (entr - hoy) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 7;
+  };
+
+  const getTimestamp = (p) => {
+    if (p.fechaPedido) return new Date(p.fechaPedido + 'T12:00:00').getTime();
+    if (p.creado) {
+      let pts = p.creado.split('/');
+      if (pts.length === 3) return new Date(pts[2], pts[1] - 1, pts[0]).getTime();
+    }
+    return 0;
+  };
+
+  const stats = useMemo(() => {
+    const total = pedidos.length;
+    const prog = pedidos.filter(p => p.estado === 'progreso' || p.estado === 'listo').length;
+    const done = pedidos.filter(p => p.estado === 'completado').length;
+
+    const fact = pedidos
+      .filter(p => (p.estado === 'completado' || p.estado === 'listo') && p.precioVenta)
+      .reduce((s, p) => s + (p.precioVenta || 0), 0);
+
+    const pendGlobal = pedidos
+      .filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && p.precioVenta)
+      .reduce((s, p) => s + (p.precioVenta || 0), 0);
+
+    return { total, prog, done, fact, pendGlobal };
+  }, [pedidos]);
+
+  const sortedPedidos = useMemo(() => {
+    return [...pedidos].sort((a, b) => getTimestamp(b) - getTimestamp(a));
+  }, [pedidos]);
+
+  const handleStatusChange = (e, id, newStatus) => {
+    e.stopPropagation();
+    setPedidos(prev => prev.map(p => {
+      if (p.id === id) {
+        const eraCompletado = p.estado === 'completado';
+        let fechaCompletado = p.fechaCompletado;
+        if (newStatus === 'completado' && !eraCompletado) {
+          fechaCompletado = new Date().toISOString().slice(0, 10);
+        } else if (newStatus !== 'completado') {
+          fechaCompletado = null;
+        }
+        return { ...p, estado: newStatus, fechaCompletado };
+      }
+      return p;
+    }));
+
+    const badgeText = {
+      pendiente: 'Pendiente',
+      progreso: 'En progreso',
+      listo: 'Listo p/ entregar',
+      completado: 'Completado',
+      cancelado: 'Cancelado'
+    }[newStatus] || newStatus;
+
+    showToast('Estado actualizado a: ' + badgeText);
+  };
+
+  return (
+    <div className="page active">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div className="page-title">Panel de pedidos</div>
+          <div className="page-sub" style={{ marginBottom: 0 }}>
+            Cada pedido agrupa múltiples piezas con sus G-codes.
+          </div>
+        </div>
+
+        <button className="btn btn-primary" onClick={onOpenNewOrder}>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M10 4v12M4 10h12" />
+          </svg>
+          Nuevo pedido
+        </button>
+      </div>
+
+      <div className="grid5">
+        <div className="metric">
+          <div className="metric-label">Total</div>
+          <div className="metric-value">{stats.total}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">En progreso</div>
+          <div className="metric-value">{stats.prog}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">Completados</div>
+          <div className="metric-value accent">{stats.done}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">Facturado</div>
+          <div className="metric-value">{fmt(stats.fact)}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">Pendiente</div>
+          <div className="metric-value" style={{ color: 'var(--warn)' }}>
+            {fmt(stats.pendGlobal)}
+          </div>
+        </div>
+      </div>
+
+      <div id="lista-pedidos">
+        {!sortedPedidos.length ? (
+          <div className="empty">Todavía no hay pedidos.</div>
+        ) : (
+          sortedPedidos.map(p => {
+            const urgente = esUrgente(p);
+
+            const costoPiezas = p.piezas.reduce(
+              (s, pz) => s + ((pz.costoUnitario || pz.total || 0) * pz.cantidad),
+              0
+            );
+            const costoIns = (p.insumos || []).reduce(
+              (s, i) => s + i.precio * i.qty,
+              0
+            );
+            const costoTotal = costoPiezas + costoIns;
+
+            const ganancia = p.precioVenta ? p.precioVenta - costoTotal : null;
+
+            const totalUnidades = p.piezas.reduce((t, pz) => t + pz.cantidad, 0);
+            const totalElaboradas = p.piezas.reduce(
+              (t, pz) => t + (pz.elaborados || 0),
+              0
+            );
+            const unidadesPendientes = Math.max(totalUnidades - totalElaboradas, 0);
+            const unidadesTexto = unidadesPendientes > 0
+              ? `${unidadesPendientes} de ${totalUnidades}`
+              : String(totalUnidades);
+
+            return (
+              <div
+                key={p.id}
+                className={`pedido-card ${urgente ? 'urgente' : ''}`}
+                onClick={() => onOpenOrderDetail(p.id)}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                    {p.cliente}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text2)' }}>
+                    {p.desc || 'Sin descripción'}
+                  </div>
+                </div>
+
+                {/* ✅ CONTENEDOR DERECHO FIX */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '20px',
+                    flexShrink: 0,
+                    flexWrap: 'nowrap', // ✅ CLAVE
+                    justifyContent: 'flex-end'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '18px', fontWeight: 600 }}>
+                      {unidadesTexto}
+                    </div>
+                    {unidadesPendientes > 0 && (
+                      <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>
+                        Pendiente
+                      </div>
+                    )}
+                  </div>
+
+                  <div>{fmt(costoTotal)}</div>
+
+                  {p.precioVenta && <div>{fmt(p.precioVenta)}</div>}
+
+                  {/* ✅ GANANCIA + STATUS JUNTOS */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {ganancia !== null && (
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          color:
+                            ganancia >= 0
+                              ? 'var(--accent)'
+                              : 'var(--danger)'
+                        }}
+                      >
+                        {fmt(ganancia)}
+                      </div>
+                    )}
+
+                    {/* ✅ STATUS AL LADO */}
+                    <select
+                      className={`status-select ${p.estado}`}
+                      value={p.estado}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        handleStatusChange(e, p.id, e.target.value)
+                      }
+                      style={{
+                        height: '30px',
+                        padding: '4px 8px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      <option value="pendiente">Pendiente</option>
+                      <option value="progreso">En progreso</option>
+                      <option value="listo">Listo p/ entregar</option>
+                      <option value="completado">Completado</option>
+                      <option value="cancelado">Cancelado</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
