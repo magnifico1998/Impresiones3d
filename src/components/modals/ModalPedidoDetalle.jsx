@@ -31,11 +31,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
-  const formatH = (s) => {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
-  };
+
 
   const getClientContact = () => {
     const c = clientes.find(x => x.name === draft.cliente || x.nombre === draft.cliente);
@@ -107,7 +103,6 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       const piezas = prev.piezas.map(pz => {
         if (pz.id === piezaId) {
           // Adjust unit price and subtotal
-          const unit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado || 0);
           const oldElab = pz.elaborados || 0;
           return {
             ...pz,
@@ -266,6 +261,31 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     });
   };
 
+  const handleAddVersion = (piezaId) => {
+    setDraft(prev => {
+      const piezas = prev.piezas.map(pz => {
+        if (pz.id === piezaId) {
+          const sumAsignado = (pz.versiones || []).reduce((s, v) => s + v.cantidad, 0);
+          const faltanAsignar = pz.cantidad - sumAsignado;
+          const newQty = faltanAsignar > 0 ? faltanAsignar : 1;
+          const newVer = {
+            id: Date.now(),
+            cantidad: newQty,
+            realizados: 0,
+            color: '',
+            comentario: ''
+          };
+          return {
+            ...pz,
+            versiones: [...(pz.versiones || []), newVer]
+          };
+        }
+        return pz;
+      });
+      return { ...prev, piezas };
+    });
+  };
+
   const handleToggleInsumo = (name, price, checked) => {
     setDraft(prev => {
       let insumos = [...(prev.insumos || [])];
@@ -314,7 +334,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         const fmtImg = empresa.logo.includes('image/png') ? 'PNG' : (empresa.logo.includes('image/jpeg') || empresa.logo.includes('image/jpg')) ? 'JPEG' : 'PNG';
         doc.addImage(empresa.logo, fmtImg, marginX, y - 9, 14, 14);
         titleX = marginX + 18;
-      } catch (e) {}
+      } catch { /* empty */ }
     }
     doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.setTextColor(30, 33, 40);
     doc.text('PEDIDO', titleX, y);
@@ -331,7 +351,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     const dirLine = [empresa.direccion, empresa.cp].filter(Boolean).join(', ');
     if (dirLine) { doc.text(dirLine, pageW - marginX, ey, { align: 'right' }); ey += 4.2; }
     if (empresa.telefono) { doc.text(empresa.telefono, pageW - marginX, ey, { align: 'right' }); ey += 4.2; }
-    if (empresa.email) { doc.text(empresa.email, pageW - marginX, ey, { align: 'right' }); ey += 4.2; }
+    if (empresa.email) { doc.text(empresa.email, pageW - marginX, ey, { align: 'right' }); }
 
     y += 12;
     doc.setDrawColor(210); doc.setLineWidth(0.3); doc.line(marginX, y, pageW - marginX, y);
@@ -463,7 +483,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.setFontSize(9); doc.setTextColor(130, 130, 130); doc.setFont('helvetica', 'normal');
     doc.text(empresa.nombre || '', marginX, pageH - 14);
 
-    const nameFile = `Pedido_${(p.cliente || 'cliente')}_${String(p.id).padStart(4, '0')}`.replace(/[^a-zA-Z0-9_.\-]/g, '_');
+    const nameFile = `Pedido_${(p.cliente || 'cliente')}_${String(p.id).padStart(4, '0')}`.replace(/[^a-zA-Z0-9_.-]/g, '_');
     doc.save(nameFile + '.pdf');
     showToast('PDF generado correctamente');
   };

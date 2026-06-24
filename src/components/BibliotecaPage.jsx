@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido }) {
-  const { biblioteca, setBiblioteca, showToast, setActivePage } = useApp();
+  const { biblioteca, setBiblioteca, showToast } = useApp();
 
   const [q, setQ] = useState('');
   const [filterCat, setFilterCat] = useState('');
