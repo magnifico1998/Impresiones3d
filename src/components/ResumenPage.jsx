@@ -147,7 +147,7 @@ export default function ResumenPage() {
     while (cur <= hasta) {
       const k = cur.toISOString().slice(0, 7);
       map[k] = 0;
-      cur.setMonth(cur.setMonth() + 1);
+      cur.setMonth(cur.getMonth() + 1);
     }
     pedidosList.forEach(p => {
       const f = getFechaVenta(p);
