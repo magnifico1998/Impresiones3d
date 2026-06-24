@@ -81,13 +81,31 @@ export const AppProvider = ({ children }) => {
 
   const bloqueoSincronizacion = useRef(false);
 
-  // Synchronous sequence ID generator
+  const leerDatosLocales = () => {
+    const savedCfg = localStorage.getItem('p3d_cfg');
+    const savedPedidos = localStorage.getItem('p3d_pedidos');
+    const savedCompras = localStorage.getItem('p3d_compras');
+    const savedBib = localStorage.getItem('p3d_bib');
+    const savedClientes = localStorage.getItem('p3d_clientes');
+    const savedEmpresa = localStorage.getItem('p3d_empresa');
+    const savedCounter = localStorage.getItem('p3d_counter');
+
+    return {
+      cfg: savedCfg ? JSON.parse(savedCfg) : defaultCfg,
+      pedidos: savedPedidos ? JSON.parse(savedPedidos) : [],
+      compras: savedCompras ? JSON.parse(savedCompras) : [],
+      biblioteca: savedBib ? JSON.parse(savedBib) : [],
+      clientes: savedClientes ? JSON.parse(savedClientes) : [],
+      empresa: savedEmpresa ? JSON.parse(savedEmpresa) : defaultEmpresa,
+      counter: savedCounter ? parseInt(savedCounter, 10) : 1
+    };
+  };
+
   const getNewId = () => {
-    let tempCounter = parseInt(localStorage.getItem('p3d_counter') || '1', 10);
-    const nextId = tempCounter;
-    tempCounter++;
-    localStorage.setItem('p3d_counter', String(tempCounter));
-    setIdCounter(tempCounter);
+    const nextId = idCounter;
+    const nextCounter = idCounter + 1;
+    setIdCounter(nextCounter);
+    localStorage.setItem('p3d_counter', String(nextCounter));
     return nextId;
   };
 
@@ -110,21 +128,15 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Upload to Cloud
-  const subirDatosANube = async (uid, currentData) => {
+  // Upload partial updates to Cloud
+  const subirDatosANube = async (uid, partialData) => {
     try {
       const dataPayload = {
-        pedidos: currentData.pedidos,
-        config: currentData.cfg,
-        compras: currentData.compras,
-        biblioteca: currentData.biblioteca,
-        clientes: currentData.clientes,
-        counter: currentData.idCounter,
-        empresa: currentData.empresa,
+        ...partialData,
         ultimaActualizacion: new Date().toISOString()
       };
-      await setDoc(doc(db, "users", uid), dataPayload);
-      console.log("Respaldo automático guardado en Firestore.");
+      await setDoc(doc(db, "users", uid), dataPayload, { merge: true });
+      console.log("Sincronización parcial guardada en Firestore:", Object.keys(partialData).join(', '));
     } catch (e) {
       console.error("Error al respaldar en la nube:", e);
     }
@@ -137,50 +149,63 @@ export const AppProvider = ({ children }) => {
       console.log("Descargando datos desde la nube...");
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
+      const localData = leerDatosLocales();
+
       if (docSnap.exists()) {
         const cloud = docSnap.data();
-        if (cloud.pedidos) {
-          setPedidos(cloud.pedidos);
-          localStorage.setItem('p3d_pedidos', JSON.stringify(cloud.pedidos));
-        }
-        if (cloud.config) {
-          setCfg(cloud.config);
-          localStorage.setItem('p3d_cfg', JSON.stringify(cloud.config));
-        }
-        if (cloud.compras) {
-          setCompras(cloud.compras);
-          localStorage.setItem('p3d_compras', JSON.stringify(cloud.compras));
-        }
-        if (cloud.biblioteca) {
-          setBiblioteca(cloud.biblioteca);
-          localStorage.setItem('p3d_bib', JSON.stringify(cloud.biblioteca));
-        }
-        if (cloud.clientes) {
-          setClientes(cloud.clientes);
-          localStorage.setItem('p3d_clientes', JSON.stringify(cloud.clientes));
-        }
-        if (cloud.counter) {
-          setIdCounter(Number(cloud.counter));
-          localStorage.setItem('p3d_counter', cloud.counter.toString());
-        }
-        if (cloud.empresa) {
-          setEmpresa(cloud.empresa);
-          localStorage.setItem('p3d_empresa', JSON.stringify(cloud.empresa));
-        }
+        const remotePedidos = cloud.pedidos ?? localData.pedidos;
+        const remoteCfg = cloud.config ?? localData.cfg;
+        const remoteCompras = cloud.compras ?? localData.compras;
+        const remoteBiblioteca = cloud.biblioteca ?? localData.biblioteca;
+        const remoteClientes = cloud.clientes ?? localData.clientes;
+        const remoteEmpresa = cloud.empresa ?? localData.empresa;
+        const remoteCounter = cloud.counter ?? localData.counter;
+
+        setPedidos(remotePedidos);
+        setCfg(remoteCfg);
+        setCompras(remoteCompras);
+        setBiblioteca(remoteBiblioteca);
+        setClientes(remoteClientes);
+        setEmpresa(remoteEmpresa);
+        setIdCounter(Number(remoteCounter));
+
+        localStorage.setItem('p3d_pedidos', JSON.stringify(remotePedidos));
+        localStorage.setItem('p3d_cfg', JSON.stringify(remoteCfg));
+        localStorage.setItem('p3d_compras', JSON.stringify(remoteCompras));
+        localStorage.setItem('p3d_bib', JSON.stringify(remoteBiblioteca));
+        localStorage.setItem('p3d_clientes', JSON.stringify(remoteClientes));
+        localStorage.setItem('p3d_empresa', JSON.stringify(remoteEmpresa));
+        localStorage.setItem('p3d_counter', String(remoteCounter));
+
         console.log("Sincronización desde la nube completada.");
       } else {
         console.log("Usuario nuevo. Inicializando base en la nube...");
         const dataPayload = {
-          pedidos: [],
-          config: defaultCfg,
-          compras: [],
-          biblioteca: [],
-          clientes: [],
-          counter: 1,
-          empresa: defaultEmpresa,
+          pedidos: localData.pedidos,
+          config: localData.cfg,
+          compras: localData.compras,
+          biblioteca: localData.biblioteca,
+          clientes: localData.clientes,
+          counter: localData.counter,
+          empresa: localData.empresa,
           ultimaActualizacion: new Date().toISOString()
         };
         await setDoc(docRef, dataPayload);
+        setPedidos(dataPayload.pedidos);
+        setCfg(dataPayload.config);
+        setCompras(dataPayload.compras);
+        setBiblioteca(dataPayload.biblioteca);
+        setClientes(dataPayload.clientes);
+        setEmpresa(dataPayload.empresa);
+        setIdCounter(Number(dataPayload.counter));
+
+        localStorage.setItem('p3d_pedidos', JSON.stringify(dataPayload.pedidos));
+        localStorage.setItem('p3d_cfg', JSON.stringify(dataPayload.config));
+        localStorage.setItem('p3d_compras', JSON.stringify(dataPayload.compras));
+        localStorage.setItem('p3d_bib', JSON.stringify(dataPayload.biblioteca));
+        localStorage.setItem('p3d_clientes', JSON.stringify(dataPayload.clientes));
+        localStorage.setItem('p3d_empresa', JSON.stringify(dataPayload.empresa));
+        localStorage.setItem('p3d_counter', String(dataPayload.counter));
       }
     } catch (e) {
       console.error("Error al descargar datos de Firestore:", e);
@@ -191,31 +216,23 @@ export const AppProvider = ({ children }) => {
 
   // Initial load
   useEffect(() => {
-    const savedCfg = localStorage.getItem('p3d_cfg');
-    if (savedCfg) setCfg(JSON.parse(savedCfg));
-    
-    const savedPedidos = localStorage.getItem('p3d_pedidos');
-    if (savedPedidos) setPedidos(JSON.parse(savedPedidos));
-
-    const savedCompras = localStorage.getItem('p3d_compras');
-    if (savedCompras) setCompras(JSON.parse(savedCompras));
-
-    const savedBib = localStorage.getItem('p3d_bib');
-    if (savedBib) setBiblioteca(JSON.parse(savedBib));
-
-    const savedClientes = localStorage.getItem('p3d_clientes');
-    if (savedClientes) setClientes(JSON.parse(savedClientes));
-
-    const savedCounter = localStorage.getItem('p3d_counter');
-    if (savedCounter) setIdCounter(parseInt(savedCounter, 10) || 1);
-
-    const savedEmpresa = localStorage.getItem('p3d_empresa');
-    if (savedEmpresa) setEmpresa(JSON.parse(savedEmpresa));
+    const cargarDatosLocales = () => {
+      const localData = leerDatosLocales();
+      setCfg(localData.cfg);
+      setPedidos(localData.pedidos);
+      setCompras(localData.compras);
+      setBiblioteca(localData.biblioteca);
+      setClientes(localData.clientes);
+      setEmpresa(localData.empresa);
+      setIdCounter(localData.counter);
+    };
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         await descargarDatosDeNube(currentUser.uid);
+      } else {
+        cargarDatosLocales();
       }
       setLoading(false);
     });
@@ -223,23 +240,82 @@ export const AppProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Save to localStorage & Cloud
+  // Sync pedidos
   useEffect(() => {
     if (loading) return;
     if (bloqueoSincronizacion.current) return;
 
     localStorage.setItem('p3d_pedidos', JSON.stringify(pedidos));
-    localStorage.setItem('p3d_cfg', JSON.stringify(cfg));
-    localStorage.setItem('p3d_compras', JSON.stringify(compras));
-    localStorage.setItem('p3d_bib', JSON.stringify(biblioteca));
-    localStorage.setItem('p3d_clientes', JSON.stringify(clientes));
-    localStorage.setItem('p3d_empresa', JSON.stringify(empresa));
-    localStorage.setItem('p3d_counter', String(idCounter));
-
     if (user) {
-      subirDatosANube(user.uid, { pedidos, cfg, compras, biblioteca, clientes, idCounter, empresa });
+      subirDatosANube(user.uid, { pedidos });
     }
-  }, [pedidos, compras, biblioteca, clientes, empresa, cfg, idCounter, user, loading]);
+  }, [pedidos, user, loading]);
+
+  // Sync configuration
+  useEffect(() => {
+    if (loading) return;
+    if (bloqueoSincronizacion.current) return;
+
+    localStorage.setItem('p3d_cfg', JSON.stringify(cfg));
+    if (user) {
+      subirDatosANube(user.uid, { config: cfg });
+    }
+  }, [cfg, user, loading]);
+
+  // Sync compras
+  useEffect(() => {
+    if (loading) return;
+    if (bloqueoSincronizacion.current) return;
+
+    localStorage.setItem('p3d_compras', JSON.stringify(compras));
+    if (user) {
+      subirDatosANube(user.uid, { compras });
+    }
+  }, [compras, user, loading]);
+
+  // Sync biblioteca
+  useEffect(() => {
+    if (loading) return;
+    if (bloqueoSincronizacion.current) return;
+
+    localStorage.setItem('p3d_bib', JSON.stringify(biblioteca));
+    if (user) {
+      subirDatosANube(user.uid, { biblioteca });
+    }
+  }, [biblioteca, user, loading]);
+
+  // Sync clientes
+  useEffect(() => {
+    if (loading) return;
+    if (bloqueoSincronizacion.current) return;
+
+    localStorage.setItem('p3d_clientes', JSON.stringify(clientes));
+    if (user) {
+      subirDatosANube(user.uid, { clientes });
+    }
+  }, [clientes, user, loading]);
+
+  // Sync empresa
+  useEffect(() => {
+    if (loading) return;
+    if (bloqueoSincronizacion.current) return;
+
+    localStorage.setItem('p3d_empresa', JSON.stringify(empresa));
+    if (user) {
+      subirDatosANube(user.uid, { empresa });
+    }
+  }, [empresa, user, loading]);
+
+  // Sync counter
+  useEffect(() => {
+    if (loading) return;
+    if (bloqueoSincronizacion.current) return;
+
+    localStorage.setItem('p3d_counter', String(idCounter));
+    if (user) {
+      subirDatosANube(user.uid, { counter: idCounter });
+    }
+  }, [idCounter, user, loading]);
 
   const exportarBackupData = () => {
     try {
