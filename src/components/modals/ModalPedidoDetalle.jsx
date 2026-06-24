@@ -79,6 +79,27 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     setDraft(prev => ({ ...prev, [field]: val }));
   };
 
+  const getNextPedidoEstado = (prevEstado, piezas) => {
+    if (prevEstado === 'completado' || prevEstado === 'cancelado') {
+      return prevEstado;
+    }
+
+    const allDone = piezas.every(pz => (pz.elaborados || 0) >= pz.cantidad);
+    const someDone = piezas.some(pz => (pz.elaborados || 0) > 0);
+
+    if (allDone && piezas.length > 0) {
+      return 'listo';
+    }
+    if (someDone) {
+      return 'progreso';
+    }
+    return 'pendiente';
+  };
+
+  const commitPedidoEstado = (newEstado) => {
+    setPedidos(prev => prev.map(p => p.id === pedidoId ? { ...p, estado: newEstado } : p));
+  };
+
   // Piece actions
   const handleUpdatePartQty = (piezaId, qty) => {
     const newQty = parseInt(qty) || 1;
@@ -103,7 +124,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         return s + (unit * pz.cantidad);
       }, 0);
 
-      return { ...prev, piezas, precioVenta: newPrecioVenta };
+      const nextEstado = getNextPedidoEstado(prev.estado, piezas);
+      if (nextEstado !== prev.estado) {
+        commitPedidoEstado(nextEstado);
+      }
+      return { ...prev, piezas, precioVenta: newPrecioVenta, estado: nextEstado };
     });
   };
 
@@ -121,12 +146,15 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         return pz;
       });
 
-      // Auto update status to list for delivery if all units are done
-      let nextEstado = prev.estado;
-      const allDone = piezas.every(pz => (pz.elaborados || 0) >= pz.cantidad);
-      if (allDone && prev.estado === 'progreso') {
-        nextEstado = 'listo';
+      const nextEstado = getNextPedidoEstado(prev.estado, piezas);
+      if (nextEstado === 'listo' && prev.estado !== 'listo') {
         showToast('¡Todas las piezas listas! Pedido listo para entregar.', 'success');
+      }
+      if (nextEstado === 'progreso' && prev.estado === 'pendiente') {
+        showToast('Pedido puesto en progreso.', 'info');
+      }
+      if (nextEstado !== prev.estado) {
+        commitPedidoEstado(nextEstado);
       }
 
       return { ...prev, piezas, estado: nextEstado };
@@ -174,7 +202,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           return s + (unit * pz.cantidad);
         }, 0);
 
-        return { ...prev, piezas, precioVenta: newPrecioVenta };
+        const nextEstado = getNextPedidoEstado(prev.estado, piezas);
+        return { ...prev, piezas, precioVenta: newPrecioVenta, estado: nextEstado };
       });
       showToast('Pieza eliminada');
     }
@@ -185,7 +214,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     setDraft(prev => {
       const piezas = prev.piezas.map(pz => {
         if (pz.id === piezaId) {
-          let versiones = pz.versiones.map(v => {
+          const versiones = pz.versiones.map(v => {
             if (v.id === verId) {
               const val = field === 'cantidad' || field === 'realizados' ? (parseInt(value) || 0) : value;
               return { ...v, [field]: val };
@@ -193,12 +222,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             return v;
           });
 
-          // Recalculate part's total elaborados from versions
           const newElab = versiones.reduce((s, v) => s + (v.realizados || 0), 0);
 
-          return { 
-            ...pz, 
-            versiones, 
+          return {
+            ...pz,
+            versiones,
             elaborados: newElab,
             completada: newElab >= pz.cantidad
           };
@@ -206,34 +234,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         return pz;
       });
 
-      return { ...prev, piezas };
-    });
-  };
-
-  const handleAddVersion = (piezaId) => {
-    setDraft(prev => {
-      const piezas = prev.piezas.map(pz => {
-        if (pz.id === piezaId) {
-          const sumAsignado = (pz.versiones || []).reduce((s, v) => s + v.cantidad, 0);
-          const left = pz.cantidad - sumAsignado;
-          if (left <= 0) return pz;
-
-          const newVer = {
-            id: Date.now() + Math.random(),
-            cantidad: left,
-            realizados: 0,
-            color: '',
-            comentario: ''
-          };
-
-          return {
-            ...pz,
-            versiones: [...(pz.versiones || []), newVer]
-          };
-        }
-        return pz;
-      });
-      return { ...prev, piezas };
+      const nextEstado = getNextPedidoEstado(prev.estado, piezas);
+      if (nextEstado !== prev.estado) {
+        commitPedidoEstado(nextEstado);
+      }
+      return { ...prev, piezas, estado: nextEstado };
     });
   };
 
@@ -243,8 +248,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         if (pz.id === piezaId) {
           const versiones = pz.versiones.filter(v => v.id !== verId);
           const newElab = versiones.reduce((s, v) => s + (v.realizados || 0), 0);
-          return { 
-            ...pz, 
+          return {
+            ...pz,
             versiones,
             elaborados: newElab,
             completada: newElab >= pz.cantidad
@@ -252,21 +257,23 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         }
         return pz;
       });
-      return { ...prev, piezas };
+
+      const nextEstado = getNextPedidoEstado(prev.estado, piezas);
+      if (nextEstado !== prev.estado) {
+        commitPedidoEstado(nextEstado);
+      }
+      return { ...prev, piezas, estado: nextEstado };
     });
   };
 
-  // Consumables (Insumos) actions
   const handleToggleInsumo = (name, price, checked) => {
     setDraft(prev => {
       let insumos = [...(prev.insumos || [])];
       if (checked) {
-        // Add if not present
         if (!insumos.some(i => i.nombre === name)) {
           insumos.push({ nombre: name, precio: price, qty: 1 });
         }
       } else {
-        // Remove
         insumos = insumos.filter(i => i.nombre !== name);
       }
       return { ...prev, insumos };
