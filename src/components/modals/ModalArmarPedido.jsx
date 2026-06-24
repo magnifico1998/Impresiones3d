@@ -79,7 +79,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
     const qty = Math.max(1, parseInt(value) || 1);
     setArmarPedidoItems(prev => prev.map((item, i) => {
       if (i === idx) {
-        let versiones = [...item.versiones];
+        let versiones;
         if (qty <= 1) {
           versiones = [];
         } else {
