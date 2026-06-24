@@ -138,6 +138,10 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
               (t, pz) => t + (pz.elaborados || 0),
               0
             );
+            const unidadesPendientes = Math.max(totalUnidades - totalElaboradas, 0);
+            const unidadesTexto = unidadesPendientes > 0
+              ? `${unidadesPendientes} de ${totalUnidades}`
+              : String(totalUnidades);
 
             return (
               <div
@@ -167,8 +171,13 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                 >
                   <div>
                     <div style={{ fontSize: '18px', fontWeight: 600 }}>
-                      {totalUnidades}
+                      {unidadesTexto}
                     </div>
+                    {unidadesPendientes > 0 && (
+                      <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>
+                        Pendiente
+                      </div>
+                    )}
                   </div>
 
                   <div>{fmt(costoTotal)}</div>
