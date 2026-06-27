@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function ModalCliente({ isOpen, onClose, editId }) {
-  const { clientes, setClientes, pedidos, setPedidos, getNewId, showToast } = useApp();
+  const { clientes, setClientes, setPedidos, getNewId, showToast } = useApp();
 
   const [form, setForm] = useState({
     nombre: '',

@@ -56,7 +56,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
       notaGeneral: form.notaGeneral.trim()
     };
 
-    let savedId = null;
+    let savedId;
 
     if (editId !== null) {
       setPedidos(prev => prev.map(p => {

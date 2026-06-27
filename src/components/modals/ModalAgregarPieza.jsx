@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
-export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, onConfirm }) {
-  const { pedidos, setPedidos, getNewId, showToast, setActivePage } = useApp();
+export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, defaultPedidoId, onConfirm }) {
+  const { pedidos, setPedidos, getNewId, showToast } = useApp();
   const [nombre, setNombre] = useState('');
   const [pedidoId, setPedidoId] = useState('');
 
@@ -14,11 +14,13 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
         ? presupuestoActual.nombreArchivo.replace(/\.(3mf|gcode|gco)$/i, '').replace(/\s*→.*$/, '').trim()
         : 'Pieza';
       setNombre(nombreSug);
-      if (activePedidos.length > 0) {
+      if (defaultPedidoId) {
+        setPedidoId(defaultPedidoId.toString());
+      } else if (activePedidos.length > 0) {
         setPedidoId(activePedidos[0].id.toString());
       }
     }
-  }, [isOpen, presupuestoActual, pedidos]);
+  }, [isOpen, presupuestoActual, pedidos, defaultPedidoId]);
 
   if (!isOpen || !presupuestoActual) return null;
 

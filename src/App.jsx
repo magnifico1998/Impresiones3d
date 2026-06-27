@@ -47,7 +47,7 @@ function App() {
   const [modalPedidoDetalleId, setModalPedidoDetalleId] = useState(null);
 
   const [modalAgregarPiezaOpen, setModalAgregarPiezaOpen] = useState(false);
-  const [modalAgregarPiezaPresupuesto, setModalAgregarPiezaPresupuesto] = useState(null);
+  const [modalAgregarPiezaPedidoId, setModalAgregarPiezaPedidoId] = useState(null);
 
   const [modalBibGuardarOpen, setModalBibGuardarOpen] = useState(false);
   const [modalBibGuardarPresupuesto, setModalBibGuardarPresupuesto] = useState(null);
@@ -200,6 +200,7 @@ function App() {
             }}
             onOpenAgregarPieza={(orderId) => {
               // If orderId is provided (e.g. from post-save callbacks), use that, else let select choose
+              setModalAgregarPiezaPedidoId(orderId);
               setModalAgregarPiezaOpen(true);
             }}
             onOpenNewOrderWithCallback={(callback) => {
@@ -333,8 +334,12 @@ function App() {
       {/* Modal to add parts to order: loads the current calculated part from calculator page */}
       <ModalAgregarPieza 
         isOpen={modalAgregarPiezaOpen}
-        onClose={() => setModalAgregarPiezaOpen(false)}
+        onClose={() => {
+          setModalAgregarPiezaOpen(false);
+          setModalAgregarPiezaPedidoId(null);
+        }}
         presupuestoActual={window._currentPresupuesto || null}
+        defaultPedidoId={modalAgregarPiezaPedidoId}
         onConfirm={(name, orderId) => {
           // Confirm window redirect workflow
           if (window.confirm(`✓ Pieza "${name}" agregada. ¿Ver el pedido?`)) {
