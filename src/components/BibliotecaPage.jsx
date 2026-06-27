@@ -203,7 +203,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                     className="btn btn-sm" 
                     onClick={() => onOpenEditCat(p.id)}
                   >
-                    Cat
+                    Editar
                   </button>
                   <button 
                     className="btn btn-danger btn-sm" 

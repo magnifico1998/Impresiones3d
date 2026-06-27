@@ -22,18 +22,27 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
 
   const handleSave = () => {
     const cleanCat = categoria.trim() || 'General';
-    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat } : p));
-    showToast(`✓ Categoría actualizada a "${cleanCat}".`);
+    const cleanName = productName.trim() || 'Sin nombre';
+    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat, nombre: cleanName } : p));
+    showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat}`);
     onClose();
   };
 
   return (
     <div className="modal-overlay open" onClick={onClose}>
       <div className="modal" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-title">Editar categoría</div>
+        <div className="modal-title">Editar producto</div>
         <div className="modal-sub" style={{ fontWeight: 500, color: 'var(--text)' }}>
           {productName}
         </div>
+
+        <label className="fl">Nombre del producto</label>
+        <input
+          type="text"
+          value={productName}
+          onChange={(e) => setProductName(e.target.value)}
+          placeholder="Ej: Soporte para celular, Pieza decorativa..."
+        />
 
         <label className="fl">Categoría del producto</label>
         <input 
@@ -51,7 +60,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleSave}>Guardar categoría</button>
+          <button className="btn btn-primary" onClick={handleSave}>Guardar cambios</button>
         </div>
       </div>
     </div>
