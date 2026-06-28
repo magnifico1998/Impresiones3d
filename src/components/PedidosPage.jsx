@@ -141,9 +141,6 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
             );
             const unidadesPendientes = Math.max(totalUnidades - totalElaboradas, 0);
             const unidadesTexto = String(totalUnidades);
-            const unidadesListasTexto = totalUnidades
-              ? `${totalElaboradas}/${totalUnidades} listas`
-              : '0 listas';
 
             return (
               <div
@@ -177,9 +174,6 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     </div>
                     <div style={{ fontSize: '20px', fontWeight: 700 }}>
                       {unidadesTexto}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '3px' }}>
-                      {unidadesListasTexto}
                     </div>
                   </div>
 
