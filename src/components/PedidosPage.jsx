@@ -219,9 +219,11 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                         handleStatusChange(e, p.id, e.target.value)
                       }
                       style={{
-                        height: '30px',
-                        padding: '4px 8px',
-                        fontSize: '12px'
+                        height: '28px',
+                        width: '110px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        minWidth: 'auto'
                       }}
                     >
                       <option value="pendiente">Pendiente</option>
