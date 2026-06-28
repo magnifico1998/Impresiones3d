@@ -48,6 +48,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
   const handleSave = () => {
     const clienteInput = form.cliente.trim();
     const clienteName = clienteInput || 'Sin nombre';
+    const clienteTrim = clienteInput;
     const d = {
       cliente: clienteName,
       desc: form.desc.trim(),
@@ -58,7 +59,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
     };
 
     let savedId;
-    const existeCliente = clienteInput && clientes.some(c => c.nombre.trim().toLowerCase() === clienteInput.toLowerCase());
+    const existeCliente = clienteTrim && clientes.some(c => c.nombre.trim().toLowerCase() === clienteTrim.toLowerCase());
 
     if (editId !== null) {
       setPedidos(prev => prev.map(p => {

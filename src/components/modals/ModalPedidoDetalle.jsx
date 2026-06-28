@@ -946,10 +946,10 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             </div>
             <div style={{ textAlign: 'right', paddingTop: '14px' }}>
               <div style={{ fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase' }}>
-                Precio de venta
+                Precio de venta neto
               </div>
               <div id="det-ganancia" style={{ fontSize: '22px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
-                {fmt(draft.precioVenta || 0)}
+                {fmt(precioVentaNeto)}
               </div>
             </div>
           </div>
