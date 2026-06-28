@@ -98,7 +98,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   };
 
   const commitPedidoEstado = (newEstado) => {
-    setPedidos(prev => prev.map(p => p.id === pedidoId ? { ...p, estado: newEstado } : p));
+    setDraft(prev => ({ ...prev, estado: newEstado }));
   };
 
   // Piece actions
