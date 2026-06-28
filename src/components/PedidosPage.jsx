@@ -183,8 +183,8 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gap: '10px', minWidth: '160px', textAlign: 'right' }}>
-                    <div>
+                  <div style={{ display: 'flex', gap: '18px', minWidth: '260px', textAlign: 'right', alignItems: 'flex-start' }}>
+                    <div style={{ minWidth: '90px' }}>
                       <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
                         Costos
                       </div>
@@ -192,20 +192,20 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                         {fmt(costoTotal)}
                       </div>
                     </div>
-                    <div>
+                    <div style={{ minWidth: '90px' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                        Ganancia
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                        {ganancia !== null ? fmt(ganancia) : '-'}
+                      </div>
+                    </div>
+                    <div style={{ minWidth: '90px' }}>
                       <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
                         Venta
                       </div>
                       <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
                         {p.precioVenta ? fmt(precioNeto(p)) : '-'}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
-                        Ganancia
-                      </div>
-                      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
-                        {ganancia !== null ? fmt(ganancia) : '-'}
                       </div>
                     </div>
                   </div>
