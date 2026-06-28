@@ -292,6 +292,27 @@ export const AppProvider = ({ children }) => {
     };
   }, [pedidos, cfg, compras, biblioteca, clientes, empresa, idCounter, user, loading]);
 
+  // Set favicon to empresa.logo when available, otherwise revert to default
+  useEffect(() => {
+    try {
+      const logo = empresa && empresa.logo ? empresa.logo : null;
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      if (logo) {
+        link.href = logo;
+      } else {
+        // fallback to default favicon in public
+        link.href = '/favicon.svg';
+      }
+    } catch (e) {
+      console.error('Error setting favicon:', e);
+    }
+  }, [empresa && empresa.logo]);
+
   const exportarBackupData = () => {
     try {
       const data = {
