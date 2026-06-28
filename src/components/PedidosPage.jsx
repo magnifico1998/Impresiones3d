@@ -183,28 +183,28 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '18px', minWidth: '260px', textAlign: 'right', alignItems: 'flex-start' }}>
-                    <div style={{ minWidth: '90px' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', gap: '12px', minWidth: '220px', textAlign: 'right', alignItems: 'flex-start' }}>
+                    <div style={{ minWidth: '72px' }}>
+                      <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
                         Costos
                       </div>
-                      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
                         {fmt(costoTotal)}
                       </div>
                     </div>
-                    <div style={{ minWidth: '90px' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                    <div style={{ minWidth: '72px' }}>
+                      <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
                         Ganancia
                       </div>
-                      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
                         {ganancia !== null ? fmt(ganancia) : '-'}
                       </div>
                     </div>
-                    <div style={{ minWidth: '90px' }}>
-                      <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                    <div style={{ minWidth: '72px' }}>
+                      <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
                         Venta
                       </div>
-                      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
+                      <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
                         {p.precioVenta ? fmt(precioNeto(p)) : '-'}
                       </div>
                     </div>
