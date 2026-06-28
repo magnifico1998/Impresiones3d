@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
-  const { pedidos, setPedidos, clientes, getNewId, showToast } = useApp();
+  const { pedidos, setPedidos, clientes, setClientes, getNewId, showToast } = useApp();
 
   const [form, setForm] = useState({
     cliente: '',
@@ -46,7 +46,8 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
   };
 
   const handleSave = () => {
-    const clienteName = form.cliente.trim() || 'Sin nombre';
+    const clienteInput = form.cliente.trim();
+    const clienteName = clienteInput || 'Sin nombre';
     const d = {
       cliente: clienteName,
       desc: form.desc.trim(),
@@ -57,6 +58,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
     };
 
     let savedId;
+    const existeCliente = clienteInput && clientes.some(c => c.nombre.trim().toLowerCase() === clienteInput.toLowerCase());
 
     if (editId !== null) {
       setPedidos(prev => prev.map(p => {
@@ -91,6 +93,21 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
       setPedidos(prev => [...prev, nuevo]);
       savedId = newIdVal;
       showToast('Pedido creado con éxito');
+    }
+
+    if (clienteTrim && !existeCliente) {
+      const newClient = {
+        id: getNewId(),
+        nombre: clienteTrim,
+        calle: '',
+        altura: '',
+        loc: '',
+        cp: '',
+        tel: '',
+        email: ''
+      };
+      setClientes(prev => [...prev, newClient]);
+      showToast('Cliente nuevo creado automáticamente. Completa sus datos en la sección Clientes.', 'info');
     }
 
     onClose();
