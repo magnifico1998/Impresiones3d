@@ -4,17 +4,43 @@ import { useApp } from '../context/AppContext';
 const fmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 const fmtNumber = (n) => typeof n === 'number' ? n.toFixed(2) : '—';
 
-const computeMaterialCost = (product, desperdicio) => {
-  if (product.materiales && product.materiales.length > 0 && product.matData && product.matData.length > 0) {
-    return product.materiales.reduce((sum, m, index) => {
-      const qty = product.matData[index]?.totalG || m.totalG || 0;
-      const priceKg = product.matData[index]?.precioKg || m.precioKg || 0;
+const getFilamentPriceKg = (product, cfg, type) => {
+  if (!type) return null;
+  const normalizedType = type.toLowerCase();
+  const fil = (cfg.filamentos || []).find(f => {
+    const name = (f.nombre || '').toLowerCase();
+    return name.includes(normalizedType) || normalizedType.includes(name);
+  });
+  return fil ? parseFloat(fil.precio) || null : null;
+};
+
+const getFallbackMaterialCostFromFilDetalle = (product) => {
+  if (!product.filDetalle || !Array.isArray(product.filDetalle)) return 0;
+  return product.filDetalle.reduce((sum, item) => sum + (parseFloat(item.costo) || 0), 0);
+};
+
+const computeMaterialCost = (product, desperdicio, cfg) => {
+  if (product.materiales && product.materiales.length > 0) {
+    const total = product.materiales.reduce((sum, m, index) => {
+      const qty = parseFloat(product.matData?.[index]?.totalG || m.totalG || 0) || 0;
+      let priceKg = parseFloat(product.matData?.[index]?.precioKg || m.precioKg) || 0;
+      if (!priceKg && m.type) {
+        priceKg = getFilamentPriceKg(product, cfg, m.type) || 0;
+      }
       return sum + (qty * (1 + desperdicio / 100) / 1000) * priceKg;
     }, 0);
+    if (total > 0) return total;
   }
 
+  const filDetalleCost = getFallbackMaterialCostFromFilDetalle(product);
+  if (filDetalleCost > 0) return filDetalleCost;
+
   const gramos = parseFloat(product.gramos) || 0;
-  const precioRollo = parseFloat(product.precioRollo) || 0;
+  let precioRollo = parseFloat(product.precioRollo) || 0;
+  if (!precioRollo) {
+    const inferredType = product.materiales?.[0]?.type || product.filDetalle?.[0]?.label || '';
+    precioRollo = getFilamentPriceKg(product, cfg, inferredType) || 0;
+  }
   return (gramos * (1 + desperdicio / 100) / 1000) * precioRollo;
 };
 
@@ -65,20 +91,23 @@ const calculateNewProduct = (product, cfg) => {
 export default function ActualizacionMasivaPage() {
   const { biblioteca, setBiblioteca, cfg, showToast } = useApp();
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [priceOverrides, setPriceOverrides] = useState({});
 
   const productsWithCalculation = useMemo(() => {
     return biblioteca.map(p => {
       const currentCost = parseFloat(p.costoUnitario) || 0;
       const currentPrice = parseFloat(p.precioSugUnitario) || 0;
+      const salePrice = parseFloat(p.precioVenta) || currentPrice;
       const newCalc = calculateNewProduct(p, cfg);
       return {
         ...p,
         currentCost,
         currentPrice,
+        currentSalePrice: salePrice,
         newCost: newCalc.costoPorUnidad,
         newPrice: newCalc.precioSugerido,
         currentMargin: Number.isFinite(parseFloat(p.margen)) ? parseFloat(p.margen) : cfg.margen,
-        currentMaterialCost: computeMaterialCost(p, parseFloat(p.desperdicio) || parseFloat(cfg.desperdicio) || 0),
+        currentMaterialCost: computeMaterialCost(p, parseFloat(p.desperdicio) || parseFloat(cfg.desperdicio) || 0, cfg),
         currentElecCost: computeElectricityCost(p, cfg),
         currentMantCost: computeMaintCost(p, cfg),
         currentLaborCost: computeLaborCost(p),
@@ -93,6 +122,30 @@ export default function ActualizacionMasivaPage() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  };
+
+  const handlePriceOverrideChange = (id, value) => {
+    setPriceOverrides(prev => ({ ...prev, [id]: value }));
+  };
+
+  const getPriceFor = (product) => {
+    const overrideValue = priceOverrides[product.id];
+    const parsed = parseFloat(overrideValue);
+    return Number.isFinite(parsed) ? parsed : product.newPrice;
+  };
+
+  const handleRecalculateSingle = (id) => {
+    setBiblioteca(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const { costoPorUnidad, precioSugerido } = calculateNewProduct(p, cfg);
+      const manualPrice = priceOverrides[p.id];
+      const finalPrice = Number.isFinite(parseFloat(manualPrice)) ? parseFloat(manualPrice) : precioSugerido;
+      return {
+        ...p,
+        costoUnitario: Number.isFinite(costoPorUnidad) ? Number(costoPorUnidad.toFixed(2)) : p.costoUnitario,
+        precioSugUnitario: Number.isFinite(finalPrice) ? Number(finalPrice) : p.precioSugUnitario
+      };
+    }));
   };
 
   const handleSelectAll = () => {
@@ -112,10 +165,12 @@ export default function ActualizacionMasivaPage() {
     setBiblioteca(prev => prev.map(p => {
       if (!selectedIds.has(p.id)) return p;
       const { costoPorUnidad, precioSugerido } = calculateNewProduct(p, cfg);
+      const manualPrice = priceOverrides[p.id];
+      const finalPrice = Number.isFinite(parseFloat(manualPrice)) ? parseFloat(manualPrice) : precioSugerido;
       return {
         ...p,
         costoUnitario: Number.isFinite(costoPorUnidad) ? Number(costoPorUnidad.toFixed(2)) : p.costoUnitario,
-        precioSugUnitario: Number.isFinite(precioSugerido) ? Number(precioSugerido) : p.precioSugUnitario
+        precioSugUnitario: Number.isFinite(finalPrice) ? Number(finalPrice) : p.precioSugUnitario
       };
     }));
 
@@ -192,9 +247,16 @@ export default function ActualizacionMasivaPage() {
                 <td style={bodyCellStyle}>{fmt(p.currentCost)}</td>
                 <td style={bodyCellStyle}>{fmt(p.newCost)}</td>
                 <td style={bodyCellStyle}>{fmt(p.currentPrice)}</td>
-                <td style={bodyCellStyle}>{fmt(p.newPrice)}</td>
-                <td style={bodyCellStyle}>{fmt(p.currentPrice)}</td>
-                <td style={bodyCellStyle}><button className="btn btn-sm" onClick={() => { setSelectedIds(new Set([p.id])); handleRecalculateSelected(); }}>Actualizar</button></td>
+                <td style={bodyCellStyle}>
+                  <input
+                    type="number"
+                    value={priceOverrides[p.id] !== undefined ? priceOverrides[p.id] : p.newPrice}
+                    onChange={(e) => handlePriceOverrideChange(p.id, e.target.value)}
+                    style={{ width: '100px', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: '#111' }}
+                  />
+                </td>
+                <td style={bodyCellStyle}>{fmt(p.currentSalePrice)}</td>
+                <td style={bodyCellStyle}><button className="btn btn-sm" onClick={() => handleRecalculateSingle(p.id)}>Actualizar</button></td>
               </tr>
             ))}
           </tbody>
@@ -208,13 +270,13 @@ const headerCellStyle = {
   padding: '10px 12px',
   textAlign: 'left',
   fontSize: '12px',
-  color: 'var(--text3)',
-  borderBottom: '1px solid var(--border)'
+  color: '#111',
+  borderBottom: '1px solid #a1a1aa'
 };
 
 const bodyCellStyle = {
   padding: '10px 12px',
-  borderBottom: '1px solid var(--border)',
+  borderBottom: '1px solid #d1d5db',
   fontSize: '13px',
-  color: 'var(--text)'
+  color: '#111'
 };
