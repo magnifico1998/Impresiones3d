@@ -181,10 +181,11 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     )}
                   </div>
 
+                  <div style={{ fontFamily: 'var(--mono)', textAlign: 'right', minWidth: '90px' }}>{fmt(costoTotal)}</div>
+
                   <div style={{ fontWeight: 700, color: 'var(--accent)', minWidth: '120px', textAlign: 'right' }}>
                     {p.precioVenta ? fmt(precioNeto(p)) : ''}
                   </div>
-                  <div style={{ width: '12px' }}></div>
 
                   {/* ✅ STATUS AL LADO */}
                   <select
