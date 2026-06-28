@@ -935,7 +935,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'center', marginTop: '12px' }}>
             <div>
               <label className="fl" style={{ marginTop: 0 }}>
-                Ganancia ($) <span style={{ color: 'var(--text3)', textTransform: 'none' }}>— neto después de descuento menos costo total</span>
+                Ganancia ($)
               </label>
               <input 
                 type="text" 
