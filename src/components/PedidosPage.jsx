@@ -165,46 +165,58 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '12px',
+                    gap: '10px',
                     flex: 1,
                     flexWrap: 'nowrap',
                     justifyContent: 'flex-end'
                   }}
                 >
-                  <div style={{ textAlign: 'center', minWidth: '80px' }}>
-                    <div style={{ fontSize: '10px', color: 'var(--text3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  <div style={{ textAlign: 'center', minWidth: '70px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--text3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '3px' }}>
                       Unidades
                     </div>
-                    <div style={{ fontSize: '24px', fontWeight: 700 }}>
+                    <div style={{ fontSize: '20px', fontWeight: 700 }}>
                       {unidadesTexto}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--accent)', marginTop: '4px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '3px' }}>
                       {unidadesListasTexto}
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', minWidth: '220px', textAlign: 'right', alignItems: 'flex-start' }}>
-                    <div style={{ minWidth: '72px' }}>
-                      <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
+                  <div style={{ textAlign: 'center', minWidth: '60px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
+                      Avance
+                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                      {totalElaboradas}/{totalUnidades}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text3)', marginTop: '2px' }}>
+                      listas
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', minWidth: '200px', textAlign: 'right', alignItems: 'flex-start' }}>
+                    <div style={{ minWidth: '64px' }}>
+                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
                         Costos
                       </div>
-                      <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
                         {fmt(costoTotal)}
                       </div>
                     </div>
-                    <div style={{ minWidth: '72px' }}>
-                      <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
+                    <div style={{ minWidth: '64px' }}>
+                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
                         Ganancia
                       </div>
-                      <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
                         {ganancia !== null ? fmt(ganancia) : '-'}
                       </div>
                     </div>
-                    <div style={{ minWidth: '72px' }}>
-                      <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
+                    <div style={{ minWidth: '64px' }}>
+                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
                         Venta
                       </div>
-                      <div style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
                         {p.precioVenta ? fmt(precioNeto(p)) : '-'}
                       </div>
                     </div>
