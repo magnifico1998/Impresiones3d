@@ -140,9 +140,10 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
               0
             );
             const unidadesPendientes = Math.max(totalUnidades - totalElaboradas, 0);
-            const unidadesTexto = unidadesPendientes > 0
-              ? `${unidadesPendientes} de ${totalUnidades}`
-              : String(totalUnidades);
+            const unidadesTexto = String(totalUnidades);
+            const unidadesListasTexto = totalUnidades
+              ? `${totalElaboradas}/${totalUnidades} listas`
+              : '0 listas';
 
             return (
               <div
@@ -170,15 +171,16 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     justifyContent: 'flex-end'
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: '18px', fontWeight: 600 }}>
+                  <div style={{ textAlign: 'center', minWidth: '80px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Unidades
+                    </div>
+                    <div style={{ fontSize: '24px', fontWeight: 700 }}>
                       {unidadesTexto}
                     </div>
-                    {unidadesPendientes > 0 && (
-                      <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>
-                        Pendiente
-                      </div>
-                    )}
+                    <div style={{ fontSize: '12px', color: 'var(--accent)', marginTop: '4px' }}>
+                      {unidadesListasTexto}
+                    </div>
                   </div>
 
                   <div style={{ fontFamily: 'var(--mono)', textAlign: 'right', minWidth: '90px' }}>{fmt(costoTotal)}</div>
