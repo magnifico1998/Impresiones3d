@@ -209,8 +209,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     </select>
                   </div>
                 </div>
-              </div>
-            );
+             );
           })
         )}
       </div>
