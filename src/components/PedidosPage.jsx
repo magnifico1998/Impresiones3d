@@ -181,28 +181,13 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     )}
                   </div>
 
-                  <div>{fmt(costoTotal)}</div>
+                  <div style={{ fontWeight: 700, color: 'var(--accent)', minWidth: '120px', textAlign: 'right' }}>
+                    {p.precioVenta ? fmt(precioNeto(p)) : ''}
+                  </div>
+                  <div style={{ width: '12px' }}></div>
 
-                  {p.precioVenta && <div>{fmt(precioNeto(p))}</div>}
-
-                  {/* ✅ GANANCIA + STATUS JUNTOS */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {ganancia !== null && (
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          color:
-                            ganancia >= 0
-                              ? 'var(--accent)'
-                              : 'var(--danger)'
-                        }}
-                      >
-                        {fmt(ganancia)}
-                      </div>
-                    )}
-
-                    {/* ✅ STATUS AL LADO */}
-                    <select
+                  {/* ✅ STATUS AL LADO */}
+                  <select
                       className={`status-select ${p.estado}`}
                       value={p.estado}
                       onClick={(e) => e.stopPropagation()}
