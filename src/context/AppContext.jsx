@@ -80,6 +80,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const bloqueoSincronizacion = useRef(false);
+  const cloudSyncTimeout = useRef(null);
 
   const leerDatosLocales = () => {
     const savedCfg = localStorage.getItem('p3d_cfg');
@@ -137,8 +138,31 @@ export const AppProvider = ({ children }) => {
       };
       await setDoc(doc(db, "users", uid), dataPayload, { merge: true });
       console.log("Sincronización parcial guardada en Firestore:", Object.keys(partialData).join(', '));
+      showToast('Datos guardados en Firebase correctamente.', 'success');
     } catch (e) {
       console.error("Error al respaldar en la nube:", e);
+      showToast('Error al guardar en Firebase. Revisa tu conexión y sesión.', 'error');
+    }
+  };
+
+  const sincronizarTodosLosDatosANube = async (uid) => {
+    try {
+      const dataPayload = {
+        pedidos,
+        config: cfg,
+        compras,
+        biblioteca,
+        clientes,
+        empresa,
+        counter: idCounter,
+        ultimaActualizacion: new Date().toISOString()
+      };
+      await setDoc(doc(db, "users", uid), dataPayload, { merge: true });
+      console.log("Sincronización completa guardada en Firestore.");
+      showToast('Sincronización con Firebase completada.', 'success');
+    } catch (e) {
+      console.error("Error al sincronizar todos los datos en la nube:", e);
+      showToast('No se pudo sincronizar con Firebase. Comprueba tu conexión o autenticación.', 'error');
     }
   };
 
@@ -240,82 +264,33 @@ export const AppProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Sync pedidos
   useEffect(() => {
     if (loading) return;
     if (bloqueoSincronizacion.current) return;
 
     localStorage.setItem('p3d_pedidos', JSON.stringify(pedidos));
-    if (user) {
-      subirDatosANube(user.uid, { pedidos });
-    }
-  }, [pedidos, user, loading]);
-
-  // Sync configuration
-  useEffect(() => {
-    if (loading) return;
-    if (bloqueoSincronizacion.current) return;
-
     localStorage.setItem('p3d_cfg', JSON.stringify(cfg));
-    if (user) {
-      subirDatosANube(user.uid, { config: cfg });
-    }
-  }, [cfg, user, loading]);
-
-  // Sync compras
-  useEffect(() => {
-    if (loading) return;
-    if (bloqueoSincronizacion.current) return;
-
     localStorage.setItem('p3d_compras', JSON.stringify(compras));
-    if (user) {
-      subirDatosANube(user.uid, { compras });
-    }
-  }, [compras, user, loading]);
-
-  // Sync biblioteca
-  useEffect(() => {
-    if (loading) return;
-    if (bloqueoSincronizacion.current) return;
-
     localStorage.setItem('p3d_bib', JSON.stringify(biblioteca));
-    if (user) {
-      subirDatosANube(user.uid, { biblioteca });
-    }
-  }, [biblioteca, user, loading]);
-
-  // Sync clientes
-  useEffect(() => {
-    if (loading) return;
-    if (bloqueoSincronizacion.current) return;
-
     localStorage.setItem('p3d_clientes', JSON.stringify(clientes));
-    if (user) {
-      subirDatosANube(user.uid, { clientes });
-    }
-  }, [clientes, user, loading]);
-
-  // Sync empresa
-  useEffect(() => {
-    if (loading) return;
-    if (bloqueoSincronizacion.current) return;
-
     localStorage.setItem('p3d_empresa', JSON.stringify(empresa));
-    if (user) {
-      subirDatosANube(user.uid, { empresa });
-    }
-  }, [empresa, user, loading]);
-
-  // Sync counter
-  useEffect(() => {
-    if (loading) return;
-    if (bloqueoSincronizacion.current) return;
-
     localStorage.setItem('p3d_counter', String(idCounter));
+
     if (user) {
-      subirDatosANube(user.uid, { counter: idCounter });
+      if (cloudSyncTimeout.current) {
+        clearTimeout(cloudSyncTimeout.current);
+      }
+      cloudSyncTimeout.current = window.setTimeout(() => {
+        sincronizarTodosLosDatosANube(user.uid);
+      }, 300);
     }
-  }, [idCounter, user, loading]);
+
+    return () => {
+      if (cloudSyncTimeout.current) {
+        clearTimeout(cloudSyncTimeout.current);
+      }
+    };
+  }, [pedidos, cfg, compras, biblioteca, clientes, empresa, idCounter, user, loading]);
 
   const exportarBackupData = () => {
     try {
