@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { precioNeto } from '../utils/precioNeto';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, setPedidos, showToast } = useApp();
@@ -30,12 +31,12 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     const done = pedidos.filter(p => p.estado === 'completado').length;
 
     const fact = pedidos
-      .filter(p => (p.estado === 'completado' || p.estado === 'listo') && p.precioVenta)
-      .reduce((s, p) => s + (p.precioVenta || 0), 0);
+      .filter(p => (p.estado === 'completado' || p.estado === 'listo') && (p.precioVenta || 0) > 0)
+      .reduce((s, p) => s + precioNeto(p), 0);
 
     const pendGlobal = pedidos
-      .filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && p.precioVenta)
-      .reduce((s, p) => s + (p.precioVenta || 0), 0);
+      .filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && (p.precioVenta || 0) > 0)
+      .reduce((s, p) => s + precioNeto(p), 0);
 
     return { total, prog, done, fact, pendGlobal };
   }, [pedidos]);
@@ -182,7 +183,8 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
                   <div>{fmt(costoTotal)}</div>
 
-                  {p.precioVenta && <div>{fmt(p.precioVenta)}</div>}
+                  {p.precioVenta && <div>{fmt(precioNeto(p))}</div>}
+            const ganancia = (p.precioVenta || 0) ? precioNeto(p) - costoTotal : null;
 
                   {/* ✅ GANANCIA + STATUS JUNTOS */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

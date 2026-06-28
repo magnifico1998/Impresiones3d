@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { precioNeto } from '../utils/precioNeto';
 
 export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
   const { clientes, pedidos } = useApp();
@@ -12,7 +13,7 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
       const misPedidos = pedidos.filter(
         p => p.cliente.trim().toLowerCase() === c.nombre.trim().toLowerCase()
       );
-      const totalGastado = misPedidos.reduce((acc, p) => acc + (p.precioVenta || 0), 0);
+      const totalGastado = misPedidos.reduce((acc, p) => acc + precioNeto(p), 0);
       return {
         ...c,
         pedidosCount: misPedidos.length,
