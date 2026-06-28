@@ -438,18 +438,39 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       if (pz.versiones && pz.versiones.length) {
         descExtra = pz.versiones.map(v => `${v.cantidad}× ${v.color || 'sin color'}${v.comentario ? ' (' + v.comentario + ')' : ''}`).join(', ');
       }
-      const rowH = descExtra ? 11 : 7;
+
+      // Wrap description and extra lines to compute dynamic height
+      const nameLines = doc.splitTextToSize(pz.nombre || 'Producto', colDesc - 4);
+      const extraLines = descExtra ? doc.splitTextToSize(descExtra, colDesc - 4) : [];
+      const lineH = 4.6; // approximate line height in mm
+      const contentLines = nameLines.length + extraLines.length;
+      const rowH = Math.max(8, contentLines * lineH + 6);
+
       checkPageBreak(rowH);
       if (i % 2 === 1) { doc.setFillColor(248, 248, 250); doc.rect(marginX, y, contentW, rowH, 'F'); }
       doc.setDrawColor(225); doc.rect(marginX, y, contentW, rowH);
+
+      // Left column: index
       doc.setTextColor(40, 40, 40); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(String(i + 1), xN + 2, y + 5);
-      doc.text(pz.nombre || 'Producto', xDesc + 2, y + 5, { maxWidth: colDesc - 4 });
-      if (descExtra) { doc.setFontSize(7.5); doc.setTextColor(120, 120, 120); doc.text(descExtra, xDesc + 2, y + 9.5, { maxWidth: colDesc - 4 }); }
+      const baseline = y + 5;
+      doc.text(String(i + 1), xN + 2, baseline);
+
+      // Description (name + extra lines)
       doc.setFontSize(9); doc.setTextColor(40, 40, 40);
-      doc.text(String(pz.cantidad), xCant + 2, y + 5);
-      doc.text(fmt(unit), xPU + 2, y + 5);
-      doc.text(fmt(subtotal), xTot + 2, y + 5);
+      doc.text(nameLines, xDesc + 2, baseline);
+      if (extraLines.length) {
+        doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
+        const extraStartY = baseline + nameLines.length * lineH + 1;
+        doc.text(extraLines, xDesc + 2, extraStartY);
+      }
+
+      // Numeric columns: vertically center numbers within the row
+      const centerY = y + rowH / 2 + 1;
+      doc.setFontSize(9); doc.setTextColor(40, 40, 40);
+      doc.text(String(pz.cantidad), xCant + 2, centerY, { baseline: 'middle' });
+      doc.text(fmt(unit), xPU + 2, centerY, { baseline: 'middle' });
+      doc.text(fmt(subtotal), xTot + 2, centerY, { baseline: 'middle' });
+
       y += rowH;
     });
 
