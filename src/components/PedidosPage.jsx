@@ -183,10 +183,31 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     </div>
                   </div>
 
-                  <div style={{ fontFamily: 'var(--mono)', textAlign: 'right', minWidth: '90px' }}>{fmt(costoTotal)}</div>
-
-                  <div style={{ fontWeight: 700, color: 'var(--accent)', minWidth: '120px', textAlign: 'right' }}>
-                    {p.precioVenta ? fmt(precioNeto(p)) : ''}
+                  <div style={{ display: 'grid', gap: '10px', minWidth: '160px', textAlign: 'right' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                        Costos
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                        {fmt(costoTotal)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                        Venta
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
+                        {p.precioVenta ? fmt(precioNeto(p)) : '-'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
+                        Ganancia
+                      </div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+                        {ganancia !== null ? fmt(ganancia) : '-'}
+                      </div>
+                    </div>
                   </div>
 
                   {/* ✅ STATUS AL LADO */}
