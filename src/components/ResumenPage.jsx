@@ -392,7 +392,9 @@ export default function ResumenPage() {
         </div>
         <div className="metric">
           <div className="metric-label">Ganancia</div>
-          <div className="metric-value accent">{fmt(ganancia)}</div>
+          <div className="metric-value" style={{ color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+            {fmt(ganancia)}
+          </div>
         </div>
         <div className="metric">
           <div className="metric-label">Gastos compras</div>
