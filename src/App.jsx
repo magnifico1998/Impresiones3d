@@ -10,6 +10,7 @@ import ClientesPage from './components/ClientesPage';
 import CalculadoraPage from './components/CalculadoraPage';
 import ComprasPage from './components/ComprasPage';
 import BibliotecaPage from './components/BibliotecaPage';
+import ActualizacionMasivaPage from './components/ActualizacionMasivaPage';
 import ConfiguracionPage from './components/ConfiguracionPage';
 import EmpresaPage from './components/EmpresaPage';
 import Toasts from './components/Toasts';
@@ -247,6 +248,9 @@ function App() {
             }}
           />
         );
+      
+      case 'actualizacion':
+        return <ActualizacionMasivaPage />;
       
       case 'config':
         return <ConfiguracionPage />;
