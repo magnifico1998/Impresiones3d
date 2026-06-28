@@ -48,8 +48,13 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   const costoInsumosTotal = (draft.insumos || []).reduce((s, ins) => s + (ins.precio * (ins.qty || 1)), 0);
   const costoTotal = costoPiezasTotal + costoInsumosTotal;
   
-  const ganancia = draft.precioVenta ? draft.precioVenta - costoTotal : 0;
-  const totalAbonar = (draft.precioVenta || 0) + (parseFloat(draft.envio) || 0);
+  const descuentoNombre = draft.descuentoNombre || '';
+  const descuentoMonto = parseFloat(draft.descuentoMonto) || 0;
+  const descuentoPct = Math.max(0, Math.min(100, parseFloat(draft.descuentoPct) || 0));
+  const descuentoTotal = descuentoMonto + ((draft.precioVenta || 0) * (descuentoPct / 100));
+  const precioVentaNeto = Math.max(0, (draft.precioVenta || 0) - descuentoTotal);
+  const ganancia = precioVentaNeto ? precioVentaNeto - costoTotal : 0;
+  const totalAbonar = precioVentaNeto + (parseFloat(draft.envio) || 0);
 
   // Totals of pieces progress bar
   const totalUnidades = draft.piezas.reduce((s, pz) => s + pz.cantidad, 0);
@@ -427,10 +432,31 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     // Totals box
     y += 2;
     checkPageBreak(25);
+    const descuentoNombrePdf = p.descuentoNombre || '';
+    const descuentoMontoPdf = parseFloat(p.descuentoMonto) || 0;
+    const descuentoPctPdf = Math.max(0, Math.min(100, parseFloat(p.descuentoPct) || 0));
+    const descuentoTotalPdf = descuentoMontoPdf + ((p.precioVenta || 0) * (descuentoPctPdf / 100));
+    const precioVentaNetoPdf = Math.max(0, (p.precioVenta || 0) - descuentoTotalPdf);
+    const descuentoLabelPdf = descuentoNombrePdf ? `${descuentoNombrePdf}${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}` : `Descuento${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}`;
+
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(40, 40, 40);
     doc.setDrawColor(225); doc.rect(xPU, y, colPU, 7); doc.rect(xTot, y, colTot, 7);
     doc.text('SUBTOTAL', xPU + 2, y + 5); doc.text(fmt(p.precioVenta || 0), xTot + 2, y + 5);
     y += 7;
+
+    if (descuentoTotalPdf > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.rect(xPU, y, colPU, 7); doc.rect(xTot, y, colTot, 7);
+      doc.text(descuentoLabelPdf, xPU + 2, y + 5);
+      doc.text(`-${fmt(descuentoTotalPdf)}`, xTot + 2, y + 5);
+      y += 7;
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+      doc.rect(xPU, y, colPU, 7); doc.rect(xTot, y, colTot, 7);
+      doc.text('SUBTOTAL neto', xPU + 2, y + 5); doc.text(fmt(precioVentaNetoPdf), xTot + 2, y + 5);
+      y += 7;
+    }
+
     if (p.envio > 0) {
       doc.setFont('helvetica', 'normal');
       doc.rect(xPU, y, colPU, 7); doc.rect(xTot, y, colTot, 7);
@@ -441,7 +467,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.rect(xPU, y, colPU, 8, 'F'); doc.rect(xTot, y, colTot, 8, 'F');
     doc.setDrawColor(180); doc.rect(xPU, y, colPU, 8); doc.rect(xTot, y, colTot, 8);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
-    doc.text('TOTAL', xPU + 2, y + 5.5); doc.text(fmt((p.precioVenta || 0) + (p.envio || 0)), xTot + 2, y + 5.5);
+    doc.text('TOTAL', xPU + 2, y + 5.5); doc.text(fmt(precioVentaNetoPdf + (p.envio || 0)), xTot + 2, y + 5.5);
     y += 8 + 10;
 
     // Shipping info
@@ -824,11 +850,66 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             <span>Costo total</span>
             <span>{fmt(costoTotal)}</span>
           </div>
-          
+
+          <div style={{ display: 'grid', gap: '10px', marginTop: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label className="fl" style={{ marginTop: 0 }}>Nombre del descuento</label>
+                <input 
+                  type="text" 
+                  value={descuentoNombre} 
+                  placeholder="Ej: Cliente VIP, Mayorista" 
+                  onChange={(e) => handleFieldChange('descuentoNombre', e.target.value)} 
+                />
+              </div>
+              <div>
+                <label className="fl" style={{ marginTop: 0 }}>Monto de descuento ($)</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  step="0.01" 
+                  value={draft.descuentoMonto || ''} 
+                  placeholder="0" 
+                  onChange={(e) => handleFieldChange('descuentoMonto', e.target.value)} 
+                />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'end' }}>
+              <div>
+                <label className="fl" style={{ marginTop: 0 }}>Porcentaje de descuento (%)</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  max="100" 
+                  step="0.1" 
+                  value={draft.descuentoPct || ''} 
+                  placeholder="0" 
+                  onChange={(e) => handleFieldChange('descuentoPct', e.target.value)} 
+                />
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text3)', textAlign: 'right' }}>
+                Total descuento: <strong>{fmt(descuentoTotal)}</strong>
+              </div>
+            </div>
+          </div>
+
+          {descuentoTotal > 0 && (
+            <>
+              <div className="cost-line" style={{ marginTop: '6px' }}>
+                <span>{descuentoNombre.trim() || 'Descuento aplicado'}</span>
+                <span>-{fmt(descuentoTotal)}</span>
+              </div>
+              <div className="cost-line" style={{ marginTop: '6px' }}>
+                <span>Precio neto</span>
+                <span>{fmt(precioVentaNeto)}</span>
+              </div>
+            </>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'center', marginTop: '12px' }}>
             <div>
               <label className="fl" style={{ marginTop: 0 }}>
-                Ganancia ($) <span style={{ color: 'var(--text3)', textTransform: 'none' }}>— venta menos costo total</span>
+                Ganancia ($) <span style={{ color: 'var(--text3)', textTransform: 'none' }}>— neto después de descuento menos costo total</span>
               </label>
               <input 
                 type="text" 
