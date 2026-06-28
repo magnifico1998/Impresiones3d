@@ -184,7 +184,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
                       Avance
                     </div>
-                    <div style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: avanceColor }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)', color: avanceColor }}>
                       {totalElaboradas}/{totalUnidades}
                     </div>
                     <div style={{ fontSize: '10px', color: avanceColor, marginTop: '2px' }}>
