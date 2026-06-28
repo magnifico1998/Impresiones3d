@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { precioNeto } from '../../utils/precioNeto';
 
 export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit, onViewOrder }) {
   const { clientes, setClientes, pedidos, showToast } = useApp();
@@ -132,7 +133,7 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
                           </span>
                         </td>
                         <td style={{ fontFamily: 'var(--mono)', textAlign: 'right', fontWeight: 600, color: 'var(--accent)' }}>
-                          {fmt(p.precioVenta || 0)}
+                          {fmt(precioNeto(p))}
                         </td>
                       </tr>
                     );

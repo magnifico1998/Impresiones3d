@@ -177,6 +177,9 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                   <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
                     ⏱ {p.horas ? p.horas.toFixed(1) + 'h' : '—'}
                   </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
+                    💲 {fmt(p.precioSugUnitario || p.costoUnitario || 0)}
+                  </span>
                   {p.impresoraNombre && (
                     <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
                       🖨 {p.impresoraNombre}
@@ -203,7 +206,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                     className="btn btn-sm" 
                     onClick={() => onOpenEditCat(p.id)}
                   >
-                    Cat
+                    Editar
                   </button>
                   <button 
                     className="btn btn-danger btn-sm" 

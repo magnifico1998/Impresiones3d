@@ -78,7 +78,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:1
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
 .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
 .grid6{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
-.metric{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.metric{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;align-items:center;text-align:center}
 .metric-label{font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .metric-value{font-size:24px;font-weight:600;font-family:var(--mono)}
 .metric-value.accent{color:var(--accent)}

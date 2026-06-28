@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { precioNeto } from '../utils/precioNeto';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, setPedidos, showToast } = useApp();
@@ -30,12 +31,12 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     const done = pedidos.filter(p => p.estado === 'completado').length;
 
     const fact = pedidos
-      .filter(p => (p.estado === 'completado' || p.estado === 'listo') && p.precioVenta)
-      .reduce((s, p) => s + (p.precioVenta || 0), 0);
+      .filter(p => (p.estado === 'completado' || p.estado === 'listo') && (p.precioVenta || 0) > 0)
+      .reduce((s, p) => s + precioNeto(p), 0);
 
     const pendGlobal = pedidos
-      .filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && p.precioVenta)
-      .reduce((s, p) => s + (p.precioVenta || 0), 0);
+      .filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && (p.precioVenta || 0) > 0)
+      .reduce((s, p) => s + precioNeto(p), 0);
 
     return { total, prog, done, fact, pendGlobal };
   }, [pedidos]);
@@ -131,7 +132,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
             );
             const costoTotal = costoPiezas + costoIns;
 
-            const ganancia = p.precioVenta ? p.precioVenta - costoTotal : null;
+            const ganancia = (p.precioVenta || 0) ? precioNeto(p) - costoTotal : null;
 
             const totalUnidades = p.piezas.reduce((t, pz) => t + pz.cantidad, 0);
             const totalElaboradas = p.piezas.reduce(
@@ -139,9 +140,10 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
               0
             );
             const unidadesPendientes = Math.max(totalUnidades - totalElaboradas, 0);
-            const unidadesTexto = unidadesPendientes > 0
-              ? `${unidadesPendientes} de ${totalUnidades}`
-              : String(totalUnidades);
+            const unidadesTexto = String(totalUnidades);
+            const avanceColor = totalUnidades === 0
+              ? 'var(--danger)'
+              : (totalElaboradas === 0 ? 'var(--danger)' : (totalElaboradas < totalUnidades ? 'var(--warn)' : 'var(--accent)'));
 
             return (
               <div
@@ -149,11 +151,11 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                 className={`pedido-card ${urgente ? 'urgente' : ''}`}
                 onClick={() => onOpenOrderDetail(p.id)}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                <div style={{ flex: '0 0 30%', minWidth: 0, maxWidth: '30%' }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.cliente}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text2)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.desc || 'Sin descripción'}
                   </div>
                 </div>
@@ -163,45 +165,62 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '20px',
-                    flexShrink: 0,
-                    flexWrap: 'nowrap', // ✅ CLAVE
+                    gap: '10px',
+                    flex: 1,
+                    flexWrap: 'nowrap',
                     justifyContent: 'flex-end'
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: '18px', fontWeight: 600 }}>
+                  <div style={{ textAlign: 'center', minWidth: '70px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--text3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '3px' }}>
+                      Unidades
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 700 }}>
                       {unidadesTexto}
                     </div>
-                    {unidadesPendientes > 0 && (
-                      <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>
-                        Pendiente
-                      </div>
-                    )}
                   </div>
 
-                  <div>{fmt(costoTotal)}</div>
+                  <div style={{ textAlign: 'center', minWidth: '60px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
+                      Avance
+                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)', color: avanceColor }}>
+                      {totalElaboradas}/{totalUnidades}
+                    </div>
+                    <div style={{ fontSize: '10px', color: avanceColor, marginTop: '2px' }}>
+                      listas
+                    </div>
+                  </div>
 
-                  {p.precioVenta && <div>{fmt(p.precioVenta)}</div>}
-
-                  {/* ✅ GANANCIA + STATUS JUNTOS */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {ganancia !== null && (
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          color:
-                            ganancia >= 0
-                              ? 'var(--accent)'
-                              : 'var(--danger)'
-                        }}
-                      >
-                        {fmt(ganancia)}
+                  <div style={{ display: 'flex', gap: '10px', minWidth: '200px', textAlign: 'right', alignItems: 'flex-start' }}>
+                    <div style={{ minWidth: '64px' }}>
+                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
+                        Costos
                       </div>
-                    )}
+                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                        {fmt(costoTotal)}
+                      </div>
+                    </div>
+                    <div style={{ minWidth: '64px' }}>
+                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
+                        Ganancia
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+                        {ganancia !== null ? fmt(ganancia) : '-'}
+                      </div>
+                    </div>
+                    <div style={{ minWidth: '64px' }}>
+                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
+                        Venta
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
+                        {p.precioVenta ? fmt(precioNeto(p)) : '-'}
+                      </div>
+                    </div>
+                  </div>
 
-                    {/* ✅ STATUS AL LADO */}
-                    <select
+                  {/* ✅ STATUS AL LADO */}
+                  <select
                       className={`status-select ${p.estado}`}
                       value={p.estado}
                       onClick={(e) => e.stopPropagation()}
@@ -209,9 +228,11 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                         handleStatusChange(e, p.id, e.target.value)
                       }
                       style={{
-                        height: '30px',
-                        padding: '4px 8px',
-                        fontSize: '12px'
+                        height: '28px',
+                        width: '110px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        minWidth: 'auto'
                       }}
                     >
                       <option value="pendiente">Pendiente</option>
@@ -222,8 +243,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     </select>
                   </div>
                 </div>
-              </div>
-            );
+             );
           })
         )}
       </div>

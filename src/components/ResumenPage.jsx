@@ -26,6 +26,16 @@ export default function ResumenPage() {
     return null;
   };
 
+  // Helper: compute net sale price after discount for an order (available component-wide)
+  const precioNetoFor = (p) => {
+    const descuentoMonto = parseFloat(p.descuentoMonto) || 0;
+    const descuentoPct = Math.max(0, Math.min(100, parseFloat(p.descuentoPct) || 0));
+    const descuentoTotal = descuentoMonto > 0
+      ? descuentoMonto
+      : ((p.precioVenta || 0) * (descuentoPct / 100));
+    return Math.max(0, (p.precioVenta || 0) - descuentoTotal);
+  };
+
   // Calculate Date Boundaries
   const periodDates = useMemo(() => {
     const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59') : new Date();
@@ -66,11 +76,11 @@ export default function ResumenPage() {
     };
 
     const fp = pedidos.filter(getIsOrderInPeriod);
-    
-    // Completados with sales price
-    const comp = fp.filter(p => (p.estado === 'completado' || p.estado === 'listo') && p.precioVenta);
-    
-    const v = comp.reduce((s, p) => s + (p.precioVenta || 0), 0);
+
+    // Completados with sales price (neto: descuento aplicado)
+    const comp = fp.filter(p => (p.estado === 'completado' || p.estado === 'listo') && (p.precioVenta || 0) > 0);
+
+    const v = comp.reduce((s, p) => s + precioNetoFor(p), 0);
     
     // Cost calculation (electricity + labor)
     const c = comp.reduce((s, p) => {
@@ -90,8 +100,8 @@ export default function ResumenPage() {
     const gan = v - c - g;
     const rent = v > 0 ? (gan / v * 100) : 0;
 
-    const pendientesGlobal = pedidos.filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && p.precioVenta);
-    const totalPend = pendientesGlobal.reduce((s, p) => s + p.precioVenta, 0);
+    const pendientesGlobal = pedidos.filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && (p.precioVenta || 0) > 0);
+    const totalPend = pendientesGlobal.reduce((s, p) => s + precioNetoFor(p), 0);
 
     return {
       filteredPedidos: fp,
@@ -117,7 +127,7 @@ export default function ResumenPage() {
     }
     pedidosList.forEach(p => {
       const f = getFechaVenta(p);
-      if (f && map[f] !== undefined) map[f] += p.precioVenta || 0;
+      if (f && map[f] !== undefined) map[f] += precioNetoFor(p);
     });
     return Object.entries(map).map(([k, val]) => ({ label: k.slice(5), ventas: val }));
   };
@@ -136,7 +146,7 @@ export default function ResumenPage() {
       const f = fStr ? new Date(fStr + 'T12:00:00') : null;
       if (!f) return;
       const sem = semanas.find(s => f >= s.desde && f <= s.hasta);
-      if (sem) sem.ventas += p.precioVenta || 0;
+      if (sem) sem.ventas += precioNetoFor(p);
     });
     return semanas;
   };
@@ -152,7 +162,7 @@ export default function ResumenPage() {
     pedidosList.forEach(p => {
       const f = getFechaVenta(p);
       const mes = f ? f.slice(0, 7) : null;
-      if (mes && map[mes] !== undefined) map[mes] += p.precioVenta || 0;
+      if (mes && map[mes] !== undefined) map[mes] += precioNetoFor(p);
     });
     return Object.entries(map).map(([k, val]) => ({ label: k.slice(5) + '/' + k.slice(2, 4), ventas: val }));
   };
@@ -448,10 +458,7 @@ export default function ResumenPage() {
                   <th>Cliente</th>
                   <th>Descripción</th>
                   <th style={{ textAlign: 'center' }}>Piezas</th>
-                  <th style={{ textAlign: 'right' }}>Costo prod.</th>
-                  <th style={{ textAlign: 'right' }}>Precio venta</th>
-                  <th style={{ textAlign: 'right' }}>Ganancia</th>
-                  <th style={{ textAlign: 'right' }}>Margen</th>
+                  <th style={{ textAlign: 'right' }}>Precio final</th>
                   <th>Completado</th>
                   <th>Entrega</th>
                 </tr>
@@ -459,8 +466,9 @@ export default function ResumenPage() {
               <tbody>
                 {sortedCompletados.map(p => {
                   const costo = p.piezas.reduce((s, pz) => s + (((pz.costeElec || 0) + (pz.costeMO || 0)) * pz.cantidad), 0);
-                  const gan = p.precioVenta - costo;
-                  const margen = p.precioVenta > 0 ? (gan / p.precioVenta * 100).toFixed(1) : 0;
+                  const precioFinal = precioNetoFor(p);
+                  const gan = precioFinal - costo;
+                  const margen = precioFinal > 0 ? (gan / precioFinal * 100).toFixed(1) : 0;
                   const fechaMostrar = p.fechaCompletado || p.fechaPedido || p.creado || '—';
                   return (
                     <tr key={p.id}>
@@ -471,15 +479,8 @@ export default function ResumenPage() {
                       <td style={{ fontFamily: 'var(--mono)', textAlign: 'center' }}>
                         {p.piezas.reduce((t, pz) => t + pz.cantidad, 0)}
                       </td>
-                      <td style={{ fontFamily: 'var(--mono)', textAlign: 'right' }}>{fmt(costo)}</td>
                       <td style={{ fontFamily: 'var(--mono)', textAlign: 'right', color: 'var(--accent)', fontWeight: 600 }}>
-                        {fmt(p.precioVenta)}
-                      </td>
-                      <td style={{ fontFamily: 'var(--mono)', textAlign: 'right', fontWeight: 600 }} className={gan >= 0 ? 'td-pos' : 'td-neg'}>
-                        {fmt(gan)}
-                      </td>
-                      <td style={{ fontFamily: 'var(--mono)', textAlign: 'right', color: parseFloat(margen) >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
-                        {margen}%
+                        {fmt(precioNetoFor(p))}
                       </td>
                       <td style={{ fontFamily: 'var(--mono)', color: p.fechaCompletado ? 'var(--accent)' : 'var(--text3)', whiteSpace: 'nowrap' }}>
                         {fechaMostrar}
