@@ -438,22 +438,43 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       if (pz.versiones && pz.versiones.length) {
         descExtra = pz.versiones.map(v => `${v.cantidad}× ${v.color || 'sin color'}${v.comentario ? ' (' + v.comentario + ')' : ''}`).join(', ');
       }
-      const rowH = descExtra ? 11 : 7;
+
+      // Wrap description and extra lines to compute dynamic height
+      const nameLines = doc.splitTextToSize(pz.nombre || 'Producto', colDesc - 4);
+      const extraLines = descExtra ? doc.splitTextToSize(descExtra, colDesc - 4) : [];
+      const lineH = 4.6; // approximate line height in mm
+      const contentLines = nameLines.length + extraLines.length;
+      const rowH = Math.max(8, contentLines * lineH + 6);
+
       checkPageBreak(rowH);
       if (i % 2 === 1) { doc.setFillColor(248, 248, 250); doc.rect(marginX, y, contentW, rowH, 'F'); }
       doc.setDrawColor(225); doc.rect(marginX, y, contentW, rowH);
+
+      // Left column: index
       doc.setTextColor(40, 40, 40); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      doc.text(String(i + 1), xN + 2, y + 5);
-      doc.text(pz.nombre || 'Producto', xDesc + 2, y + 5, { maxWidth: colDesc - 4 });
-      if (descExtra) { doc.setFontSize(7.5); doc.setTextColor(120, 120, 120); doc.text(descExtra, xDesc + 2, y + 9.5, { maxWidth: colDesc - 4 }); }
+      const baseline = y + 5;
+      doc.text(String(i + 1), xN + 2, baseline);
+
+      // Description (name + extra lines)
       doc.setFontSize(9); doc.setTextColor(40, 40, 40);
-      doc.text(String(pz.cantidad), xCant + 2, y + 5);
-      doc.text(fmt(unit), xPU + 2, y + 5);
-      doc.text(fmt(subtotal), xTot + 2, y + 5);
+      doc.text(nameLines, xDesc + 2, baseline);
+      if (extraLines.length) {
+        doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
+        const extraStartY = baseline + nameLines.length * lineH + 1;
+        doc.text(extraLines, xDesc + 2, extraStartY);
+      }
+
+      // Numeric columns: vertically center numbers within the row
+      const centerY = y + rowH / 2 + 1;
+      doc.setFontSize(9); doc.setTextColor(40, 40, 40);
+      doc.text(String(pz.cantidad), xCant + 2, centerY, { baseline: 'middle' });
+      doc.text(fmt(unit), xPU + 2, centerY, { baseline: 'middle' });
+      doc.text(fmt(subtotal), xTot + 2, centerY, { baseline: 'middle' });
+
       y += rowH;
     });
 
-    // Totals box
+    // Totals box (numeric columns right-aligned to avoid overlap with long labels)
     y += 2;
     checkPageBreak(25);
     const descuentoNombrePdf = p.descuentoNombre || '';
@@ -465,36 +486,64 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     const precioVentaNetoPdf = Math.max(0, (p.precioVenta || 0) - descuentoTotalPdf);
     const descuentoLabelPdf = descuentoNombrePdf ? `${descuentoNombrePdf}${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}` : `Descuento${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}`;
 
+    // define totals columns anchored to right margin
+    const totalColTot = 36; // width for total amount
+    const totalColPU = 44; // width for label/secondary column (will host some labels)
+    const xTotR = pageW - marginX - totalColTot; // rightmost numeric column X
+    const xPUR = xTotR - totalColPU; // left numeric/label column X
+    const labelWidth = xPUR - marginX; // available width for long labels
+
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(40, 40, 40);
-    doc.setDrawColor(225); doc.rect(xPU, y, colPU, 7); doc.rect(xTot, y, colTot, 7);
-    doc.text('SUBTOTAL', xPU + 2, y + 5); doc.text(fmt(p.precioVenta || 0), xTot + 2, y + 5);
-    y += 7;
+    // SUBTOTAL row
+    let rowH = 7;
+    checkPageBreak(rowH);
+    doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
+    doc.text('SUBTOTAL', xPUR + 2, y + 5); doc.text(fmt(p.precioVenta || 0), xTotR + 2, y + 5);
+    y += rowH;
 
     if (descuentoTotalPdf > 0) {
-      doc.setFont('helvetica', 'normal');
-      doc.rect(xPU, y, colPU, 7); doc.rect(xTot, y, colTot, 7);
-      doc.text(descuentoLabelPdf, xPU + 2, y + 5);
-      doc.text(`-${fmt(descuentoTotalPdf)}`, xTot + 2, y + 5);
-      y += 7;
+      // wrap discount label within available labelWidth
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+      const labelLines = doc.splitTextToSize(descuentoLabelPdf, labelWidth - 4);
+      const labelLineH = 5; // mm per line approx
+      const discRowH = Math.max(7, labelLines.length * labelLineH + 4);
+      checkPageBreak(discRowH);
 
+      doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, discRowH); doc.rect(xTotR, y, totalColTot, discRowH);
+      doc.text(labelLines, xPUR + 2, y + 5);
+      // amount vertically centered in discount row
+      const amountY = y + Math.max(5, discRowH / 2 + 1);
+      doc.text(`-${fmt(descuentoTotalPdf)}`, xTotR + 2, amountY);
+      y += discRowH;
+
+      // SUBTOTAL neto row
+      rowH = 7;
+      checkPageBreak(rowH);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
-      doc.rect(xPU, y, colPU, 7); doc.rect(xTot, y, colTot, 7);
-      doc.text('SUBTOTAL neto', xPU + 2, y + 5); doc.text(fmt(precioVentaNetoPdf), xTot + 2, y + 5);
-      y += 7;
+      doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
+      doc.text('SUBTOTAL neto', xPUR + 2, y + 5); doc.text(fmt(precioVentaNetoPdf), xTotR + 2, y + 5);
+      y += rowH;
     }
 
     if (p.envio > 0) {
-      doc.setFont('helvetica', 'normal');
-      doc.rect(xPU, y, colPU, 7); doc.rect(xTot, y, colTot, 7);
-      doc.text('ENVÍO', xPU + 2, y + 5); doc.text(fmt(p.envio), xTot + 2, y + 5);
-      y += 7;
+      rowH = 7;
+      checkPageBreak(rowH);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+      doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
+      doc.text('ENVÍO', xPUR + 2, y + 5); doc.text(fmt(p.envio), xTotR + 2, y + 5);
+      y += rowH;
     }
+
+    // TOTAL final highlighted box
+    rowH = 8;
+    checkPageBreak(rowH + 10);
     doc.setFillColor(...lightGray);
-    doc.rect(xPU, y, colPU, 8, 'F'); doc.rect(xTot, y, colTot, 8, 'F');
-    doc.setDrawColor(180); doc.rect(xPU, y, colPU, 8); doc.rect(xTot, y, colTot, 8);
+    doc.rect(xPUR, y, totalColPU, rowH, 'F'); doc.rect(xTotR, y, totalColTot, rowH, 'F');
+    doc.setDrawColor(180); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
-    doc.text('TOTAL', xPU + 2, y + 5.5); doc.text(fmt(precioVentaNetoPdf + (p.envio || 0)), xTot + 2, y + 5.5);
-    y += 8 + 10;
+    doc.text('TOTAL', xPUR + 2, y + 5.5);
+    doc.text(fmt(precioVentaNetoPdf + (p.envio || 0)), xTotR + 2, y + 5.5);
+    y += rowH + 10;
 
     // Shipping info
     if (p.metodoEnvio || p.numeroSeguimiento) {
