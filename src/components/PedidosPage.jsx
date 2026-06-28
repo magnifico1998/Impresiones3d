@@ -151,11 +151,11 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                 className={`pedido-card ${urgente ? 'urgente' : ''}`}
                 onClick={() => onOpenOrderDetail(p.id)}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                <div style={{ flex: '0 0 30%', minWidth: 0, maxWidth: '30%' }}>
+                  <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.cliente}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text2)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.desc || 'Sin descripción'}
                   </div>
                 </div>
@@ -165,9 +165,9 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '20px',
-                    flexShrink: 0,
-                    flexWrap: 'nowrap', // ✅ CLAVE
+                    gap: '12px',
+                    flex: 1,
+                    flexWrap: 'nowrap',
                     justifyContent: 'flex-end'
                   }}
                 >
