@@ -132,7 +132,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
             );
             const costoTotal = costoPiezas + costoIns;
 
-            const ganancia = p.precioVenta ? p.precioVenta - costoTotal : null;
+            const ganancia = (p.precioVenta || 0) ? precioNeto(p) - costoTotal : null;
 
             const totalUnidades = p.piezas.reduce((t, pz) => t + pz.cantidad, 0);
             const totalElaboradas = p.piezas.reduce(
@@ -184,7 +184,6 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                   <div>{fmt(costoTotal)}</div>
 
                   {p.precioVenta && <div>{fmt(precioNeto(p))}</div>}
-            const ganancia = (p.precioVenta || 0) ? precioNeto(p) - costoTotal : null;
 
                   {/* ✅ GANANCIA + STATUS JUNTOS */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
