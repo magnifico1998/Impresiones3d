@@ -398,7 +398,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.text('PRODUCTOS', marginX + 3, y + 5);
     y += 7;
 
-    const colN = 10, colDesc = 95, colCant = 20, colPU = 27, colTot = 28;
+    const colN = 10, colDesc = 90, colCant = 18, colPU = 32, colTot = 30;
     const xN = marginX, xDesc = xN + colN, xCant = xDesc + colDesc, xPU = xCant + colCant, xTot = xPU + colPU;
     doc.setFillColor(...lightGray);
     doc.rect(marginX, y, contentW, 7, 'F');
