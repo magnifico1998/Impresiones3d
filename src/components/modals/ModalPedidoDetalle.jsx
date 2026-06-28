@@ -51,7 +51,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   const descuentoNombre = draft.descuentoNombre || '';
   const descuentoMonto = parseFloat(draft.descuentoMonto) || 0;
   const descuentoPct = Math.max(0, Math.min(100, parseFloat(draft.descuentoPct) || 0));
-  const descuentoTotal = descuentoMonto + ((draft.precioVenta || 0) * (descuentoPct / 100));
+  const descuentoTotal = descuentoMonto > 0
+    ? descuentoMonto
+    : ((draft.precioVenta || 0) * (descuentoPct / 100));
   const precioVentaNeto = Math.max(0, (draft.precioVenta || 0) - descuentoTotal);
   const ganancia = precioVentaNeto ? precioVentaNeto - costoTotal : 0;
   const totalAbonar = precioVentaNeto + (parseFloat(draft.envio) || 0);
@@ -78,6 +80,28 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
   const handleFieldChange = (field, val) => {
     setDraft(prev => ({ ...prev, [field]: val }));
+  };
+
+  const handleDescuentoMontoChange = (value) => {
+    setDraft(prev => {
+      const monto = value === '' ? '' : String(Math.round((parseFloat(value) || 0) * 100) / 100);
+      const precioVenta = parseFloat(prev.precioVenta) || 0;
+      const pct = monto !== '' && precioVenta > 0
+        ? String(Math.round((parseFloat(monto) / precioVenta) * 1000) / 10)
+        : '';
+      return { ...prev, descuentoMonto: monto, descuentoPct: pct };
+    });
+  };
+
+  const handleDescuentoPctChange = (value) => {
+    setDraft(prev => {
+      const pctVal = value === '' ? '' : String(Math.max(0, Math.min(100, parseFloat(value) || 0)));
+      const precioVenta = parseFloat(prev.precioVenta) || 0;
+      const monto = pctVal !== '' && precioVenta > 0
+        ? String(Math.round((parseFloat(pctVal) / 100) * precioVenta * 100) / 100)
+        : '';
+      return { ...prev, descuentoPct: pctVal, descuentoMonto: monto };
+    });
   };
 
   const getNextPedidoEstado = (prevEstado, piezas) => {
@@ -435,7 +459,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     const descuentoNombrePdf = p.descuentoNombre || '';
     const descuentoMontoPdf = parseFloat(p.descuentoMonto) || 0;
     const descuentoPctPdf = Math.max(0, Math.min(100, parseFloat(p.descuentoPct) || 0));
-    const descuentoTotalPdf = descuentoMontoPdf + ((p.precioVenta || 0) * (descuentoPctPdf / 100));
+    const descuentoTotalPdf = descuentoMontoPdf > 0
+      ? descuentoMontoPdf
+      : ((p.precioVenta || 0) * (descuentoPctPdf / 100));
     const precioVentaNetoPdf = Math.max(0, (p.precioVenta || 0) - descuentoTotalPdf);
     const descuentoLabelPdf = descuentoNombrePdf ? `${descuentoNombrePdf}${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}` : `Descuento${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}`;
 
@@ -870,7 +896,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                   step="0.01" 
                   value={draft.descuentoMonto || ''} 
                   placeholder="0" 
-                  onChange={(e) => handleFieldChange('descuentoMonto', e.target.value)} 
+                  onChange={(e) => handleDescuentoMontoChange(e.target.value)} 
                 />
               </div>
             </div>
@@ -884,7 +910,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                   step="0.1" 
                   value={draft.descuentoPct || ''} 
                   placeholder="0" 
-                  onChange={(e) => handleFieldChange('descuentoPct', e.target.value)} 
+                  onChange={(e) => handleDescuentoPctChange(e.target.value)} 
                 />
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text3)', textAlign: 'right' }}>
