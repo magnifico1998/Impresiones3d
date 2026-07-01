@@ -21,12 +21,17 @@ function recalcularProducto(prod, cfg) {
   const costeElec = (watts / 1000) * horas * kwh;
 
   // Mantenimiento impresora con cfg.impresoras[x].mant actualizado
-  let mantH = 0;
-  if (prod.impresoraNombre) {
-    const imp = cfg.impresoras?.find(i => i.nombre === prod.impresoraNombre);
-    if (imp) mantH = imp.mant || 0;
+  let costeMant = 0;
+  if (prod.impresoraNombre && cfg.impresoras) {
+    const imp = cfg.impresoras.find(i => i.nombre === prod.impresoraNombre);
+    if (imp && imp.mant) {
+      costeMant = imp.mant * horas;
+    }
   }
-  const costeMant = mantH * horas;
+  // Si no hay impresora o no está en cfg, usa el valor guardado
+  if (costeMant === 0 && prod.costeMant) {
+    costeMant = prod.costeMant / (prod.horas || 1) * horas;
+  }
 
   // Mano de obra con cfg.mo actualizado
   const costeMO = (cfg.mo || 0) * horasTrab;
@@ -106,7 +111,7 @@ function recalcularProducto(prod, cfg) {
     moHora: cfg.mo || 0,
     matData: matDataActualizado,
     precioRollo: matDataActualizado ? prod.precioRollo : precioRolloActualizado,
-    // Desglose para UI
+    // Desglose para UI y persistencia
     _desglose: {
       costeFil,
       costeElec,
@@ -116,6 +121,7 @@ function recalcularProducto(prod, cfg) {
       filInfo,
       allMatched: filInfo.every(f => f.matched),
       margenAnterior: prod.margen ?? 30,
+      margenNuevo: margenEfectivo,
     },
   };
 }
@@ -265,7 +271,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                     <td style={{ padding: '8px', fontSize: '9px' }}>
                       {nuevos._desglose.filInfo.map((f, i) => (
                         <div key={i} style={{ color: f.matched ? 'var(--accent)' : 'var(--warn)', fontFamily: 'var(--mono)' }}>
-                          {f.matched ? '✓' : '⚠'} {f.matchNombre} @ ${Math.round(f.precioKg / 1000)}
+                          {f.matched ? '✓' : '⚠'} {f.matchNombre} @ ${Math.round(f.precioKg).toLocaleString('es-AR')}/kg
                         </div>
                       ))}
                     </td>
@@ -377,14 +383,21 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
         const hit = toUpdate.find(it => it.prod.id === p.id);
         if (!hit) return p;
         const n = hit.nuevos;
+        // Calcular los costos desagregados para guardar
+        const desglose = n._desglose;
         return {
           ...p,
           costoUnitario: n.costoUnitario,
           precioSugUnitario: n.precioSugUnitario,
           precioKwh: n.precioKwh,
           moHora: n.moHora,
+          costeFil: desglose.costeFil,
+          costeElec: desglose.costeElec,
+          costeMant: desglose.costeMant,
+          costeMO: desglose.costeMO,
           ...(n.matData ? { matData: n.matData } : {}),
           ...(n.precioRollo !== undefined ? { precioRollo: n.precioRollo } : {}),
+          margen: n.margenNuevo,
           fechaRecalculo: new Date().toLocaleDateString('es-AR'),
         };
       })
