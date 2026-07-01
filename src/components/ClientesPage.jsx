@@ -1,11 +1,25 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { precioNeto } from '../utils/precioNeto';
 
+const sortOptions = [
+  { id: 'nombreAsc', label: 'Nombre A → Z' },
+  { id: 'nombreDesc', label: 'Nombre Z → A' },
+  { id: 'ultimoPedido', label: 'Último pedido' },
+  { id: 'totalGastado', label: 'Monto de pedidos' }
+];
+
 export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
   const { clientes, pedidos } = useApp();
+  const [sortMode, setSortMode] = useState('nombreAsc');
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
+
+  const parsePedidoTime = (pedido) => {
+    const fecha = pedido.fechaPedido || pedido.fecha || pedido.creado || '';
+    const parsed = new Date(fecha + 'T12:00:00').getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
 
   // Compute order details per client
   const clientRows = useMemo(() => {
@@ -14,13 +28,33 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
         p => p.cliente.trim().toLowerCase() === c.nombre.trim().toLowerCase()
       );
       const totalGastado = misPedidos.reduce((acc, p) => acc + precioNeto(p), 0);
+      const lastPedido = misPedidos.reduce((latest, p) => {
+        const time = parsePedidoTime(p);
+        return Math.max(latest, time);
+      }, 0);
       return {
         ...c,
         pedidosCount: misPedidos.length,
-        totalGastado
+        totalGastado,
+        lastPedido
       };
     });
   }, [clientes, pedidos]);
+
+  const sortedClients = useMemo(() => {
+    const rows = [...clientRows];
+    switch (sortMode) {
+      case 'nombreDesc':
+        return rows.sort((a, b) => b.nombre.localeCompare(a.nombre, 'es', { sensitivity: 'base' }));
+      case 'ultimoPedido':
+        return rows.sort((a, b) => b.lastPedido - a.lastPedido || a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+      case 'totalGastado':
+        return rows.sort((a, b) => b.totalGastado - a.totalGastado || a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+      case 'nombreAsc':
+      default:
+        return rows.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+    }
+  }, [clientRows, sortMode]);
 
   return (
     <div className="page active">
@@ -29,12 +63,26 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
           <div className="page-title">Clientes</div>
           <div className="page-sub" style={{ marginBottom: 0 }}>Administrá tus clientes y su historial de pedidos.</div>
         </div>
-        <button className="btn btn-primary" onClick={onOpenNewClient}>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M10 4v12M4 10h12" />
-          </svg>
-          Nuevo cliente
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text2)', fontSize: '14px' }}>
+            Ordenar por:
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value)}
+              style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', minWidth: '180px' }}
+            >
+              {sortOptions.map(option => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <button className="btn btn-primary" onClick={onOpenNewClient}>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M10 4v12M4 10h12" />
+            </svg>
+            Nuevo cliente
+          </button>
+        </div>
       </div>
 
       <div id="lista-clientes">
@@ -49,11 +97,12 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
                   <th>Teléfono</th>
                   <th>Localidad</th>
                   <th style={{ textAlign: 'center' }}>Pedidos</th>
+                  <th style={{ textAlign: 'right' }}>Último pedido</th>
                   <th style={{ textAlign: 'right' }}>Total gastado</th>
                 </tr>
               </thead>
               <tbody>
-                {clientRows.map(c => (
+                {sortedClients.map(c => (
                   <tr 
                     key={c.id} 
                     style={{ cursor: 'pointer' }}
@@ -66,6 +115,9 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
                       {!c.loc && !c.prov && '—'}
                     </td>
                     <td style={{ fontFamily: 'var(--mono)', textAlign: 'center' }}>{c.pedidosCount}</td>
+                    <td style={{ fontFamily: 'var(--mono)', textAlign: 'right' }}>
+                      {c.lastPedido ? new Date(c.lastPedido).toLocaleDateString('es-AR') : '—'}
+                    </td>
                     <td style={{ fontFamily: 'var(--mono)', fontWeight: 600, color: 'var(--accent)', textAlign: 'right' }}>
                       {fmt(c.totalGastado)}
                     </td>

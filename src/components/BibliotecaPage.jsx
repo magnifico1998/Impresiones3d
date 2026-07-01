@@ -7,6 +7,8 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const [q, setQ] = useState('');
   const [filterCat, setFilterCat] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [viewMode, setViewMode] = useState('grid');
+  const [sortMode, setSortMode] = useState('nombreAsc');
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
@@ -26,6 +28,16 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
       return matchQ && matchCat;
     });
   }, [biblioteca, q, filterCat]);
+
+  const sortedList = useMemo(() => {
+    const rows = [...filteredList];
+    if (sortMode === 'nombreDesc') {
+      rows.sort((a, b) => b.nombre.localeCompare(a.nombre, 'es', { sensitivity: 'base' }));
+    } else {
+      rows.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+    }
+    return rows;
+  }, [filteredList, sortMode]);
 
   const handleSelectToggle = (id) => {
     setSelectedIds(prev => {
@@ -87,13 +99,29 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             onChange={(e) => setFilterCat(e.target.value)} 
             style={{ width: '160px', fontSize: '13px' }}
           >
-            <option value="">Todos los materiales</option>
+            <option value="">Categorias</option>
             {uniqueCats.map((category, idx) => (
               <option key={idx} value={category}>{category}</option>
             ))}
           </select>
+          <select
+            value={sortMode}
+            onChange={(e) => setSortMode(e.target.value)}
+            style={{ width: '160px', fontSize: '13px' }}
+          >
+            <option value="nombreAsc">Nombre A → Z</option>
+            <option value="nombreDesc">Nombre Z → A</option>
+          </select>
+          <select
+            value={viewMode}
+            onChange={(e) => setViewMode(e.target.value)}
+            style={{ width: '160px', fontSize: '13px' }}
+          >
+            <option value="grid">Cuadrícula</option>
+            <option value="list">Lista</option>
+          </select>
           <span id="bib-count" style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-            Total: {filteredList.length}
+            Total: {sortedList.length}
           </span>
         </div>
       </div>
@@ -130,13 +158,13 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
       )}
 
       {/* Library list layout */}
-      <div id="bib-page-lista" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-        {!filteredList.length ? (
-          <div className="empty" style={{ gridColumn: '1/-1' }}>
+      <div id="bib-page-lista" style={viewMode === 'grid' ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' } : { display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {!sortedList.length ? (
+          <div className="empty" style={{ gridColumn: viewMode === 'grid' ? '1/-1' : 'auto' }}>
             No hay productos registrados en la Biblioteca.
           </div>
         ) : (
-          filteredList.map(p => {
+          sortedList.map(p => {
             const isChecked = selectedIds.has(p.id);
             return (
               <div 
@@ -145,10 +173,12 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                 style={{
                   marginBottom: 0,
                   display: 'flex',
-                  flexDirection: 'column',
+                  flexDirection: viewMode === 'grid' ? 'column' : 'row',
                   gap: '10px',
                   borderColor: isChecked ? 'var(--accent)' : 'var(--border)',
-                  transition: 'all 0.15s'
+                  transition: 'all 0.15s',
+                  alignItems: viewMode === 'grid' ? 'stretch' : 'center',
+                  padding: viewMode === 'list' ? '12px 14px' : 'initial'
                 }}
               >
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
