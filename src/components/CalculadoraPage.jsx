@@ -22,7 +22,7 @@ export default function CalculadoraPage({
   const [gramos, setGramos] = useState(50);
   const [cantidad, setCantidad] = useState(1);
   const [selFilamento, setSelFilamento] = useState('manual');
-  const [selImpresora, setSelImpresora] = useState('manual');
+  const [selImpresora, setSelImpresora] = useState(() => cfg.impresoras?.length ? '0' : 'manual');
   
   // Consumables checked state: { [name]: { checked: boolean, qty: number, price: number } }
   const [insumosState, setInsumosState] = useState({});
@@ -66,6 +66,21 @@ export default function CalculadoraPage({
     setMargen(cfg.margen);
     setDesperdicio(cfg.desperdicio);
   }, [cfg]);
+
+  useEffect(() => {
+    if (!cfg.impresoras?.length) {
+      setSelImpresora('manual');
+      return;
+    }
+
+    const currentIndex = Number(selImpresora);
+    const hasValidSelection = selImpresora !== 'manual' && Number.isInteger(currentIndex) && cfg.impresoras[currentIndex];
+
+    if (!hasValidSelection) {
+      setSelImpresora('0');
+      setWatts(cfg.impresoras[0].watts || 0);
+    }
+  }, [cfg.impresoras, selImpresora]);
 
   // Adjust inputs based on selections
   const handleFilamentoSelectChange = (val) => {
@@ -626,7 +641,13 @@ export default function CalculadoraPage({
       if (idx >= 0) {
         setSelImpresora(String(idx));
         setWatts(cfg.impresoras[idx].watts);
+      } else if (cfg.impresoras.length) {
+        setSelImpresora('0');
+        setWatts(cfg.impresoras[0].watts || 0);
       }
+    } else if (cfg.impresoras.length) {
+      setSelImpresora('0');
+      setWatts(cfg.impresoras[0].watts || 0);
     }
 
     setPrecioVentaTocado(false);
