@@ -91,9 +91,16 @@ function recalcularProducto(prod, cfg) {
   const costoUnitario = costePorUnidad;
   const precioSugUnitario = costePorUnidad * (1 + margen / 100);
 
+  // Margen efectivo con el nuevo costo pero manteniendo el precio de venta anterior
+  const precioVentaAnterior = prod.precioSugUnitario * (prod.cantidad || 1);
+  const margenEfectivo = costoUnitario > 0 
+    ? ((precioVentaAnterior / (prod.cantidad || 1) - costoUnitario) / costoUnitario) * 100
+    : 0;
+
   return {
     costoUnitario,
-    precioSugUnitario,
+    precioSugUnitario: prod.precioSugUnitario, // NO se modifica el precio de venta
+    margenNuevo: margenEfectivo, // Margen calculado con nuevo costo
     // Datos que se actualizan
     precioKwh: kwh,
     moHora: cfg.mo || 0,
@@ -108,6 +115,7 @@ function recalcularProducto(prod, cfg) {
       extras,
       filInfo,
       allMatched: filInfo.every(f => f.matched),
+      margenAnterior: prod.margen ?? 30,
     },
   };
 }
@@ -180,6 +188,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                 <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Costo actual</th>
                 <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Costo nuevo</th>
                 <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Diferencia</th>
+                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Margen</th>
                 <th style={{ textAlign: 'left', padding: '8px', fontWeight: 600 }}>Filamento</th>
               </tr>
             </thead>
@@ -191,6 +200,10 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                 const pctDiff = costoAntes > 0 ? (diff / costoAntes * 100) : 0;
                 const checked = selectedIds.has(prod.id);
                 const bg = nuevos._desglose.allMatched ? 'transparent' : 'rgba(234,179,8,.04)';
+
+                const margenAnterior = nuevos._desglose.margenAnterior;
+                const margenNuevo = nuevos.margenNuevo;
+                const margenDiff = margenNuevo - margenAnterior;
 
                 return (
                   <tr
@@ -231,6 +244,23 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                     }}>
                       <div>{diff > 0 ? '+' : ''}{fmt(diff)}</div>
                       <div style={{ fontSize: '9px', color: 'var(--text3)' }}>({pctDiff > 0 ? '+' : ''}{pctDiff.toFixed(1)}%)</div>
+                    </td>
+                    <td style={{
+                      padding: '8px',
+                      fontFamily: 'var(--mono)',
+                      textAlign: 'right',
+                      fontWeight: 600,
+                    }}>
+                      <div style={{ color: margenNuevo >= margenAnterior ? 'var(--accent)' : 'var(--danger)' }}>
+                        {margenNuevo.toFixed(1)}%
+                      </div>
+                      <div style={{
+                        fontSize: '9px',
+                        color: margenDiff > 0 ? 'var(--accent)' : margenDiff < 0 ? 'var(--danger)' : 'var(--text3)',
+                        fontWeight: 500,
+                      }}>
+                        {margenDiff > 0 ? '+' : ''}{margenDiff.toFixed(1)}pp
+                      </div>
                     </td>
                     <td style={{ padding: '8px', fontSize: '9px' }}>
                       {nuevos._desglose.filInfo.map((f, i) => (
