@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido }) {
-  // Traemos 'cfg' para obtener los costos actualizados de insumos del taller
+  // Traemos 'cfg' para obtener los costos actuales de insumos del taller
   const { biblioteca, setBiblioteca, cfg, showToast } = useApp();
 
   const [q, setQ] = useState('');
@@ -30,37 +30,39 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
     });
   }, [biblioteca, q, filterCat]);
 
-  // --- FUNCIÓN CORREGIDA: SÓLO ACTUALIZA COSTOS ---
+  // --- FUNCIÓN CORREGIDA: COPIA EXACTA DE CALCULADORA ---
   const handleRecalcularCostosMasivo = () => {
     if (biblioteca.length === 0) {
       showToast('No hay productos en la biblioteca para recalcular.', 'error');
       return;
     }
 
-    if (!window.confirm('¿Confirmás el recálculo masivo de costos? Se actualizará el "Costo Unitario" de cada pieza usando el valor actual de filamentos, luz y mano de obra. Los precios de venta actuales SE MANTENDRÁN INTACTOS.')) {
+    if (!window.confirm('¿Confirmás el recálculo masivo de costos? Se actualizará el "Costo Unitario" de cada pieza usando el valor actual de filamentos, luz, mano de obra y accesorios. Los precios de venta se mantendrán intactos.')) {
       return;
     }
 
     // Sub-función que computa puramente los costos de un archivo o pieza individual
     const actualizarCostosPieza = (pieza) => {
-      // 1. Buscar precio actual del filamento asignado
-      let precioFilamentoActual = pieza.precioRollo || 18000;
-      if (cfg.filamentos && (pieza.filamentoId || pieza.selFilamento)) {
-        const fil = cfg.filamentos.find(f => f.id === pieza.filamentoId || f.nombre === pieza.selFilamento);
-        if (fil) precioFilamentoActual = fil.precio;
+      // 1. Buscar precio actual del filamento asignado (por ID o mantener manual)
+      let precioFilamentoActual = Number(pieza.precioRollo) || 18000;
+      if (cfg.filamentos && pieza.selFilamento && pieza.selFilamento !== 'manual') {
+        const fil = cfg.filamentos.find(f => f.id === pieza.selFilamento);
+        if (fil) precioFilamentoActual = Number(fil.precio);
       }
 
-      // 2. Buscar consumo eléctrico actual de la impresora asignada
-      let wattsActual = pieza.watts || 120;
-      if (cfg.impresoras && (pieza.impresoraId || pieza.selImpresora)) {
-        const imp = cfg.impresoras.find(i => i.id === pieza.impresoraId || i.nombre === pieza.selImpresora);
-        if (imp) wattsActual = imp.watts;
+      // 2. Buscar consumo eléctrico actual de la impresora asignada (por ID o mantener manual)
+      let wattsActual = Number(pieza.watts) || 120;
+      if (cfg.impresoras && pieza.selImpresora && pieza.selImpresora !== 'manual') {
+        const imp = cfg.impresoras.find(i => i.id === pieza.selImpresora);
+        if (imp) wattsActual = Number(imp.watts);
       }
 
       // 3. Traer variables generales de configuración del taller
       const kwhActual = Number(cfg.kwh) || 0;
       const moActual = Number(cfg.mo) || 0;
-      const desperdicioActual = cfg.desperdicio !== undefined ? Number(cfg.desperdicio) : 5;
+      
+      // Respetar el desperdicio propio de la pieza si existe, sino usar el global
+      const desperdicioActual = pieza.desperdicio !== undefined ? Number(pieza.desperdicio) : (Number(cfg.desperdicio) || 0);
 
       // 4. Parámetros de fabricación de la pieza
       const gramosPuros = Number(pieza.gramos) || 0;
@@ -68,39 +70,49 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
       const horasManoObra = Number(pieza.horasTrabajo) || 0;
       const costosExtras = Number(pieza.extras) || 0;
 
-      // 5. Modelado matemático de costos de CalculadoraPage
+      // 5. Modelado matemático idéntico a CalculadoraPage
       const pesoConDesperdicio = gramosPuros * (1 + desperdicioActual / 100);
-      const costoMaterial = pesoConDesperdicio * (precioFilamentoActual / 1000);
-      const costoLuz = horasImpresion * (wattsActual / 1000) * kwhActual;
+      const costoMaterial = (pesoConDesperdicio * precioFilamentoActual) / 1000;
+      const costoLuz = (horasImpresion * wattsActual * kwhActual) / 1000;
       const costoManoObra = horasManoObra * moActual;
 
-      const nuevoCostoUnitario = costoMaterial + costoLuz + costoManoObra + costosExtras;
+      // 6. NUEVO: Calcular dinámicamente el costo de los accesorios/insumos seleccionados
+      let costoInsumos = 0;
+      if (cfg.insumos && pieza.insumosChecked) {
+        Object.keys(pieza.insumosChecked).forEach(id => {
+          if (pieza.insumosChecked[id]) {
+            const ins = cfg.insumos.find(i => i.id === id || i.nombre === id);
+            if (ins) costoInsumos += Number(ins.precio) || 0;
+          }
+        });
+      }
+
+      // Suma final idéntica a CalculadoraPage
+      const nuevoCostoUnitario = costoMaterial + costoLuz + costoManoObra + costosExtras + costoInsumos;
 
       return {
         ...pieza,
         precioRollo: precioFilamentoActual,
         watts: wattsActual,
         costoUnitario: nuevoCostoUnitario,
-        // CRÍTICO: Mantiene su precio de venta de lista exactamente igual
-        precioSugUnitario: pieza.precioSugUnitario 
+        precioSugUnitario: pieza.precioSugUnitario // Protegemos tu precio de venta actual
       };
     };
 
-    // Recorremos todo tu catálogo
+    // Recorremos todo tu catálogo de la biblioteca
     const bibliotecaActualizada = biblioteca.map(p => {
       if (p.esCompuesto && p.componentes && p.componentes.length > 0) {
         // Si es Multi-Gcode, actualiza los costos individuales de cada sub-pieza
         const componentesActualizados = p.componentes.map(comp => actualizarCostosPieza(comp));
         
-        // Consolida el nuevo costo total sumando las partes
+        // Consolida el nuevo costo total sumando las partes por sus respectivas cantidades
         const costoConsolidado = componentesActualizados.reduce((acc, c) => acc + (c.costoUnitario * (c.cantidad || 1)), 0);
 
         return {
           ...p,
           componentes: componentesActualizados,
           costoUnitario: costoConsolidado,
-          // CRÍTICO: Conserva el precio de venta original del producto compuesto
-          precioSugUnitario: p.precioSugUnitario 
+          precioSugUnitario: p.precioSugUnitario // Conserva el precio de venta original
         };
       } else {
         // Si es una pieza normal, aplica la actualización directa
@@ -110,7 +122,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
     // Guardamos los cambios en el estado y LocalStorage
     setBiblioteca(bibliotecaActualizada);
-    showToast('Costos de producción actualizados correctamente.', 'success');
+    showToast('Costos de producción sincronizados correctamente con la calculadora.', 'success');
   };
 
   const handleDelete = (id, nombre) => {
@@ -142,7 +154,6 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* BOTÓN RECALCULAR EXCLUSIVO DE COSTOS */}
           <button 
             className="btn" 
             style={{ background: 'rgba(251, 191, 36, 0.1)', border: '1px solid var(--warn)', color: 'var(--warn)' }}
@@ -180,7 +191,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             const cantidadItem = p.cantidad || 1;
             return (
               <div key={p.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--bg2)', position: 'relative' }}>
-                <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <h4 style={{ color: 'var(--text)', fontSize: '15px', fontWeight: 600 }}>{p.nombre}</h4>
                     {p.cat && <span style={{ fontSize: '11px', color: 'var(--text2)', background: 'var(--bg3)', padding: '2px 6px', borderRadius: '4px' }}>{p.cat}</span>}
