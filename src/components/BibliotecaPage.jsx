@@ -357,22 +357,20 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
   // ── Recálculo ────────────────────────────────────────────────────────
 
-  const abrirRecalcModal = useCallback((prods) => {
-    if (!prods.length) return;
-    const items = prods.map(prod => ({
+  const handleRecalcSingle = useCallback((prod) => {
+    // Recalcular en tiempo real con cfg actual
+    const nuevos = recalcularProducto(prod, cfg);
+    setRecalcModal([{ prod, nuevos }]);
+  }, [cfg]);
+
+  const handleRecalcAll = useCallback(() => {
+    // Recalcular todos en tiempo real con cfg actual
+    const items = sortedList.map(prod => ({
       prod,
       nuevos: recalcularProducto(prod, cfg),
     }));
     setRecalcModal(items);
-  }, [cfg]);
-
-  const handleRecalcSingle = useCallback((prod) => {
-    abrirRecalcModal([prod]);
-  }, [abrirRecalcModal]);
-
-  const handleRecalcAll = useCallback(() => {
-    abrirRecalcModal(sortedList);
-  }, [abrirRecalcModal, sortedList]);
+  }, [sortedList, cfg]);
 
   const handleConfirmRecalc = useCallback((selectedSet, items) => {
     const toUpdate = items.filter(it => selectedSet.has(it.prod.id));
