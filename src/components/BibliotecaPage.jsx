@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido }) {
-  const { biblioteca, setBiblioteca, showToast } = useApp();
+  // Traemos 'cfg' desde el contexto para obtener las tarifas actualizadas en tiempo real
+  const { biblioteca, setBiblioteca, cfg, showToast } = useApp();
 
   const [q, setQ] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -16,7 +17,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
     return Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
   }, [biblioteca]);
 
-  // Filter products list
+  // Filtrado de la lista de productos
   const filteredList = useMemo(() => {
     const query = q.toLowerCase().trim();
     return biblioteca.filter(p => {
@@ -29,202 +30,195 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
     });
   }, [biblioteca, q, filterCat]);
 
-  const sortedList = useMemo(() => {
-    const rows = [...filteredList];
-    if (sortMode === 'nombreDesc') {
-      rows.sort((a, b) => b.nombre.localeCompare(a.nombre, 'es', { sensitivity: 'base' }));
-    } else {
-      rows.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+  // --- FUNCIÓN NÚCLEO: RECALCULAR COSTOS Y PRECIOS ---
+  const handleRecalcularTodo = () => {
+    if (biblioteca.length === 0) {
+      showToast('No hay productos en la biblioteca para recalcular.', 'error');
+      return;
     }
-    return rows;
-  }, [filteredList, sortMode]);
 
-  const handleSelectToggle = (id) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
+    if (!window.confirm('¿Estás seguro de que querés recalcular todos los productos del catálogo? Se sobrescribirán los costos y precios sugeridos usando las tarifas actuales de configuración (Luz, Materiales, Mano de Obra, etc.).')) {
+      return;
+    }
+
+    // Sub-función para calcular una pieza/gcode individual basándose en la lógica de CalculadoraPage
+    const calcularCostosPieza = (pieza) => {
+      // 1. Determinar precio del filamento asignado u obtener actualización de la lista global
+      let precioFilamentoActual = pieza.precioRollo || 18000;
+      if (cfg.filamentos && pieza.filamentoId) {
+        const fil = cfg.filamentos.find(f => f.id === pieza.filamentoId || f.nombre === pieza.selFilamento);
+        if (fil) precioFilamentoActual = fil.precio;
       }
-      return next;
+
+      // 2. Determinar consumo de la impresora seleccionada
+      let wattsActual = pieza.watts || 120;
+      if (cfg.impresoras && pieza.impresoraId) {
+        const imp = cfg.impresoras.find(i => i.id === pieza.impresoraId || i.nombre === pieza.selImpresora);
+        if (imp) wattsActual = imp.watts;
+      }
+
+      // 3. Variables de la configuración global actual (parámetros base del taller)
+      const kwhActual = Number(cfg.kwh) || 0;
+      const moActual = Number(cfg.mo) || 0;
+      const margenActual = Number(cfg.margen) || 2;
+      const desperdicioActual = cfg.desperdicio !== undefined ? Number(cfg.desperdicio) : 5;
+
+      // 4. Ejecución matemática
+      const gramosPuros = Number(pieza.gramos) || 0;
+      const horasImpresion = Number(pieza.horas) || 0;
+      const horasManoObra = Number(pieza.horasTrabajo) || 0;
+      const costosExtras = Number(pieza.extras) || 0;
+
+      const pesoConDesperdicio = gramosPuros * (1 + desperdicioActual / 100);
+      const costoMaterial = pesoConDesperdicio * (precioFilamentoActual / 1000);
+      const costoLuz = horasImpresion * (wattsActual / 1000) * kwhActual;
+      const costoManoObra = horasManoObra * moActual;
+
+      const costoUnitarioFinal = costoMaterial + costoLuz + costoManoObra + costosExtras;
+      const precioSugeridoFinal = costoUnitarioFinal * margenActual;
+
+      return {
+        ...pieza,
+        precioRollo: precioFilamentoActual,
+        watts: wattsActual,
+        costoUnitario: costoUnitarioFinal,
+        precioSugUnitario: precioSugeridoFinal
+      };
+    };
+
+    // Mapeamos e iteramos sobre toda la biblioteca
+    const bibliotecaActualizada = biblioteca.map(p => {
+      if (p.esCompuesto && p.componentes && p.componentes.length > 0) {
+        // Si el producto es MULTI-GCODE / COMPUESTO, recalculamos cada uno de sus subcomponentes primero
+        const componentesRecalculados = p.componentes.map(comp => calcularCostosPieza(comp));
+        
+        // Sumarizamos los totales consolidados de la matriz
+        const costoConsolidado = componentesRecalculados.reduce((acc, c) => acc + (c.costoUnitario * (c.cantidad || 1)), 0);
+        const precioConsolidado = componentesRecalculados.reduce((acc, c) => acc + (c.precioSugUnitario * (c.cantidad || 1)), 0);
+        const gramosConsolidados = componentesRecalculados.reduce((acc, c) => acc + (Number(c.gramos) * (c.cantidad || 1)), 0);
+        const horasConsolidadas = componentesRecalculados.reduce((acc, c) => acc + (Number(c.horas) * (c.cantidad || 1)), 0);
+
+        return {
+          ...p,
+          componentes: componentesRecalculados,
+          costoUnitario: costoConsolidado,
+          precioSugUnitario: precioConsolidated,
+          gramos: gramosConsolidados,
+          horas: horasConsolidadas
+        };
+      } else {
+        // Si es un producto simple, aplicamos la función directa
+        return calcularCostosPieza(p);
+      }
     });
+
+    // Guardamos los cambios en el estado global (y localStorage a través del Contexto)
+    setBiblioteca(bibliotecaActualizada);
+    showToast('¡Catálogo de productos recalculado con éxito!', 'success');
   };
 
-  const handleClearSelection = () => {
-    setSelectedIds(new Set());
-  };
-
-  const handleDelete = (id, name) => {
-    if (window.confirm(`¿Eliminar "${name}" de la biblioteca?`)) {
+  const handleDelete = (id, nombre) => {
+    if (window.confirm(`¿Seguro que querés eliminar "${nombre}" de la biblioteca?`)) {
       setBiblioteca(prev => prev.filter(p => p.id !== id));
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      showToast('Producto eliminado de biblioteca.', 'info');
+      showToast('Producto eliminado.', 'info');
     }
   };
 
   return (
-    <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <div className="page-title">Biblioteca de productos</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>
-            Productos guardados para presupuestar sin importar el G-code cada vez.
-          </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* BARRA DE ACCIONES SUPERIOR */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '280px' }}>
+          <input 
+            type="text" 
+            placeholder="Buscar por nombre, categoría o descripción..." 
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ flex: 1 }}
+          />
+          {uniqueCats.length > 0 && (
+            <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)} style={{ width: '160px' }}>
+              <option value="">Todas las categorías</option>
+              {uniqueCats.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
         </div>
-      </div>
 
-      {/* Filter toolbar */}
-      <div className="card" style={{ padding: '12px 16px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="bib-search" style={{ flex: 1, minWidth: '180px' }}>
-            <svg className="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px' }}>
-              <circle cx="9" cy="9" r="5" />
-              <path d="M15 15l-3-3" />
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* BOTÓN RECALCULAR DE FORMA MASIVA */}
+          <button 
+            className="btn" 
+            style={{ background: 'var(--accentDim)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
+            onClick={handleRecalcularTodo}
+            title="Sincroniza y recalcula todos los costos y precios sugeridos usando los últimos valores del panel de configuración"
+          >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', height: '14px' }}>
+              <path d="M4 10a6 6 0 0110.45-3.95L16 8M16 4v4h-4M16 10a6 6 0 01-10.45 3.95L4 12M4 16v-4h4"/>
             </svg>
-            <input 
-              type="text" 
-              value={q} 
-              onChange={(e) => setQ(e.target.value)} 
-              placeholder="Buscar por nombre, material..." 
-              style={{ fontSize: '13px' }} 
-            />
-          </div>
-          <select 
-            value={filterCat} 
-            onChange={(e) => setFilterCat(e.target.value)} 
-            style={{ width: '160px', fontSize: '13px' }}
-          >
-            <option value="">Categorias</option>
-            {uniqueCats.map((category, idx) => (
-              <option key={idx} value={category}>{category}</option>
-            ))}
-          </select>
-          <select
-            value={sortMode}
-            onChange={(e) => setSortMode(e.target.value)}
-            style={{ width: '160px', fontSize: '13px' }}
-          >
-            <option value="nombreAsc">Nombre A → Z</option>
-            <option value="nombreDesc">Nombre Z → A</option>
-          </select>
-          <select
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value)}
-            style={{ width: '160px', fontSize: '13px' }}
-          >
-            <option value="grid">Cuadrícula</option>
-            <option value="list">Lista</option>
-          </select>
-          <span id="bib-count" style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-            Total: {sortedList.length}
-          </span>
-        </div>
-      </div>
+            Recalcular Precios Masivo
+          </button>
 
-      {/* Sticky Bulk Action Bar */}
-      {selectedIds.size > 0 && (
-        <div 
-          className="card bib-selected" 
-          style={{
-            padding: '10px 16px',
-            marginBottom: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            position: 'sticky',
-            bottom: '12px',
-            zIndex: 30,
-            borderColor: 'var(--accent)',
-            background: 'var(--bg2)',
-            boxShadow: 'var(--shadow)'
-          }}
-        >
-          <span style={{ fontSize: '13px', fontWeight: 500, flex: 1, color: 'var(--accent)' }}>
-            🛒 {selectedIds.size} producto{selectedIds.size > 1 ? 's' : ''} seleccionado{selectedIds.size > 1 ? 's' : ''}
-          </span>
-          <button className="btn btn-sm" onClick={handleClearSelection}>Cancelar</button>
-          <button className="btn btn-primary btn-sm" onClick={() => onOpenArmarPedido(selectedIds)}>
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '13px', height: '13px' }}>
-              <path d="M10 4v12M4 10h12" />
-            </svg>
-            Crear pedido
+          <button 
+            className="btn btn-sm" 
+            onClick={() => setViewMode(v => v === 'grid' ? 'list' : 'grid')}
+          >
+            {viewMode === 'grid' ? 'Ver Lista' : 'Ver Cuadrícula'}
           </button>
         </div>
-      )}
+      </div>
 
-      {/* Library list layout */}
-      <div id="bib-page-lista" style={viewMode === 'grid' ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' } : { display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {!sortedList.length ? (
-          <div className="empty" style={{ gridColumn: viewMode === 'grid' ? '1/-1' : 'auto' }}>
-            No hay productos registrados en la Biblioteca.
+      {/* GRILLA / RENDER DE PRODUCTOS */}
+      <div style={{ 
+        display: viewMode === 'grid' ? 'grid' : 'flex', 
+        flexDirection: viewMode === 'list' ? 'column' : undefined,
+        gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(240px, 1fr))' : undefined, 
+        gap: '12px' 
+      }}>
+        {filteredList.length === 0 ? (
+          <div className="empty" style={{ width: '100%', textAlign: 'center', padding: '40px' }}>
+            No se encontraron productos en la biblioteca.
           </div>
         ) : (
-          sortedList.map(p => {
-            const isChecked = selectedIds.has(p.id);
+          filteredList.map(p => {
             return (
-              <div 
-                key={p.id} 
-                className={`card ${isChecked ? 'bib-selected' : ''}`}
-                style={{
-                  marginBottom: 0,
-                  display: 'flex',
-                  flexDirection: viewMode === 'grid' ? 'column' : 'row',
-                  gap: '10px',
-                  borderColor: isChecked ? 'var(--accent)' : 'var(--border)',
-                  transition: 'all 0.15s',
-                  alignItems: viewMode === 'grid' ? 'stretch' : 'center',
-                  padding: viewMode === 'list' ? '12px 14px' : 'initial'
-                }}
-              >
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={isChecked} 
-                    style={{ marginTop: '3px', cursor: 'pointer', accentColor: 'var(--accent)' }}
-                    onChange={() => handleSelectToggle(p.id)} 
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {p.nombre}
-                    </div>
-                    {p.desc && (
-                      <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.desc}
-                      </div>
-                    )}
+              <div key={p.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--bg2)', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <h4 style={{ color: 'var(--text)', fontSize: '15px', fontWeight: 600 }}>{p.nombre}</h4>
+                    {p.cat && <span style={{ fontSize: '11px', color: 'var(--text2)', background: 'var(--bg3)', padding: '2px 6px', borderRadius: '4px' }}>{p.cat}</span>}
                   </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }}>
-                    {p.cat || 'General'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
-                    ⏱ {p.horas ? p.horas.toFixed(1) + 'h' : '—'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
-                    💲 {fmt(p.precioSugUnitario || p.costoUnitario || 0)}
-                  </span>
-                  {p.impresoraNombre && (
-                    <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
-                      🖨 {p.impresoraNombre}
+                  {p.esCompuesto && (
+                    <span className="pill" style={{ background: 'var(--accentDim)', color: 'var(--accent)', fontSize: '10px' }}>
+                      COMPUESTO ({p.componentes?.length || 0})
                     </span>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}>
-                  <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>Costo: {fmt(p.costoUnitario * p.cantidad)}</span>
+                <div style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)', margin: '4px 0' }}>
+                  📦 {Math.round(p.gramos)}g | ⏳ {Number(p.horas).toFixed(1)}hs
+                </div>
+
+                {/* Si es compuesto, hacemos un micro desglose de las partes que lo integran */}
+                {p.esCompuesto && p.componentes && (
+                  <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '4px', padding: '6px', fontSize: '11px', color: 'var(--text2)' }}>
+                    {p.componentes.map((c, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: i < p.componentes.length - 1 ? '1px dashed var(--border)' : 'none', padding: '2px 0' }}>
+                        <span>• {c.nombre || `Parte ${i+1}`}</span>
+                        <span>{c.gramos}g</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', marginTop: 'auto' }}>
+                  <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>Costo: {fmt(p.costoUnitario)}</span>
                   <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
-                    Venta: {fmt(p.precioSugUnitario * p.cantidad)}
+                    Venta: {fmt(p.precioSugUnitario)}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '6px', marginTop: 'auto', paddingTop: '4px' }}>
+                <div style={{ display: 'flex', gap: '6px', paddingTop: '4px' }}>
                   <button 
                     className="btn btn-sm" 
                     style={{ flex: 1, justifyContent: 'center' }} 
