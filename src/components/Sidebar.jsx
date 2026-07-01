@@ -67,17 +67,6 @@ export default function Sidebar() {
               <path d="M10 15h7M13 12v6" />
             </svg>
           )
-        },
-        {
-          id: 'actualizacion',
-          name: 'Actualización masiva',
-          icon: (
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M4 4h12v12H4z" />
-              <path d="M7 8h6M7 11h6M7 14h4" />
-              <path d="M8 6v2M12 6v2" />
-            </svg>
-          )
         }
       ]
     },
