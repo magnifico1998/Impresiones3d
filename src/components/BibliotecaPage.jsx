@@ -99,7 +99,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             onChange={(e) => setFilterCat(e.target.value)} 
             style={{ width: '160px', fontSize: '13px' }}
           >
-            <option value="">Todos los materiales</option>
+            <option value="">Categorias</option>
             {uniqueCats.map((category, idx) => (
               <option key={idx} value={category}>{category}</option>
             ))}
