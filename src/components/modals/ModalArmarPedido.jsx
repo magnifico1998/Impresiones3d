@@ -36,7 +36,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
           nombre: prod.nombre,
           cantidad,
           precioEstimado: prod.precioSugUnitario || prod.costoUnitario || 0,
-          versiones: cantidad > 1 ? [{ id: Date.now() + Math.random(), cantidad, color: '', comentario: '' }] : []
+          versiones: [{ id: Date.now() + Math.random(), cantidad, color: '', comentario: '' }]
         };
       }).filter(Boolean);
 
@@ -79,13 +79,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
     const qty = Math.max(1, parseInt(value) || 1);
     setArmarPedidoItems(prev => prev.map((item, i) => {
       if (i === idx) {
-        let versiones;
-        if (qty <= 1) {
-          versiones = [];
-        } else {
-          // If no versions exist yet, or to reset versions
-          versiones = [{ id: Date.now() + Math.random(), cantidad: qty, color: '', comentario: '' }];
-        }
+        const versiones = qty > 0 ? [{ id: Date.now() + Math.random(), cantidad: qty, color: '', comentario: '' }] : [];
         return { ...item, cantidad: qty, versiones };
       }
       return item;
@@ -356,7 +350,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
               const subtotal = it.cantidad * it.precioEstimado;
               const asignado = it.versiones.reduce((s, v) => s + v.cantidad, 0);
               const restante = it.cantidad - asignado;
-              const tieneVersiones = it.cantidad > 1;
+              const tieneVersiones = true;
 
               return (
                 <div key={idx} className="card" style={{ marginBottom: '10px', padding: '14px 16px' }}>

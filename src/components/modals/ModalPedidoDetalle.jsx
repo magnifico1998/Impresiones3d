@@ -19,8 +19,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     if (isOpen && pedidoId !== null) {
       const original = pedidos.find(x => x.id === pedidoId);
       if (original) {
-        // Deep copy the order to create a draft
-        setDraft(JSON.parse(JSON.stringify(original)));
+        const normalized = JSON.parse(JSON.stringify(original));
+        normalized.piezas = (normalized.piezas || []).map(pz => ({
+          ...pz,
+          versiones: (pz.versiones && pz.versiones.length)
+            ? pz.versiones
+            : [{ id: Date.now() + Math.random(), cantidad: pz.cantidad || 1, color: '', comentario: '', realizados: 0 }]
+        }));
+        setDraft(normalized);
       }
     } else {
       setDraft(null);
@@ -652,7 +658,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                 );
                 const faltan = pz.cantidad - (pz.elaborados || 0);
 
-                const tieneVersiones = pz.cantidad > 1;
+                const tieneVersiones = true;
                 const precioVentaUnit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado || 0);
                 const ventaSubtotal = precioVentaUnit * pz.cantidad;
 
