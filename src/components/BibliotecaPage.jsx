@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido }) {
-  // Traemos 'cfg' desde el contexto para obtener las tarifas actualizadas en tiempo real
+  // Traemos 'cfg' para obtener los costos actualizados de insumos del taller
   const { biblioteca, setBiblioteca, cfg, showToast } = useApp();
 
   const [q, setQ] = useState('');
@@ -17,7 +17,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
     return Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
   }, [biblioteca]);
 
-  // Filtrado de la lista de productos
+  // Filtrado de productos
   const filteredList = useMemo(() => {
     const query = q.toLowerCase().trim();
     return biblioteca.filter(p => {
@@ -30,91 +30,87 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
     });
   }, [biblioteca, q, filterCat]);
 
-  // --- FUNCIÓN NÚCLEO: RECALCULAR COSTOS Y PRECIOS ---
-  const handleRecalcularTodo = () => {
+  // --- FUNCIÓN CORREGIDA: SÓLO ACTUALIZA COSTOS ---
+  const handleRecalcularCostosMasivo = () => {
     if (biblioteca.length === 0) {
       showToast('No hay productos en la biblioteca para recalcular.', 'error');
       return;
     }
 
-    if (!window.confirm('¿Estás seguro de que querés recalcular todos los productos del catálogo? Se sobrescribirán los costos y precios sugeridos usando las tarifas actuales de configuración (Luz, Materiales, Mano de Obra, etc.).')) {
+    if (!window.confirm('¿Confirmás el recálculo masivo de costos? Se actualizará el "Costo Unitario" de cada pieza usando el valor actual de filamentos, luz y mano de obra. Los precios de venta actuales SE MANTENDRÁN INTACTOS.')) {
       return;
     }
 
-    // Sub-función para calcular una pieza/gcode individual basándose en la lógica de CalculadoraPage
-    const calcularCostosPieza = (pieza) => {
-      // 1. Determinar precio del filamento asignado u obtener actualización de la lista global
+    // Sub-función que computa puramente los costos de un archivo o pieza individual
+    const actualizarCostosPieza = (pieza) => {
+      // 1. Buscar precio actual del filamento asignado
       let precioFilamentoActual = pieza.precioRollo || 18000;
-      if (cfg.filamentos && pieza.filamentoId) {
+      if (cfg.filamentos && (pieza.filamentoId || pieza.selFilamento)) {
         const fil = cfg.filamentos.find(f => f.id === pieza.filamentoId || f.nombre === pieza.selFilamento);
         if (fil) precioFilamentoActual = fil.precio;
       }
 
-      // 2. Determinar consumo de la impresora seleccionada
+      // 2. Buscar consumo eléctrico actual de la impresora asignada
       let wattsActual = pieza.watts || 120;
-      if (cfg.impresoras && pieza.impresoraId) {
+      if (cfg.impresoras && (pieza.impresoraId || pieza.selImpresora)) {
         const imp = cfg.impresoras.find(i => i.id === pieza.impresoraId || i.nombre === pieza.selImpresora);
         if (imp) wattsActual = imp.watts;
       }
 
-      // 3. Variables de la configuración global actual (parámetros base del taller)
+      // 3. Traer variables generales de configuración del taller
       const kwhActual = Number(cfg.kwh) || 0;
       const moActual = Number(cfg.mo) || 0;
-      const margenActual = Number(cfg.margen) || 2;
       const desperdicioActual = cfg.desperdicio !== undefined ? Number(cfg.desperdicio) : 5;
 
-      // 4. Ejecución matemática
+      // 4. Parámetros de fabricación de la pieza
       const gramosPuros = Number(pieza.gramos) || 0;
       const horasImpresion = Number(pieza.horas) || 0;
       const horasManoObra = Number(pieza.horasTrabajo) || 0;
       const costosExtras = Number(pieza.extras) || 0;
 
+      // 5. Modelado matemático de costos de CalculadoraPage
       const pesoConDesperdicio = gramosPuros * (1 + desperdicioActual / 100);
       const costoMaterial = pesoConDesperdicio * (precioFilamentoActual / 1000);
       const costoLuz = horasImpresion * (wattsActual / 1000) * kwhActual;
       const costoManoObra = horasManoObra * moActual;
 
-      const costoUnitarioFinal = costoMaterial + costoLuz + costoManoObra + costosExtras;
-      const precioSugeridoFinal = costoUnitarioFinal * margenActual;
+      const nuevoCostoUnitario = costoMaterial + costoLuz + costoManoObra + costosExtras;
 
       return {
         ...pieza,
         precioRollo: precioFilamentoActual,
         watts: wattsActual,
-        costoUnitario: costoUnitarioFinal,
-        precioSugUnitario: precioSugeridoFinal
+        costoUnitario: nuevoCostoUnitario,
+        // CRÍTICO: Mantiene su precio de venta de lista exactamente igual
+        precioSugUnitario: pieza.precioSugUnitario 
       };
     };
 
-    // Mapeamos e iteramos sobre toda la biblioteca
+    // Recorremos todo tu catálogo
     const bibliotecaActualizada = biblioteca.map(p => {
       if (p.esCompuesto && p.componentes && p.componentes.length > 0) {
-        // Si el producto es MULTI-GCODE / COMPUESTO, recalculamos cada uno de sus subcomponentes primero
-        const componentesRecalculados = p.componentes.map(comp => calcularCostosPieza(comp));
+        // Si es Multi-Gcode, actualiza los costos individuales de cada sub-pieza
+        const componentesActualizados = p.componentes.map(comp => actualizarCostosPieza(comp));
         
-        // Sumarizamos los totales consolidados de la matriz
-        const costoConsolidado = componentesRecalculados.reduce((acc, c) => acc + (c.costoUnitario * (c.cantidad || 1)), 0);
-        const precioConsolidado = componentesRecalculados.reduce((acc, c) => acc + (c.precioSugUnitario * (c.cantidad || 1)), 0);
-        const gramosConsolidados = componentesRecalculados.reduce((acc, c) => acc + (Number(c.gramos) * (c.cantidad || 1)), 0);
-        const horasConsolidadas = componentesRecalculados.reduce((acc, c) => acc + (Number(c.horas) * (c.cantidad || 1)), 0);
+        // Consolida el nuevo costo total sumando las partes
+        const costoConsolidado = componentesActualizados.reduce((acc, c) => acc + (c.costoUnitario * (c.cantidad || 1)), 0);
 
         return {
           ...p,
-          componentes: componentesRecalculados,
+          componentes: componentesActualizados,
           costoUnitario: costoConsolidado,
-          precioSugUnitario: precioConsolidated,
-          gramos: gramosConsolidados,
-          horas: horasConsolidadas
+          // CRÍTICO: Conserva el precio de venta original del producto compuesto
+          precioSugUnitario: p.precioSugUnitario 
         };
       } else {
-        // Si es un producto simple, aplicamos la función directa
-        return calcularCostosPieza(p);
+        // Si es una pieza normal, aplica la actualización directa
+        return actualizarCostosPieza(p);
       }
     });
 
-    // Guardamos los cambios en el estado global (y localStorage a través del Contexto)
+    // Guardamos los cambios en el estado y LocalStorage
     setBiblioteca(bibliotecaActualizada);
-    showToast('¡Catálogo de productos recalculado con éxito!', 'success');
+    showToast('Costos de producción actualizados correctamente.', 'success');
   };
 
   const handleDelete = (id, nombre) => {
@@ -127,7 +123,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
-      {/* BARRA DE ACCIONES SUPERIOR */}
+      {/* SECCIÓN FILTROS Y ACCIONES */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '280px' }}>
           <input 
@@ -146,17 +142,17 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* BOTÓN RECALCULAR DE FORMA MASIVA */}
+          {/* BOTÓN RECALCULAR EXCLUSIVO DE COSTOS */}
           <button 
             className="btn" 
-            style={{ background: 'var(--accentDim)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
-            onClick={handleRecalcularTodo}
-            title="Sincroniza y recalcula todos los costos y precios sugeridos usando los últimos valores del panel de configuración"
+            style={{ background: 'rgba(251, 191, 36, 0.1)', border: '1px solid var(--warn)', color: 'var(--warn)' }}
+            onClick={handleRecalcularCostosMasivo}
+            title="Sincroniza y recalcula el costo base de fabricación sin alterar tus precios de venta actuales"
           >
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', height: '14px' }}>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '14px', height: '14px', marginRight: '4px' }}>
               <path d="M4 10a6 6 0 0110.45-3.95L16 8M16 4v4h-4M16 10a6 6 0 01-10.45 3.95L4 12M4 16v-4h4"/>
             </svg>
-            Recalcular Precios Masivo
+            Sincronizar Costos Base
           </button>
 
           <button 
@@ -168,11 +164,11 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
         </div>
       </div>
 
-      {/* GRILLA / RENDER DE PRODUCTOS */}
+      {/* RENDERIZADO DE LAS TARJETAS */}
       <div style={{ 
         display: viewMode === 'grid' ? 'grid' : 'flex', 
         flexDirection: viewMode === 'list' ? 'column' : undefined,
-        gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(240px, 1fr))' : undefined, 
+        gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(260px, 1fr))' : undefined, 
         gap: '12px' 
       }}>
         {filteredList.length === 0 ? (
@@ -181,16 +177,17 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
           </div>
         ) : (
           filteredList.map(p => {
+            const cantidadItem = p.cantidad || 1;
             return (
               <div key={p.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--bg2)', position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', justifycontent: 'space-between', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                   <div>
                     <h4 style={{ color: 'var(--text)', fontSize: '15px', fontWeight: 600 }}>{p.nombre}</h4>
                     {p.cat && <span style={{ fontSize: '11px', color: 'var(--text2)', background: 'var(--bg3)', padding: '2px 6px', borderRadius: '4px' }}>{p.cat}</span>}
                   </div>
                   {p.esCompuesto && (
                     <span className="pill" style={{ background: 'var(--accentDim)', color: 'var(--accent)', fontSize: '10px' }}>
-                      COMPUESTO ({p.componentes?.length || 0})
+                      COMPUESTO
                     </span>
                   )}
                 </div>
@@ -199,9 +196,8 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                   📦 {Math.round(p.gramos)}g | ⏳ {Number(p.horas).toFixed(1)}hs
                 </div>
 
-                {/* Si es compuesto, hacemos un micro desglose de las partes que lo integran */}
                 {p.esCompuesto && p.componentes && (
-                  <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '4px', padding: '6px', fontSize: '11px', color: 'var(--text2)' }}>
+                  <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '4px', padding: '6px', fontSize: '11px', color: 'var(--text2)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     {p.componentes.map((c, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: i < p.componentes.length - 1 ? '1px dashed var(--border)' : 'none', padding: '2px 0' }}>
                         <span>• {c.nombre || `Parte ${i+1}`}</span>
@@ -211,10 +207,13 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                   </div>
                 )}
 
+                {/* VISUALIZACIÓN DE PRECIOS */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', marginTop: 'auto' }}>
-                  <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>Costo: {fmt(p.costoUnitario)}</span>
+                  <span style={{ color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+                    Costo: {fmt(p.costoUnitario * cantidadItem)}
+                  </span>
                   <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
-                    Venta: {fmt(p.precioSugUnitario)}
+                    Venta: {fmt(p.precioSugUnitario * cantidadItem)}
                   </span>
                 </div>
 
