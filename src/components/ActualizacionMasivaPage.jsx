@@ -116,6 +116,23 @@ export default function ActualizacionMasivaPage() {
     });
   }, [biblioteca, cfg]);
 
+  const selectedSummary = useMemo(() => {
+    const selectedProducts = productsWithCalculation.filter(p => selectedIds.has(p.id));
+    const totalCost = selectedProducts.reduce((sum, p) => sum + (parseFloat(p.newCost) || 0) * (parseFloat(p.cantidad) || 1), 0);
+    const totalPrice = selectedProducts.reduce((sum, p) => {
+      const overrideValue = priceOverrides[p.id];
+      const parsed = parseFloat(overrideValue);
+      const finalPrice = Number.isFinite(parsed) ? parsed : p.newPrice;
+      return sum + finalPrice * (parseFloat(p.cantidad) || 1);
+    }, 0);
+
+    return {
+      count: selectedProducts.length,
+      totalCost,
+      totalPrice
+    };
+  }, [productsWithCalculation, selectedIds, priceOverrides]);
+
   const handleToggle = (id) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -186,14 +203,27 @@ export default function ActualizacionMasivaPage() {
         </div>
       </div>
 
-      <div className="card" style={{ padding: '12px 16px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className="btn btn-sm" onClick={handleSelectAll}>Seleccionar todo</button>
-          <button className="btn btn-sm" onClick={handleDeselectAll}>Deseleccionar</button>
-          <button className="btn btn-primary btn-sm" onClick={handleRecalculateSelected} disabled={!selectedIds.size}>Recalcular seleccionados</button>
-          <span style={{ fontSize: '13px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
-            {selectedIds.size} seleccionado{selectedIds.size !== 1 ? 's' : ''}
-          </span>
+      <div className="card" style={{ padding: '12px 16px', marginBottom: '12px', position: 'sticky', top: '0', zIndex: 40, boxShadow: 'var(--shadow)', background: 'var(--bg2)', backdropFilter: 'blur(8px)', alignSelf: 'flex-start', width: '100%' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text2)', fontFamily: 'var(--mono)', fontWeight: 600 }}>
+              Resumen
+            </div>
+            <span style={{ fontSize: '13px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+              {selectedSummary.count} producto{selectedSummary.count !== 1 ? 's' : ''} seleccionado{selectedSummary.count !== 1 ? 's' : ''}
+            </span>
+            <span style={{ fontSize: '13px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+              Costo nuevo: {fmt(selectedSummary.totalCost)}
+            </span>
+            <span style={{ fontSize: '13px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+              Precio nuevo: {fmt(selectedSummary.totalPrice)}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button className="btn btn-sm" onClick={handleSelectAll}>Seleccionar todo</button>
+            <button className="btn btn-sm" onClick={handleDeselectAll}>Deseleccionar</button>
+            <button className="btn btn-primary btn-sm" onClick={handleRecalculateSelected} disabled={!selectedIds.size}>Recalcular seleccionados</button>
+          </div>
         </div>
         <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
           Se usan estos valores globales para la recalculación: electricidad ${fmt(cfg.kwh)} / mano de obra ${fmt(cfg.mo)} / margen {cfg.margen}% / desperdicio {cfg.desperdicio}%.
