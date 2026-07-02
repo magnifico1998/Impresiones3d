@@ -685,7 +685,7 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
 
   return (
     <div className="modal-overlay open" style={{ zIndex: 210 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-wide" style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal modal-wide" style={{ width: 'min(1200px, 95vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div className="modal-header">
           <div className="modal-title">✎ Ajustar precio de venta</div>
           <button className="modal-close" onClick={onClose}>✕</button>
@@ -702,8 +702,8 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
           <div style={{ fontSize: '12px', color: 'var(--text3)' }}>Preview</div>
         </div>
 
-        <div style={{ overflowY: 'auto', flex: 1, padding: '0 4px' }}>
-          <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+        <div style={{ overflowY: 'auto', overflowX: 'auto', flex: 1, padding: '0 4px' }}>
+          <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
             <thead style={{ position: 'sticky', top: 0, background: 'var(--bg2)', zIndex: 1 }}>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th style={{ width: '32px', padding: '8px' }}>
@@ -711,9 +711,9 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
                 </th>
                 <th style={{ textAlign: 'left', padding: '8px', fontWeight: 600 }}>Producto</th>
                 <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Precio actual</th>
-                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Precio nuevo</th>
-                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Margen</th>
-                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Diferencia</th>
+                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600, whiteSpace: 'nowrap' }}>Precio nuevo</th>
+                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600, whiteSpace: 'nowrap' }}>Margen</th>
+                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600, whiteSpace: 'nowrap' }}>Diferencia</th>
               </tr>
             </thead>
             <tbody>
@@ -733,10 +733,10 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
                     <td style={{ padding: '8px', fontWeight: 500 }}>{prod.nombre}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)' }}>{fmt(old)}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{fmt(nuevo)}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)' }}>
+                    <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
                       <div style={{ fontSize: '12px', fontWeight: 600, color: margenNew >= margenOld ? 'var(--accent)' : 'var(--danger)' }}>{margenOld.toFixed(1)}% → {margenNew.toFixed(1)}%</div>
                     </td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)', color: diff > 0 ? 'var(--danger)' : 'var(--accent)' }}>{diff >= 0 ? '+' : ''}{fmt(diff)}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)', color: diff > 0 ? 'var(--danger)' : 'var(--accent)', whiteSpace: 'nowrap' }}>{diff >= 0 ? '+' : ''}{fmt(diff)}</td>
                   </tr>
                 );
               })}
