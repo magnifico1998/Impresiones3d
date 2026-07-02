@@ -203,7 +203,7 @@ export default function ActualizacionMasivaPage() {
         </div>
       </div>
 
-      <div className="card" style={{ padding: '12px 16px', marginBottom: '12px', position: 'sticky', top: '12px', zIndex: 30, boxShadow: 'var(--shadow)', background: 'var(--bg2)' }}>
+      <div className="card" style={{ padding: '12px 16px', marginBottom: '12px', position: 'sticky', top: '0', zIndex: 40, boxShadow: 'var(--shadow)', background: 'var(--bg2)', backdropFilter: 'blur(8px)', alignSelf: 'flex-start', width: '100%' }}>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ fontSize: '13px', color: 'var(--text2)', fontFamily: 'var(--mono)', fontWeight: 600 }}>
