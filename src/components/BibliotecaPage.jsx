@@ -470,9 +470,9 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
               className="btn btn-sm"
               style={{ whiteSpace: 'nowrap' }}
               onClick={() => setAdjustModal(sortedList.map(prod => ({ prod })))}
-              title="Modificar precios (por % o montos fijos)"
+              title="Modificar precio de venta (por % o montos fijos)"
             >
-              Modificar precios
+              Modificar precio Venta
             </button>
           )}
         </div>
@@ -712,6 +712,7 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
                 <th style={{ textAlign: 'left', padding: '8px', fontWeight: 600 }}>Producto</th>
                 <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Precio actual</th>
                 <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Precio nuevo</th>
+                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Margen</th>
                 <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Diferencia</th>
               </tr>
             </thead>
@@ -720,6 +721,9 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
                 const old = Number(prod.precioSugUnitario || prod.costoUnitario || 0);
                 const nuevo = computeNew(old);
                 const diff = nuevo - old;
+                const cost = Number(prod.costoUnitario || 0);
+                const margenOld = cost > 0 ? ((old - cost) / cost) * 100 : 0;
+                const margenNew = cost > 0 ? ((nuevo - cost) / cost) * 100 : 0;
                 const checked = selectedIds.has(prod.id);
                 return (
                   <tr key={prod.id} onClick={() => handleToggle(prod.id)} style={{ cursor: 'pointer', borderBottom: '1px solid var(--border)', opacity: checked ? 1 : 0.6 }}>
@@ -729,6 +733,9 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
                     <td style={{ padding: '8px', fontWeight: 500 }}>{prod.nombre}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)' }}>{fmt(old)}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{fmt(nuevo)}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: margenNew >= margenOld ? 'var(--accent)' : 'var(--danger)' }}>{margenOld.toFixed(1)}% → {margenNew.toFixed(1)}%</div>
+                    </td>
                     <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)', color: diff > 0 ? 'var(--danger)' : 'var(--accent)' }}>{diff >= 0 ? '+' : ''}{fmt(diff)}</td>
                   </tr>
                 );
