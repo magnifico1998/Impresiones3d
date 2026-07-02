@@ -312,6 +312,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const [viewMode, setViewMode] = useState('grid');
   const [sortMode, setSortMode] = useState('nombreAsc');
   const [recalcModal, setRecalcModal] = useState(null);
+  const [adjustModal, setAdjustModal] = useState(null);
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
@@ -464,6 +465,16 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
               Actualizar precios ({sortedList.length})
             </button>
           )}
+          {sortedList.length > 0 && (
+            <button
+              className="btn btn-sm"
+              style={{ whiteSpace: 'nowrap' }}
+              onClick={() => setAdjustModal(sortedList.map(prod => ({ prod })))}
+              title="Modificar precios (por % o montos fijos)"
+            >
+              Modificar precios
+            </button>
+          )}
         </div>
       </div>
 
@@ -599,6 +610,14 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                   <button className="btn btn-sm" onClick={() => onOpenEditCat(p.id)}>
                     Editar
                   </button>
+                  <button
+                    className="btn btn-sm"
+                    title="Ajustar precio"
+                    onClick={() => setAdjustModal([{ prod: p }])}
+                    style={{ color: 'var(--text)', borderColor: 'transparent' }}
+                  >
+                    %
+                  </button>
                   <button className="btn btn-danger btn-sm" onClick={() => handleDelete(p.id, p.nombre)}>
                     ✕
                   </button>
@@ -617,6 +636,112 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
           onClose={() => setRecalcModal(null)}
         />
       )}
+
+      {/* Modal de ajuste de precio */}
+      {adjustModal && (
+        <ModalAjustarPrecio
+          items={adjustModal}
+          onConfirm={(selectedSet, items, mode, value) => {
+            const toUpdate = items.filter(it => selectedSet.has(it.prod.id));
+            if (!toUpdate.length) return;
+            setBiblioteca(prev => prev.map(p => {
+              const hit = toUpdate.find(it => it.prod.id === p.id);
+              if (!hit) return p;
+              const old = Number(p.precioSugUnitario || p.costoUnitario || 0);
+              let nuevo = old;
+              if (mode === 'percent') {
+                nuevo = old * (1 + Number(value) / 100);
+              } else {
+                nuevo = old + Number(value);
+              }
+              return { ...p, precioSugUnitario: nuevo };
+            }));
+            setAdjustModal(null);
+            showToast(`✓ ${toUpdate.length} producto${toUpdate.length !== 1 ? 's' : ''} ajustado${toUpdate.length !== 1 ? 's' : ''}.`);
+          }}
+          onClose={() => setAdjustModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModalAjustarPrecio({ items, onConfirm, onClose }) {
+  const [selectedIds, setSelectedIds] = useState(new Set(items.map(it => it.prod.id)));
+  const [mode, setMode] = useState('percent');
+  const [value, setValue] = useState('10');
+  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
+
+  const handleToggleAll = (v) => setSelectedIds(v ? new Set(items.map(it => it.prod.id)) : new Set());
+  const handleToggle = (id) => setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const computeNew = (old) => {
+    const num = Number(value) || 0;
+    if (mode === 'percent') return old * (1 + num / 100);
+    return old + num;
+  };
+
+  const handleConfirm = () => onConfirm(selectedIds, items, mode, value);
+
+  return (
+    <div className="modal-overlay open" style={{ zIndex: 210 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal modal-wide" style={{ maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-header">
+          <div className="modal-title">✎ Ajustar precio de venta</div>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input type="radio" checked={mode === 'percent'} onChange={() => setMode('percent')} /> Porcentaje
+          </label>
+          <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <input type="radio" checked={mode === 'fixed'} onChange={() => setMode('fixed')} /> Monto fijo
+          </label>
+          <input type="number" value={value} onChange={(e) => setValue(e.target.value)} style={{ width: '120px', marginLeft: 'auto' }} />
+          <div style={{ fontSize: '12px', color: 'var(--text3)' }}>Preview</div>
+        </div>
+
+        <div style={{ overflowY: 'auto', flex: 1, padding: '0 4px' }}>
+          <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+            <thead style={{ position: 'sticky', top: 0, background: 'var(--bg2)', zIndex: 1 }}>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <th style={{ width: '32px', padding: '8px' }}>
+                  <input type="checkbox" checked={selectedIds.size === items.length} onChange={(e) => handleToggleAll(e.target.checked)} />
+                </th>
+                <th style={{ textAlign: 'left', padding: '8px', fontWeight: 600 }}>Producto</th>
+                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Precio actual</th>
+                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Precio nuevo</th>
+                <th style={{ textAlign: 'right', padding: '8px', fontWeight: 600 }}>Diferencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(({ prod }) => {
+                const old = Number(prod.precioSugUnitario || prod.costoUnitario || 0);
+                const nuevo = computeNew(old);
+                const diff = nuevo - old;
+                const checked = selectedIds.has(prod.id);
+                return (
+                  <tr key={prod.id} onClick={() => handleToggle(prod.id)} style={{ cursor: 'pointer', borderBottom: '1px solid var(--border)', opacity: checked ? 1 : 0.6 }}>
+                    <td style={{ padding: '8px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={checked} onChange={() => handleToggle(prod.id)} />
+                    </td>
+                    <td style={{ padding: '8px', fontWeight: 500 }}>{prod.nombre}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)' }}>{fmt(old)}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{fmt(nuevo)}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)', color: diff > 0 ? 'var(--danger)' : 'var(--accent)' }}>{diff >= 0 ? '+' : ''}{fmt(diff)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
+          <button className="btn btn-sm" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary btn-sm" disabled={selectedIds.size === 0} onClick={handleConfirm}>Aplicar</button>
+        </div>
+      </div>
     </div>
   );
 }
