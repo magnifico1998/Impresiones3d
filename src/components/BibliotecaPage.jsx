@@ -153,12 +153,12 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
 
   return (
     <div
-      className="modal open"
+      className="modal-overlay open"
       style={{ zIndex: 200 }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="modal-box"
+        className="modal modal-wide"
         style={{ maxWidth: '900px', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >
         {/* Header */}
