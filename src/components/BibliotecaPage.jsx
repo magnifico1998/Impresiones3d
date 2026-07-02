@@ -685,7 +685,7 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
 
   return (
     <div className="modal-overlay open" style={{ zIndex: 210 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-wide" style={{ width: 'min(1200px, 95vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="modal modal-wide" style={{ width: 'min(1600px, 98vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div className="modal-header">
           <div className="modal-title">✎ Ajustar precio de venta</div>
           <button className="modal-close" onClick={onClose}>✕</button>
