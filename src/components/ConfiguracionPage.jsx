@@ -254,7 +254,26 @@ export default function ConfiguracionPage() {
               onChange={(e) => handleDefaultValueChange('mo', e.target.value)} 
             />
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', margin: '12px 0 0' }}>
+            <label className="fl">Desperdicio (%)</label>
+            <input 
+              type="number" 
+              value={cfg.desperdicio} 
+              step="1" 
+              onChange={(e) => handleDefaultValueChange('desperdicio', e.target.value)} 
+            />
+            
+            <div className="sep"></div>
+            <button 
+              className="btn btn-primary btn-sm" 
+              onClick={handleApplyDefaultsToCalc}
+            >
+              Aplicar a la calculadora
+            </button>
+          </div>
+
+          <div className="card">
+            <div className="card-title">Paletas de colores</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
               {paletasList.map((paleta) => {
                 const paletaColores = paletas[paleta.id];
                 const previewColors = [paletaColores.bg, paletaColores.accent, paletaColores.accent2, paletaColores.text, paletaColores.bg3];
@@ -288,30 +307,6 @@ export default function ConfiguracionPage() {
                 );
               })}
             </div>
-
-            <label className="fl">Margen (%)</label>
-            <input 
-              type="number" 
-              value={cfg.margen} 
-              step="5" 
-              onChange={(e) => handleDefaultValueChange('margen', e.target.value)} 
-            />
-            
-            <label className="fl">Desperdicio (%)</label>
-            <input 
-              type="number" 
-              value={cfg.desperdicio} 
-              step="1" 
-              onChange={(e) => handleDefaultValueChange('desperdicio', e.target.value)} 
-            />
-            
-            <div className="sep"></div>
-            <button 
-              className="btn btn-primary btn-sm" 
-              onClick={handleApplyDefaultsToCalc}
-            >
-              Aplicar a la calculadora
-            </button>
           </div>
         </div>
       </div>
