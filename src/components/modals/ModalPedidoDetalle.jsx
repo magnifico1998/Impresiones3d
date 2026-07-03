@@ -450,29 +450,29 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       const nameLines = doc.splitTextToSize(pz.nombre || 'Producto', maxDescWidth);
       const extraLines = descExtra ? doc.splitTextToSize(descExtra, maxDescWidth) : [];
       const textLines = [...nameLines, ...extraLines];
-      const lineH = 3.8;
-      const rowH = Math.max(7, textLines.length * lineH + 2);
+      const lineH = 3.6;
+      const rowH = Math.max(6.5, textLines.length * lineH + 1.8);
 
       checkPageBreak(rowH);
       if (i % 2 === 1) { doc.setFillColor(248, 248, 250); doc.rect(marginX, y, contentW, rowH, 'F'); }
       doc.setDrawColor(225); doc.rect(marginX, y, contentW, rowH);
 
       // Left column: index
-      doc.setTextColor(40, 40, 40); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      const topTextY = y + 3.5;
+      doc.setTextColor(40, 40, 40); doc.setFontSize(8.8); doc.setFont('helvetica', 'normal');
+      const topTextY = y + 3.2;
       doc.text(String(i + 1), xN + 2, topTextY + 0.8);
 
       // Description (name + extra lines)
-      doc.setFontSize(9); doc.setTextColor(40, 40, 40);
+      doc.setFontSize(8.8); doc.setTextColor(40, 40, 40);
       doc.text(nameLines, xDesc + 2, topTextY);
       if (extraLines.length) {
-        doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
-        doc.text(extraLines, xDesc + 2, topTextY + nameLines.length * lineH - 0.4);
+        doc.setFontSize(7.2); doc.setTextColor(120, 120, 120);
+        doc.text(extraLines, xDesc + 2, topTextY + nameLines.length * lineH - 0.6);
       }
 
       // Numeric columns: right align within fixed widths and vertically center
       const centerY = y + rowH / 2;
-      doc.setFontSize(9); doc.setTextColor(40, 40, 40);
+      doc.setFontSize(8.8); doc.setTextColor(40, 40, 40);
       doc.text(String(pz.cantidad), xCant + colCant - 2, centerY, { baseline: 'middle', align: 'right' });
       doc.text(fmt(unit), xPU + colPU - 2, centerY, { baseline: 'middle', align: 'right' });
       doc.text(fmt(subtotal), xTot + colTot - 2, centerY, { baseline: 'middle', align: 'right' });
