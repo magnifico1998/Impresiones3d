@@ -47,8 +47,21 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
     document.body.removeChild(link);
   };
 
-  const exportPersonalData = () => {
-    const headers = ['Nombre', 'Teléfono', 'Email', 'Provincia', 'Localidad', 'Código Postal', 'Calle', 'Altura', 'Fecha de alta'];
+  const exportClientesConResumen = () => {
+    const headers = [
+      'Nombre',
+      'Teléfono',
+      'Email',
+      'Provincia',
+      'Localidad',
+      'Código Postal',
+      'Calle',
+      'Altura',
+      'Fecha de alta',
+      'Pedidos',
+      'Último pedido',
+      'Total gastado'
+    ];
     const rows = clientRows.map(c => [
       c.nombre,
       c.tel,
@@ -58,20 +71,12 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
       c.cp,
       c.calle,
       c.altura,
-      c.fechaAlta || ''
-    ]);
-    downloadCsv('clientes-datos-personales.csv', buildCsv(headers, rows));
-  };
-
-  const exportOrderSummary = () => {
-    const headers = ['Nombre', 'Pedidos', 'Último pedido', 'Total gastado'];
-    const rows = clientRows.map(c => [
-      c.nombre,
+      c.fechaAlta || '',
       c.pedidosCount,
       formatDate(c.lastPedido),
       fmt(c.totalGastado)
     ]);
-    downloadCsv('clientes-resumen-pedidos.csv', buildCsv(headers, rows));
+    downloadCsv('clientes-resumen-completo.csv', buildCsv(headers, rows));
   };
 
   // Compute order details per client
@@ -129,8 +134,7 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
               ))}
             </select>
           </label>
-          <button className="btn" onClick={exportPersonalData}>Exportar datos</button>
-          <button className="btn" onClick={exportOrderSummary}>Exportar resumen</button>
+          <button className="btn" onClick={exportClientesConResumen}>Exportar clientes</button>
           <button className="btn btn-primary" onClick={onOpenNewClient}>
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 4v12M4 10h12" />
