@@ -45,10 +45,6 @@ export default function CalculadoraPage({
   const [precioVentaManual, setPrecioVentaManual] = useState('');
   const [precioVentaTocado, setPrecioVentaTocado] = useState(false);
 
-  // Library mini search filter
-  const [bibQ, setBibQ] = useState('');
-  const [bibMiniCat, setBibMiniCat] = useState('');
-
   const [isDragOver, setIsDragOver] = useState(false);
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
@@ -814,22 +810,6 @@ export default function CalculadoraPage({
     onOpenAgregarPieza(null);
   };
 
-  // Unique categories in library for selector filter
-  const uniqueLibraryCats = useMemo(() => {
-    return Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
-  }, [biblioteca]);
-
-  // Library pre-load item list filter
-  const librarySearchResults = useMemo(() => {
-    const q = bibQ.toLowerCase().trim();
-    const list = biblioteca.filter(p => {
-      const matchQ = !q || p.nombre.toLowerCase().includes(q) || (p.cat && p.cat.toLowerCase().includes(q));
-      const matchCat = !bibMiniCat || p.cat === bibMiniCat;
-      return matchQ && matchCat;
-    });
-    return list.slice(0, 6); // Cap at 6 preview items as in the original design
-  }, [biblioteca, bibQ, bibMiniCat]);
-
   return (
     <div className="page active" id="page-calc">
       <div className="page-title">Calculadora de costos</div>
@@ -1071,85 +1051,6 @@ export default function CalculadoraPage({
           </div>
         )}
 
-        {/* Biblioteca mini list */}
-        <div id="bib-buscar-wrap" style={{ marginTop: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <div style={{ height: '1px', flex: 1, background: 'var(--border)' }}></div>
-            <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-              o desde biblioteca
-            </span>
-            <div style={{ height: '1px', flex: 1, background: 'var(--border)' }}></div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <div className="bib-search" style={{ flex: 1 }}>
-              <svg className="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px' }}>
-                <circle cx="9" cy="9" r="5" />
-                <path d="M15 15l-3-3" />
-              </svg>
-              <input 
-                type="text" 
-                value={bibQ} 
-                onChange={(e) => setBibQ(e.target.value)} 
-                placeholder="Buscar producto guardado..." 
-                style={{ fontSize: '13px' }} 
-              />
-            </div>
-            <select 
-              value={bibMiniCat} 
-              onChange={(e) => setBibMiniCat(e.target.value)} 
-              style={{ width: '140px', fontSize: '12px' }}
-            >
-              <option value="">Todas las categorías</option>
-              {uniqueLibraryCats.map((catName, idx) => (
-                <option key={idx} value={catName}>{catName}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Render search results */}
-          <div id="bib-mini-lista">
-            {biblioteca.length > 0 ? (
-              librarySearchResults.map(p => (
-                <div 
-                  key={p.id} 
-                  className="bib-card" 
-                  onClick={() => handleLoadLibraryItem(p.id)}
-                  title="Cargar en calculadora"
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 500, fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
-                        {p.cat || 'General'} · {p.horas?.toFixed(1) || '?'}h · {fmt(p.costoUnitario * p.cantidad)}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: '12px', fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>
-                      {fmt(p.precioSugUnitario * p.cantidad)}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ fontSize: '12px', color: 'var(--text3)', textAlign: 'center', padding: '8px' }}>
-                La biblioteca está vacía. Guardá un producto calculado.
-              </div>
-            )}
-            {biblioteca.length > 0 && librarySearchResults.length === 0 && (
-              <div style={{ fontSize: '12px', color: 'var(--text3)', textAlign: 'center', padding: '8px' }}>
-                Sin resultados.
-              </div>
-            )}
-            {biblioteca.length > 6 && librarySearchResults.length > 0 && (
-              <div 
-                style={{ fontSize: '12px', color: 'var(--text3)', textAlign: 'center', padding: '6px', cursor: 'pointer' }} 
-                onClick={onOpenBibUsar}
-              >
-                Ver los {biblioteca.length} productos →
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* 2. KPIs grid4 */}

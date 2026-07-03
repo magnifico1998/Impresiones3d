@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { paletas, paletasList } from '../utils/paletas';
 
 export default function ConfiguracionPage() {
   const { cfg, setCfg, showToast, setActivePage } = useApp();
@@ -37,6 +38,10 @@ export default function ConfiguracionPage() {
 
   const handleDefaultPrinterChange = (val) => {
     setCfg(prev => ({ ...prev, impresoraDefault: val }));
+  };
+
+  const handlePaletteSelect = (paletteId) => {
+    setCfg(prev => ({ ...prev, palette: paletteId }));
   };
 
   const handleApplyDefaultsToCalc = () => {
@@ -249,14 +254,6 @@ export default function ConfiguracionPage() {
               onChange={(e) => handleDefaultValueChange('mo', e.target.value)} 
             />
             
-            <label className="fl">Margen (%)</label>
-            <input 
-              type="number" 
-              value={cfg.margen} 
-              step="5" 
-              onChange={(e) => handleDefaultValueChange('margen', e.target.value)} 
-            />
-            
             <label className="fl">Desperdicio (%)</label>
             <input 
               type="number" 
@@ -272,6 +269,44 @@ export default function ConfiguracionPage() {
             >
               Aplicar a la calculadora
             </button>
+          </div>
+
+          <div className="card">
+            <div className="card-title">Paletas de colores</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
+              {paletasList.map((paleta) => {
+                const paletaColores = paletas[paleta.id];
+                const previewColors = [paletaColores.bg, paletaColores.accent, paletaColores.accent2, paletaColores.text, paletaColores.bg3];
+                const isSelected = cfg.palette === paleta.id;
+                return (
+                  <button
+                    key={paleta.id}
+                    type="button"
+                    onClick={() => handlePaletteSelect(paleta.id)}
+                    style={{
+                      border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      borderRadius: '14px',
+                      padding: '10px',
+                      background: 'var(--bg3)',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '6px',
+                      minHeight: '80px',
+                      cursor: 'pointer',
+                      transition: 'transform .15s ease, border-color .15s ease',
+                      transform: isSelected ? 'scale(1.02)' : 'none'
+                    }}
+                  >
+                    {previewColors.map((color, index) => (
+                      <div key={index} style={{ background: color, borderRadius: '999px', minHeight: '14px' }} />
+                    ))}
+                    <span style={{ gridColumn: '1 / -1', fontSize: '11px', fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text2)', marginTop: '4px', textAlign: 'center' }}>
+                      {paleta.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

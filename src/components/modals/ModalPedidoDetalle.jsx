@@ -388,9 +388,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     if (empresa.telefono) { doc.text(empresa.telefono, pageW - marginX, ey, { align: 'right' }); ey += 4.2; }
     if (empresa.email) { doc.text(empresa.email, pageW - marginX, ey, { align: 'right' }); }
 
-    y += 12;
+    y += 10;
     doc.setDrawColor(210); doc.setLineWidth(0.3); doc.line(marginX, y, pageW - marginX, y);
-    y += 8;
+    y += 7;
 
     // Order number and date
     doc.setFontSize(10); doc.setTextColor(30, 33, 40);
@@ -413,12 +413,12 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     const cliDireccion = cliente ? [cliente.calle, cliente.altura].filter(Boolean).join(' ') : '';
     const cliLines = [p.cliente || '—', [cliDireccion, cliente?.loc, cliente?.cp].filter(Boolean).join(', '), cliente?.tel || '', cliente?.email || ''].filter(l => l !== '');
     const maxLines = Math.max(vendLines.length, cliLines.length, 1);
-    const boxBodyH = maxLines * 5.2 + 4;
+    const boxBodyH = maxLines * 4.7 + 4;
     doc.setDrawColor(220); doc.rect(marginX, y, boxW, boxBodyH); doc.rect(boxX2, y, boxW, boxBodyH);
     doc.setTextColor(40, 40, 40); doc.setFontSize(9);
-    vendLines.forEach((l, i) => { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.text(l, marginX + 3, y + 5 + i * 5.2, { maxWidth: boxW - 6 }); });
-    cliLines.forEach((l, i) => { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.text(l, boxX2 + 3, y + 5 + i * 5.2, { maxWidth: boxW - 6 }); });
-    y += boxBodyH + 8;
+    vendLines.forEach((l, i) => { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.text(l, marginX + 3, y + 4.5 + i * 4.7, { maxWidth: boxW - 6 }); });
+    cliLines.forEach((l, i) => { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.text(l, boxX2 + 3, y + 4.5 + i * 4.7, { maxWidth: boxW - 6 }); });
+    y += boxBodyH + 6;
 
     // Products table header
     checkPageBreak(20);
@@ -428,15 +428,19 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.text('PRODUCTOS', marginX + 3, y + 5);
     y += 7;
 
-    const colN = 10, colDesc = 90, colCant = 18, colPU = 32, colTot = 30;
+    const colN = 8, colDesc = 86, colCant = 18, colPU = 34, colTot = 32;
     const xN = marginX, xDesc = xN + colN, xCant = xDesc + colDesc, xPU = xCant + colCant, xTot = xPU + colPU;
     doc.setFillColor(...lightGray);
-    doc.rect(marginX, y, contentW, 7, 'F');
+    doc.rect(marginX, y, contentW, 6, 'F');
     doc.setTextColor(40, 40, 40); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
-    doc.text('N°', xN + 2, y + 5); doc.text('DESCRIPCIÓN', xDesc + 2, y + 5); doc.text('CANT.', xCant + 2, y + 5); doc.text('PRECIO UNIT.', xPU + 2, y + 5); doc.text('TOTAL', xTot + 2, y + 5);
-    y += 7;
+    doc.text('N°', xN + 2, y + 4.5);
+    doc.text('DESCRIPCIÓN', xDesc + 2, y + 4.5);
+    doc.text('CANT.', xCant + colCant - 2, y + 4.5, { align: 'right' });
+    doc.text('PRECIO UNIT.', xPU + colPU - 2, y + 4.5, { align: 'right' });
+    doc.text('TOTAL', xTot + colTot - 2, y + 4.5, { align: 'right' });
+    y += 6;
 
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8);
     (p.piezas || []).forEach((pz, i) => {
       const unit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado || 0);
       const subtotal = unit * pz.cantidad;
@@ -446,36 +450,36 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       }
 
       // Wrap description and extra lines to compute dynamic height
-      const nameLines = doc.splitTextToSize(pz.nombre || 'Producto', colDesc - 4);
-      const extraLines = descExtra ? doc.splitTextToSize(descExtra, colDesc - 4) : [];
-      const lineH = 4.6; // approximate line height in mm
-      const contentLines = nameLines.length + extraLines.length;
-      const rowH = Math.max(8, contentLines * lineH + 6);
+      const maxDescWidth = colDesc - 4;
+      const nameLines = doc.splitTextToSize(pz.nombre || 'Producto', maxDescWidth);
+      const extraLines = descExtra ? doc.splitTextToSize(descExtra, maxDescWidth) : [];
+      const textLines = [...nameLines, ...extraLines];
+      const lineH = 3.6;
+      const rowH = Math.max(6.5, textLines.length * lineH + 1.8);
 
       checkPageBreak(rowH);
       if (i % 2 === 1) { doc.setFillColor(248, 248, 250); doc.rect(marginX, y, contentW, rowH, 'F'); }
       doc.setDrawColor(225); doc.rect(marginX, y, contentW, rowH);
 
       // Left column: index
-      doc.setTextColor(40, 40, 40); doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-      const baseline = y + 5;
-      doc.text(String(i + 1), xN + 2, baseline);
+      doc.setTextColor(40, 40, 40); doc.setFontSize(8.8); doc.setFont('helvetica', 'normal');
+      const topTextY = y + 3.2;
+      doc.text(String(i + 1), xN + 2, topTextY + 0.8);
 
       // Description (name + extra lines)
-      doc.setFontSize(9); doc.setTextColor(40, 40, 40);
-      doc.text(nameLines, xDesc + 2, baseline);
+      doc.setFontSize(8.8); doc.setTextColor(40, 40, 40);
+      doc.text(nameLines, xDesc + 2, topTextY);
       if (extraLines.length) {
-        doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
-        const extraStartY = baseline + nameLines.length * lineH + 1;
-        doc.text(extraLines, xDesc + 2, extraStartY);
+        doc.setFontSize(7.2); doc.setTextColor(120, 120, 120);
+        doc.text(extraLines, xDesc + 2, topTextY + nameLines.length * lineH - 0.6);
       }
 
-      // Numeric columns: vertically center numbers within the row
-      const centerY = y + rowH / 2 + 1;
-      doc.setFontSize(9); doc.setTextColor(40, 40, 40);
-      doc.text(String(pz.cantidad), xCant + 2, centerY, { baseline: 'middle' });
-      doc.text(fmt(unit), xPU + 2, centerY, { baseline: 'middle' });
-      doc.text(fmt(subtotal), xTot + 2, centerY, { baseline: 'middle' });
+      // Numeric columns: right align within fixed widths and vertically center
+      const centerY = y + rowH / 2;
+      doc.setFontSize(8.8); doc.setTextColor(40, 40, 40);
+      doc.text(String(pz.cantidad), xCant + colCant - 2, centerY, { baseline: 'middle', align: 'right' });
+      doc.text(fmt(unit), xPU + colPU - 2, centerY, { baseline: 'middle', align: 'right' });
+      doc.text(fmt(subtotal), xTot + colTot - 2, centerY, { baseline: 'middle', align: 'right' });
 
       y += rowH;
     });
@@ -501,10 +505,10 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(40, 40, 40);
     // SUBTOTAL row
-    let rowH = 7;
+    let rowH = 6.5;
     checkPageBreak(rowH);
     doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
-    doc.text('SUBTOTAL', xPUR + 2, y + 5); doc.text(fmt(p.precioVenta || 0), xTotR + 2, y + 5);
+    doc.text('SUBTOTAL', xPUR + 2, y + 4.5); doc.text(fmt(p.precioVenta || 0), xTotR + 2, y + 4.5);
     y += rowH;
 
     if (descuentoTotalPdf > 0) {
