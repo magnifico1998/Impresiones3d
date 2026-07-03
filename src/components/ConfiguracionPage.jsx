@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { paletasList } from '../utils/paletas';
+import { paletas, paletasList } from '../utils/paletas';
 
 export default function ConfiguracionPage() {
   const { cfg, setCfg, showToast, setActivePage } = useApp();
@@ -38,6 +38,10 @@ export default function ConfiguracionPage() {
 
   const handleDefaultPrinterChange = (val) => {
     setCfg(prev => ({ ...prev, impresoraDefault: val }));
+  };
+
+  const handlePaletteSelect = (paletteId) => {
+    setCfg(prev => ({ ...prev, palette: paletteId }));
   };
 
   const handleApplyDefaultsToCalc = () => {
@@ -262,44 +266,39 @@ export default function ConfiguracionPage() {
               ))}
             </select>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', margin: '12px 0 0' }}>
-              {paletasList.map((paleta) => (
-                <div key={paleta.id} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px', background: 'var(--bg3)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', minHeight: '80px' }}>
-                  {Object.values(paleta.id === 'mint' ? {
-                    0: '#0f1b16',
-                    1: '#6ee7b7',
-                    2: '#34d399',
-                    3: '#e8f4ee',
-                    4: '#1d372d'
-                  } : paleta.id === 'aurora' ? {
-                    0: '#101827',
-                    1: '#38bdf8',
-                    2: '#60a5fa',
-                    3: '#eef8ff',
-                    4: '#1c3a5b'
-                  } : paleta.id === 'sunset' ? {
-                    0: '#2f2128',
-                    1: '#f472b6',
-                    2: '#fb7185',
-                    3: '#f9eff4',
-                    4: '#5d424b'
-                  } : paleta.id === 'ocean' ? {
-                    0: '#061b2a',
-                    1: '#22d3ee',
-                    2: '#2dd4bf',
-                    3: '#e8f4fc',
-                    4: '#0f405b'
-                  } : {
-                    0: '#202b14',
-                    1: '#a3e635',
-                    2: '#bef264',
-                    3: '#f3faee',
-                    4: '#3a4c29'
-                  }).map((color, index) => (
-                    <div key={index} style={{ background: color, borderRadius: '999px', minHeight: '14px' }} />
-                  ))}
-                </div>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', margin: '12px 0 0' }}>
+              {paletasList.map((paleta) => {
+                const paletaColores = paletas[paleta.id];
+                const previewColors = [paletaColores.bg, paletaColores.accent, paletaColores.accent2, paletaColores.text, paletaColores.bg3];
+                const isSelected = cfg.palette === paleta.id;
+                return (
+                  <button
+                    key={paleta.id}
+                    type="button"
+                    onClick={() => handlePaletteSelect(paleta.id)}
+                    style={{
+                      border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      borderRadius: '14px',
+                      padding: '10px',
+                      background: 'var(--bg3)',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '6px',
+                      minHeight: '80px',
+                      cursor: 'pointer',
+                      transition: 'transform .15s ease, border-color .15s ease',
+                      transform: isSelected ? 'scale(1.02)' : 'none'
+                    }}
+                  >
+                    {previewColors.map((color, index) => (
+                      <div key={index} style={{ background: color, borderRadius: '999px', minHeight: '14px' }} />
+                    ))}
+                    <span style={{ gridColumn: '1 / -1', fontSize: '11px', fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text2)', marginTop: '4px', textAlign: 'center' }}>
+                      {paleta.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             <label className="fl">Margen (%)</label>
