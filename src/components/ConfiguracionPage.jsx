@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { paletasList } from '../utils/paletas';
 
 export default function ConfiguracionPage() {
   const { cfg, setCfg, showToast, setActivePage } = useApp();
@@ -249,6 +250,58 @@ export default function ConfiguracionPage() {
               onChange={(e) => handleDefaultValueChange('mo', e.target.value)} 
             />
             
+            <label className="fl">Paleta de colores</label>
+            <select
+              value={cfg.palette || 'mint'}
+              onChange={(e) => setCfg(prev => ({ ...prev, palette: e.target.value }))}
+            >
+              {paletasList.map((paleta) => (
+                <option key={paleta.id} value={paleta.id}>
+                  {paleta.label}
+                </option>
+              ))}
+            </select>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', margin: '12px 0 0' }}>
+              {paletasList.map((paleta) => (
+                <div key={paleta.id} style={{ border: '1px solid var(--border)', borderRadius: '10px', padding: '10px', background: 'var(--bg3)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', minHeight: '80px' }}>
+                  {Object.values(paleta.id === 'mint' ? {
+                    0: '#0f1b16',
+                    1: '#6ee7b7',
+                    2: '#34d399',
+                    3: '#e8f4ee',
+                    4: '#1d372d'
+                  } : paleta.id === 'aurora' ? {
+                    0: '#101827',
+                    1: '#38bdf8',
+                    2: '#60a5fa',
+                    3: '#eef8ff',
+                    4: '#1c3a5b'
+                  } : paleta.id === 'sunset' ? {
+                    0: '#2f2128',
+                    1: '#f472b6',
+                    2: '#fb7185',
+                    3: '#f9eff4',
+                    4: '#5d424b'
+                  } : paleta.id === 'ocean' ? {
+                    0: '#061b2a',
+                    1: '#22d3ee',
+                    2: '#2dd4bf',
+                    3: '#e8f4fc',
+                    4: '#0f405b'
+                  } : {
+                    0: '#202b14',
+                    1: '#a3e635',
+                    2: '#bef264',
+                    3: '#f3faee',
+                    4: '#3a4c29'
+                  }).map((color, index) => (
+                    <div key={index} style={{ background: color, borderRadius: '999px', minHeight: '14px' }} />
+                  ))}
+                </div>
+              ))}
+            </div>
+
             <label className="fl">Margen (%)</label>
             <input 
               type="number" 

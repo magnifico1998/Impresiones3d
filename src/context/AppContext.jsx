@@ -2,10 +2,12 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { auth, db, googleProvider } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { paletas } from '../utils/paletas';
 
 const AppContext = createContext();
 
 const defaultCfg = {
+  palette: 'mint',
   filamentos: [
     { nombre: 'PLA Blanco', precio: 17000 },
     { nombre: 'PLA Negro', precio: 18000 },
@@ -263,6 +265,15 @@ export const AppProvider = ({ children }) => {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (cfg?.palette) {
+      const palette = paletas[cfg.palette] || paletas.mint;
+      Object.entries(palette).forEach(([key, value]) => {
+        document.documentElement.style.setProperty(`--${key}`, value);
+      });
+    }
+  }, [cfg?.palette]);
 
   useEffect(() => {
     if (loading) return;
