@@ -15,10 +15,63 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
+  const formatDate = (timestamp) => {
+    return timestamp ? new Date(timestamp).toLocaleDateString('es-AR') : '';
+  };
+
   const parsePedidoTime = (pedido) => {
     const fecha = pedido.fechaPedido || pedido.fecha || pedido.creado || '';
     const parsed = new Date(fecha + 'T12:00:00').getTime();
     return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const buildCsv = (headers, rows) => {
+    const escapeValue = (value) => {
+      const str = value == null ? '' : String(value);
+      const escaped = str.replace(/"/g, '""');
+      return `"${escaped}"`;
+    };
+
+    const lines = [headers.map(escapeValue).join(',')];
+    rows.forEach(row => lines.push(row.map(escapeValue).join(',')));
+    return '\uFEFF' + lines.join('\r\n');
+  };
+
+  const downloadCsv = (filename, content) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportPersonalData = () => {
+    const headers = ['Nombre', 'Teléfono', 'Email', 'Provincia', 'Localidad', 'Código Postal', 'Calle', 'Altura', 'Fecha de alta'];
+    const rows = clientRows.map(c => [
+      c.nombre,
+      c.tel,
+      c.email,
+      c.prov,
+      c.loc,
+      c.cp,
+      c.calle,
+      c.altura,
+      c.fechaAlta || ''
+    ]);
+    downloadCsv('clientes-datos-personales.csv', buildCsv(headers, rows));
+  };
+
+  const exportOrderSummary = () => {
+    const headers = ['Nombre', 'Pedidos', 'Último pedido', 'Total gastado'];
+    const rows = clientRows.map(c => [
+      c.nombre,
+      c.pedidosCount,
+      formatDate(c.lastPedido),
+      fmt(c.totalGastado)
+    ]);
+    downloadCsv('clientes-resumen-pedidos.csv', buildCsv(headers, rows));
   };
 
   // Compute order details per client
@@ -76,6 +129,8 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
               ))}
             </select>
           </label>
+          <button className="btn" onClick={exportPersonalData}>Exportar datos</button>
+          <button className="btn" onClick={exportOrderSummary}>Exportar resumen</button>
           <button className="btn btn-primary" onClick={onOpenNewClient}>
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 4v12M4 10h12" />

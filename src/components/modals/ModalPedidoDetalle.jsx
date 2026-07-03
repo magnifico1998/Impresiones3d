@@ -433,7 +433,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.setFillColor(...lightGray);
     doc.rect(marginX, y, contentW, 6, 'F');
     doc.setTextColor(40, 40, 40); doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
-    doc.text('N°', xN + 2, y + 4.5); doc.text('DESCRIPCIÓN', xDesc + 2, y + 4.5); doc.text('CANT.', xCant + 2, y + 4.5); doc.text('PRECIO UNIT.', xPU + 2, y + 4.5); doc.text('TOTAL', xTot + 2, y + 4.5);
+    doc.text('N°', xN + 2, y + 4.5);
+    doc.text('DESCRIPCIÓN', xDesc + 2, y + 4.5);
+    doc.text('CANT.', xCant + colCant - 2, y + 4.5, { align: 'right' });
+    doc.text('PRECIO UNIT.', xPU + colPU - 2, y + 4.5, { align: 'right' });
+    doc.text('TOTAL', xTot + colTot - 2, y + 4.5, { align: 'right' });
     y += 6;
 
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.8);
