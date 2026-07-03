@@ -254,18 +254,6 @@ export default function ConfiguracionPage() {
               onChange={(e) => handleDefaultValueChange('mo', e.target.value)} 
             />
             
-            <label className="fl">Paleta de colores</label>
-            <select
-              value={cfg.palette || 'mint'}
-              onChange={(e) => setCfg(prev => ({ ...prev, palette: e.target.value }))}
-            >
-              {paletasList.map((paleta) => (
-                <option key={paleta.id} value={paleta.id}>
-                  {paleta.label}
-                </option>
-              ))}
-            </select>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', margin: '12px 0 0' }}>
               {paletasList.map((paleta) => {
                 const paletaColores = paletas[paleta.id];
