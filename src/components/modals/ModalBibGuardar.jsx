@@ -137,8 +137,8 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
         <label className="fl">Imagen del producto</label>
         <input type="file" accept="image/*" onChange={handleImageChange} />
         {imagenPreview && (
-          <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)' }}>
-            <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'cover' }} />
+          <div style={{ marginTop: '8px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
             <div style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text2)' }}>Imagen lista para guardar</div>
           </div>
         )}
