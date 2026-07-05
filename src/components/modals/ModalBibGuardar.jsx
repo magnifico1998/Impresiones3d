@@ -23,7 +23,6 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
       setImagenPreview('');
     }
   }, [isOpen, presupuestoActual]);
-  
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
