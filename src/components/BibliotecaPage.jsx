@@ -559,6 +559,12 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                   </div>
                 </div>
 
+                {p.imagen && (
+                  <div style={{ width: viewMode === 'grid' ? '100%' : '84px', height: viewMode === 'grid' ? '140px' : '84px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img src={p.imagen} alt={p.nombre} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }} />
+                  </div>
+                )}
+
                 {/* Chips informativos */}
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }}>

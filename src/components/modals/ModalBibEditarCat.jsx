@@ -6,6 +6,8 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [categoria, setCategoria] = useState('');
   const [productName, setProductName] = useState('');
   const [precio, setPrecio] = useState('');
+  const [imagen, setImagen] = useState('');
+  const [imagenPreview, setImagenPreview] = useState('');
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
 
@@ -16,17 +18,32 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setProductName(prod.nombre);
         setCategoria(prod.cat || '');
         setPrecio(prod.precioSugUnitario !== undefined ? String(prod.precioSugUnitario) : '');
+        setImagen(prod.imagen || '');
+        setImagenPreview(prod.imagen || '');
       }
     }
   }, [isOpen, editId, biblioteca]);
 
   if (!isOpen || editId === null) return null;
 
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      setImagen(result);
+      setImagenPreview(result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = () => {
     const cleanCat = categoria.trim() || 'General';
     const cleanName = productName.trim() || 'Sin nombre';
     const cleanPrecio = parseFloat(precio) || 0;
-    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio } : p));
+    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagen || p.imagen || '' } : p));
     showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? '$' + Math.round(cleanPrecio).toLocaleString('es-AR') : 'sin precio'}`);
     onClose();
   };
@@ -65,6 +82,14 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           placeholder="Ej: Soportes, Decoración, Funcional..." 
           list="bib-edit-cats-list-modal"
         />
+
+        <label className="fl">Imagen del producto</label>
+        <input type="file" accept="image/*" onChange={handleImageChange} />
+        {imagenPreview && (
+          <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
+          </div>
+        )}
         <datalist id="bib-edit-cats-list-modal">
           {uniqueCats.map((catName, idx) => (
             <option key={idx} value={catName} />

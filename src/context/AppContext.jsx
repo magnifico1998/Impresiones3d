@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db, googleProvider } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -81,34 +81,9 @@ export const AppProvider = ({ children }) => {
     }, 3000);
   };
 
-  const bloqueoSincronizacion = useRef(false);
-  const cloudSyncTimeout = useRef(null);
-
-  const leerDatosLocales = () => {
-    const savedCfg = localStorage.getItem('p3d_cfg');
-    const savedPedidos = localStorage.getItem('p3d_pedidos');
-    const savedCompras = localStorage.getItem('p3d_compras');
-    const savedBib = localStorage.getItem('p3d_bib');
-    const savedClientes = localStorage.getItem('p3d_clientes');
-    const savedEmpresa = localStorage.getItem('p3d_empresa');
-    const savedCounter = localStorage.getItem('p3d_counter');
-
-    return {
-      cfg: savedCfg ? JSON.parse(savedCfg) : defaultCfg,
-      pedidos: savedPedidos ? JSON.parse(savedPedidos) : [],
-      compras: savedCompras ? JSON.parse(savedCompras) : [],
-      biblioteca: savedBib ? JSON.parse(savedBib) : [],
-      clientes: savedClientes ? JSON.parse(savedClientes) : [],
-      empresa: savedEmpresa ? JSON.parse(savedEmpresa) : defaultEmpresa,
-      counter: savedCounter ? parseInt(savedCounter, 10) : 1
-    };
-  };
-
   const getNewId = () => {
     const nextId = idCounter;
-    const nextCounter = idCounter + 1;
-    setIdCounter(nextCounter);
-    localStorage.setItem('p3d_counter', String(nextCounter));
+    setIdCounter(idCounter + 1);
     return nextId;
   };
 
@@ -124,96 +99,38 @@ export const AppProvider = ({ children }) => {
 
   const logout = async () => {
     if (window.confirm("¿Cerrar sesión en Manager3D?")) {
-      bloqueoSincronizacion.current = true;
-      localStorage.clear();
       await signOut(auth);
       window.location.reload();
     }
   };
 
-  // Upload partial updates to Cloud
-  const subirDatosANube = async (uid, partialData) => {
+  // Load data from Firestore
+  const cargarDatosDeFirestore = async (uid) => {
     try {
-      const dataPayload = {
-        ...partialData,
-        ultimaActualizacion: new Date().toISOString()
-      };
-      await setDoc(doc(db, "users", uid), dataPayload, { merge: true });
-      console.log("Sincronización parcial guardada en Firestore:", Object.keys(partialData).join(', '));
-      showToast('Datos guardados en Firebase correctamente.', 'success');
-    } catch (e) {
-      console.error("Error al respaldar en la nube:", e);
-      showToast('Error al guardar en Firebase. Revisa tu conexión y sesión.', 'error');
-    }
-  };
-
-  const sincronizarTodosLosDatosANube = async (uid) => {
-    try {
-      const dataPayload = {
-        pedidos,
-        config: cfg,
-        compras,
-        biblioteca,
-        clientes,
-        empresa,
-        counter: idCounter,
-        ultimaActualizacion: new Date().toISOString()
-      };
-      await setDoc(doc(db, "users", uid), dataPayload, { merge: true });
-      console.log("Sincronización completa guardada en Firestore.");
-      showToast('Sincronización con Firebase completada.', 'success');
-    } catch (e) {
-      console.error("Error al sincronizar todos los datos en la nube:", e);
-      showToast('No se pudo sincronizar con Firebase. Comprueba tu conexión o autenticación.', 'error');
-    }
-  };
-
-  // Download from Cloud
-  const descargarDatosDeNube = async (uid) => {
-    try {
-      bloqueoSincronizacion.current = true;
-      console.log("Descargando datos desde la nube...");
+      console.log("Cargando datos desde Firebase...");
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
-      const localData = leerDatosLocales();
 
       if (docSnap.exists()) {
         const cloud = docSnap.data();
-        const remotePedidos = cloud.pedidos ?? localData.pedidos;
-        const remoteCfg = cloud.config ?? localData.cfg;
-        const remoteCompras = cloud.compras ?? localData.compras;
-        const remoteBiblioteca = cloud.biblioteca ?? localData.biblioteca;
-        const remoteClientes = cloud.clientes ?? localData.clientes;
-        const remoteEmpresa = cloud.empresa ?? localData.empresa;
-        const remoteCounter = cloud.counter ?? localData.counter;
-
-        setPedidos(remotePedidos);
-        setCfg(remoteCfg);
-        setCompras(remoteCompras);
-        setBiblioteca(remoteBiblioteca);
-        setClientes(remoteClientes);
-        setEmpresa(remoteEmpresa);
-        setIdCounter(Number(remoteCounter));
-
-        localStorage.setItem('p3d_pedidos', JSON.stringify(remotePedidos));
-        localStorage.setItem('p3d_cfg', JSON.stringify(remoteCfg));
-        localStorage.setItem('p3d_compras', JSON.stringify(remoteCompras));
-        localStorage.setItem('p3d_bib', JSON.stringify(remoteBiblioteca));
-        localStorage.setItem('p3d_clientes', JSON.stringify(remoteClientes));
-        localStorage.setItem('p3d_empresa', JSON.stringify(remoteEmpresa));
-        localStorage.setItem('p3d_counter', String(remoteCounter));
-
-        console.log("Sincronización desde la nube completada.");
+        setPedidos(cloud.pedidos ?? []);
+        setCfg(cloud.config ?? defaultCfg);
+        setCompras(cloud.compras ?? []);
+        setBiblioteca(cloud.biblioteca ?? []);
+        setClientes(cloud.clientes ?? []);
+        setEmpresa(cloud.empresa ?? defaultEmpresa);
+        setIdCounter(Number(cloud.counter ?? 1));
+        console.log("Datos cargados desde Firebase exitosamente.");
       } else {
-        console.log("Usuario nuevo. Inicializando base en la nube...");
+        console.log("Usuario nuevo. Inicializando datos en Firebase...");
         const dataPayload = {
-          pedidos: localData.pedidos,
-          config: localData.cfg,
-          compras: localData.compras,
-          biblioteca: localData.biblioteca,
-          clientes: localData.clientes,
-          counter: localData.counter,
-          empresa: localData.empresa,
+          pedidos: [],
+          config: defaultCfg,
+          compras: [],
+          biblioteca: [],
+          clientes: [],
+          empresa: defaultEmpresa,
+          counter: 1,
           ultimaActualizacion: new Date().toISOString()
         };
         await setDoc(docRef, dataPayload);
@@ -224,41 +141,19 @@ export const AppProvider = ({ children }) => {
         setClientes(dataPayload.clientes);
         setEmpresa(dataPayload.empresa);
         setIdCounter(Number(dataPayload.counter));
-
-        localStorage.setItem('p3d_pedidos', JSON.stringify(dataPayload.pedidos));
-        localStorage.setItem('p3d_cfg', JSON.stringify(dataPayload.config));
-        localStorage.setItem('p3d_compras', JSON.stringify(dataPayload.compras));
-        localStorage.setItem('p3d_bib', JSON.stringify(dataPayload.biblioteca));
-        localStorage.setItem('p3d_clientes', JSON.stringify(dataPayload.clientes));
-        localStorage.setItem('p3d_empresa', JSON.stringify(dataPayload.empresa));
-        localStorage.setItem('p3d_counter', String(dataPayload.counter));
       }
     } catch (e) {
-      console.error("Error al descargar datos de Firestore:", e);
-    } finally {
-      bloqueoSincronizacion.current = false;
+      console.error("Error al cargar datos de Firestore:", e);
+      showToast('Error al cargar datos de Firebase.', 'error');
     }
   };
 
-  // Initial load
+  // Initial load from Firebase
   useEffect(() => {
-    const cargarDatosLocales = () => {
-      const localData = leerDatosLocales();
-      setCfg(localData.cfg);
-      setPedidos(localData.pedidos);
-      setCompras(localData.compras);
-      setBiblioteca(localData.biblioteca);
-      setClientes(localData.clientes);
-      setEmpresa(localData.empresa);
-      setIdCounter(localData.counter);
-    };
-
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        await descargarDatosDeNube(currentUser.uid);
-      } else {
-        cargarDatosLocales();
+        await cargarDatosDeFirestore(currentUser.uid);
       }
       setLoading(false);
     });
@@ -275,32 +170,24 @@ export const AppProvider = ({ children }) => {
     }
   }, [cfg?.palette]);
 
+  // Auto-save to Firebase
   useEffect(() => {
-    if (loading) return;
-    if (bloqueoSincronizacion.current) return;
+    if (loading || !user) return;
 
-    localStorage.setItem('p3d_pedidos', JSON.stringify(pedidos));
-    localStorage.setItem('p3d_cfg', JSON.stringify(cfg));
-    localStorage.setItem('p3d_compras', JSON.stringify(compras));
-    localStorage.setItem('p3d_bib', JSON.stringify(biblioteca));
-    localStorage.setItem('p3d_clientes', JSON.stringify(clientes));
-    localStorage.setItem('p3d_empresa', JSON.stringify(empresa));
-    localStorage.setItem('p3d_counter', String(idCounter));
-
-    if (user) {
-      if (cloudSyncTimeout.current) {
-        clearTimeout(cloudSyncTimeout.current);
-      }
-      cloudSyncTimeout.current = window.setTimeout(() => {
-        sincronizarTodosLosDatosANube(user.uid);
-      }, 300);
-    }
-
-    return () => {
-      if (cloudSyncTimeout.current) {
-        clearTimeout(cloudSyncTimeout.current);
-      }
+    const dataPayload = {
+      pedidos,
+      config: cfg,
+      compras,
+      biblioteca,
+      clientes,
+      empresa,
+      counter: idCounter,
+      ultimaActualizacion: new Date().toISOString()
     };
+
+    setDoc(doc(db, "users", user.uid), dataPayload, { merge: true }).catch(e => {
+      console.error("Error al guardar en Firebase:", e);
+    });
   }, [pedidos, cfg, compras, biblioteca, clientes, empresa, idCounter, user, loading]);
 
   // Set favicon to empresa.logo when available, otherwise revert to default
@@ -350,38 +237,17 @@ export const AppProvider = ({ children }) => {
 
   const restaurarBackupData = async (data) => {
     try {
-      bloqueoSincronizacion.current = true;
-      
-      if (data.pedidos) {
-        setPedidos(data.pedidos);
-        localStorage.setItem('p3d_pedidos', JSON.stringify(data.pedidos));
-      }
-      if (data.cfg) {
-        setCfg(data.cfg);
-        localStorage.setItem('p3d_cfg', JSON.stringify(data.cfg));
-      }
-      if (data.compras) {
-        setCompras(data.compras);
-        localStorage.setItem('p3d_compras', JSON.stringify(data.compras));
-      }
-      if (data.biblioteca) {
-        setBiblioteca(data.biblioteca);
-        localStorage.setItem('p3d_bib', JSON.stringify(data.biblioteca));
-      }
-      if (data.clientes) {
-        setClientes(data.clientes);
-        localStorage.setItem('p3d_clientes', JSON.stringify(data.clientes));
-      }
-      if (data.empresa) {
-        setEmpresa(data.empresa);
-        localStorage.setItem('p3d_empresa', JSON.stringify(data.empresa));
-      }
+      if (data.pedidos) setPedidos(data.pedidos);
+      if (data.cfg) setCfg(data.cfg);
+      if (data.compras) setCompras(data.compras);
+      if (data.biblioteca) setBiblioteca(data.biblioteca);
+      if (data.clientes) setClientes(data.clientes);
+      if (data.empresa) setEmpresa(data.empresa);
       
       const nextCounter = data._idCounter || data.idCounter || 1;
       setIdCounter(Number(nextCounter));
-      localStorage.setItem('p3d_counter', nextCounter.toString());
       
-      // Upload to cloud immediately if logged in
+      // Upload to Firebase immediately if logged in
       if (user) {
         await setDoc(doc(db, "users", user.uid), {
           pedidos: data.pedidos || [],
@@ -392,7 +258,7 @@ export const AppProvider = ({ children }) => {
           counter: nextCounter,
           empresa: data.empresa || defaultEmpresa,
           ultimaActualizacion: new Date().toISOString()
-        });
+        }, { merge: true });
       }
       
       showToast('✓ Backup restaurado correctamente.');
@@ -401,8 +267,6 @@ export const AppProvider = ({ children }) => {
       console.error(e);
       showToast('Error al restaurar el backup.', 'error');
       return false;
-    } finally {
-      bloqueoSincronizacion.current = false;
     }
   };
 

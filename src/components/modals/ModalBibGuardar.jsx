@@ -6,6 +6,8 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState('');
+  const [imagen, setImagen] = useState('');
+  const [imagenPreview, setImagenPreview] = useState('');
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean)));
 
@@ -17,8 +19,23 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
       setNombre(nombreSug);
       setDesc('');
       setCat('');
+      setImagen('');
+      setImagenPreview('');
     }
   }, [isOpen, presupuestoActual]);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      setImagen(result);
+      setImagenPreview(result);
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!isOpen || !presupuestoActual) return null;
 
@@ -62,7 +79,8 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
       gcodeArchivos: p.gcodeArchivos || null,
       materiales: p.materiales || null,
       multiMat: p.multiMat || false,
-      matData: p.matData || null
+      matData: p.matData || null,
+      imagen: imagen || null
     };
 
     const idx = biblioteca.findIndex(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());
@@ -115,6 +133,15 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
             <option key={idx} value={category} />
           ))}
         </datalist>
+
+        <label className="fl">Imagen del producto</label>
+        <input type="file" accept="image/*" onChange={handleImageChange} />
+        {imagenPreview && (
+          <div style={{ marginTop: '8px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
+            <div style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text2)' }}>Imagen lista para guardar</div>
+          </div>
+        )}
 
         <div style={{
           background: 'var(--bg3)',
