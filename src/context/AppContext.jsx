@@ -107,6 +107,23 @@ export const AppProvider = ({ children }) => {
   // que el usuario haya hecho localmente mientras ese guardado viajaba.
   const lastWrittenTimestampRef = useRef(null);
 
+  // BUG encontrado tras el reporte de "se borra la imagen al agregarla":
+  // cargarDatosDeFirestore hace setPedidos(cloud.pedidos ?? []) y similares.
+  // Aunque el CONTENIDO sea idéntico al que ya había, JS crea arrays nuevos
+  // en memoria, y React los ve como "cambiaron". Eso disparaba el efecto de
+  // autosave solo, ~800ms después de cada login, guardando datos que en
+  // realidad no habían cambiado ("guardado fantasma"). Ese guardado de más
+  // pisaba lastWrittenTimestampRef con un timestamp nuevo, y si en esa
+  // ventana el listener en tiempo real todavía estaba entregando la
+  // confirmación de la carga original, dejaba de coincidir — se
+  // malinterpretaba como "cambio de otra sesión" y pisaba el estado local
+  // (por ejemplo, una imagen recién elegida en un modal abierto).
+  //
+  // Esta bandera le dice al efecto de autosave "el próximo cambio de estado
+  // que veas viene de haber cargado datos de la nube, no de una edición real
+  // del usuario — no guardes nada por eso".
+  const skipNextAutosaveRef = useRef(false);
+
   const getNewId = () => {
     // ALTO (antes): getNewId devolvía un contador secuencial local
     // (idCounter: 1, 2, 3...). Si el mismo usuario tenía dos pestañas o
@@ -200,6 +217,14 @@ export const AppProvider = ({ children }) => {
       // nube (documento existente cargado, o uno nuevo recién creado), es
       // seguro dejar que el autosave empiece a escribir. Si esto no se marca,
       // el efecto de autosave se mantiene bloqueado.
+      //
+      // skipNextAutosaveRef en true: los setPedidos/setCfg/etc de arriba van
+      // a disparar el efecto de autosave apenas se habilite (datosCargadosOk
+      // pasa a true en la misma tanda), aunque el usuario no haya cambiado
+      // nada. Sin esto, ese guardado fantasma es lo que rompía la detección
+      // de "eco propio" del listener en tiempo real (ver nota en la
+      // declaración de skipNextAutosaveRef, más arriba).
+      skipNextAutosaveRef.current = true;
       setLoadError(false);
       setDatosCargadosOk(true);
     } catch (e) {
@@ -275,6 +300,17 @@ export const AppProvider = ({ children }) => {
     // significaría pisar la nube con el estado default vacío. Ver
     // cargarDatosDeFirestore para el detalle de por qué esto es crítico.
     if (loading || !user || !datosCargadosOk) return;
+
+    // Este disparo del efecto viene de haber cargado datos de la nube (los
+    // setPedidos/setCfg/etc de cargarDatosDeFirestore crean arrays nuevos
+    // aunque el contenido sea igual), no de una edición real del usuario.
+    // Lo saltamos para no generar un guardado fantasma — ver la nota en la
+    // declaración de skipNextAutosaveRef más arriba para el detalle de por
+    // qué ese guardado de más rompía la sincronización en tiempo real.
+    if (skipNextAutosaveRef.current) {
+      skipNextAutosaveRef.current = false;
+      return;
+    }
 
     let cancelado = false;
 
@@ -481,6 +517,14 @@ export const AppProvider = ({ children }) => {
 
   const restaurarBackupData = async (data) => {
     try {
+      // Mismo motivo que en cargarDatosDeFirestore: los setPedidos/setCfg/etc
+      // de abajo van a disparar el efecto de autosave solo, aunque ya
+      // hagamos nuestro propio setDoc explícito unas líneas más abajo. Sin
+      // esto, ese guardado fantasma podía hacer que el listener en tiempo
+      // real confundiera la confirmación de ESTE restore con un cambio de
+      // otra sesión.
+      skipNextAutosaveRef.current = true;
+
       if (data.pedidos) setPedidos(data.pedidos);
       if (data.cfg) setCfg(data.cfg);
       if (data.compras) setCompras(data.compras);
