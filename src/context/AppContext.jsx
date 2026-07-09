@@ -106,6 +106,12 @@ export const AppProvider = ({ children }) => {
   // propia escritura" y no reaplicarlo, evitando pisar ediciones más nuevas
   // que el usuario haya hecho localmente mientras ese guardado viajaba.
   const lastWrittenTimestampRef = useRef(null);
+  
+  // Para evitar falsos positivos de "datos actualizados desde otra sesión"
+  // cuando hay múltiples guardados rápidos (ej: agregar imagen + editar nombre),
+  // guardamos también un "pending write" que nos permite ignorar snapshots
+  // intermedios hasta que llegue la confirmación del último guardado.
+  const pendingWriteTimestampRef = useRef(null);
 
   // BUG encontrado tras el reporte de "se borra la imagen al agregarla":
   // cargarDatosDeFirestore hace setPedidos(cloud.pedidos ?? []) y similares.
@@ -185,6 +191,9 @@ export const AppProvider = ({ children }) => {
         // reiniciaba cualquier modal abierto que dependiera de esos arrays
         // (por ejemplo, borrando una imagen recién elegida antes de guardar).
         lastWrittenTimestampRef.current = cloud.ultimaActualizacion || null;
+        // También inicializamos pendingWriteTimestampRef para evitar falsos
+        // positivos durante la carga inicial.
+        pendingWriteTimestampRef.current = null;
         console.log("Datos cargados desde Firebase exitosamente.");
       } else {
         console.log("Usuario nuevo. Inicializando datos en Firebase...");
@@ -204,6 +213,7 @@ export const AppProvider = ({ children }) => {
         // de este mismo documento recién creado, lo reconozca como un eco y
         // no muestre el aviso de "datos actualizados desde otra sesión".
         lastWrittenTimestampRef.current = dataPayload.ultimaActualizacion;
+        pendingWriteTimestampRef.current = null;
         setPedidos(dataPayload.pedidos);
         setCfg(dataPayload.config);
         setCompras(dataPayload.compras);
@@ -346,10 +356,16 @@ export const AppProvider = ({ children }) => {
         // por el listener en tiempo real, ya sabemos reconocer que es este
         // mismo guardado y no un cambio remoto genuino.
         lastWrittenTimestampRef.current = timestamp;
+        // También marcamos como pending para ignorar snapshots intermedios
+        // hasta que llegue la confirmación del servidor.
+        pendingWriteTimestampRef.current = timestamp;
 
         setDoc(doc(db, "users", user.uid), dataPayload, { merge: true })
           .then(() => {
             if (cancelado) return;
+            // Guardado exitoso: limpiamos pending y actualizamos confirmed
+            pendingWriteTimestampRef.current = null;
+            lastWrittenTimestampRef.current = timestamp;
             // Guardado exitoso: si veníamos de un error, lo limpiamos.
             setSyncError(prevError => {
               if (prevError) {
@@ -444,6 +460,21 @@ export const AppProvider = ({ children }) => {
           cloud.ultimaActualizacion &&
           cloud.ultimaActualizacion === lastWrittenTimestampRef.current
         ) {
+          return;
+        }
+        
+        // Si hay un guardado pendiente que aún no fue confirmado, ignoramos
+        // este snapshot intermedio. Esto evita que se dispare el aviso de
+        // "datos actualizados desde otra sesión" cuando estamos en medio de
+        // una secuencia rápida de cambios locales (ej: agregar imagen + editar
+        // nombre) que generan múltiples guardados consecutivos.
+        if (
+          cloud.ultimaActualizacion &&
+          pendingWriteTimestampRef.current &&
+          cloud.ultimaActualizacion !== pendingWriteTimestampRef.current
+        ) {
+          // Snapshot intermedio: no es ni el último confirmado ni el pending
+          // actual, lo ignoramos para evitar falsos positivos.
           return;
         }
 
@@ -552,6 +583,7 @@ export const AppProvider = ({ children }) => {
         // confunda la confirmación de este mismo guardado con un cambio
         // hecho desde otra pestaña/dispositivo.
         lastWrittenTimestampRef.current = restoreTimestamp;
+        pendingWriteTimestampRef.current = null;
       }
       
       showToast('✓ Backup restaurado correctamente.');
