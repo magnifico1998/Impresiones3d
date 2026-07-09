@@ -27,7 +27,18 @@ import ModalBibUsar from './components/modals/ModalBibUsar';
 import ModalArmarPedido from './components/modals/ModalArmarPedido';
 
 function App() {
-  const { user, loading, loginWithGoogle, activePage, setActivePage, showToast } = useApp();
+  const {
+    user,
+    loading,
+    loginWithGoogle,
+    activePage,
+    setActivePage,
+    showToast,
+    loadError,
+    datosCargadosOk,
+    reintentarCargaDatos,
+    logout
+  } = useApp();
 
   // Modals visibility state
   const [modalClienteOpen, setModalClienteOpen] = useState(false);
@@ -151,6 +162,68 @@ function App() {
           </svg>
           Iniciar sesión con Google
         </button>
+      </div>
+    );
+  }
+
+  // Fallo al cargar los datos desde Firestore: bloqueamos la app en vez de
+  // dejar pasar al usuario con estado vacío. Si lo dejáramos pasar, cualquier
+  // cambio que hiciera dispararía el autosave y pisaría la nube con arrays
+  // vacíos, borrando todo su historial real. Ver AppContext.jsx.
+  if (loadError && !datosCargadosOk) {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'var(--bg)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '20px',
+        padding: '20px',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          width: '56px',
+          height: '56px',
+          background: 'var(--dangerDim)',
+          border: '1px solid var(--danger)',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <svg viewBox="0 0 20 20" fill="none" stroke="var(--danger)" strokeWidth="1.5" style={{ width: '30px', height: '30px' }}>
+            <path d="M10 6v5M10 14h.01" strokeLinecap="round" />
+            <circle cx="10" cy="10" r="8" />
+          </svg>
+        </div>
+        <div>
+          <h1 style={{ fontFamily: 'var(--sans)', fontSize: '20px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
+            No pudimos cargar tus datos
+          </h1>
+          <p style={{ fontFamily: 'var(--sans)', fontSize: '13px', color: 'var(--text2)', maxWidth: '360px', lineHeight: 1.5 }}>
+            No se pudo conectar con la nube para traer tu información. Por seguridad, no dejamos continuar para evitar sobrescribir tus datos guardados. Revisá tu conexión a internet y volvé a intentar.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={reintentarCargaDatos}
+            className="btn btn-primary"
+            style={{ fontSize: '14px', padding: '10px 20px', borderRadius: 'var(--radius2)' }}
+          >
+            ↺ Reintentar
+          </button>
+          <button
+            onClick={logout}
+            className="btn"
+            style={{ fontSize: '14px', padding: '10px 20px', borderRadius: 'var(--radius2)' }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     );
   }

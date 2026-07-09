@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { comprimirImagen } from '../utils/imageCompress';
 
 export default function EmpresaPage() {
   const { empresa, setEmpresa, showToast } = useApp();
@@ -13,23 +14,39 @@ export default function EmpresaPage() {
     }));
   };
 
-  const handleLogoUpload = (e) => {
+  const [subiendoLogo, setSubiendoLogo] = useState(false);
+
+  const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      alert('Elegí un archivo de imagen.');
-      return;
-    }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    setSubiendoLogo(true);
+    try {
+      // Logo un poco más chico que las fotos de producto: se muestra siempre
+      // en miniatura (header y favicon), no hace falta resolución alta.
+      const { dataUrl, bytes, originalBytes } = await comprimirImagen(file, {
+        maxWidth: 300,
+        maxHeight: 300,
+        maxBytes: 80 * 1024
+      });
+
       setEmpresa(prev => ({
         ...prev,
-        logo: event.target.result
+        logo: dataUrl
       }));
-      showToast('Logo subido con éxito');
-    };
-    reader.readAsDataURL(file);
+
+      const reduccion = originalBytes > 0 ? Math.round((1 - bytes / originalBytes) * 100) : 0;
+      showToast(
+        reduccion > 0
+          ? `Logo subido y optimizado (${(bytes / 1024).toFixed(0)}KB, -${reduccion}%)`
+          : 'Logo subido con éxito'
+      );
+    } catch (err) {
+      showToast(err.message || 'No se pudo procesar el logo.', 'error');
+    } finally {
+      setSubiendoLogo(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
   const handleRemoveLogo = () => {
@@ -82,8 +99,9 @@ export default function EmpresaPage() {
                 <button 
                   className="btn btn-sm" 
                   onClick={() => fileInputRef.current?.click()}
+                  disabled={subiendoLogo}
                 >
-                  Subir logo
+                  {subiendoLogo ? 'Optimizando...' : 'Subir logo'}
                 </button>
                 {empresa.logo && (
                   <button className="btn btn-danger btn-sm" onClick={handleRemoveLogo}>Quitar</button>

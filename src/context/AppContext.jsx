@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { paletas } from '../utils/paletas';
 
 const AppContext = createContext();
@@ -69,22 +69,59 @@ export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState('resumen');
+
+  // datosCargadosOk: sólo pasa a true cuando cargarDatosDeFirestore terminó
+  // con éxito (sea porque encontró el documento del usuario, o porque creó
+  // uno nuevo). Es el guardián que evita que el autosave escriba en la nube
+  // antes de tener la certeza de qué había ahí realmente.
+  const [datosCargadosOk, setDatosCargadosOk] = useState(false);
+  // loadError: la carga inicial (o un reintento) falló. Mientras esté en
+  // true, la app no debe permitir edición normal, porque cualquier cambio
+  // dispararía un guardado que pisaría la nube con el estado default vacío.
+  const [loadError, setLoadError] = useState(false);
   
   // Toasts
   const [toasts, setToasts] = useState([]);
-  
-  const showToast = (message, type = 'success') => {
+
+  // Indica si el último intento de guardado en la nube falló después de agotar
+  // los reintentos. Se usa para mostrar un aviso persistente (no solo un toast
+  // que desaparece) mientras el problema no se resuelva.
+  const [syncError, setSyncError] = useState(false);
+
+  const showToast = (message, type = 'success', duration = 3000) => {
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
+    }, duration);
   };
 
+  // Referencia usada por getNewId para evitar que dos IDs generados en la
+  // misma pestaña dentro del mismo milisegundo colisionen (ver más abajo).
+  const idSeqRef = useRef(0);
+
+  // Guarda el timestamp exacto de nuestro último guardado propio en
+  // Firestore (autosave o creación inicial del documento). El listener en
+  // tiempo real (más abajo) lo usa para reconocer "esto es el eco de mi
+  // propia escritura" y no reaplicarlo, evitando pisar ediciones más nuevas
+  // que el usuario haya hecho localmente mientras ese guardado viajaba.
+  const lastWrittenTimestampRef = useRef(null);
+
   const getNewId = () => {
-    const nextId = idCounter;
-    setIdCounter(idCounter + 1);
-    return nextId;
+    // ALTO (antes): getNewId devolvía un contador secuencial local
+    // (idCounter: 1, 2, 3...). Si el mismo usuario tenía dos pestañas o
+    // dispositivos abiertos, cada uno partía del mismo valor y podía generar
+    // el mismo ID para dos pedidos/compras/productos distintos. Al guardar,
+    // sólo sobrevivía uno de los dos (el otro quedaba "fantasma": referenciado
+    // en un lado pero pisado en la nube).
+    //
+    // Ahora: combinamos el timestamp actual (ms) con un contador local que
+    // rota en cada llamada, para lograr un ID prácticamente único por
+    // pestaña/dispositivo sin necesitar coordinación con el servidor. Se
+    // mantiene como number (no string) porque el resto del código hace
+    // parseInt(id, 10) en varios lugares (ej. selects de "pedido destino").
+    idSeqRef.current = (idSeqRef.current + 1) % 1000;
+    return Date.now() * 1000 + idSeqRef.current;
   };
 
   const loginWithGoogle = async () => {
@@ -134,6 +171,11 @@ export const AppProvider = ({ children }) => {
           ultimaActualizacion: new Date().toISOString()
         };
         await setDoc(docRef, dataPayload);
+        // Igual que en el autosave: registramos este timestamp como "propio"
+        // para que, cuando el listener en tiempo real reciba la confirmación
+        // de este mismo documento recién creado, lo reconozca como un eco y
+        // no muestre el aviso de "datos actualizados desde otra sesión".
+        lastWrittenTimestampRef.current = dataPayload.ultimaActualizacion;
         setPedidos(dataPayload.pedidos);
         setCfg(dataPayload.config);
         setCompras(dataPayload.compras);
@@ -142,10 +184,38 @@ export const AppProvider = ({ children }) => {
         setEmpresa(dataPayload.empresa);
         setIdCounter(Number(dataPayload.counter));
       }
+
+      // CRÍTICO: sólo acá, tras confirmar que sabemos qué hay realmente en la
+      // nube (documento existente cargado, o uno nuevo recién creado), es
+      // seguro dejar que el autosave empiece a escribir. Si esto no se marca,
+      // el efecto de autosave se mantiene bloqueado.
+      setLoadError(false);
+      setDatosCargadosOk(true);
     } catch (e) {
       console.error("Error al cargar datos de Firestore:", e);
-      showToast('Error al cargar datos de Firebase.', 'error');
+
+      // CRÍTICO: a propósito NO marcamos datosCargadosOk como true acá.
+      // pedidos/compras/biblioteca/etc. siguen en sus valores default
+      // (arrays vacíos) porque la carga falló. Si el autosave corriera
+      // igual, el próximo guardado pisaría el documento completo en la nube
+      // con ese estado vacío, borrando todo el historial real del usuario
+      // por lo que puede ser un simple corte de red momentáneo.
+      setLoadError(true);
+      showToast(
+        '⚠ No se pudieron cargar tus datos desde la nube. No seguimos para evitar sobrescribir tu información — probá reintentar.',
+        'error',
+        10000
+      );
     }
+  };
+
+  // Permite reintentar la carga manualmente (botón "Reintentar" en la
+  // pantalla de error) sin tener que recargar toda la página.
+  const reintentarCargaDatos = async () => {
+    if (!user) return;
+    setLoading(true);
+    await cargarDatosDeFirestore(user.uid);
+    setLoading(false);
   };
 
   // Initial load from Firebase
@@ -171,24 +241,184 @@ export const AppProvider = ({ children }) => {
   }, [cfg?.palette]);
 
   // Auto-save to Firebase
+  // IMPORTANTE: antes, si setDoc fallaba (sin conexión, cuota, tamaño de
+  // documento excedido, etc.) el error solo se logueaba en consola. La UI ya
+  // había cambiado localmente, así que el usuario creía que todo estaba
+  // guardado y podía perder ese trabajo al recargar o cambiar de dispositivo.
+  // Ahora: se reintenta un par de veces con backoff, y si sigue fallando se
+  // avisa de forma visible y persistente (toast largo + bandera syncError)
+  // hasta que un guardado posterior tenga éxito.
+  //
+  // MEDIO (nuevo): antes se disparaba un guardado por cada cambio de estado,
+  // incluyendo cada tecla escrita en un campo de texto (nota, descripción,
+  // etc.). Eso multiplicaba las escrituras a Firestore y ampliaba la ventana
+  // de una posible condición de carrera entre pestañas/dispositivos. Ahora
+  // se espera un breve silencio (debounce de 800ms sin cambios) antes de
+  // guardar.
+  const debounceTimeoutRef = useRef(null);
+  const saveRetryTimeoutRef = useRef(null);
+
   useEffect(() => {
-    if (loading || !user) return;
+    // Además de loading/user, exigimos datosCargadosOk: si la carga inicial
+    // falló (o todavía no terminó), NO se debe guardar nada — guardar acá
+    // significaría pisar la nube con el estado default vacío. Ver
+    // cargarDatosDeFirestore para el detalle de por qué esto es crítico.
+    if (loading || !user || !datosCargadosOk) return;
 
-    const dataPayload = {
-      pedidos,
-      config: cfg,
-      compras,
-      biblioteca,
-      clientes,
-      empresa,
-      counter: idCounter,
-      ultimaActualizacion: new Date().toISOString()
+    let cancelado = false;
+
+    // Cualquier cambio nuevo cancela el debounce y los reintentos pendientes
+    // de la ronda anterior: el próximo guardado ya va a mandar la versión
+    // más actualizada de todo, no tiene sentido seguir reintentando la vieja.
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+    if (saveRetryTimeoutRef.current) {
+      clearTimeout(saveRetryTimeoutRef.current);
+      saveRetryTimeoutRef.current = null;
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      if (cancelado) return;
+
+      const timestamp = new Date().toISOString();
+      const dataPayload = {
+        pedidos,
+        config: cfg,
+        compras,
+        biblioteca,
+        clientes,
+        empresa,
+        counter: idCounter,
+        ultimaActualizacion: timestamp
+      };
+
+      const intentarGuardar = (intento = 0) => {
+        // Se guarda ANTES de escribir: así, en cuanto llegue la confirmación
+        // por el listener en tiempo real, ya sabemos reconocer que es este
+        // mismo guardado y no un cambio remoto genuino.
+        lastWrittenTimestampRef.current = timestamp;
+
+        setDoc(doc(db, "users", user.uid), dataPayload, { merge: true })
+          .then(() => {
+            if (cancelado) return;
+            // Guardado exitoso: si veníamos de un error, lo limpiamos.
+            setSyncError(prevError => {
+              if (prevError) {
+                showToast('✓ Conexión con la nube restablecida. Datos guardados.', 'success');
+              }
+              return false;
+            });
+          })
+          .catch(e => {
+            console.error("Error al guardar en Firebase:", e);
+            if (cancelado) return;
+
+            if (intento < 2) {
+              // Reintenta hasta 2 veces antes de molestar al usuario (fallos transitorios de red)
+              saveRetryTimeoutRef.current = setTimeout(() => {
+                if (!cancelado) intentarGuardar(intento + 1);
+              }, 1500 * (intento + 1));
+              return;
+            }
+
+            // Se agotaron los reintentos: esto sí puede significar pérdida de datos.
+            setSyncError(true);
+            showToast(
+              '⚠ No se pudo guardar en la nube. Tus últimos cambios podrían perderse si recargás la página o cerrás la app. Revisá tu conexión.',
+              'error',
+              10000
+            );
+          });
+      };
+
+      intentarGuardar();
+    }, 800);
+
+    // Si las dependencias cambian de nuevo (nuevo cambio del usuario) antes de
+    // que se dispare el guardado debounced, o antes de que termine un
+    // reintento pendiente, cancelamos ambos: el próximo efecto ya va a mandar
+    // la versión más actualizada de los datos.
+    return () => {
+      cancelado = true;
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
+      if (saveRetryTimeoutRef.current) {
+        clearTimeout(saveRetryTimeoutRef.current);
+        saveRetryTimeoutRef.current = null;
+      }
     };
+  }, [pedidos, cfg, compras, biblioteca, clientes, empresa, idCounter, user, loading, datosCargadosOk]);
 
-    setDoc(doc(db, "users", user.uid), dataPayload, { merge: true }).catch(e => {
-      console.error("Error al guardar en Firebase:", e);
-    });
-  }, [pedidos, cfg, compras, biblioteca, clientes, empresa, idCounter, user, loading]);
+  // ALTO: sincronización en tiempo real entre pestañas/dispositivos.
+  // Antes, cada pestaña sólo leía la nube UNA vez al iniciar sesión (getDoc).
+  // Si el mismo usuario tenía dos pestañas o dispositivos abiertos, cada uno
+  // trabajaba a ciegas sobre su propia copia local, y cada guardado
+  // reemplazaba el documento entero — así que la última pestaña en escribir
+  // ganaba y borraba silenciosamente los cambios de la otra, sin importar
+  // cuál era realmente más reciente en el tiempo real.
+  //
+  // Ahora nos suscribimos con onSnapshot: en cuanto OTRA pestaña/dispositivo
+  // guarda un cambio, esta pestaña lo recibe casi al instante y actualiza su
+  // estado local para reflejarlo. Esto reduce mucho la ventana en la que una
+  // pestaña desactualizada podría pisar con datos viejos el trabajo hecho en
+  // otra (de "toda la sesión" pasa a ser, en el peor caso, la fracción de
+  // segundo del debounce + latencia de red).
+  //
+  // OJO — esto NO elimina la condición de carrera por completo: si dos
+  // pestañas guardan casi en el mismo instante, antes de que cualquiera vea
+  // el cambio de la otra, seguimos con un único documento y "gana la última
+  // escritura". La solución completa (sin ese residual) requiere pasar de
+  // "un documento con arrays" a subcolecciones por tipo de dato en Firestore,
+  // que es un cambio de arquitectura más grande, pendiente aparte.
+  useEffect(() => {
+    if (!user || !datosCargadosOk) return;
+
+    const docRef = doc(db, "users", user.uid);
+
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snapshot) => {
+        // Ignoramos los ecos de nuestras propias escrituras todavía no
+        // confirmadas por el servidor: esos datos ya los tenemos aplicados
+        // localmente, reaplicarlos no aporta nada.
+        if (snapshot.metadata.hasPendingWrites) return;
+        if (!snapshot.exists()) return;
+
+        const cloud = snapshot.data();
+
+        // Si este snapshot confirma nuestro propio último guardado, no hace
+        // falta reaplicarlo — y evita pisar ediciones más nuevas que el
+        // usuario haya hecho localmente mientras ese guardado viajaba.
+        if (
+          cloud.ultimaActualizacion &&
+          cloud.ultimaActualizacion === lastWrittenTimestampRef.current
+        ) {
+          return;
+        }
+
+        // Cambio confirmado que no se originó en esta pestaña: viene de otra
+        // pestaña o dispositivo del mismo usuario. Sincronizamos.
+        setPedidos(cloud.pedidos ?? []);
+        setCfg(cloud.config ?? defaultCfg);
+        setCompras(cloud.compras ?? []);
+        setBiblioteca(cloud.biblioteca ?? []);
+        setClientes(cloud.clientes ?? []);
+        setEmpresa(cloud.empresa ?? defaultEmpresa);
+        showToast('↺ Datos actualizados desde otra sesión.', 'info');
+      },
+      (error) => {
+        // No bloqueamos la app por esto (ya tenemos datos cargados): sólo
+        // informamos que dejamos de recibir actualizaciones en tiempo real.
+        console.error("Error en la suscripción en tiempo real:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, datosCargadosOk]);
 
   // Set favicon to empresa.logo when available, otherwise revert to default
   useEffect(() => {
@@ -249,6 +479,7 @@ export const AppProvider = ({ children }) => {
       
       // Upload to Firebase immediately if logged in
       if (user) {
+        const restoreTimestamp = new Date().toISOString();
         await setDoc(doc(db, "users", user.uid), {
           pedidos: data.pedidos || [],
           config: data.cfg || defaultCfg,
@@ -257,8 +488,12 @@ export const AppProvider = ({ children }) => {
           clientes: data.clientes || [],
           counter: nextCounter,
           empresa: data.empresa || defaultEmpresa,
-          ultimaActualizacion: new Date().toISOString()
+          ultimaActualizacion: restoreTimestamp
         }, { merge: true });
+        // Igual que en el autosave: evita que el listener en tiempo real
+        // confunda la confirmación de este mismo guardado con un cambio
+        // hecho desde otra pestaña/dispositivo.
+        lastWrittenTimestampRef.current = restoreTimestamp;
       }
       
       showToast('✓ Backup restaurado correctamente.');
@@ -287,12 +522,16 @@ export const AppProvider = ({ children }) => {
     getNewId,
     user,
     loading,
+    loadError,
+    datosCargadosOk,
+    reintentarCargaDatos,
     loginWithGoogle,
     logout,
     activePage,
     setActivePage,
     toasts,
     showToast,
+    syncError,
     exportarBackupData,
     restaurarBackupData
   };

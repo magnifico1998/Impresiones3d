@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { comprimirImagen } from '../../utils/imageCompress';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const { biblioteca, setBiblioteca, showToast } = useApp();
@@ -8,6 +9,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [precio, setPrecio] = useState('');
   const [imagen, setImagen] = useState('');
   const [imagenPreview, setImagenPreview] = useState('');
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
 
@@ -26,17 +28,21 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
 
   if (!isOpen || editId === null) return null;
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      setImagen(result);
-      setImagenPreview(result);
-    };
-    reader.readAsDataURL(file);
+    setSubiendoImagen(true);
+    try {
+      const { dataUrl } = await comprimirImagen(file);
+      setImagen(dataUrl);
+      setImagenPreview(dataUrl);
+    } catch (err) {
+      showToast(err.message || 'No se pudo procesar la imagen.', 'error');
+    } finally {
+      setSubiendoImagen(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
   const handleSave = () => {
@@ -84,8 +90,13 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         />
 
         <label className="fl">Imagen del producto</label>
-        <input type="file" accept="image/*" onChange={handleImageChange} />
-        {imagenPreview && (
+        <input type="file" accept="image/*" onChange={handleImageChange} disabled={subiendoImagen} />
+        {subiendoImagen && (
+          <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+            Optimizando imagen...
+          </div>
+        )}
+        {imagenPreview && !subiendoImagen && (
           <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
           </div>
