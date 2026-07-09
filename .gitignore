@@ -2,38 +2,11 @@
 # Dependencies
 node_modules/
 
-# Environment variables
+# Editors
+.vscode/
+
+# Environment
 .env
 .env.local
-.env.*
-
-# Logs
-*.log
-
-# IDE specific
-.vscode/
-.idea/
-
-# Python specific
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-
-# Build outputs
-build/
-dist/
-*.egg-info/
-.coverage
-htmlcov/
-.coverage.*
-.nyc_output
-istanbul/
-.jest/
+*.env.*
 ```
