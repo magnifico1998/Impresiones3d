@@ -24,7 +24,15 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setImagenPreview(prod.imagen || '');
       }
     }
-  }, [isOpen, editId, biblioteca]);
+    // Sólo se reinicializa cuando el modal se abre o cambia el producto a
+    // editar — a propósito NO depende de `biblioteca`. Antes sí dependía, y
+    // como ahora `biblioteca` puede cambiar de referencia por la
+    // sincronización en tiempo real con otras pestañas (o incluso por un
+    // eco mal reconocido de nuestra propia escritura), cada cambio remoto
+    // reiniciaba este formulario a mitad de edición — por ejemplo, borrando
+    // una imagen recién elegida antes de que el usuario llegara a guardar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editId]);
 
   if (!isOpen || editId === null) return null;
 

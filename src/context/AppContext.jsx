@@ -157,6 +157,17 @@ export const AppProvider = ({ children }) => {
         setClientes(cloud.clientes ?? []);
         setEmpresa(cloud.empresa ?? defaultEmpresa);
         setIdCounter(Number(cloud.counter ?? 1));
+        // BUG encontrado: esta rama (documento ya existente — el caso normal
+        // en cada inicio de sesión) nunca registraba el timestamp acá. Como
+        // resultado, apenas se conectaba el listener en tiempo real, recibía
+        // la confirmación de "esto es lo que ya hay en la nube" pero no tenía
+        // nada guardado contra qué compararlo — lo trataba como si viniera de
+        // OTRA sesión, mostraba el aviso "Datos actualizados desde otra
+        // sesión" y reemplazaba biblioteca/pedidos/etc. por arrays nuevos
+        // (mismo contenido, pero referencia distinta), lo que a su vez
+        // reiniciaba cualquier modal abierto que dependiera de esos arrays
+        // (por ejemplo, borrando una imagen recién elegida antes de guardar).
+        lastWrittenTimestampRef.current = cloud.ultimaActualizacion || null;
         console.log("Datos cargados desde Firebase exitosamente.");
       } else {
         console.log("Usuario nuevo. Inicializando datos en Firebase...");
@@ -408,6 +419,9 @@ export const AppProvider = ({ children }) => {
         setBiblioteca(cloud.biblioteca ?? []);
         setClientes(cloud.clientes ?? []);
         setEmpresa(cloud.empresa ?? defaultEmpresa);
+        // Registramos este timestamp como "ya aplicado" para no procesar de
+        // nuevo la misma entrega si Firestore la reenvía (ej. reconexión).
+        lastWrittenTimestampRef.current = cloud.ultimaActualizacion || null;
         showToast('↺ Datos actualizados desde otra sesión.', 'info');
       },
       (error) => {

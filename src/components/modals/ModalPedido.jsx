@@ -38,7 +38,11 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
         });
       }
     }
-  }, [isOpen, editId, pedidos]);
+    // A propósito sin `pedidos` en las dependencias: ver misma nota que en
+    // ModalCliente.jsx — evita pisar el formulario (incluida la nota general,
+    // que puede ser un texto largo) a mitad de edición.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editId]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;

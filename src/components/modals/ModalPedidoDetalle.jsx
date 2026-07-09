@@ -31,7 +31,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     } else {
       setDraft(null);
     }
-  }, [isOpen, pedidoId, pedidos]);
+    // A propósito sin `pedidos` en las dependencias: este es el modal donde
+    // más tiempo pasa el usuario editando (piezas, versiones, descuentos,
+    // envío, notas). Si dependiera de `pedidos`, cualquier sincronización en
+    // tiempo real con otra pestaña/dispositivo reiniciaría todo el borrador
+    // a mitad de edición, perdiendo cambios no guardados todavía. Sólo debe
+    // reinicializar al abrir el modal o cambiar de pedido.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, pedidoId]);
 
   if (!isOpen || !draft) return null;
 
