@@ -471,7 +471,7 @@ export const AppProvider = ({ children }) => {
         if (
           cloud.ultimaActualizacion &&
           pendingWriteTimestampRef.current &&
-          cloud.ultimaActualizacion !== pendingWriteTimestampRef.current
+          cloud.ultimaActualizacion <= pendingWriteTimestampRef.current
         ) {
           // Snapshot intermedio: no es ni el último confirmado ni el pending
           // actual, lo ignoramos para evitar falsos positivos.
