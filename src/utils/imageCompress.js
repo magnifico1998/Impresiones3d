@@ -1,3 +1,6 @@
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
+
 // Comprime y redimensiona imágenes en el navegador (canvas) antes de
 // convertirlas a base64 para guardarlas en Firestore.
 //
@@ -51,14 +54,14 @@ const dibujarEnCanvas = (img, width, height) => {
  * @param {Object} opts
  * @param {number} opts.maxWidth  Ancho máximo en px (default 700)
  * @param {number} opts.maxHeight Alto máximo en px (default 700)
- * @param {number} opts.maxBytes  Tamaño máximo objetivo del resultado en bytes (default ~180KB)
+ * @param {number} opts.maxBytes  Tamaño máximo objetivo del resultado en bytes (default ~90KB)
  * @returns {Promise<{dataUrl: string, bytes: number, originalBytes: number}>}
  */
 export const comprimirImagen = async (file, opts = {}) => {
   const {
     maxWidth = 700,
     maxHeight = 700,
-    maxBytes = 180 * 1024
+    maxBytes = 90 * 1024
   } = opts;
 
   if (!file) {
@@ -124,6 +127,22 @@ export const comprimirImagen = async (file, opts = {}) => {
     bytes: finalBytes,
     originalBytes: file.size
   };
+};
+
+export const subirImagenAFirebase = async (dataUrl, { userId, fileName = 'producto.jpg' } = {}) => {
+  if (!dataUrl) throw new Error('No hay imagen para subir.');
+  if (!userId) throw new Error('Necesitás iniciar sesión para guardar la imagen en la nube.');
+
+  const safeName = (fileName || 'producto.jpg')
+    .toLowerCase()
+    .replace(/[^a-z0-9.\-]/g, '_')
+    .replace(/_+/g, '_');
+
+  const storagePath = `users/${userId}/biblioteca/${Date.now()}-${safeName}`;
+  const imageRef = ref(storage, storagePath);
+
+  await uploadString(imageRef, dataUrl, 'data_url');
+  return getDownloadURL(imageRef);
 };
 
 export default comprimirImagen;

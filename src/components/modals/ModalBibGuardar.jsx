@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { comprimirImagen } from '../../utils/imageCompress';
+import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) {
-  const { biblioteca, setBiblioteca, getNewId, showToast } = useApp();
+  const { biblioteca, setBiblioteca, getNewId, showToast, user } = useApp();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState('');
@@ -33,9 +33,17 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
 
     setSubiendoImagen(true);
     try {
-      const { dataUrl } = await comprimirImagen(file);
-      setImagen(dataUrl);
-      setImagenPreview(dataUrl);
+      const { dataUrl } = await comprimirImagen(file, {
+        maxWidth: 640,
+        maxHeight: 640,
+        maxBytes: 90 * 1024
+      });
+      const url = await subirImagenAFirebase(dataUrl, {
+        userId: user?.uid,
+        fileName: file.name
+      });
+      setImagen(url);
+      setImagenPreview(url);
     } catch (err) {
       showToast(err.message || 'No se pudo procesar la imagen.', 'error');
     } finally {
@@ -48,7 +56,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const nameTrimmed = nombre.trim();
     if (!nameTrimmed) {
       showToast('Ingresá un nombre para el producto.', 'error');
@@ -56,6 +64,19 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
     }
 
     const p = presupuestoActual;
+    let imagenFinal = imagen || null;
+
+    if (imagenFinal && imagenFinal.startsWith('data:')) {
+      try {
+        imagenFinal = await subirImagenAFirebase(imagenFinal, {
+          userId: user?.uid,
+          fileName: `${nameTrimmed}.jpg`
+        });
+      } catch (err) {
+        showToast(err.message || 'No se pudo subir la imagen.', 'error');
+        return;
+      }
+    }
 
     const snap = {
       id: getNewId(),
@@ -87,7 +108,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
       materiales: p.materiales || null,
       multiMat: p.multiMat || false,
       matData: p.matData || null,
-      imagen: imagen || null
+      imagen: imagenFinal || null
     };
 
     const idx = biblioteca.findIndex(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());

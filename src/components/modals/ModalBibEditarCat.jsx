@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { comprimirImagen } from '../../utils/imageCompress';
+import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
-  const { biblioteca, setBiblioteca, showToast } = useApp();
+  const { biblioteca, setBiblioteca, showToast, user } = useApp();
   const [categoria, setCategoria] = useState('');
   const [productName, setProductName] = useState('');
   const [precio, setPrecio] = useState('');
@@ -42,9 +42,17 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
 
     setSubiendoImagen(true);
     try {
-      const { dataUrl } = await comprimirImagen(file);
-      setImagen(dataUrl);
-      setImagenPreview(dataUrl);
+      const { dataUrl } = await comprimirImagen(file, {
+        maxWidth: 640,
+        maxHeight: 640,
+        maxBytes: 90 * 1024
+      });
+      const url = await subirImagenAFirebase(dataUrl, {
+        userId: user?.uid,
+        fileName: file.name
+      });
+      setImagen(url);
+      setImagenPreview(url);
     } catch (err) {
       showToast(err.message || 'No se pudo procesar la imagen.', 'error');
     } finally {
@@ -53,11 +61,25 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const cleanCat = categoria.trim() || 'General';
     const cleanName = productName.trim() || 'Sin nombre';
     const cleanPrecio = parseFloat(precio) || 0;
-    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagen || p.imagen || '' } : p));
+
+    let imagenFinal = imagen || '';
+    if (imagenFinal && imagenFinal.startsWith('data:')) {
+      try {
+        imagenFinal = await subirImagenAFirebase(imagenFinal, {
+          userId: user?.uid,
+          fileName: `${cleanName}.jpg`
+        });
+      } catch (err) {
+        showToast(err.message || 'No se pudo subir la imagen.', 'error');
+        return;
+      }
+    }
+
+    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagenFinal || p.imagen || '' } : p));
     showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? '$' + Math.round(cleanPrecio).toLocaleString('es-AR') : 'sin precio'}`);
     onClose();
   };

@@ -96,6 +96,14 @@ export const AppProvider = ({ children }) => {
     }, duration);
   };
 
+  const estimatePayloadSize = (payload) => {
+    try {
+      return new TextEncoder().encode(JSON.stringify(payload)).length;
+    } catch {
+      return JSON.stringify(payload).length;
+    }
+  };
+
   // Referencia usada por getNewId para evitar que dos IDs generados en la
   // misma pestaña dentro del mismo milisegundo colisionen (ver más abajo).
   const idSeqRef = useRef(0);
@@ -350,6 +358,20 @@ export const AppProvider = ({ children }) => {
         counter: idCounter,
         ultimaActualizacion: timestamp
       };
+
+      const payloadSizeBytes = estimatePayloadSize(dataPayload);
+      const MAX_FIRESTORE_DOC_BYTES = 900 * 1024;
+
+      if (payloadSizeBytes > MAX_FIRESTORE_DOC_BYTES) {
+        console.error(`Documento demasiado grande para Firestore: ${Math.round(payloadSizeBytes / 1024)}KB`);
+        setSyncError(true);
+        showToast(
+          '⚠ No se pudo guardar en la nube porque los datos son demasiado grandes. Reducí el tamaño de las imágenes o borrá algunas fotos de la biblioteca.',
+          'error',
+          10000
+        );
+        return;
+      }
 
       const intentarGuardar = (intento = 0) => {
         // Se guarda ANTES de escribir: así, en cuanto llegue la confirmación
