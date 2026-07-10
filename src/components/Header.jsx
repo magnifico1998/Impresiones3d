@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function Header() {
-  const { user, logout, empresa, exportarBackupData, restaurarBackupData } = useApp();
+  const { user, logout, empresa, exportarBackupData, restaurarBackupData, syncError } = useApp();
 
   const handleImportarBackup = () => {
     const input = document.createElement('input');
@@ -79,6 +79,28 @@ export default function Header() {
               {empresa.nombre}
             </span>
           )}
+        </div>
+      )}
+
+      {syncError && (
+        <div
+          title="No se pudo guardar en la nube. Tus últimos cambios podrían perderse si recargás o cerrás la app."
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            marginLeft: '14px',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontFamily: 'var(--mono)',
+            background: 'var(--dangerDim)',
+            color: 'var(--danger)',
+            border: '1px solid rgba(248,113,113,.3)',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          ⚠ Sin guardar en la nube
         </div>
       )}
 

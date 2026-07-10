@@ -41,7 +41,10 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
         });
       }
     }
-  }, [isOpen, editId, compras]);
+    // A propósito sin `compras` en las dependencias: ver misma nota que en
+    // ModalCliente.jsx — evita pisar el formulario a mitad de edición.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editId]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;

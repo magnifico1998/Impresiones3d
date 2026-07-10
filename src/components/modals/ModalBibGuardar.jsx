@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) {
-  const { biblioteca, setBiblioteca, getNewId, showToast } = useApp();
+  const { biblioteca, setBiblioteca, getNewId, showToast, user } = useApp();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState('');
@@ -24,24 +25,38 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
     }
   }, [isOpen, presupuestoActual]);
 
-  const handleImageChange = (e) => {
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+
+  const handleImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      setImagen(result);
-      setImagenPreview(result);
-    };
-    reader.readAsDataURL(file);
+    setSubiendoImagen(true);
+    try {
+      const { dataUrl } = await comprimirImagen(file, {
+        maxWidth: 640,
+        maxHeight: 640,
+        maxBytes: 90 * 1024
+      });
+      const url = await subirImagenAFirebase(dataUrl, {
+        userId: user?.uid,
+        fileName: file.name
+      });
+      setImagen(url);
+      setImagenPreview(url);
+    } catch (err) {
+      showToast(err.message || 'No se pudo procesar la imagen.', 'error');
+    } finally {
+      setSubiendoImagen(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
   if (!isOpen || !presupuestoActual) return null;
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const nameTrimmed = nombre.trim();
     if (!nameTrimmed) {
       showToast('Ingresá un nombre para el producto.', 'error');
@@ -49,6 +64,19 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
     }
 
     const p = presupuestoActual;
+    let imagenFinal = imagen || null;
+
+    if (imagenFinal && imagenFinal.startsWith('data:')) {
+      try {
+        imagenFinal = await subirImagenAFirebase(imagenFinal, {
+          userId: user?.uid,
+          fileName: `${nameTrimmed}.jpg`
+        });
+      } catch (err) {
+        showToast(err.message || 'No se pudo subir la imagen.', 'error');
+        return;
+      }
+    }
 
     const snap = {
       id: getNewId(),
@@ -80,7 +108,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
       materiales: p.materiales || null,
       multiMat: p.multiMat || false,
       matData: p.matData || null,
-      imagen: imagen || null
+      imagen: imagenFinal || null
     };
 
     const idx = biblioteca.findIndex(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());
@@ -135,8 +163,13 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
         </datalist>
 
         <label className="fl">Imagen del producto</label>
-        <input type="file" accept="image/*" onChange={handleImageChange} />
-        {imagenPreview && (
+        <input type="file" accept="image/*" onChange={handleImageChange} disabled={subiendoImagen} />
+        {subiendoImagen && (
+          <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+            Optimizando imagen...
+          </div>
+        )}
+        {imagenPreview && !subiendoImagen && (
           <div style={{ marginTop: '8px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
             <div style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text2)' }}>Imagen lista para guardar</div>

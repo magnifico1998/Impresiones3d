@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
-  const { biblioteca, setBiblioteca, showToast } = useApp();
+  const { biblioteca, setBiblioteca, showToast, user } = useApp();
   const [categoria, setCategoria] = useState('');
   const [productName, setProductName] = useState('');
   const [precio, setPrecio] = useState('');
   const [imagen, setImagen] = useState('');
   const [imagenPreview, setImagenPreview] = useState('');
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
 
@@ -22,28 +24,70 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setImagenPreview(prod.imagen || '');
       }
     }
-  }, [isOpen, editId, biblioteca]);
+    // Sólo se reinicializa cuando el modal se abre o cambia el producto a
+    // editar — a propósito NO depende de `biblioteca`. Antes sí dependía, y
+    // como ahora `biblioteca` puede cambiar de referencia por la
+    // sincronización en tiempo real con otras pestañas (o incluso por un
+    // eco mal reconocido de nuestra propia escritura), cada cambio remoto
+    // reiniciaba este formulario a mitad de edición — por ejemplo, borrando
+    // una imagen recién elegida antes de que el usuario llegara a guardar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editId]);
 
   if (!isOpen || editId === null) return null;
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      setImagen(result);
-      setImagenPreview(result);
-    };
-    reader.readAsDataURL(file);
+    setSubiendoImagen(true);
+    try {
+      const { dataUrl } = await comprimirImagen(file, {
+        maxWidth: 640,
+        maxHeight: 640,
+        maxBytes: 90 * 1024
+      });
+      const url = await subirImagenAFirebase(dataUrl, {
+        userId: user?.uid,
+        fileName: file.name
+      });
+      setImagen(url);
+      setImagenPreview(url);
+    } catch (err) {
+      showToast(err.message || 'No se pudo procesar la imagen.', 'error');
+    } finally {
+      setSubiendoImagen(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const cleanCat = categoria.trim() || 'General';
     const cleanName = productName.trim() || 'Sin nombre';
     const cleanPrecio = parseFloat(precio) || 0;
-    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagen || p.imagen || '' } : p));
+
+    const prodAnterior = biblioteca.find(p => p.id === editId);
+    const imagenAnterior = prodAnterior?.imagen;
+
+    let imagenFinal = imagen || '';
+    
+    if (imagenAnterior && imagenAnterior !== imagenFinal && imagenAnterior.includes('firebasestorage')) {
+      await borrarImagenDeFirebase(imagenAnterior);
+    }
+
+    if (imagenFinal && imagenFinal.startsWith('data:')) {
+      try {
+        imagenFinal = await subirImagenAFirebase(imagenFinal, {
+          userId: user?.uid,
+          fileName: `${cleanName}.jpg`
+        });
+      } catch (err) {
+        showToast(err.message || 'No se pudo subir la imagen.', 'error');
+        return;
+      }
+    }
+
+    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagenFinal || p.imagen || '' } : p));
     showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? '$' + Math.round(cleanPrecio).toLocaleString('es-AR') : 'sin precio'}`);
     onClose();
   };
@@ -84,10 +128,28 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         />
 
         <label className="fl">Imagen del producto</label>
-        <input type="file" accept="image/*" onChange={handleImageChange} />
-        {imagenPreview && (
-          <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <input type="file" accept="image/*" onChange={handleImageChange} disabled={subiendoImagen} />
+        {subiendoImagen && (
+          <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
+            Optimizando imagen...
+          </div>
+        )}
+        {imagenPreview && !subiendoImagen && (
+          <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
+            <button
+              className="btn btn-danger btn-sm"
+              style={{ marginTop: '8px', marginBottom: '8px', fontSize: '11px' }}
+              onClick={async () => {
+                if (window.confirm('¿Borrar esta imagen?')) {
+                  await borrarImagenDeFirebase(imagen);
+                  setImagen('');
+                  setImagenPreview('');
+                }
+              }}
+            >
+              Borrar imagen
+            </button>
           </div>
         )}
         <datalist id="bib-edit-cats-list-modal">

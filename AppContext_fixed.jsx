@@ -96,14 +96,6 @@ export const AppProvider = ({ children }) => {
     }, duration);
   };
 
-  const estimatePayloadSize = (payload) => {
-    try {
-      return new TextEncoder().encode(JSON.stringify(payload)).length;
-    } catch {
-      return JSON.stringify(payload).length;
-    }
-  };
-
   // Referencia usada por getNewId para evitar que dos IDs generados en la
   // misma pestaña dentro del mismo milisegundo colisionen (ver más abajo).
   const idSeqRef = useRef(0);
@@ -172,17 +164,6 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Limpia imágenes base64 antiguas de la biblioteca (migración automática)
-  const limpiarImagenesBase64 = (biblioteca) => {
-    return biblioteca.map(prod => {
-      if (prod.imagen && prod.imagen.startsWith('data:')) {
-        console.log(`Migrando producto: ${prod.nombre} - removiendo imagen base64`);
-        return { ...prod, imagen: null };
-      }
-      return prod;
-    });
-  };
-
   // Load data from Firestore
   const cargarDatosDeFirestore = async (uid) => {
     try {
@@ -192,13 +173,10 @@ export const AppProvider = ({ children }) => {
 
       if (docSnap.exists()) {
         const cloud = docSnap.data();
-        const bibliotecaLimpia = limpiarImagenesBase64(cloud.biblioteca ?? []);
-        const huboMigracion = (cloud.biblioteca ?? []).some(p => p.imagen && p.imagen.startsWith('data:'));
-        
         setPedidos(cloud.pedidos ?? []);
         setCfg(cloud.config ?? defaultCfg);
         setCompras(cloud.compras ?? []);
-        setBiblioteca(bibliotecaLimpia);
+        setBiblioteca(cloud.biblioteca ?? []);
         setClientes(cloud.clientes ?? []);
         setEmpresa(cloud.empresa ?? defaultEmpresa);
         setIdCounter(Number(cloud.counter ?? 1));
@@ -216,14 +194,6 @@ export const AppProvider = ({ children }) => {
         // También inicializamos pendingWriteTimestampRef para evitar falsos
         // positivos durante la carga inicial.
         pendingWriteTimestampRef.current = null;
-        
-        // Si hubo migración de imágenes base64, lo registramos para que el
-        // próximo autosave suba la versión limpia a Firestore.
-        if (huboMigracion) {
-          skipNextAutosaveRef.current = false;
-          console.log("Migración detectada: las imágenes base64 serán removidas en el próximo guardado.");
-        }
-        
         console.log("Datos cargados desde Firebase exitosamente.");
       } else {
         console.log("Usuario nuevo. Inicializando datos en Firebase...");
@@ -381,25 +351,6 @@ export const AppProvider = ({ children }) => {
         ultimaActualizacion: timestamp
       };
 
-      const payloadSizeBytes = estimatePayloadSize(dataPayload);
-      const MAX_FIRESTORE_DOC_BYTES = 950 * 1024;
-
-      if (payloadSizeBytes > MAX_FIRESTORE_DOC_BYTES) {
-        console.error(`Documento demasiado grande para Firestore: ${Math.round(payloadSizeBytes / 1024)}KB`);
-        console.log('Tamaño de cada sección:');
-        console.log(`  - pedidos: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.pedidos)).length / 1024)}KB`);
-        console.log(`  - biblioteca: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.biblioteca)).length / 1024)}KB`);
-        console.log(`  - compras: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.compras)).length / 1024)}KB`);
-        console.log(`  - empresa: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.empresa)).length / 1024)}KB`);
-        setSyncError(true);
-        showToast(
-          '⚠ No se pudo guardar en la nube porque los datos son demasiado grandes. Si la biblioteca tiene muchos productos, intenta borrar algunos de los más antiguos.',
-          'error',
-          10000
-        );
-        return;
-      }
-
       const intentarGuardar = (intento = 0) => {
         // Se guarda ANTES de escribir: así, en cuanto llegue la confirmación
         // por el listener en tiempo real, ya sabemos reconocer que es este
@@ -520,7 +471,7 @@ export const AppProvider = ({ children }) => {
         if (
           cloud.ultimaActualizacion &&
           pendingWriteTimestampRef.current &&
-          cloud.ultimaActualizacion <= pendingWriteTimestampRef.current
+          cloud.ultimaActualizacion !== pendingWriteTimestampRef.current
         ) {
           // Snapshot intermedio: no es ni el último confirmado ni el pending
           // actual, lo ignoramos para evitar falsos positivos.

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
+import { borrarImagenDeFirebase } from '../utils/imageCompress';
 
 /**
  * Recalcula costos de un producto manteniendo estructura física pero actualizando precios
@@ -348,8 +349,13 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
   const handleClearSelection = () => setSelectedIds(new Set());
 
-  const handleDelete = (id, name) => {
+  const handleDelete = async (id, name) => {
     if (window.confirm(`¿Eliminar "${name}" de la biblioteca?`)) {
+      const prod = biblioteca.find(p => p.id === id);
+      if (prod?.imagen) {
+        await borrarImagenDeFirebase(prod.imagen);
+      }
+      
       setBiblioteca(prev => prev.filter(p => p.id !== id));
       setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
       showToast('Producto eliminado de biblioteca.', 'info');

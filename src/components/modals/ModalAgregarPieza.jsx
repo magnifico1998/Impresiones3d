@@ -20,7 +20,13 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
         setPedidoId(activePedidos[0].id.toString());
       }
     }
-  }, [isOpen, presupuestoActual, pedidos, defaultPedidoId]);
+    // A propósito sin `pedidos` en las dependencias: sólo debe reinicializar
+    // el nombre sugerido y el pedido seleccionado al abrir el modal (o si
+    // cambia el presupuesto/pedido por defecto), no cada vez que `pedidos`
+    // cambia de referencia por la sincronización en tiempo real — si no, se
+    // pisaría el nombre que el usuario ya haya empezado a editar a mano.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, presupuestoActual, defaultPedidoId]);
 
   if (!isOpen || !presupuestoActual) return null;
 

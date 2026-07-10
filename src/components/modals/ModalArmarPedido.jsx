@@ -49,7 +49,13 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
       setEnvio('');
       setMontoFinalTocado(false);
     }
-  }, [isOpen, selectedProdIds, fixedOrderId, biblioteca]);
+    // A propósito sin `biblioteca` en las dependencias: reinicializar acá
+    // significa pisar cantidades/precios/versiones que el usuario ya haya
+    // ajustado a mano en este modal, además del cliente/descripción/fechas
+    // ya tipeados. Sólo debe volver a armarse cuando el modal se abre o
+    // cambia qué productos están seleccionados.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, selectedProdIds, fixedOrderId]);
 
   // Recalculate estimated total when items change
   const totalEstimado = armarPedidoItems.reduce((s, it) => s + (it.cantidad * it.precioEstimado), 0);

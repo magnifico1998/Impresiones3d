@@ -44,7 +44,12 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
         });
       }
     }
-  }, [isOpen, editId, clientes]);
+    // A propósito sin `clientes` en las dependencias: sólo debe reinicializar
+    // el formulario al abrir el modal o cambiar qué cliente se edita, no en
+    // cada cambio de `clientes` por sincronización en tiempo real — si no, se
+    // pisaría lo que el usuario ya esté escribiendo a mitad de edición.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, editId]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
