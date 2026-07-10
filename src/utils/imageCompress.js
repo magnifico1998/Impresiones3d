@@ -2,21 +2,14 @@ import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storag
 import { storage } from '../firebase';
 
 // Comprime y redimensiona imágenes en el navegador (canvas) antes de
-// convertirlas a base64 para guardarlas en Firestore.
+// convertirlas a base64 para subirlas a Firebase Storage.
 //
 // Por qué existe esto:
-// Firestore tiene un límite DURO de 1 MiB por documento. Este proyecto guarda
-// todo (pedidos, compras, biblioteca, clientes, empresa) en UN SOLO documento
-// por usuario, y las imágenes (logo, fotos de producto) se guardan como
-// base64 dentro de ese mismo documento. Una foto de celular sin comprimir
-// (3-8MB) ya supera el límite ella sola, y como el base64 pesa ~33% más que
-// el binario original, el margen es todavía menor. Si eso pasa, el guardado
-// en la nube empieza a fallar para TODO (no solo para esa imagen), afectando
-// pedidos y compras nuevos aunque no tengan nada que ver con la imagen.
-//
-// Esta función reduce cada imagen a un tamaño acotado (por defecto apunta a
-// quedar bajo ~180KB) para dejar margen para varias imágenes dentro del
-// mismo documento de 1 MiB.
+// Firebase Storage tiene un límite de 5GB por archivo, pero queremos mantener
+// las imágenes pequeñas para que la app sea más rápida y el ancho de banda
+// sea eficiente. Esta función comprime cada imagen (logos y fotos de producto)
+// a un tamaño acotado (por defecto apunta a quedar bajo ~90KB) para dejar
+// la app responsiva y mantener Storage optimizado.
 
 const dataUrlToBytes = (dataUrl) => {
   const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);

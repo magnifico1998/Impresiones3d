@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { comprimirImagen } from '../utils/imageCompress';
+import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../utils/imageCompress';
 
 export default function EmpresaPage() {
-  const { empresa, setEmpresa, showToast } = useApp();
+  const { empresa, setEmpresa, showToast, user } = useApp();
   const fileInputRef = useRef(null);
 
   const handleChange = (e) => {
@@ -22,17 +22,20 @@ export default function EmpresaPage() {
 
     setSubiendoLogo(true);
     try {
-      // Logo un poco más chico que las fotos de producto: se muestra siempre
-      // en miniatura (header y favicon), no hace falta resolución alta.
       const { dataUrl, bytes, originalBytes } = await comprimirImagen(file, {
         maxWidth: 300,
         maxHeight: 300,
         maxBytes: 80 * 1024
       });
 
+      const logoUrl = await subirImagenAFirebase(dataUrl, {
+        userId: user?.uid,
+        fileName: `logo-${empresa.nombre || 'empresa'}.jpg`
+      });
+
       setEmpresa(prev => ({
         ...prev,
-        logo: dataUrl
+        logo: logoUrl
       }));
 
       const reduccion = originalBytes > 0 ? Math.round((1 - bytes / originalBytes) * 100) : 0;
@@ -49,7 +52,10 @@ export default function EmpresaPage() {
     }
   };
 
-  const handleRemoveLogo = () => {
+  const handleRemoveLogo = async () => {
+    if (empresa.logo) {
+      await borrarImagenDeFirebase(empresa.logo);
+    }
     setEmpresa(prev => ({
       ...prev,
       logo: ''
