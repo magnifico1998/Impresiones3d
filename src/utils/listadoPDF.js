@@ -1,13 +1,12 @@
 import jsPDF from 'jspdf';
+import { paletas } from './paletas';
 
-// Paleta de impresión (no reutiliza los colores oscuros de la UI: en papel
-// blanco lo que funciona es un acento fuerte + tintes claros de fondo).
-const COLOR = {
-  accent: [67, 56, 202],       // indigo - banda superior y detalles
-  accentDark: [55, 48, 163],   // indigo oscuro - texto de categoría
-  accentTint: [238, 240, 253], // indigo muy claro - fondo de pill de categoría
-  price: [21, 128, 61],        // verde - texto del precio
-  priceTint: [240, 253, 244],  // verde muy claro - fondo del badge de precio
+// Colores "neutros" que no dependen de la paleta: el precio se mantiene
+// siempre en verde (significado semántico) y los grises de texto/bordes
+// funcionan igual sobre cualquier acento.
+const NEUTRAL = {
+  price: [21, 128, 61],
+  priceTint: [240, 253, 244],
   textDark: [31, 41, 55],
   textGray: [107, 114, 128],
   textLight: [156, 163, 175],
@@ -16,11 +15,43 @@ const COLOR = {
   white: [255, 255, 255]
 };
 
+const hexToRgb = (hex) => {
+  const clean = (hex || '').replace('#', '');
+  const bigint = parseInt(clean, 16);
+  if (Number.isNaN(bigint) || clean.length !== 6) return [67, 56, 202];
+  return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+};
+
+const mixWithWhite = (rgb, ratio) => rgb.map((c) => Math.round(255 * (1 - ratio) + c * ratio));
+const darken = (rgb, factor) => rgb.map((c) => Math.round(c * factor));
+
+/**
+ * Arma la paleta de colores del PDF (impresión, fondo blanco) a partir de la
+ * paleta de colores elegida en Configuración. El acento de la UI se usa tal
+ * cual para la banda superior; se derivan una versión oscura (texto de
+ * categoría) y una versión clara mezclada con blanco (fondo de pill/badges).
+ */
+function construirPaletaPDF(paletaId) {
+  const paleta = paletas[paletaId] || paletas.mint;
+  const accent = hexToRgb(paleta.accent);
+  return {
+    ...NEUTRAL,
+    accent,
+    accentDark: darken(accent, 0.65),
+    accentTint: mixWithWhite(accent, 0.14)
+  };
+}
+
 /**
  * Genera un PDF con listado de productos ordenados por categoría.
  * Incluye foto, nombre, categoría y precio de cada producto.
+ *
+ * @param {Array} biblioteca
+ * @param {Object} empresa
+ * @param {string} [paletaId] id de la paleta elegida en Configuración
+ *   (cfg.palette). Si no se pasa, usa 'mint' por defecto.
  */
-export async function generarListadoProductosPDF(biblioteca, empresa) {
+export async function generarListadoProductosPDF(biblioteca, empresa, paletaId) {
   if (!biblioteca || biblioteca.length === 0) {
     alert('No hay productos para generar el listado');
     return;
@@ -41,6 +72,8 @@ export async function generarListadoProductosPDF(biblioteca, empresa) {
     if (!productosPorCategoria[cat]) productosPorCategoria[cat] = [];
     productosPorCategoria[cat].push(prod);
   });
+
+  const COLOR = construirPaletaPDF(paletaId);
 
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = pdf.internal.pageSize.getWidth();
