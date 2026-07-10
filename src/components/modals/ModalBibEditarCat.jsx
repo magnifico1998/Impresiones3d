@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
+import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const { biblioteca, setBiblioteca, showToast, user } = useApp();
@@ -66,7 +66,15 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     const cleanName = productName.trim() || 'Sin nombre';
     const cleanPrecio = parseFloat(precio) || 0;
 
+    const prodAnterior = biblioteca.find(p => p.id === editId);
+    const imagenAnterior = prodAnterior?.imagen;
+
     let imagenFinal = imagen || '';
+    
+    if (imagenAnterior && imagenAnterior !== imagenFinal && imagenAnterior.includes('firebasestorage')) {
+      await borrarImagenDeFirebase(imagenAnterior);
+    }
+
     if (imagenFinal && imagenFinal.startsWith('data:')) {
       try {
         imagenFinal = await subirImagenAFirebase(imagenFinal, {
@@ -127,8 +135,21 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           </div>
         )}
         {imagenPreview && !subiendoImagen && (
-          <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
+            <button
+              className="btn btn-danger btn-sm"
+              style={{ marginTop: '8px', marginBottom: '8px', fontSize: '11px' }}
+              onClick={async () => {
+                if (window.confirm('¿Borrar esta imagen?')) {
+                  await borrarImagenDeFirebase(imagen);
+                  setImagen('');
+                  setImagenPreview('');
+                }
+              }}
+            >
+              Borrar imagen
+            </button>
           </div>
         )}
         <datalist id="bib-edit-cats-list-modal">

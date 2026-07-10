@@ -1,4 +1,4 @@
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from '../firebase';
 
 // Comprime y redimensiona imágenes en el navegador (canvas) antes de
@@ -143,6 +143,27 @@ export const subirImagenAFirebase = async (dataUrl, { userId, fileName = 'produc
 
   await uploadString(imageRef, dataUrl, 'data_url');
   return getDownloadURL(imageRef);
+};
+
+export const borrarImagenDeFirebase = async (imageUrl) => {
+  if (!imageUrl || !imageUrl.includes('firebasestorage')) {
+    return;
+  }
+
+  try {
+    const decodedUrl = decodeURIComponent(imageUrl);
+    const match = decodedUrl.match(/\/o\/([^?]+)/);
+    
+    if (!match || !match[1]) {
+      return;
+    }
+
+    const storagePath = match[1];
+    const imageRef = ref(storage, storagePath);
+    await deleteObject(imageRef);
+  } catch (err) {
+    console.warn('No se pudo borrar la imagen de Storage:', err);
+  }
 };
 
 export default comprimirImagen;
