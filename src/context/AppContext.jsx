@@ -138,6 +138,21 @@ export const AppProvider = ({ children }) => {
   // del usuario — no guardes nada por eso".
   const skipNextAutosaveRef = useRef(false);
 
+  // ---------------------------------------------------------------------
+  // FASE 1 de la migración a Firestore por secciones: config + empresa +
+  // counter pasan a vivir en su propio documento (users/{uid}/meta/config)
+  // en vez de ser campos del documento monolítico users/{uid}. Es la
+  // sección piloto elegida por ser la más chica y la que menos cambia.
+  //
+  // Usa el mismo patrón de detección de eco que ya existía para el
+  // documento principal, pero con sus propias referencias — así un
+  // guardado de config no interfiere con la detección de eco de
+  // pedidos/biblioteca/clientes/compras (que siguen en el doc principal
+  // por ahora), y viceversa.
+  const lastWrittenTimestampRefMeta = useRef(null);
+  const pendingWriteTimestampRefMeta = useRef(null);
+  const skipNextAutosaveRefMeta = useRef(false);
+
   const getNewId = () => {
     // ALTO (antes): getNewId devolvía un contador secuencial local
     // (idCounter: 1, 2, 3...). Si el mismo usuario tenía dos pestañas o
@@ -234,6 +249,49 @@ export const AppProvider = ({ children }) => {
     });
   };
 
+  // Carga config + empresa + counter desde su documento propio
+  // (users/{uid}/meta/config). Si todavía no existe (usuario no migrado a
+  // Fase 1 todavía), cae de nuevo al documento monolítico legacy y, en el
+  // mismo momento, escribe ya la versión separada — así la próxima carga
+  // de esta sección no necesita el fallback.
+  const cargarConfigDeFirestore = async (uid, legacyCloud) => {
+    const metaRef = doc(db, "users", uid, "meta", "config");
+    const metaSnap = await getDoc(metaRef);
+
+    if (metaSnap.exists()) {
+      const meta = metaSnap.data();
+      setCfg(meta.config ?? defaultCfg);
+      setEmpresa(meta.empresa ?? defaultEmpresa);
+      setIdCounter(Number(meta.counter ?? 1));
+      lastWrittenTimestampRefMeta.current = meta.ultimaActualizacion || null;
+      pendingWriteTimestampRefMeta.current = null;
+      return;
+    }
+
+    // Fallback: usuario todavía no migrado a Fase 1. legacyCloud puede
+    // venir de un documento users/{uid} ya existente (usuario viejo) o ser
+    // null (usuario nuevo, sin nada todavía en ningún lado).
+    const cfgFallback = legacyCloud?.config ?? defaultCfg;
+    const empresaFallback = legacyCloud?.empresa ?? defaultEmpresa;
+    const counterFallback = Number(legacyCloud?.counter ?? 1);
+
+    setCfg(cfgFallback);
+    setEmpresa(empresaFallback);
+    setIdCounter(counterFallback);
+
+    const migrationTimestamp = new Date().toISOString();
+    const metaPayload = {
+      config: cfgFallback,
+      empresa: empresaFallback,
+      counter: counterFallback,
+      ultimaActualizacion: migrationTimestamp
+    };
+    await setDoc(metaRef, metaPayload);
+    lastWrittenTimestampRefMeta.current = migrationTimestamp;
+    pendingWriteTimestampRefMeta.current = null;
+    console.log("Fase 1: config/empresa/counter migrados a users/{uid}/meta/config.");
+  };
+
   // Load data from Firestore
   const cargarDatosDeFirestore = async (uid) => {
     try {
@@ -247,12 +305,10 @@ export const AppProvider = ({ children }) => {
         const huboMigracion = (cloud.biblioteca ?? []).some(p => p.imagen && p.imagen.startsWith('data:'));
         
         setPedidos(cloud.pedidos ?? []);
-        setCfg(cloud.config ?? defaultCfg);
         setCompras(cloud.compras ?? []);
         setBiblioteca(bibliotecaLimpia);
         setClientes(cloud.clientes ?? []);
-        setEmpresa(cloud.empresa ?? defaultEmpresa);
-        setIdCounter(Number(cloud.counter ?? 1));
+        await cargarConfigDeFirestore(uid, cloud);
         // BUG encontrado: esta rama (documento ya existente — el caso normal
         // en cada inicio de sesión) nunca registraba el timestamp acá. Como
         // resultado, apenas se conectaba el listener en tiempo real, recibía
@@ -280,12 +336,9 @@ export const AppProvider = ({ children }) => {
         console.log("Usuario nuevo. Inicializando datos en Firebase...");
         const dataPayload = {
           pedidos: [],
-          config: defaultCfg,
           compras: [],
           biblioteca: [],
           clientes: [],
-          empresa: defaultEmpresa,
-          counter: 1,
           ultimaActualizacion: new Date().toISOString()
         };
         await setDoc(docRef, dataPayload);
@@ -296,12 +349,10 @@ export const AppProvider = ({ children }) => {
         lastWrittenTimestampRef.current = dataPayload.ultimaActualizacion;
         pendingWriteTimestampRef.current = null;
         setPedidos(dataPayload.pedidos);
-        setCfg(dataPayload.config);
         setCompras(dataPayload.compras);
         setBiblioteca(dataPayload.biblioteca);
         setClientes(dataPayload.clientes);
-        setEmpresa(dataPayload.empresa);
-        setIdCounter(Number(dataPayload.counter));
+        await cargarConfigDeFirestore(uid, null);
       }
 
       // CRÍTICO: sólo acá, tras confirmar que sabemos qué hay realmente en la
@@ -316,6 +367,7 @@ export const AppProvider = ({ children }) => {
       // de "eco propio" del listener en tiempo real (ver nota en la
       // declaración de skipNextAutosaveRef, más arriba).
       skipNextAutosaveRef.current = true;
+      skipNextAutosaveRefMeta.current = true;
       setLoadError(false);
       setDatosCargadosOk(true);
     } catch (e) {
@@ -423,12 +475,9 @@ export const AppProvider = ({ children }) => {
       const timestamp = new Date().toISOString();
       const dataPayload = {
         pedidos,
-        config: cfg,
         compras,
         biblioteca,
         clientes,
-        empresa,
-        counter: idCounter,
         ultimaActualizacion: timestamp
       };
 
@@ -514,7 +563,99 @@ export const AppProvider = ({ children }) => {
         saveRetryTimeoutRef.current = null;
       }
     };
-  }, [pedidos, cfg, compras, biblioteca, clientes, empresa, idCounter, user, loading, datosCargadosOk]);
+  }, [pedidos, compras, biblioteca, clientes, user, loading, datosCargadosOk]);
+
+  // Auto-save de config + empresa + counter a su documento propio
+  // (users/{uid}/meta/config). Mismo patrón de debounce + reintentos que el
+  // autosave principal, pero completamente independiente: un cambio acá no
+  // dispara ni cancela el guardado de pedidos/biblioteca/clientes/compras,
+  // y viceversa.
+  const debounceTimeoutRefMeta = useRef(null);
+  const saveRetryTimeoutRefMeta = useRef(null);
+
+  useEffect(() => {
+    if (loading || !user || !datosCargadosOk) return;
+
+    if (skipNextAutosaveRefMeta.current) {
+      skipNextAutosaveRefMeta.current = false;
+      return;
+    }
+
+    let cancelado = false;
+
+    if (debounceTimeoutRefMeta.current) {
+      clearTimeout(debounceTimeoutRefMeta.current);
+      debounceTimeoutRefMeta.current = null;
+    }
+    if (saveRetryTimeoutRefMeta.current) {
+      clearTimeout(saveRetryTimeoutRefMeta.current);
+      saveRetryTimeoutRefMeta.current = null;
+    }
+
+    debounceTimeoutRefMeta.current = setTimeout(() => {
+      if (cancelado) return;
+
+      const timestamp = new Date().toISOString();
+      const metaPayload = {
+        config: cfg,
+        empresa,
+        counter: idCounter,
+        ultimaActualizacion: timestamp
+      };
+
+      const metaRef = doc(db, "users", user.uid, "meta", "config");
+
+      const intentarGuardar = (intento = 0) => {
+        lastWrittenTimestampRefMeta.current = timestamp;
+        pendingWriteTimestampRefMeta.current = timestamp;
+
+        setDoc(metaRef, metaPayload, { merge: true })
+          .then(() => {
+            if (cancelado) return;
+            pendingWriteTimestampRefMeta.current = null;
+            lastWrittenTimestampRefMeta.current = timestamp;
+            setSyncError(prevError => {
+              if (prevError) {
+                showToast('✓ Conexión con la nube restablecida. Datos guardados.', 'success');
+              }
+              return false;
+            });
+          })
+          .catch(e => {
+            console.error("Error al guardar config/empresa en Firebase:", e);
+            if (cancelado) return;
+
+            if (intento < 2) {
+              saveRetryTimeoutRefMeta.current = setTimeout(() => {
+                if (!cancelado) intentarGuardar(intento + 1);
+              }, 1500 * (intento + 1));
+              return;
+            }
+
+            setSyncError(true);
+            showToast(
+              '⚠ No se pudo guardar la configuración en la nube. Revisá tu conexión.',
+              'error',
+              10000
+            );
+          });
+      };
+
+      intentarGuardar();
+    }, 800);
+
+    return () => {
+      cancelado = true;
+      if (debounceTimeoutRefMeta.current) {
+        clearTimeout(debounceTimeoutRefMeta.current);
+        debounceTimeoutRefMeta.current = null;
+      }
+      if (saveRetryTimeoutRefMeta.current) {
+        clearTimeout(saveRetryTimeoutRefMeta.current);
+        saveRetryTimeoutRefMeta.current = null;
+      }
+    };
+  }, [cfg, empresa, idCounter, user, loading, datosCargadosOk]);
 
   // ALTO: sincronización en tiempo real entre pestañas/dispositivos.
   // Antes, cada pestaña sólo leía la nube UNA vez al iniciar sesión (getDoc).
@@ -581,11 +722,9 @@ export const AppProvider = ({ children }) => {
         // Cambio confirmado que no se originó en esta pestaña: viene de otra
         // pestaña o dispositivo del mismo usuario. Sincronizamos.
         setPedidos(cloud.pedidos ?? []);
-        setCfg(cloud.config ?? defaultCfg);
         setCompras(cloud.compras ?? []);
         setBiblioteca(cloud.biblioteca ?? []);
         setClientes(cloud.clientes ?? []);
-        setEmpresa(cloud.empresa ?? defaultEmpresa);
         // Registramos este timestamp como "ya aplicado" para no procesar de
         // nuevo la misma entrega si Firestore la reenvía (ej. reconexión).
         lastWrittenTimestampRef.current = cloud.ultimaActualizacion || null;
@@ -595,6 +734,53 @@ export const AppProvider = ({ children }) => {
         // No bloqueamos la app por esto (ya tenemos datos cargados): sólo
         // informamos que dejamos de recibir actualizaciones en tiempo real.
         console.error("Error en la suscripción en tiempo real:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, datosCargadosOk]);
+
+  // Listener en tiempo real para config + empresa + counter, ahora en su
+  // propio documento (users/{uid}/meta/config). Independiente del listener
+  // principal de arriba: usa sus propias referencias de eco
+  // (lastWrittenTimestampRefMeta / pendingWriteTimestampRefMeta), así un
+  // cambio remoto en config no se confunde con uno en pedidos/biblioteca/etc.
+  useEffect(() => {
+    if (!user || !datosCargadosOk) return;
+
+    const metaRef = doc(db, "users", user.uid, "meta", "config");
+
+    const unsubscribe = onSnapshot(
+      metaRef,
+      (snapshot) => {
+        if (snapshot.metadata.hasPendingWrites) return;
+        if (!snapshot.exists()) return;
+
+        const meta = snapshot.data();
+
+        if (
+          meta.ultimaActualizacion &&
+          meta.ultimaActualizacion === lastWrittenTimestampRefMeta.current
+        ) {
+          return;
+        }
+
+        if (
+          meta.ultimaActualizacion &&
+          pendingWriteTimestampRefMeta.current &&
+          meta.ultimaActualizacion <= pendingWriteTimestampRefMeta.current
+        ) {
+          return;
+        }
+
+        setCfg(meta.config ?? defaultCfg);
+        setEmpresa(meta.empresa ?? defaultEmpresa);
+        setIdCounter(Number(meta.counter ?? 1));
+        lastWrittenTimestampRefMeta.current = meta.ultimaActualizacion || null;
+        showToast('↺ Configuración actualizada desde otra sesión.', 'info');
+      },
+      (error) => {
+        console.error("Error en la suscripción en tiempo real de config:", error);
       }
     );
 
@@ -655,6 +841,7 @@ export const AppProvider = ({ children }) => {
       // real confundiera la confirmación de ESTE restore con un cambio de
       // otra sesión.
       skipNextAutosaveRef.current = true;
+      skipNextAutosaveRefMeta.current = true;
 
       if (data.pedidos) setPedidos(data.pedidos);
       if (data.cfg) setCfg(data.cfg);
@@ -671,12 +858,9 @@ export const AppProvider = ({ children }) => {
         const restoreTimestamp = new Date().toISOString();
         await setDoc(doc(db, "users", user.uid), {
           pedidos: data.pedidos || [],
-          config: data.cfg || defaultCfg,
           compras: data.compras || [],
           biblioteca: data.biblioteca || [],
           clientes: data.clientes || [],
-          counter: nextCounter,
-          empresa: data.empresa || defaultEmpresa,
           ultimaActualizacion: restoreTimestamp
         }, { merge: true });
         // Igual que en el autosave: evita que el listener en tiempo real
@@ -684,6 +868,16 @@ export const AppProvider = ({ children }) => {
         // hecho desde otra pestaña/dispositivo.
         lastWrittenTimestampRef.current = restoreTimestamp;
         pendingWriteTimestampRef.current = null;
+
+        // Fase 1: config/empresa/counter van a su documento propio.
+        await setDoc(doc(db, "users", user.uid, "meta", "config"), {
+          config: data.cfg || defaultCfg,
+          empresa: data.empresa || defaultEmpresa,
+          counter: nextCounter,
+          ultimaActualizacion: restoreTimestamp
+        }, { merge: true });
+        lastWrittenTimestampRefMeta.current = restoreTimestamp;
+        pendingWriteTimestampRefMeta.current = null;
       }
       
       showToast('✓ Backup restaurado correctamente.');
