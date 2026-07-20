@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
-  const { pedidos, setPedidos, clientes, setClientes, getNewId, showToast } = useApp();
+  const { pedidos, setPedidos, clientes, addCliente, getNewId, showToast } = useApp();
 
   const [form, setForm] = useState({
     cliente: '',
@@ -111,7 +111,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
         tel: '',
         email: ''
       };
-      setClientes(prev => [...prev, newClient]);
+      addCliente(newClient);
       showToast('Cliente nuevo creado automáticamente. Completa sus datos en la sección Clientes.', 'info');
     }
 

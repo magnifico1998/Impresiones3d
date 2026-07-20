@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { precioNeto } from '../../utils/precioNeto';
 
 export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit, onViewOrder }) {
-  const { clientes, setClientes, pedidos, showToast } = useApp();
+  const { clientes, removeCliente, pedidos, showToast } = useApp();
 
   if (!isOpen || clientId === null) return null;
 
@@ -61,7 +61,7 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
         '¿Eliminar este cliente? Sus pedidos NO se borrarán, pero quedarán sin vincular.'
       )
     ) {
-      setClientes(prev => prev.filter(x => x.id !== clientId));
+      removeCliente(clientId);
       showToast('Cliente eliminado', 'info');
       onClose();
     }

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch } from 'firebase/firestore';
 import { paletas } from '../utils/paletas';
 
 const AppContext = createContext();
@@ -202,7 +202,6 @@ export const AppProvider = ({ children }) => {
 
   const pedidosCrud = makeCrud(setPedidos);
   const bibliotecaCrud = makeCrud(setBiblioteca);
-  const clientesCrud = makeCrud(setClientes);
   const comprasCrud = makeCrud(setCompras);
 
   const addPedido = pedidosCrud.add;
@@ -213,13 +212,75 @@ export const AppProvider = ({ children }) => {
   const updateProducto = bibliotecaCrud.update;
   const removeProducto = bibliotecaCrud.remove;
 
-  const addCliente = clientesCrud.add;
-  const updateCliente = clientesCrud.update;
-  const removeCliente = clientesCrud.remove;
-
   const addCompra = comprasCrud.add;
   const updateCompra = comprasCrud.update;
   const removeCompra = comprasCrud.remove;
+
+  // ---------------------------------------------------------------------
+  // FASE 2 de la migración a Firestore por secciones: clientes pasa de ser
+  // un array dentro del documento monolítico a una subcolección propia
+  // (users/{uid}/clientes/{clienteId}), un documento por cliente.
+  //
+  // A diferencia de pedidos/biblioteca/compras (que en esta fase siguen
+  // con el patrón "array + autosave debounced" de Fase 0), clientes ahora
+  // escribe directo a Firestore en cada add/update/remove — sin debounce,
+  // porque estas funciones ya se llaman solo en acciones explícitas
+  // (guardar/eliminar en un modal), no en cada tecla. El estado local
+  // `clientes` deja de ser la fuente de verdad: pasa a ser un reflejo del
+  // listener en tiempo real de la subcolección (más abajo), igual que ya
+  // pasaba con config/empresa en Fase 1.
+  //
+  // Mantenemos los mismos nombres (addCliente/updateCliente/removeCliente)
+  // que ya exportaba Fase 0, así ningún componente necesita cambios: sólo
+  // cambió qué hacen estas funciones por dentro.
+  const clienteDocRef = (id) => doc(db, "users", user.uid, "clientes", String(id));
+
+  const addCliente = async (item) => {
+    try {
+      await setDoc(clienteDocRef(item.id), item);
+    } catch (e) {
+      console.error("Error al guardar cliente:", e);
+      showToast('⚠ No se pudo guardar el cliente en la nube.', 'error');
+    }
+  };
+
+  const updateCliente = async (id, updater) => {
+    try {
+      const actual = clientes.find(c => c.id === id);
+      if (!actual) return;
+      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
+      await setDoc(clienteDocRef(id), nuevo);
+    } catch (e) {
+      console.error("Error al actualizar cliente:", e);
+      showToast('⚠ No se pudo actualizar el cliente en la nube.', 'error');
+    }
+  };
+
+  const removeCliente = async (id) => {
+    try {
+      await deleteDoc(clienteDocRef(id));
+    } catch (e) {
+      console.error("Error al eliminar cliente:", e);
+      showToast('⚠ No se pudo eliminar el cliente en la nube.', 'error');
+    }
+  };
+
+  // Migra los clientes del documento monolítico legacy (si existían) a la
+  // subcolección nueva, sólo la primera vez: si la subcolección ya tiene
+  // documentos, no hace nada.
+  const migrarClientesSiHaceFalta = async (uid, legacyClientes) => {
+    const colRef = collection(db, "users", uid, "clientes");
+    const snap = await getDocs(colRef);
+    if (!snap.empty) return;
+    if (!legacyClientes || legacyClientes.length === 0) return;
+
+    const batch = writeBatch(db);
+    legacyClientes.forEach(c => {
+      batch.set(doc(db, "users", uid, "clientes", String(c.id)), c);
+    });
+    await batch.commit();
+    console.log(`Fase 2: ${legacyClientes.length} cliente(s) migrados a users/{uid}/clientes.`);
+  };
 
   const loginWithGoogle = async () => {
     try {
@@ -307,7 +368,10 @@ export const AppProvider = ({ children }) => {
         setPedidos(cloud.pedidos ?? []);
         setCompras(cloud.compras ?? []);
         setBiblioteca(bibliotecaLimpia);
-        setClientes(cloud.clientes ?? []);
+        // Fase 2: clientes ya no vive en este documento — se migra (si hace
+        // falta) y de ahí en más el estado local se alimenta del listener
+        // en tiempo real de la subcolección (ver más abajo).
+        await migrarClientesSiHaceFalta(uid, cloud.clientes ?? []);
         await cargarConfigDeFirestore(uid, cloud);
         // BUG encontrado: esta rama (documento ya existente — el caso normal
         // en cada inicio de sesión) nunca registraba el timestamp acá. Como
@@ -338,7 +402,6 @@ export const AppProvider = ({ children }) => {
           pedidos: [],
           compras: [],
           biblioteca: [],
-          clientes: [],
           ultimaActualizacion: new Date().toISOString()
         };
         await setDoc(docRef, dataPayload);
@@ -351,7 +414,8 @@ export const AppProvider = ({ children }) => {
         setPedidos(dataPayload.pedidos);
         setCompras(dataPayload.compras);
         setBiblioteca(dataPayload.biblioteca);
-        setClientes(dataPayload.clientes);
+        // Fase 2: usuario nuevo arranca sin clientes; la subcolección se crea
+        // sola en el primer addCliente. No hace falta escribir nada acá.
         await cargarConfigDeFirestore(uid, null);
       }
 
@@ -477,7 +541,6 @@ export const AppProvider = ({ children }) => {
         pedidos,
         compras,
         biblioteca,
-        clientes,
         ultimaActualizacion: timestamp
       };
 
@@ -563,7 +626,7 @@ export const AppProvider = ({ children }) => {
         saveRetryTimeoutRef.current = null;
       }
     };
-  }, [pedidos, compras, biblioteca, clientes, user, loading, datosCargadosOk]);
+  }, [pedidos, compras, biblioteca, user, loading, datosCargadosOk]);
 
   // Auto-save de config + empresa + counter a su documento propio
   // (users/{uid}/meta/config). Mismo patrón de debounce + reintentos que el
@@ -724,7 +787,6 @@ export const AppProvider = ({ children }) => {
         setPedidos(cloud.pedidos ?? []);
         setCompras(cloud.compras ?? []);
         setBiblioteca(cloud.biblioteca ?? []);
-        setClientes(cloud.clientes ?? []);
         // Registramos este timestamp como "ya aplicado" para no procesar de
         // nuevo la misma entrega si Firestore la reenvía (ej. reconexión).
         lastWrittenTimestampRef.current = cloud.ultimaActualizacion || null;
@@ -787,7 +849,34 @@ export const AppProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user, datosCargadosOk]);
 
-  // Set favicon to empresa.logo when available, otherwise revert to default
+  // Listener en tiempo real para la subcolección de clientes (Fase 2).
+  // A diferencia de los otros listeners, acá no hace falta el mecanismo de
+  // "timestamp propio vs ajeno": cada documento de cliente se escribe y
+  // sincroniza de forma independiente, así que no hay riesgo de que un
+  // guardado pise el trabajo de otro cliente en simultáneo (el problema que
+  // sí existía con el array monolítico). Simplificación a propósito: no
+  // mostramos el toast de "actualizado desde otra sesión" acá porque con
+  // documentos independientes sería ruidoso (se dispararía en cada
+  // add/update/remove propio también); el estado local simplemente refleja
+  // lo que hay en Firestore en todo momento, incluida la escritura local
+  // optimista antes de la confirmación del servidor.
+  useEffect(() => {
+    if (!user || !datosCargadosOk) return;
+
+    const colRef = collection(db, "users", user.uid, "clientes");
+
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        setClientes(snapshot.docs.map(d => d.data()));
+      },
+      (error) => {
+        console.error("Error en la suscripción en tiempo real de clientes:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, datosCargadosOk]);
   useEffect(() => {
     try {
       const logo = empresa && empresa.logo ? empresa.logo : null;
@@ -847,7 +936,9 @@ export const AppProvider = ({ children }) => {
       if (data.cfg) setCfg(data.cfg);
       if (data.compras) setCompras(data.compras);
       if (data.biblioteca) setBiblioteca(data.biblioteca);
-      if (data.clientes) setClientes(data.clientes);
+      // Fase 2: clientes ya no es un array de estado que se "restaura" en
+      // memoria — se escribe directo a la subcolección más abajo, y el
+      // listener en tiempo real actualiza el estado local solo.
       if (data.empresa) setEmpresa(data.empresa);
       
       const nextCounter = data._idCounter || data.idCounter || 1;
@@ -860,7 +951,6 @@ export const AppProvider = ({ children }) => {
           pedidos: data.pedidos || [],
           compras: data.compras || [],
           biblioteca: data.biblioteca || [],
-          clientes: data.clientes || [],
           ultimaActualizacion: restoreTimestamp
         }, { merge: true });
         // Igual que en el autosave: evita que el listener en tiempo real
@@ -878,6 +968,19 @@ export const AppProvider = ({ children }) => {
         }, { merge: true });
         lastWrittenTimestampRefMeta.current = restoreTimestamp;
         pendingWriteTimestampRefMeta.current = null;
+
+        // Fase 2: clientes del backup van directo a la subcolección, un
+        // documento por cliente. Primero borramos los que ya existan en la
+        // nube (si el backup tiene menos clientes que los actuales, no
+        // deben quedar huérfanos), luego escribimos los del backup.
+        const clientesColRef = collection(db, "users", user.uid, "clientes");
+        const clientesActuales = await getDocs(clientesColRef);
+        const batch = writeBatch(db);
+        clientesActuales.forEach(d => batch.delete(d.ref));
+        (data.clientes || []).forEach(c => {
+          batch.set(doc(db, "users", user.uid, "clientes", String(c.id)), c);
+        });
+        await batch.commit();
       }
       
       showToast('✓ Backup restaurado correctamente.');
