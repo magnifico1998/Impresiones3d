@@ -200,12 +200,7 @@ export const AppProvider = ({ children }) => {
     remove: (id) => setter(prev => prev.filter(item => item.id !== id)),
   });
 
-  const pedidosCrud = makeCrud(setPedidos);
   const comprasCrud = makeCrud(setCompras);
-
-  const addPedido = pedidosCrud.add;
-  const updatePedido = pedidosCrud.update;
-  const removePedido = pedidosCrud.remove;
 
   const addCompra = comprasCrud.add;
   const updateCompra = comprasCrud.update;
@@ -361,6 +356,88 @@ export const AppProvider = ({ children }) => {
     console.log(`Fase 3: ${legacyBiblioteca.length} producto(s) migrados a users/{uid}/biblioteca.`);
   };
 
+  // ---------------------------------------------------------------------
+  // FASE 4 de la migración a Firestore por secciones: pedidos pasa de ser
+  // un array dentro del documento monolítico a una subcolección propia
+  // (users/{uid}/pedidos/{pedidoId}), un documento por pedido. Es la
+  // última sección y la más delicada: la de mayor volumen de escritura y
+  // la que originalmente disparaba el bug de la race condition (un único
+  // timestamp de eco compartido para todo el documento monolítico no
+  // alcanzaba cuando había múltiples guardados en vuelo). Con cada pedido
+  // como documento independiente, ese problema desaparece de raíz: ya no
+  // hay un timestamp global que comparar, cada escritura confirma sólo su
+  // propio documento.
+  //
+  // Mismo patrón que clientes/biblioteca: escritura directa por documento,
+  // estado local alimentado por listener en tiempo real. Se agrega además
+  // updatePedidosDondeCoincida, para el único caso de actualización masiva
+  // que existe hoy (renombrar el cliente en todos sus pedidos cuando se
+  // edita el nombre del cliente) — a diferencia de updateProductosBulk
+  // (Fase 3), acá no se conoce el conjunto de ids de antemano, se filtra
+  // por una condición.
+  const pedidoDocRef = (id) => doc(db, "users", user.uid, "pedidos", String(id));
+
+  const addPedido = async (item) => {
+    try {
+      await setDoc(pedidoDocRef(item.id), item);
+    } catch (e) {
+      console.error("Error al guardar pedido:", e);
+      showToast('⚠ No se pudo guardar el pedido en la nube.', 'error');
+    }
+  };
+
+  const updatePedido = async (id, updater) => {
+    try {
+      const actual = pedidos.find(p => p.id === id);
+      if (!actual) return;
+      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
+      await setDoc(pedidoDocRef(id), nuevo);
+    } catch (e) {
+      console.error("Error al actualizar pedido:", e);
+      showToast('⚠ No se pudo actualizar el pedido en la nube.', 'error');
+    }
+  };
+
+  const removePedido = async (id) => {
+    try {
+      await deleteDoc(pedidoDocRef(id));
+    } catch (e) {
+      console.error("Error al eliminar pedido:", e);
+      showToast('⚠ No se pudo eliminar el pedido en la nube.', 'error');
+    }
+  };
+
+  // predicate: (pedido) => boolean. updater: (pedido) => nuevoPedido.
+  const updatePedidosBulk = async (predicate, updater) => {
+    try {
+      const afectados = pedidos.filter(predicate);
+      if (!afectados.length) return;
+
+      const batch = writeBatch(db);
+      afectados.forEach(p => {
+        batch.set(pedidoDocRef(p.id), updater(p));
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("Error al actualizar pedidos en lote:", e);
+      showToast('⚠ No se pudo aplicar la actualización masiva en la nube.', 'error');
+    }
+  };
+
+  const migrarPedidosSiHaceFalta = async (uid, legacyPedidos) => {
+    const colRef = collection(db, "users", uid, "pedidos");
+    const snap = await getDocs(colRef);
+    if (!snap.empty) return;
+    if (!legacyPedidos || legacyPedidos.length === 0) return;
+
+    const batch = writeBatch(db);
+    legacyPedidos.forEach(p => {
+      batch.set(doc(db, "users", uid, "pedidos", String(p.id)), p);
+    });
+    await batch.commit();
+    console.log(`Fase 4: ${legacyPedidos.length} pedido(s) migrados a users/{uid}/pedidos.`);
+  };
+
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -447,8 +524,11 @@ export const AppProvider = ({ children }) => {
         // leerse y no hace falta seguir revisándolo en cada carga.
         const bibliotecaLimpia = limpiarImagenesBase64(cloud.biblioteca ?? []);
         
-        setPedidos(cloud.pedidos ?? []);
         setCompras(cloud.compras ?? []);
+        // Fase 4: pedidos ya no vive en este documento — se migra (si hace
+        // falta) y de ahí en más el estado local se alimenta del listener
+        // en tiempo real de la subcolección (ver más abajo).
+        await migrarPedidosSiHaceFalta(uid, cloud.pedidos ?? []);
         // Fase 3: biblioteca ya no vive en este documento — se migra (si
         // hace falta, usando la versión ya limpia de base64) y de ahí en
         // más el estado local se alimenta del listener en tiempo real de
@@ -478,7 +558,6 @@ export const AppProvider = ({ children }) => {
       } else {
         console.log("Usuario nuevo. Inicializando datos en Firebase...");
         const dataPayload = {
-          pedidos: [],
           compras: [],
           ultimaActualizacion: new Date().toISOString()
         };
@@ -489,10 +568,10 @@ export const AppProvider = ({ children }) => {
         // no muestre el aviso de "datos actualizados desde otra sesión".
         lastWrittenTimestampRef.current = dataPayload.ultimaActualizacion;
         pendingWriteTimestampRef.current = null;
-        setPedidos(dataPayload.pedidos);
         setCompras(dataPayload.compras);
-        // Fase 2/3: usuario nuevo arranca sin clientes ni biblioteca; esas
-        // subcolecciones se crean solas en el primer addCliente/addProducto.
+        // Fase 2/3/4: usuario nuevo arranca sin clientes, biblioteca ni
+        // pedidos; esas subcolecciones se crean solas en el primer
+        // addCliente/addProducto/addPedido.
         await cargarConfigDeFirestore(uid, null);
       }
 
@@ -615,7 +694,6 @@ export const AppProvider = ({ children }) => {
 
       const timestamp = new Date().toISOString();
       const dataPayload = {
-        pedidos,
         compras,
         ultimaActualizacion: timestamp
       };
@@ -626,7 +704,6 @@ export const AppProvider = ({ children }) => {
       if (payloadSizeBytes > MAX_FIRESTORE_DOC_BYTES) {
         console.error(`Documento demasiado grande para Firestore: ${Math.round(payloadSizeBytes / 1024)}KB`);
         console.log('Tamaño de cada sección:');
-        console.log(`  - pedidos: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.pedidos)).length / 1024)}KB`);
         console.log(`  - compras: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.compras)).length / 1024)}KB`);
         setSyncError(true);
         showToast(
@@ -700,7 +777,7 @@ export const AppProvider = ({ children }) => {
         saveRetryTimeoutRef.current = null;
       }
     };
-  }, [pedidos, compras, user, loading, datosCargadosOk]);
+  }, [compras, user, loading, datosCargadosOk]);
 
   // Auto-save de config + empresa + counter a su documento propio
   // (users/{uid}/meta/config). Mismo patrón de debounce + reintentos que el
@@ -858,7 +935,6 @@ export const AppProvider = ({ children }) => {
 
         // Cambio confirmado que no se originó en esta pestaña: viene de otra
         // pestaña o dispositivo del mismo usuario. Sincronizamos.
-        setPedidos(cloud.pedidos ?? []);
         setCompras(cloud.compras ?? []);
         // Registramos este timestamp como "ya aplicado" para no procesar de
         // nuevo la misma entrega si Firestore la reenvía (ej. reconexión).
@@ -973,6 +1049,28 @@ export const AppProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user, datosCargadosOk]);
 
+  // Listener en tiempo real para la subcolección de pedidos (Fase 4).
+  // Mismo criterio que clientes/biblioteca: sin detección de eco por
+  // timestamp global — acá es justamente donde más valía la pena, porque
+  // era la sección que disparaba el bug de la race condition original.
+  useEffect(() => {
+    if (!user || !datosCargadosOk) return;
+
+    const colRef = collection(db, "users", user.uid, "pedidos");
+
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        setPedidos(snapshot.docs.map(d => d.data()));
+      },
+      (error) => {
+        console.error("Error en la suscripción en tiempo real de pedidos:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, datosCargadosOk]);
+
   useEffect(() => {
     try {
       const logo = empresa && empresa.logo ? empresa.logo : null;
@@ -1028,13 +1126,12 @@ export const AppProvider = ({ children }) => {
       skipNextAutosaveRef.current = true;
       skipNextAutosaveRefMeta.current = true;
 
-      if (data.pedidos) setPedidos(data.pedidos);
       if (data.cfg) setCfg(data.cfg);
       if (data.compras) setCompras(data.compras);
-      // Fase 2/3: clientes y biblioteca ya no son arrays de estado que se
-      // "restauran" en memoria — se escriben directo a sus subcolecciones
-      // más abajo, y los listeners en tiempo real actualizan el estado
-      // local solos.
+      // Fase 2/3/4: clientes, biblioteca y pedidos ya no son arrays de
+      // estado que se "restauran" en memoria — se escriben directo a sus
+      // subcolecciones más abajo, y los listeners en tiempo real actualizan
+      // el estado local solos.
       if (data.empresa) setEmpresa(data.empresa);
       
       const nextCounter = data._idCounter || data.idCounter || 1;
@@ -1044,7 +1141,6 @@ export const AppProvider = ({ children }) => {
       if (user) {
         const restoreTimestamp = new Date().toISOString();
         await setDoc(doc(db, "users", user.uid), {
-          pedidos: data.pedidos || [],
           compras: data.compras || [],
           ultimaActualizacion: restoreTimestamp
         }, { merge: true });
@@ -1089,6 +1185,16 @@ export const AppProvider = ({ children }) => {
           batchBiblioteca.set(doc(db, "users", user.uid, "biblioteca", String(p.id)), p);
         });
         await batchBiblioteca.commit();
+
+        // Fase 4: mismo criterio para pedidos — batch separado.
+        const pedidosColRef = collection(db, "users", user.uid, "pedidos");
+        const pedidosActuales = await getDocs(pedidosColRef);
+        const batchPedidos = writeBatch(db);
+        pedidosActuales.forEach(d => batchPedidos.delete(d.ref));
+        (data.pedidos || []).forEach(p => {
+          batchPedidos.set(doc(db, "users", user.uid, "pedidos", String(p.id)), p);
+        });
+        await batchPedidos.commit();
       }
       
       showToast('✓ Backup restaurado correctamente.');
@@ -1106,6 +1212,7 @@ export const AppProvider = ({ children }) => {
     addPedido,
     updatePedido,
     removePedido,
+    updatePedidosBulk,
     compras,
     setCompras,
     addCompra,

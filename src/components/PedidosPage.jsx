@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { precioNeto } from '../utils/precioNeto';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
-  const { pedidos, setPedidos, showToast } = useApp();
+  const { pedidos, updatePedido, showToast } = useApp();
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
@@ -47,19 +47,16 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
   const handleStatusChange = (e, id, newStatus) => {
     e.stopPropagation();
-    setPedidos(prev => prev.map(p => {
-      if (p.id === id) {
-        const eraCompletado = p.estado === 'completado';
-        let fechaCompletado = p.fechaCompletado;
-        if (newStatus === 'completado' && !eraCompletado) {
-          fechaCompletado = new Date().toISOString().slice(0, 10);
-        } else if (newStatus !== 'completado') {
-          fechaCompletado = null;
-        }
-        return { ...p, estado: newStatus, fechaCompletado };
+    updatePedido(id, (p) => {
+      const eraCompletado = p.estado === 'completado';
+      let fechaCompletado = p.fechaCompletado;
+      if (newStatus === 'completado' && !eraCompletado) {
+        fechaCompletado = new Date().toISOString().slice(0, 10);
+      } else if (newStatus !== 'completado') {
+        fechaCompletado = null;
       }
-      return p;
-    }));
+      return { ...p, estado: newStatus, fechaCompletado };
+    });
 
     const badgeText = {
       pendiente: 'Pendiente',

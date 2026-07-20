@@ -5,7 +5,8 @@ import { jsPDF } from 'jspdf';
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
   const { 
     pedidos, 
-    setPedidos, 
+    updatePedido, 
+    removePedido, 
     cfg, 
     clientes, 
     empresa, 
@@ -78,14 +79,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
   // Actions
   const handleSave = () => {
-    setPedidos(prev => prev.map(p => p.id === draft.id ? draft : p));
+    updatePedido(draft.id, draft);
     showToast('Cambios guardados con éxito');
     onClose();
   };
 
   const handleDeletePedido = () => {
     if (window.confirm('¿Eliminar este pedido y todas sus piezas?')) {
-      setPedidos(prev => prev.filter(p => p.id !== draft.id));
+      removePedido(draft.id);
       showToast('Pedido eliminado', 'info');
       onClose();
     }

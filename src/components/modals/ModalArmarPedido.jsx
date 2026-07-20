@@ -4,7 +4,8 @@ import { useApp } from '../../context/AppContext';
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder }) {
   const { 
     pedidos, 
-    setPedidos, 
+    addPedido, 
+    updatePedido, 
     biblioteca, 
     cfg, 
     getNewId, 
@@ -239,21 +240,15 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         creado: new Date().toLocaleDateString('es-AR')
       };
       
-      setPedidos(prev => [...prev, nuevo]);
+      addPedido(nuevo);
       pedidoDestinoId = newIdVal;
     } else {
       const targetId = parseInt(destino, 10);
-      setPedidos(prev => prev.map(p => {
-        if (p.id === targetId) {
-          const piezas = [...p.piezas, ...nuevasPiezas];
-          return {
-            ...p,
-            piezas,
-            precioVenta: (p.precioVenta || 0) + finalPriceVal,
-            envio: (p.envio || 0) + shippingVal
-          };
-        }
-        return p;
+      updatePedido(targetId, (p) => ({
+        ...p,
+        piezas: [...p.piezas, ...nuevasPiezas],
+        precioVenta: (p.precioVenta || 0) + finalPriceVal,
+        envio: (p.envio || 0) + shippingVal
       }));
       pedidoDestinoId = targetId;
     }

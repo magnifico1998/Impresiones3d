@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, defaultPedidoId, onConfirm }) {
-  const { pedidos, setPedidos, getNewId, showToast } = useApp();
+  const { pedidos, updatePedido, getNewId, showToast } = useApp();
   const [nombre, setNombre] = useState('');
   const [pedidoId, setPedidoId] = useState('');
 
@@ -69,20 +69,17 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
       notas: ''
     };
 
-    setPedidos(prev => prev.map(p => {
-      if (p.id === targetPedidoId) {
-        const piezas = [...p.piezas, nuevaPieza];
-        
-        // Recalculate order sale price
-        const newPrecioVenta = piezas.reduce((s, x) => {
-          const unit = x.precioVenta !== undefined ? x.precioVenta : (x.precioEstimado || 0);
-          return s + (unit * x.cantidad);
-        }, 0);
+    updatePedido(targetPedidoId, (p) => {
+      const piezas = [...p.piezas, nuevaPieza];
 
-        return { ...p, piezas, precioVenta: newPrecioVenta };
-      }
-      return p;
-    }));
+      // Recalculate order sale price
+      const newPrecioVenta = piezas.reduce((s, x) => {
+        const unit = x.precioVenta !== undefined ? x.precioVenta : (x.precioEstimado || 0);
+        return s + (unit * x.cantidad);
+      }, 0);
+
+      return { ...p, piezas, precioVenta: newPrecioVenta };
+    });
 
     showToast(`Pieza "${nuevaPieza.nombre}" agregada con éxito`);
     onClose();

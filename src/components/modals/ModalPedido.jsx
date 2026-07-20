@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
-  const { pedidos, setPedidos, clientes, addCliente, getNewId, showToast } = useApp();
+  const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast } = useApp();
 
   const [form, setForm] = useState({
     cliente: '',
@@ -66,22 +66,19 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
     const existeCliente = clienteTrim && clientes.some(c => c.nombre.trim().toLowerCase() === clienteTrim.toLowerCase());
 
     if (editId !== null) {
-      setPedidos(prev => prev.map(p => {
-        if (p.id === editId) {
-          const eraCompletado = p.estado === 'completado';
-          const newEstado = form.estado;
-          let fechaCompletado = p.fechaCompletado;
-          
-          if (newEstado === 'completado' && !eraCompletado) {
-            fechaCompletado = new Date().toISOString().slice(0, 10);
-          } else if (newEstado !== 'completado') {
-            fechaCompletado = null;
-          }
+      updatePedido(editId, (p) => {
+        const eraCompletado = p.estado === 'completado';
+        const newEstado = form.estado;
+        let fechaCompletado = p.fechaCompletado;
 
-          return { ...p, ...d, fechaCompletado };
+        if (newEstado === 'completado' && !eraCompletado) {
+          fechaCompletado = new Date().toISOString().slice(0, 10);
+        } else if (newEstado !== 'completado') {
+          fechaCompletado = null;
         }
-        return p;
-      }));
+
+        return { ...p, ...d, fechaCompletado };
+      });
       savedId = editId;
       showToast('Pedido actualizado con éxito');
     } else {
@@ -95,7 +92,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
         creado: new Date().toLocaleDateString('es-AR'),
         fechaCompletado: form.estado === 'completado' ? new Date().toISOString().slice(0, 10) : null
       };
-      setPedidos(prev => [...prev, nuevo]);
+      addPedido(nuevo);
       savedId = newIdVal;
       showToast('Pedido creado con éxito');
     }

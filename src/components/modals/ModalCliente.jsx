@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function ModalCliente({ isOpen, onClose, editId }) {
-  const { clientes, addCliente, updateCliente, setPedidos, getNewId, showToast } = useApp();
+  const { clientes, addCliente, updateCliente, updatePedidosBulk, getNewId, showToast } = useApp();
 
   const [form, setForm] = useState({
     nombre: '',
@@ -86,11 +86,10 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
 
       // Update client name in all their orders if name changed
       if (oldName !== nombreTrimmed) {
-        setPedidos(prev => prev.map(p => 
-          p.cliente.trim().toLowerCase() === oldName.trim().toLowerCase() 
-            ? { ...p, cliente: nombreTrimmed } 
-            : p
-        ));
+        updatePedidosBulk(
+          (p) => p.cliente.trim().toLowerCase() === oldName.trim().toLowerCase(),
+          (p) => ({ ...p, cliente: nombreTrimmed })
+        );
       }
       showToast('Cliente actualizado con éxito');
     } else {
