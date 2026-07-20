@@ -201,16 +201,11 @@ export const AppProvider = ({ children }) => {
   });
 
   const pedidosCrud = makeCrud(setPedidos);
-  const bibliotecaCrud = makeCrud(setBiblioteca);
   const comprasCrud = makeCrud(setCompras);
 
   const addPedido = pedidosCrud.add;
   const updatePedido = pedidosCrud.update;
   const removePedido = pedidosCrud.remove;
-
-  const addProducto = bibliotecaCrud.add;
-  const updateProducto = bibliotecaCrud.update;
-  const removeProducto = bibliotecaCrud.remove;
 
   const addCompra = comprasCrud.add;
   const updateCompra = comprasCrud.update;
@@ -280,6 +275,90 @@ export const AppProvider = ({ children }) => {
     });
     await batch.commit();
     console.log(`Fase 2: ${legacyClientes.length} cliente(s) migrados a users/{uid}/clientes.`);
+  };
+
+  // ---------------------------------------------------------------------
+  // FASE 3 de la migración a Firestore por secciones: biblioteca pasa de
+  // ser un array dentro del documento monolítico a una subcolección propia
+  // (users/{uid}/biblioteca/{productoId}), un documento por producto. Es la
+  // sección que más pesaba del documento viejo (por las imágenes, aunque
+  // ahora sólo se guarda la URL de Storage, no el base64) y la principal
+  // candidata a acercarse al límite de 1 MiB de Firestore — separarla es el
+  // beneficio más directo de esta migración.
+  //
+  // Mismo patrón que clientes en Fase 2: escritura directa por documento,
+  // sin debounce, estado local alimentado por un listener en tiempo real
+  // sobre la subcolección. La diferencia acá es que varias pantallas
+  // (recalcular precios, ajuste masivo, actualización masiva) necesitan
+  // actualizar VARIOS productos a la vez — para eso se agrega
+  // updateProductosBulk, que hace un solo writeBatch en vez de N escrituras
+  // sueltas.
+  const productoDocRef = (id) => doc(db, "users", user.uid, "biblioteca", String(id));
+
+  const addProducto = async (item) => {
+    try {
+      await setDoc(productoDocRef(item.id), item);
+    } catch (e) {
+      console.error("Error al guardar producto:", e);
+      showToast('⚠ No se pudo guardar el producto en la nube.', 'error');
+    }
+  };
+
+  const updateProducto = async (id, updater) => {
+    try {
+      const actual = biblioteca.find(p => p.id === id);
+      if (!actual) return;
+      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
+      await setDoc(productoDocRef(id), nuevo);
+    } catch (e) {
+      console.error("Error al actualizar producto:", e);
+      showToast('⚠ No se pudo actualizar el producto en la nube.', 'error');
+    }
+  };
+
+  const removeProducto = async (id) => {
+    try {
+      await deleteDoc(productoDocRef(id));
+    } catch (e) {
+      console.error("Error al eliminar producto:", e);
+      showToast('⚠ No se pudo eliminar el producto en la nube.', 'error');
+    }
+  };
+
+  // ids: array o Set de ids a actualizar. updater: (item) => nuevoItem,
+  // recibe el producto ACTUAL (de `biblioteca`) y devuelve la versión
+  // completa a guardar. Los productos cuyo id no esté en `biblioteca` se
+  // omiten silenciosamente (por si se armó la selección con datos viejos).
+  const updateProductosBulk = async (ids, updater) => {
+    try {
+      const idSet = ids instanceof Set ? ids : new Set(ids);
+      const afectados = biblioteca.filter(p => idSet.has(p.id));
+      if (!afectados.length) return;
+
+      const batch = writeBatch(db);
+      afectados.forEach(p => {
+        const nuevo = updater(p);
+        batch.set(productoDocRef(p.id), nuevo);
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("Error al actualizar productos en lote:", e);
+      showToast('⚠ No se pudo aplicar la actualización masiva en la nube.', 'error');
+    }
+  };
+
+  const migrarBibliotecaSiHaceFalta = async (uid, legacyBiblioteca) => {
+    const colRef = collection(db, "users", uid, "biblioteca");
+    const snap = await getDocs(colRef);
+    if (!snap.empty) return;
+    if (!legacyBiblioteca || legacyBiblioteca.length === 0) return;
+
+    const batch = writeBatch(db);
+    legacyBiblioteca.forEach(p => {
+      batch.set(doc(db, "users", uid, "biblioteca", String(p.id)), p);
+    });
+    await batch.commit();
+    console.log(`Fase 3: ${legacyBiblioteca.length} producto(s) migrados a users/{uid}/biblioteca.`);
   };
 
   const loginWithGoogle = async () => {
@@ -362,12 +441,19 @@ export const AppProvider = ({ children }) => {
 
       if (docSnap.exists()) {
         const cloud = docSnap.data();
+        // La limpieza de imágenes base64 legacy ahora sólo importa en el
+        // momento de migrar biblioteca a su subcolección (Fase 3): una vez
+        // migrada, el campo `biblioteca` del documento monolítico deja de
+        // leerse y no hace falta seguir revisándolo en cada carga.
         const bibliotecaLimpia = limpiarImagenesBase64(cloud.biblioteca ?? []);
-        const huboMigracion = (cloud.biblioteca ?? []).some(p => p.imagen && p.imagen.startsWith('data:'));
         
         setPedidos(cloud.pedidos ?? []);
         setCompras(cloud.compras ?? []);
-        setBiblioteca(bibliotecaLimpia);
+        // Fase 3: biblioteca ya no vive en este documento — se migra (si
+        // hace falta, usando la versión ya limpia de base64) y de ahí en
+        // más el estado local se alimenta del listener en tiempo real de
+        // la subcolección (ver más abajo).
+        await migrarBibliotecaSiHaceFalta(uid, bibliotecaLimpia);
         // Fase 2: clientes ya no vive en este documento — se migra (si hace
         // falta) y de ahí en más el estado local se alimenta del listener
         // en tiempo real de la subcolección (ver más abajo).
@@ -388,20 +474,12 @@ export const AppProvider = ({ children }) => {
         // positivos durante la carga inicial.
         pendingWriteTimestampRef.current = null;
         
-        // Si hubo migración de imágenes base64, lo registramos para que el
-        // próximo autosave suba la versión limpia a Firestore.
-        if (huboMigracion) {
-          skipNextAutosaveRef.current = false;
-          console.log("Migración detectada: las imágenes base64 serán removidas en el próximo guardado.");
-        }
-        
         console.log("Datos cargados desde Firebase exitosamente.");
       } else {
         console.log("Usuario nuevo. Inicializando datos en Firebase...");
         const dataPayload = {
           pedidos: [],
           compras: [],
-          biblioteca: [],
           ultimaActualizacion: new Date().toISOString()
         };
         await setDoc(docRef, dataPayload);
@@ -413,9 +491,8 @@ export const AppProvider = ({ children }) => {
         pendingWriteTimestampRef.current = null;
         setPedidos(dataPayload.pedidos);
         setCompras(dataPayload.compras);
-        setBiblioteca(dataPayload.biblioteca);
-        // Fase 2: usuario nuevo arranca sin clientes; la subcolección se crea
-        // sola en el primer addCliente. No hace falta escribir nada acá.
+        // Fase 2/3: usuario nuevo arranca sin clientes ni biblioteca; esas
+        // subcolecciones se crean solas en el primer addCliente/addProducto.
         await cargarConfigDeFirestore(uid, null);
       }
 
@@ -540,7 +617,6 @@ export const AppProvider = ({ children }) => {
       const dataPayload = {
         pedidos,
         compras,
-        biblioteca,
         ultimaActualizacion: timestamp
       };
 
@@ -551,12 +627,10 @@ export const AppProvider = ({ children }) => {
         console.error(`Documento demasiado grande para Firestore: ${Math.round(payloadSizeBytes / 1024)}KB`);
         console.log('Tamaño de cada sección:');
         console.log(`  - pedidos: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.pedidos)).length / 1024)}KB`);
-        console.log(`  - biblioteca: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.biblioteca)).length / 1024)}KB`);
         console.log(`  - compras: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.compras)).length / 1024)}KB`);
-        console.log(`  - empresa: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.empresa)).length / 1024)}KB`);
         setSyncError(true);
         showToast(
-          '⚠ No se pudo guardar en la nube porque los datos son demasiado grandes. Si la biblioteca tiene muchos productos, intenta borrar algunos de los más antiguos.',
+          '⚠ No se pudo guardar en la nube porque los datos son demasiado grandes.',
           'error',
           10000
         );
@@ -626,7 +700,7 @@ export const AppProvider = ({ children }) => {
         saveRetryTimeoutRef.current = null;
       }
     };
-  }, [pedidos, compras, biblioteca, user, loading, datosCargadosOk]);
+  }, [pedidos, compras, user, loading, datosCargadosOk]);
 
   // Auto-save de config + empresa + counter a su documento propio
   // (users/{uid}/meta/config). Mismo patrón de debounce + reintentos que el
@@ -786,7 +860,6 @@ export const AppProvider = ({ children }) => {
         // pestaña o dispositivo del mismo usuario. Sincronizamos.
         setPedidos(cloud.pedidos ?? []);
         setCompras(cloud.compras ?? []);
-        setBiblioteca(cloud.biblioteca ?? []);
         // Registramos este timestamp como "ya aplicado" para no procesar de
         // nuevo la misma entrega si Firestore la reenvía (ej. reconexión).
         lastWrittenTimestampRef.current = cloud.ultimaActualizacion || null;
@@ -877,6 +950,29 @@ export const AppProvider = ({ children }) => {
 
     return () => unsubscribe();
   }, [user, datosCargadosOk]);
+
+  // Listener en tiempo real para la subcolección de biblioteca (Fase 3).
+  // Mismo criterio que clientes en Fase 2: sin detección de eco por
+  // timestamp (cada producto es independiente), sin toast de "otra sesión"
+  // por ser potencialmente ruidoso con muchos productos.
+  useEffect(() => {
+    if (!user || !datosCargadosOk) return;
+
+    const colRef = collection(db, "users", user.uid, "biblioteca");
+
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        setBiblioteca(snapshot.docs.map(d => d.data()));
+      },
+      (error) => {
+        console.error("Error en la suscripción en tiempo real de biblioteca:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, datosCargadosOk]);
+
   useEffect(() => {
     try {
       const logo = empresa && empresa.logo ? empresa.logo : null;
@@ -935,10 +1031,10 @@ export const AppProvider = ({ children }) => {
       if (data.pedidos) setPedidos(data.pedidos);
       if (data.cfg) setCfg(data.cfg);
       if (data.compras) setCompras(data.compras);
-      if (data.biblioteca) setBiblioteca(data.biblioteca);
-      // Fase 2: clientes ya no es un array de estado que se "restaura" en
-      // memoria — se escribe directo a la subcolección más abajo, y el
-      // listener en tiempo real actualiza el estado local solo.
+      // Fase 2/3: clientes y biblioteca ya no son arrays de estado que se
+      // "restauran" en memoria — se escriben directo a sus subcolecciones
+      // más abajo, y los listeners en tiempo real actualizan el estado
+      // local solos.
       if (data.empresa) setEmpresa(data.empresa);
       
       const nextCounter = data._idCounter || data.idCounter || 1;
@@ -950,7 +1046,6 @@ export const AppProvider = ({ children }) => {
         await setDoc(doc(db, "users", user.uid), {
           pedidos: data.pedidos || [],
           compras: data.compras || [],
-          biblioteca: data.biblioteca || [],
           ultimaActualizacion: restoreTimestamp
         }, { merge: true });
         // Igual que en el autosave: evita que el listener en tiempo real
@@ -981,6 +1076,19 @@ export const AppProvider = ({ children }) => {
           batch.set(doc(db, "users", user.uid, "clientes", String(c.id)), c);
         });
         await batch.commit();
+
+        // Fase 3: mismo criterio para biblioteca — batch separado (los
+        // batch de Firestore tienen un límite de 500 operaciones, así que
+        // conviene no mezclar clientes y biblioteca en el mismo batch si
+        // alguna de las dos listas es grande).
+        const bibliotecaColRef = collection(db, "users", user.uid, "biblioteca");
+        const bibliotecaActual = await getDocs(bibliotecaColRef);
+        const batchBiblioteca = writeBatch(db);
+        bibliotecaActual.forEach(d => batchBiblioteca.delete(d.ref));
+        (data.biblioteca || []).forEach(p => {
+          batchBiblioteca.set(doc(db, "users", user.uid, "biblioteca", String(p.id)), p);
+        });
+        await batchBiblioteca.commit();
       }
       
       showToast('✓ Backup restaurado correctamente.');
@@ -1008,6 +1116,7 @@ export const AppProvider = ({ children }) => {
     addProducto,
     updateProducto,
     removeProducto,
+    updateProductosBulk,
     clientes,
     setClientes,
     addCliente,

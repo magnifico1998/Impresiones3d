@@ -89,7 +89,7 @@ const calculateNewProduct = (product, cfg) => {
 };
 
 export default function ActualizacionMasivaPage() {
-  const { biblioteca, setBiblioteca, cfg, showToast } = useApp();
+  const { biblioteca, updateProducto, updateProductosBulk, cfg, showToast } = useApp();
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [priceOverrides, setPriceOverrides] = useState({});
 
@@ -152,8 +152,7 @@ export default function ActualizacionMasivaPage() {
   };
 
   const handleRecalculateSingle = (id) => {
-    setBiblioteca(prev => prev.map(p => {
-      if (p.id !== id) return p;
+    updateProducto(id, (p) => {
       const { costoPorUnidad, precioSugerido } = calculateNewProduct(p, cfg);
       const manualPrice = priceOverrides[p.id];
       const finalPrice = Number.isFinite(parseFloat(manualPrice)) ? parseFloat(manualPrice) : precioSugerido;
@@ -162,7 +161,7 @@ export default function ActualizacionMasivaPage() {
         costoUnitario: Number.isFinite(costoPorUnidad) ? Number(costoPorUnidad.toFixed(2)) : p.costoUnitario,
         precioSugUnitario: Number.isFinite(finalPrice) ? Number(finalPrice) : p.precioSugUnitario
       };
-    }));
+    });
   };
 
   const handleSelectAll = () => {
@@ -179,8 +178,7 @@ export default function ActualizacionMasivaPage() {
       return;
     }
 
-    setBiblioteca(prev => prev.map(p => {
-      if (!selectedIds.has(p.id)) return p;
+    updateProductosBulk(selectedIds, (p) => {
       const { costoPorUnidad, precioSugerido } = calculateNewProduct(p, cfg);
       const manualPrice = priceOverrides[p.id];
       const finalPrice = Number.isFinite(parseFloat(manualPrice)) ? parseFloat(manualPrice) : precioSugerido;
@@ -189,7 +187,7 @@ export default function ActualizacionMasivaPage() {
         costoUnitario: Number.isFinite(costoPorUnidad) ? Number(costoPorUnidad.toFixed(2)) : p.costoUnitario,
         precioSugUnitario: Number.isFinite(finalPrice) ? Number(finalPrice) : p.precioSugUnitario
       };
-    }));
+    });
 
     showToast(`Actualizados ${selectedIds.size} producto${selectedIds.size > 1 ? 's' : ''}.`);
   };

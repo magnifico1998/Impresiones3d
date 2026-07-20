@@ -306,7 +306,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
  * Componente principal BibliotecaPage
  */
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido }) {
-  const { biblioteca, setBiblioteca, cfg, showToast, empresa } = useApp();
+  const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa } = useApp();
 
   const [q, setQ] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -357,7 +357,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
         await borrarImagenDeFirebase(prod.imagen);
       }
       
-      setBiblioteca(prev => prev.filter(p => p.id !== id));
+      removeProducto(id);
       setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
       showToast('Producto eliminado de biblioteca.', 'info');
     }
@@ -384,34 +384,32 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
     const toUpdate = items.filter(it => selectedSet.has(it.prod.id));
     if (!toUpdate.length) return;
 
-    setBiblioteca(prev =>
-      prev.map(p => {
-        const hit = toUpdate.find(it => it.prod.id === p.id);
-        if (!hit) return p;
-        const n = hit.nuevos;
-        // Calcular los costos desagregados para guardar
-        const desglose = n._desglose;
-        return {
-          ...p,
-          costoUnitario: n.costoUnitario,
-          precioSugUnitario: n.precioSugUnitario,
-          precioKwh: n.precioKwh,
-          moHora: n.moHora,
-          costeFil: desglose.costeFil,
-          costeElec: desglose.costeElec,
-          costeMant: desglose.costeMant,
-          costeMO: desglose.costeMO,
-          ...(n.matData ? { matData: n.matData } : {}),
-          ...(n.precioRollo !== undefined ? { precioRollo: n.precioRollo } : {}),
-          margen: n.margenNuevo,
-          fechaRecalculo: new Date().toLocaleDateString('es-AR'),
-        };
-      })
-    );
+    updateProductosBulk(selectedSet, (p) => {
+      const hit = toUpdate.find(it => it.prod.id === p.id);
+      if (!hit) return p;
+      const n = hit.nuevos;
+      // Calcular los costos desagregados para guardar
+      const desglose = n._desglose;
+      return {
+        ...p,
+        costoUnitario: n.costoUnitario,
+        precioSugUnitario: n.precioSugUnitario,
+        precioKwh: n.precioKwh,
+        moHora: n.moHora,
+        costeFil: desglose.costeFil,
+        costeElec: desglose.costeElec,
+        costeMant: desglose.costeMant,
+        costeMO: desglose.costeMO,
+        ...(n.matData ? { matData: n.matData } : {}),
+        ...(n.precioRollo !== undefined ? { precioRollo: n.precioRollo } : {}),
+        margen: n.margenNuevo,
+        fechaRecalculo: new Date().toLocaleDateString('es-AR'),
+      };
+    });
 
     setRecalcModal(null);
     showToast(`✓ ${toUpdate.length} producto${toUpdate.length !== 1 ? 's' : ''} actualizado${toUpdate.length !== 1 ? 's' : ''}.`);
-  }, [setBiblioteca, showToast]);
+  }, [updateProductosBulk, showToast]);
 
   // ────────────────────────────────────────────────────────────────────
 
@@ -672,18 +670,13 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
           onConfirm={(selectedSet, items, mode, value) => {
             const toUpdate = items.filter(it => selectedSet.has(it.prod.id));
             if (!toUpdate.length) return;
-            setBiblioteca(prev => prev.map(p => {
-              const hit = toUpdate.find(it => it.prod.id === p.id);
-              if (!hit) return p;
+            updateProductosBulk(selectedSet, (p) => {
               const old = Number(p.precioSugUnitario || p.costoUnitario || 0);
-              let nuevo = old;
-              if (mode === 'percent') {
-                nuevo = old * (1 + Number(value) / 100);
-              } else {
-                nuevo = old + Number(value);
-              }
+              const nuevo = mode === 'percent'
+                ? old * (1 + Number(value) / 100)
+                : old + Number(value);
               return { ...p, precioSugUnitario: nuevo };
-            }));
+            });
             setAdjustModal(null);
             showToast(`✓ ${toUpdate.length} producto${toUpdate.length !== 1 ? 's' : ''} ajustado${toUpdate.length !== 1 ? 's' : ''}.`);
           }}

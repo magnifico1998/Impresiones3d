@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
-  const { biblioteca, setBiblioteca, showToast, user } = useApp();
+  const { biblioteca, updateProducto, showToast, user } = useApp();
   const [categoria, setCategoria] = useState('');
   const [productName, setProductName] = useState('');
   const [precio, setPrecio] = useState('');
@@ -87,7 +87,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
       }
     }
 
-    setBiblioteca(prev => prev.map(p => p.id === editId ? { ...p, cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagenFinal || p.imagen || '' } : p));
+    updateProducto(editId, { cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagenFinal || undefined });
     showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? '$' + Math.round(cleanPrecio).toLocaleString('es-AR') : 'sin precio'}`);
     onClose();
   };

@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) {
-  const { biblioteca, setBiblioteca, getNewId, showToast, user } = useApp();
+  const { biblioteca, addProducto, updateProducto, getNewId, showToast, user } = useApp();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState('');
@@ -111,16 +111,16 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
       imagen: imagenFinal || null
     };
 
-    const idx = biblioteca.findIndex(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());
+    const existente = biblioteca.find(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());
     
-    if (idx >= 0) {
+    if (existente) {
       if (window.confirm(`Ya existe "${nameTrimmed}" en la biblioteca. ¿Reemplazarlo con los valores actuales?`)) {
-        setBiblioteca(prev => prev.map((x, i) => i === idx ? { ...snap, id: x.id } : x));
+        updateProducto(existente.id, { ...snap, id: existente.id });
         showToast('Producto actualizado en biblioteca.');
         onClose();
       }
     } else {
-      setBiblioteca(prev => [...prev, snap]);
+      addProducto(snap);
       showToast('✓ Producto guardado en biblioteca.');
       onClose();
     }
