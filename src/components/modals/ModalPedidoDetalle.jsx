@@ -503,19 +503,38 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     const precioVentaNetoPdf = Math.max(0, (p.precioVenta || 0) - descuentoTotalPdf);
     const descuentoLabelPdf = descuentoNombrePdf ? `${descuentoNombrePdf}${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}` : `Descuento${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}`;
 
-    // define totals columns anchored to right margin
-    const totalColTot = 36; // width for total amount
-    const totalColPU = 44; // width for label/secondary column (will host some labels)
+    // define totals columns anchored to right margin. El ancho de la columna
+    // de etiqueta (SUBTOTAL / Descuento / TOTAL, etc.) es dinámico: se calcula
+    // en función del texto más largo que va a mostrar esta orden puntual, así
+    // un nombre de descuento largo no se sale de su caja y pisa los montos.
+    const totalColTot = 36; // ancho fijo de la columna de montos (siempre a la derecha)
+    const medirAncho = (texto, bold, size) => {
+      doc.setFont('helvetica', bold ? 'bold' : 'normal');
+      doc.setFontSize(size);
+      return doc.getTextWidth(texto);
+    };
+    const anchosCandidatos = [
+      medirAncho('SUBTOTAL', true, 9.5),
+      medirAncho('SUBTOTAL neto', true, 9.5),
+      medirAncho('TOTAL', true, 10.5)
+    ];
+    if (descuentoTotalPdf > 0) anchosCandidatos.push(medirAncho(descuentoLabelPdf, false, 9));
+    if (p.envio > 0) anchosCandidatos.push(medirAncho('ENVÍO', false, 9));
+
+    const minColPU = 44; // ancho mínimo, igual al que tenía antes
+    const maxColPU = contentW - totalColTot - 20; // deja siempre aire a la izquierda de la tabla
+    const totalColPU = Math.min(maxColPU, Math.max(minColPU, Math.max(...anchosCandidatos) + 8));
     const xTotR = pageW - marginX - totalColTot; // rightmost numeric column X
     const xPUR = xTotR - totalColPU; // left numeric/label column X
-    const labelWidth = xPUR - marginX; // available width for long labels
+    const labelWidth = totalColPU; // ancho real disponible para envolver etiquetas largas
 
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(40, 40, 40);
     // SUBTOTAL row
     let rowH = 6.5;
     checkPageBreak(rowH);
     doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
-    doc.text('SUBTOTAL', xPUR + 2, y + 4.5); doc.text(fmt(p.precioVenta || 0), xTotR + 2, y + 4.5);
+    doc.text('SUBTOTAL', xPUR + 2, y + 4.5);
+    doc.text(fmt(p.precioVenta || 0), xTotR + totalColTot - 2, y + 4.5, { align: 'right' });
     y += rowH;
 
     if (descuentoTotalPdf > 0) {
@@ -530,7 +549,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       doc.text(labelLines, xPUR + 2, y + 5);
       // amount vertically centered in discount row
       const amountY = y + Math.max(5, discRowH / 2 + 1);
-      doc.text(`-${fmt(descuentoTotalPdf)}`, xTotR + 2, amountY);
+      doc.text(`-${fmt(descuentoTotalPdf)}`, xTotR + totalColTot - 2, amountY, { align: 'right' });
       y += discRowH;
 
       // SUBTOTAL neto row
@@ -538,7 +557,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       checkPageBreak(rowH);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
       doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
-      doc.text('SUBTOTAL neto', xPUR + 2, y + 5); doc.text(fmt(precioVentaNetoPdf), xTotR + 2, y + 5);
+      doc.text('SUBTOTAL neto', xPUR + 2, y + 5);
+      doc.text(fmt(precioVentaNetoPdf), xTotR + totalColTot - 2, y + 5, { align: 'right' });
       y += rowH;
     }
 
@@ -547,7 +567,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       checkPageBreak(rowH);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
       doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
-      doc.text('ENVÍO', xPUR + 2, y + 5); doc.text(fmt(p.envio), xTotR + 2, y + 5);
+      doc.text('ENVÍO', xPUR + 2, y + 5);
+      doc.text(fmt(p.envio), xTotR + totalColTot - 2, y + 5, { align: 'right' });
       y += rowH;
     }
 
@@ -559,7 +580,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.setDrawColor(180); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
     doc.text('TOTAL', xPUR + 2, y + 5.5);
-    doc.text(fmt(precioVentaNetoPdf + (p.envio || 0)), xTotR + 2, y + 5.5);
+    doc.text(fmt(precioVentaNetoPdf + (p.envio || 0)), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
     y += rowH + 10;
 
     // Shipping info

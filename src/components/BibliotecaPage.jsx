@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
+import { generarListadoProductosPDF } from '../utils/listadoPDF';
 
 /**
  * Recalcula costos de un producto manteniendo estructura física pero actualizando precios
@@ -305,7 +306,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
  * Componente principal BibliotecaPage
  */
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido }) {
-  const { biblioteca, setBiblioteca, cfg, showToast } = useApp();
+  const { biblioteca, setBiblioteca, cfg, showToast, empresa } = useApp();
 
   const [q, setQ] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -469,6 +470,21 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                 <path d="M4 4v5h5M16 16v-5h-5M4.93 9A8 8 0 1 1 4 12" />
               </svg>
               Actualizar precios ({sortedList.length})
+            </button>
+          )}
+          {sortedList.length > 0 && (
+            <button
+              className="btn btn-sm"
+              style={{ whiteSpace: 'nowrap', borderColor: '#5A7B9E', color: '#5A7B9E' }}
+              onClick={() => generarListadoProductosPDF(sortedList, empresa)}
+              title="Descargar listado de productos en PDF"
+            >
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '13px', height: '13px' }}>
+                <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z" />
+                <path d="M14 3V1M6 3V1" />
+                <path d="M6 7h8M6 11h8M6 15h4" />
+              </svg>
+              Descargar PDF
             </button>
           )}
           {sortedList.length > 0 && (
