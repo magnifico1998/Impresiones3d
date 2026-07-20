@@ -96,47 +96,9 @@ export const AppProvider = ({ children }) => {
     }, duration);
   };
 
-  const estimatePayloadSize = (payload) => {
-    try {
-      return new TextEncoder().encode(JSON.stringify(payload)).length;
-    } catch {
-      return JSON.stringify(payload).length;
-    }
-  };
-
   // Referencia usada por getNewId para evitar que dos IDs generados en la
   // misma pestaña dentro del mismo milisegundo colisionen (ver más abajo).
   const idSeqRef = useRef(0);
-
-  // Guarda el timestamp exacto de nuestro último guardado propio en
-  // Firestore (autosave o creación inicial del documento). El listener en
-  // tiempo real (más abajo) lo usa para reconocer "esto es el eco de mi
-  // propia escritura" y no reaplicarlo, evitando pisar ediciones más nuevas
-  // que el usuario haya hecho localmente mientras ese guardado viajaba.
-  const lastWrittenTimestampRef = useRef(null);
-  
-  // Para evitar falsos positivos de "datos actualizados desde otra sesión"
-  // cuando hay múltiples guardados rápidos (ej: agregar imagen + editar nombre),
-  // guardamos también un "pending write" que nos permite ignorar snapshots
-  // intermedios hasta que llegue la confirmación del último guardado.
-  const pendingWriteTimestampRef = useRef(null);
-
-  // BUG encontrado tras el reporte de "se borra la imagen al agregarla":
-  // cargarDatosDeFirestore hace setPedidos(cloud.pedidos ?? []) y similares.
-  // Aunque el CONTENIDO sea idéntico al que ya había, JS crea arrays nuevos
-  // en memoria, y React los ve como "cambiaron". Eso disparaba el efecto de
-  // autosave solo, ~800ms después de cada login, guardando datos que en
-  // realidad no habían cambiado ("guardado fantasma"). Ese guardado de más
-  // pisaba lastWrittenTimestampRef con un timestamp nuevo, y si en esa
-  // ventana el listener en tiempo real todavía estaba entregando la
-  // confirmación de la carga original, dejaba de coincidir — se
-  // malinterpretaba como "cambio de otra sesión" y pisaba el estado local
-  // (por ejemplo, una imagen recién elegida en un modal abierto).
-  //
-  // Esta bandera le dice al efecto de autosave "el próximo cambio de estado
-  // que veas viene de haber cargado datos de la nube, no de una edición real
-  // del usuario — no guardes nada por eso".
-  const skipNextAutosaveRef = useRef(false);
 
   // ---------------------------------------------------------------------
   // FASE 1 de la migración a Firestore por secciones: config + empresa +
@@ -144,11 +106,11 @@ export const AppProvider = ({ children }) => {
   // en vez de ser campos del documento monolítico users/{uid}. Es la
   // sección piloto elegida por ser la más chica y la que menos cambia.
   //
-  // Usa el mismo patrón de detección de eco que ya existía para el
-  // documento principal, pero con sus propias referencias — así un
-  // guardado de config no interfiere con la detección de eco de
-  // pedidos/biblioteca/clientes/compras (que siguen en el doc principal
-  // por ahora), y viceversa.
+  // Usa el mismo patrón de detección de eco que en su momento tuvo el
+  // documento principal — así un guardado de config no interfiere con las
+  // demás subcolecciones (pedidos/biblioteca/clientes/compras), y viceversa.
+  // (El documento principal users/{uid} ya no existe como tal desde la
+  // limpieza de Fase 5 — ver cargarDatosDeFirestore.)
   const lastWrittenTimestampRefMeta = useRef(null);
   const pendingWriteTimestampRefMeta = useRef(null);
   const skipNextAutosaveRefMeta = useRef(false);
@@ -171,40 +133,58 @@ export const AppProvider = ({ children }) => {
   };
 
   // ---------------------------------------------------------------------
-  // FASE 0 de la migración a Firestore por secciones (ver plan): antes de
-  // separar pedidos/biblioteca/clientes/compras en documentos propios,
-  // centralizamos acá las mutaciones que hoy están repartidas en ~15
-  // componentes vía setPedidos/setBiblioteca/etc. crudos.
-  //
-  // Por qué: mientras cada componente decida por su cuenta "hago un map",
-  // "hago un filter", "hago un spread", cualquier cambio futuro de cómo se
-  // persiste cada sección (ej. pasar a updateDoc puntual sobre un doc por
-  // producto) obliga a tocar los 15 archivos de nuevo. Con estas funciones,
-  // el día que cambie el backend de una sección, el cambio se hace en un
-  // solo lugar.
-  //
-  // Por ahora estas funciones siguen escribiendo sobre los mismos arrays en
-  // memoria (useState) que ya existían — el autosave global no cambia en
-  // esta fase. Los setters crudos (setPedidos, setBiblioteca, etc.) se
-  // mantienen expuestos por compatibilidad mientras dure la migración
-  // componente por componente; se retirarán en una fase posterior.
-  const makeCrud = (setter) => ({
-    add: (item) => setter(prev => [...prev, item]),
-    // updater puede ser un objeto parcial (se mergea con {...item, ...updater})
-    // o una función (item) => nuevoItem (reemplazo completo, útil cuando el
-    // caller ya arma el objeto final, ej. un "draft" de edición).
-    update: (id, updater) => setter(prev => prev.map(item => {
-      if (item.id !== id) return item;
-      return typeof updater === 'function' ? updater(item) : { ...item, ...updater };
-    })),
-    remove: (id) => setter(prev => prev.filter(item => item.id !== id)),
-  });
+  // FASE 5 (limpieza final): compras era la última sección que seguía con
+  // el patrón "array + autosave debounced" de Fase 0 sobre el documento
+  // monolítico users/{uid}. Con esto, las 5 secciones (meta/config,
+  // clientes, biblioteca, pedidos, compras) ya viven cada una en su propio
+  // lugar en Firestore, y el documento users/{uid} deja de usarse para
+  // guardar datos — sólo se lee una vez, al migrar, por si un usuario
+  // viejo todavía tiene algo ahí (ver cargarDatosDeFirestore).
+  const compraDocRef = (id) => doc(db, "users", user.uid, "compras", String(id));
 
-  const comprasCrud = makeCrud(setCompras);
+  const addCompra = async (item) => {
+    try {
+      await setDoc(compraDocRef(item.id), item);
+    } catch (e) {
+      console.error("Error al guardar compra:", e);
+      showToast('⚠ No se pudo guardar la compra en la nube.', 'error');
+    }
+  };
 
-  const addCompra = comprasCrud.add;
-  const updateCompra = comprasCrud.update;
-  const removeCompra = comprasCrud.remove;
+  const updateCompra = async (id, updater) => {
+    try {
+      const actual = compras.find(c => c.id === id);
+      if (!actual) return;
+      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
+      await setDoc(compraDocRef(id), nuevo);
+    } catch (e) {
+      console.error("Error al actualizar compra:", e);
+      showToast('⚠ No se pudo actualizar la compra en la nube.', 'error');
+    }
+  };
+
+  const removeCompra = async (id) => {
+    try {
+      await deleteDoc(compraDocRef(id));
+    } catch (e) {
+      console.error("Error al eliminar compra:", e);
+      showToast('⚠ No se pudo eliminar la compra en la nube.', 'error');
+    }
+  };
+
+  const migrarComprasSiHaceFalta = async (uid, legacyCompras) => {
+    const colRef = collection(db, "users", uid, "compras");
+    const snap = await getDocs(colRef);
+    if (!snap.empty) return;
+    if (!legacyCompras || legacyCompras.length === 0) return;
+
+    const batch = writeBatch(db);
+    legacyCompras.forEach(c => {
+      batch.set(doc(db, "users", uid, "compras", String(c.id)), c);
+    });
+    await batch.commit();
+    console.log(`Fase 5: ${legacyCompras.length} compra(s) migrada(s) a users/{uid}/compras.`);
+  };
 
   // ---------------------------------------------------------------------
   // FASE 2 de la migración a Firestore por secciones: clientes pasa de ser
@@ -513,80 +493,43 @@ export const AppProvider = ({ children }) => {
   const cargarDatosDeFirestore = async (uid) => {
     try {
       console.log("Cargando datos desde Firebase...");
+      // FASE 5 (limpieza final): el documento users/{uid} ya no es la fuente
+      // de verdad de nada — cada sección vive en su propia subcolección
+      // (meta/config, clientes, biblioteca, pedidos, compras). Este doc
+      // sólo se lee acá, una vez, por si un usuario todavía tiene datos
+      // legacy sin migrar (por ejemplo, alguien que no abrió la app desde
+      // antes de la Fase 1). Si existe, migramos lo que haga falta y
+      // borramos el documento — no vuelve a usarse nunca más.
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
         const cloud = docSnap.data();
-        // La limpieza de imágenes base64 legacy ahora sólo importa en el
-        // momento de migrar biblioteca a su subcolección (Fase 3): una vez
-        // migrada, el campo `biblioteca` del documento monolítico deja de
-        // leerse y no hace falta seguir revisándolo en cada carga.
         const bibliotecaLimpia = limpiarImagenesBase64(cloud.biblioteca ?? []);
-        
-        setCompras(cloud.compras ?? []);
-        // Fase 4: pedidos ya no vive en este documento — se migra (si hace
-        // falta) y de ahí en más el estado local se alimenta del listener
-        // en tiempo real de la subcolección (ver más abajo).
+
         await migrarPedidosSiHaceFalta(uid, cloud.pedidos ?? []);
-        // Fase 3: biblioteca ya no vive en este documento — se migra (si
-        // hace falta, usando la versión ya limpia de base64) y de ahí en
-        // más el estado local se alimenta del listener en tiempo real de
-        // la subcolección (ver más abajo).
         await migrarBibliotecaSiHaceFalta(uid, bibliotecaLimpia);
-        // Fase 2: clientes ya no vive en este documento — se migra (si hace
-        // falta) y de ahí en más el estado local se alimenta del listener
-        // en tiempo real de la subcolección (ver más abajo).
         await migrarClientesSiHaceFalta(uid, cloud.clientes ?? []);
+        await migrarComprasSiHaceFalta(uid, cloud.compras ?? []);
         await cargarConfigDeFirestore(uid, cloud);
-        // BUG encontrado: esta rama (documento ya existente — el caso normal
-        // en cada inicio de sesión) nunca registraba el timestamp acá. Como
-        // resultado, apenas se conectaba el listener en tiempo real, recibía
-        // la confirmación de "esto es lo que ya hay en la nube" pero no tenía
-        // nada guardado contra qué compararlo — lo trataba como si viniera de
-        // OTRA sesión, mostraba el aviso "Datos actualizados desde otra
-        // sesión" y reemplazaba biblioteca/pedidos/etc. por arrays nuevos
-        // (mismo contenido, pero referencia distinta), lo que a su vez
-        // reiniciaba cualquier modal abierto que dependiera de esos arrays
-        // (por ejemplo, borrando una imagen recién elegida antes de guardar).
-        lastWrittenTimestampRef.current = cloud.ultimaActualizacion || null;
-        // También inicializamos pendingWriteTimestampRef para evitar falsos
-        // positivos durante la carga inicial.
-        pendingWriteTimestampRef.current = null;
-        
-        console.log("Datos cargados desde Firebase exitosamente.");
+
+        // Ya migramos todo lo que pudiera haber legacy acá — el documento
+        // monolítico no se vuelve a leer ni escribir. Lo borramos para no
+        // dejar datos duplicados y desactualizados dando vueltas en la nube.
+        await deleteDoc(docRef);
+        console.log("Fase 5: documento legacy users/{uid} migrado y eliminado.");
       } else {
-        console.log("Usuario nuevo. Inicializando datos en Firebase...");
-        const dataPayload = {
-          compras: [],
-          ultimaActualizacion: new Date().toISOString()
-        };
-        await setDoc(docRef, dataPayload);
-        // Igual que en el autosave: registramos este timestamp como "propio"
-        // para que, cuando el listener en tiempo real reciba la confirmación
-        // de este mismo documento recién creado, lo reconozca como un eco y
-        // no muestre el aviso de "datos actualizados desde otra sesión".
-        lastWrittenTimestampRef.current = dataPayload.ultimaActualizacion;
-        pendingWriteTimestampRef.current = null;
-        setCompras(dataPayload.compras);
-        // Fase 2/3/4: usuario nuevo arranca sin clientes, biblioteca ni
-        // pedidos; esas subcolecciones se crean solas en el primer
-        // addCliente/addProducto/addPedido.
+        // Usuario ya migrado (o nuevo): no hay nada que leer del doc
+        // principal. Cada subcolección se crea sola en el primer
+        // addCliente/addProducto/addPedido/addCompra, y meta/config se
+        // inicializa con sus valores default en cargarConfigDeFirestore.
         await cargarConfigDeFirestore(uid, null);
       }
 
-      // CRÍTICO: sólo acá, tras confirmar que sabemos qué hay realmente en la
-      // nube (documento existente cargado, o uno nuevo recién creado), es
-      // seguro dejar que el autosave empiece a escribir. Si esto no se marca,
-      // el efecto de autosave se mantiene bloqueado.
-      //
-      // skipNextAutosaveRef en true: los setPedidos/setCfg/etc de arriba van
-      // a disparar el efecto de autosave apenas se habilite (datosCargadosOk
-      // pasa a true en la misma tanda), aunque el usuario no haya cambiado
-      // nada. Sin esto, ese guardado fantasma es lo que rompía la detección
-      // de "eco propio" del listener en tiempo real (ver nota en la
-      // declaración de skipNextAutosaveRef, más arriba).
-      skipNextAutosaveRef.current = true;
+      // El próximo cambio de cfg/empresa/idCounter que dispare el efecto de
+      // autosave de meta/config va a ser el "eco" de haber cargado datos de
+      // la nube recién, no una edición real del usuario — no hace falta
+      // volver a guardar lo que ya está guardado.
       skipNextAutosaveRefMeta.current = true;
       setLoadError(false);
       setDatosCargadosOk(true);
@@ -638,146 +581,6 @@ export const AppProvider = ({ children }) => {
       });
     }
   }, [cfg?.palette]);
-
-  // Auto-save to Firebase
-  // IMPORTANTE: antes, si setDoc fallaba (sin conexión, cuota, tamaño de
-  // documento excedido, etc.) el error solo se logueaba en consola. La UI ya
-  // había cambiado localmente, así que el usuario creía que todo estaba
-  // guardado y podía perder ese trabajo al recargar o cambiar de dispositivo.
-  // Ahora: se reintenta un par de veces con backoff, y si sigue fallando se
-  // avisa de forma visible y persistente (toast largo + bandera syncError)
-  // hasta que un guardado posterior tenga éxito.
-  //
-  // MEDIO (nuevo): antes se disparaba un guardado por cada cambio de estado,
-  // incluyendo cada tecla escrita en un campo de texto (nota, descripción,
-  // etc.). Eso multiplicaba las escrituras a Firestore y ampliaba la ventana
-  // de una posible condición de carrera entre pestañas/dispositivos. Ahora
-  // se espera un breve silencio (debounce de 800ms sin cambios) antes de
-  // guardar.
-  const debounceTimeoutRef = useRef(null);
-  const saveRetryTimeoutRef = useRef(null);
-
-  useEffect(() => {
-    // Además de loading/user, exigimos datosCargadosOk: si la carga inicial
-    // falló (o todavía no terminó), NO se debe guardar nada — guardar acá
-    // significaría pisar la nube con el estado default vacío. Ver
-    // cargarDatosDeFirestore para el detalle de por qué esto es crítico.
-    if (loading || !user || !datosCargadosOk) return;
-
-    // Este disparo del efecto viene de haber cargado datos de la nube (los
-    // setPedidos/setCfg/etc de cargarDatosDeFirestore crean arrays nuevos
-    // aunque el contenido sea igual), no de una edición real del usuario.
-    // Lo saltamos para no generar un guardado fantasma — ver la nota en la
-    // declaración de skipNextAutosaveRef más arriba para el detalle de por
-    // qué ese guardado de más rompía la sincronización en tiempo real.
-    if (skipNextAutosaveRef.current) {
-      skipNextAutosaveRef.current = false;
-      return;
-    }
-
-    let cancelado = false;
-
-    // Cualquier cambio nuevo cancela el debounce y los reintentos pendientes
-    // de la ronda anterior: el próximo guardado ya va a mandar la versión
-    // más actualizada de todo, no tiene sentido seguir reintentando la vieja.
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-      debounceTimeoutRef.current = null;
-    }
-    if (saveRetryTimeoutRef.current) {
-      clearTimeout(saveRetryTimeoutRef.current);
-      saveRetryTimeoutRef.current = null;
-    }
-
-    debounceTimeoutRef.current = setTimeout(() => {
-      if (cancelado) return;
-
-      const timestamp = new Date().toISOString();
-      const dataPayload = {
-        compras,
-        ultimaActualizacion: timestamp
-      };
-
-      const payloadSizeBytes = estimatePayloadSize(dataPayload);
-      const MAX_FIRESTORE_DOC_BYTES = 950 * 1024;
-
-      if (payloadSizeBytes > MAX_FIRESTORE_DOC_BYTES) {
-        console.error(`Documento demasiado grande para Firestore: ${Math.round(payloadSizeBytes / 1024)}KB`);
-        console.log('Tamaño de cada sección:');
-        console.log(`  - compras: ${Math.round(new TextEncoder().encode(JSON.stringify(dataPayload.compras)).length / 1024)}KB`);
-        setSyncError(true);
-        showToast(
-          '⚠ No se pudo guardar en la nube porque los datos son demasiado grandes.',
-          'error',
-          10000
-        );
-        return;
-      }
-
-      const intentarGuardar = (intento = 0) => {
-        // Se guarda ANTES de escribir: así, en cuanto llegue la confirmación
-        // por el listener en tiempo real, ya sabemos reconocer que es este
-        // mismo guardado y no un cambio remoto genuino.
-        lastWrittenTimestampRef.current = timestamp;
-        // También marcamos como pending para ignorar snapshots intermedios
-        // hasta que llegue la confirmación del servidor.
-        pendingWriteTimestampRef.current = timestamp;
-
-        setDoc(doc(db, "users", user.uid), dataPayload, { merge: true })
-          .then(() => {
-            if (cancelado) return;
-            // Guardado exitoso: limpiamos pending y actualizamos confirmed
-            pendingWriteTimestampRef.current = null;
-            lastWrittenTimestampRef.current = timestamp;
-            // Guardado exitoso: si veníamos de un error, lo limpiamos.
-            setSyncError(prevError => {
-              if (prevError) {
-                showToast('✓ Conexión con la nube restablecida. Datos guardados.', 'success');
-              }
-              return false;
-            });
-          })
-          .catch(e => {
-            console.error("Error al guardar en Firebase:", e);
-            if (cancelado) return;
-
-            if (intento < 2) {
-              // Reintenta hasta 2 veces antes de molestar al usuario (fallos transitorios de red)
-              saveRetryTimeoutRef.current = setTimeout(() => {
-                if (!cancelado) intentarGuardar(intento + 1);
-              }, 1500 * (intento + 1));
-              return;
-            }
-
-            // Se agotaron los reintentos: esto sí puede significar pérdida de datos.
-            setSyncError(true);
-            showToast(
-              '⚠ No se pudo guardar en la nube. Tus últimos cambios podrían perderse si recargás la página o cerrás la app. Revisá tu conexión.',
-              'error',
-              10000
-            );
-          });
-      };
-
-      intentarGuardar();
-    }, 800);
-
-    // Si las dependencias cambian de nuevo (nuevo cambio del usuario) antes de
-    // que se dispare el guardado debounced, o antes de que termine un
-    // reintento pendiente, cancelamos ambos: el próximo efecto ya va a mandar
-    // la versión más actualizada de los datos.
-    return () => {
-      cancelado = true;
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-        debounceTimeoutRef.current = null;
-      }
-      if (saveRetryTimeoutRef.current) {
-        clearTimeout(saveRetryTimeoutRef.current);
-        saveRetryTimeoutRef.current = null;
-      }
-    };
-  }, [compras, user, loading, datosCargadosOk]);
 
   // Auto-save de config + empresa + counter a su documento propio
   // (users/{uid}/meta/config). Mismo patrón de debounce + reintentos que el
@@ -871,80 +674,22 @@ export const AppProvider = ({ children }) => {
     };
   }, [cfg, empresa, idCounter, user, loading, datosCargadosOk]);
 
-  // ALTO: sincronización en tiempo real entre pestañas/dispositivos.
-  // Antes, cada pestaña sólo leía la nube UNA vez al iniciar sesión (getDoc).
-  // Si el mismo usuario tenía dos pestañas o dispositivos abiertos, cada uno
-  // trabajaba a ciegas sobre su propia copia local, y cada guardado
-  // reemplazaba el documento entero — así que la última pestaña en escribir
-  // ganaba y borraba silenciosamente los cambios de la otra, sin importar
-  // cuál era realmente más reciente en el tiempo real.
-  //
-  // Ahora nos suscribimos con onSnapshot: en cuanto OTRA pestaña/dispositivo
-  // guarda un cambio, esta pestaña lo recibe casi al instante y actualiza su
-  // estado local para reflejarlo. Esto reduce mucho la ventana en la que una
-  // pestaña desactualizada podría pisar con datos viejos el trabajo hecho en
-  // otra (de "toda la sesión" pasa a ser, en el peor caso, la fracción de
-  // segundo del debounce + latencia de red).
-  //
-  // OJO — esto NO elimina la condición de carrera por completo: si dos
-  // pestañas guardan casi en el mismo instante, antes de que cualquiera vea
-  // el cambio de la otra, seguimos con un único documento y "gana la última
-  // escritura". La solución completa (sin ese residual) requiere pasar de
-  // "un documento con arrays" a subcolecciones por tipo de dato en Firestore,
-  // que es un cambio de arquitectura más grande, pendiente aparte.
+  // Listener en tiempo real para la subcolección de compras (Fase 5, la
+  // última sección en migrar). Mismo criterio que clientes/biblioteca/
+  // pedidos: sin detección de eco por timestamp global — cada documento de
+  // compra es independiente, no hay riesgo de que se pisen entre sí.
   useEffect(() => {
     if (!user || !datosCargadosOk) return;
 
-    const docRef = doc(db, "users", user.uid);
+    const colRef = collection(db, "users", user.uid, "compras");
 
     const unsubscribe = onSnapshot(
-      docRef,
+      colRef,
       (snapshot) => {
-        // Ignoramos los ecos de nuestras propias escrituras todavía no
-        // confirmadas por el servidor: esos datos ya los tenemos aplicados
-        // localmente, reaplicarlos no aporta nada.
-        if (snapshot.metadata.hasPendingWrites) return;
-        if (!snapshot.exists()) return;
-
-        const cloud = snapshot.data();
-
-        // Si este snapshot confirma nuestro propio último guardado, no hace
-        // falta reaplicarlo — y evita pisar ediciones más nuevas que el
-        // usuario haya hecho localmente mientras ese guardado viajaba.
-        if (
-          cloud.ultimaActualizacion &&
-          cloud.ultimaActualizacion === lastWrittenTimestampRef.current
-        ) {
-          return;
-        }
-        
-        // Si hay un guardado pendiente que aún no fue confirmado, ignoramos
-        // este snapshot intermedio. Esto evita que se dispare el aviso de
-        // "datos actualizados desde otra sesión" cuando estamos en medio de
-        // una secuencia rápida de cambios locales (ej: agregar imagen + editar
-        // nombre) que generan múltiples guardados consecutivos.
-        if (
-          cloud.ultimaActualizacion &&
-          pendingWriteTimestampRef.current &&
-          cloud.ultimaActualizacion <= pendingWriteTimestampRef.current
-        ) {
-          // Snapshot intermedio: no es ni el último confirmado ni el pending
-          // actual, lo ignoramos para evitar falsos positivos.
-          return;
-        }
-
-        // Cambio confirmado que no se originó en esta pestaña: viene de otra
-        // pestaña o dispositivo del mismo usuario. Sincronizamos.
-        setCompras(cloud.compras ?? []);
-        // Registramos este timestamp como "ya aplicado" para no procesar de
-        // nuevo la misma entrega si Firestore la reenvía (ej. reconexión).
-        lastWrittenTimestampRef.current = cloud.ultimaActualizacion || null;
-        showToast('↺ Datos actualizados desde otra sesión.', 'info');
+        setCompras(snapshot.docs.map(d => d.data()));
       },
       (error) => {
-        // No bloqueamos la app por esto (ya tenemos datos cargados): sólo
-        // informamos que dejamos de recibir actualizaciones en tiempo real.
-        console.error("Error en la suscripción en tiempo real:", error);
+        console.error("Error en la suscripción en tiempo real de compras:", error);
       }
     );
 
@@ -1117,21 +862,17 @@ export const AppProvider = ({ children }) => {
 
   const restaurarBackupData = async (data) => {
     try {
-      // Mismo motivo que en cargarDatosDeFirestore: los setPedidos/setCfg/etc
-      // de abajo van a disparar el efecto de autosave solo, aunque ya
-      // hagamos nuestro propio setDoc explícito unas líneas más abajo. Sin
-      // esto, ese guardado fantasma podía hacer que el listener en tiempo
-      // real confundiera la confirmación de ESTE restore con un cambio de
-      // otra sesión.
-      skipNextAutosaveRef.current = true;
+      // Mismo motivo que en cargarDatosDeFirestore: el próximo cambio de
+      // cfg/empresa/idCounter que dispare el autosave de meta/config va a
+      // ser el eco de este restore, no una edición real — no hace falta
+      // volver a guardarlo.
       skipNextAutosaveRefMeta.current = true;
 
       if (data.cfg) setCfg(data.cfg);
-      if (data.compras) setCompras(data.compras);
-      // Fase 2/3/4: clientes, biblioteca y pedidos ya no son arrays de
-      // estado que se "restauran" en memoria — se escriben directo a sus
-      // subcolecciones más abajo, y los listeners en tiempo real actualizan
-      // el estado local solos.
+      // Fase 2/3/4/5: clientes, biblioteca, pedidos y compras ya no son
+      // arrays de estado que se "restauran" en memoria — se escriben
+      // directo a sus subcolecciones más abajo, y los listeners en tiempo
+      // real actualizan el estado local solos.
       if (data.empresa) setEmpresa(data.empresa);
       
       const nextCounter = data._idCounter || data.idCounter || 1;
@@ -1140,15 +881,6 @@ export const AppProvider = ({ children }) => {
       // Upload to Firebase immediately if logged in
       if (user) {
         const restoreTimestamp = new Date().toISOString();
-        await setDoc(doc(db, "users", user.uid), {
-          compras: data.compras || [],
-          ultimaActualizacion: restoreTimestamp
-        }, { merge: true });
-        // Igual que en el autosave: evita que el listener en tiempo real
-        // confunda la confirmación de este mismo guardado con un cambio
-        // hecho desde otra pestaña/dispositivo.
-        lastWrittenTimestampRef.current = restoreTimestamp;
-        pendingWriteTimestampRef.current = null;
 
         // Fase 1: config/empresa/counter van a su documento propio.
         await setDoc(doc(db, "users", user.uid, "meta", "config"), {
@@ -1160,41 +892,28 @@ export const AppProvider = ({ children }) => {
         lastWrittenTimestampRefMeta.current = restoreTimestamp;
         pendingWriteTimestampRefMeta.current = null;
 
-        // Fase 2: clientes del backup van directo a la subcolección, un
-        // documento por cliente. Primero borramos los que ya existan en la
-        // nube (si el backup tiene menos clientes que los actuales, no
-        // deben quedar huérfanos), luego escribimos los del backup.
-        const clientesColRef = collection(db, "users", user.uid, "clientes");
-        const clientesActuales = await getDocs(clientesColRef);
-        const batch = writeBatch(db);
-        clientesActuales.forEach(d => batch.delete(d.ref));
-        (data.clientes || []).forEach(c => {
-          batch.set(doc(db, "users", user.uid, "clientes", String(c.id)), c);
-        });
-        await batch.commit();
-
-        // Fase 3: mismo criterio para biblioteca — batch separado (los
+        // Fase 2/3/4/5: cada sección del backup va directo a su
+        // subcolección, un documento por ítem, en su propio batch (los
         // batch de Firestore tienen un límite de 500 operaciones, así que
-        // conviene no mezclar clientes y biblioteca en el mismo batch si
-        // alguna de las dos listas es grande).
-        const bibliotecaColRef = collection(db, "users", user.uid, "biblioteca");
-        const bibliotecaActual = await getDocs(bibliotecaColRef);
-        const batchBiblioteca = writeBatch(db);
-        bibliotecaActual.forEach(d => batchBiblioteca.delete(d.ref));
-        (data.biblioteca || []).forEach(p => {
-          batchBiblioteca.set(doc(db, "users", user.uid, "biblioteca", String(p.id)), p);
-        });
-        await batchBiblioteca.commit();
+        // conviene no mezclar secciones grandes en el mismo batch). Primero
+        // borramos lo que ya exista en la nube (si el backup tiene menos
+        // ítems que los actuales, no deben quedar huérfanos), luego
+        // escribimos los del backup.
+        const restaurarSeccion = async (nombreColeccion, items) => {
+          const colRef = collection(db, "users", user.uid, nombreColeccion);
+          const actuales = await getDocs(colRef);
+          const batch = writeBatch(db);
+          actuales.forEach(d => batch.delete(d.ref));
+          (items || []).forEach(item => {
+            batch.set(doc(db, "users", user.uid, nombreColeccion, String(item.id)), item);
+          });
+          await batch.commit();
+        };
 
-        // Fase 4: mismo criterio para pedidos — batch separado.
-        const pedidosColRef = collection(db, "users", user.uid, "pedidos");
-        const pedidosActuales = await getDocs(pedidosColRef);
-        const batchPedidos = writeBatch(db);
-        pedidosActuales.forEach(d => batchPedidos.delete(d.ref));
-        (data.pedidos || []).forEach(p => {
-          batchPedidos.set(doc(db, "users", user.uid, "pedidos", String(p.id)), p);
-        });
-        await batchPedidos.commit();
+        await restaurarSeccion("clientes", data.clientes);
+        await restaurarSeccion("biblioteca", data.biblioteca);
+        await restaurarSeccion("pedidos", data.pedidos);
+        await restaurarSeccion("compras", data.compras);
       }
       
       showToast('✓ Backup restaurado correctamente.');
@@ -1208,24 +927,20 @@ export const AppProvider = ({ children }) => {
 
   const value = {
     pedidos,
-    setPedidos,
     addPedido,
     updatePedido,
     removePedido,
     updatePedidosBulk,
     compras,
-    setCompras,
     addCompra,
     updateCompra,
     removeCompra,
     biblioteca,
-    setBiblioteca,
     addProducto,
     updateProducto,
     removeProducto,
     updateProductosBulk,
     clientes,
-    setClientes,
     addCliente,
     updateCliente,
     removeCliente,
