@@ -155,6 +155,57 @@ export const AppProvider = ({ children }) => {
     return Date.now() * 1000 + idSeqRef.current;
   };
 
+  // ---------------------------------------------------------------------
+  // FASE 0 de la migración a Firestore por secciones (ver plan): antes de
+  // separar pedidos/biblioteca/clientes/compras en documentos propios,
+  // centralizamos acá las mutaciones que hoy están repartidas en ~15
+  // componentes vía setPedidos/setBiblioteca/etc. crudos.
+  //
+  // Por qué: mientras cada componente decida por su cuenta "hago un map",
+  // "hago un filter", "hago un spread", cualquier cambio futuro de cómo se
+  // persiste cada sección (ej. pasar a updateDoc puntual sobre un doc por
+  // producto) obliga a tocar los 15 archivos de nuevo. Con estas funciones,
+  // el día que cambie el backend de una sección, el cambio se hace en un
+  // solo lugar.
+  //
+  // Por ahora estas funciones siguen escribiendo sobre los mismos arrays en
+  // memoria (useState) que ya existían — el autosave global no cambia en
+  // esta fase. Los setters crudos (setPedidos, setBiblioteca, etc.) se
+  // mantienen expuestos por compatibilidad mientras dure la migración
+  // componente por componente; se retirarán en una fase posterior.
+  const makeCrud = (setter) => ({
+    add: (item) => setter(prev => [...prev, item]),
+    // updater puede ser un objeto parcial (se mergea con {...item, ...updater})
+    // o una función (item) => nuevoItem (reemplazo completo, útil cuando el
+    // caller ya arma el objeto final, ej. un "draft" de edición).
+    update: (id, updater) => setter(prev => prev.map(item => {
+      if (item.id !== id) return item;
+      return typeof updater === 'function' ? updater(item) : { ...item, ...updater };
+    })),
+    remove: (id) => setter(prev => prev.filter(item => item.id !== id)),
+  });
+
+  const pedidosCrud = makeCrud(setPedidos);
+  const bibliotecaCrud = makeCrud(setBiblioteca);
+  const clientesCrud = makeCrud(setClientes);
+  const comprasCrud = makeCrud(setCompras);
+
+  const addPedido = pedidosCrud.add;
+  const updatePedido = pedidosCrud.update;
+  const removePedido = pedidosCrud.remove;
+
+  const addProducto = bibliotecaCrud.add;
+  const updateProducto = bibliotecaCrud.update;
+  const removeProducto = bibliotecaCrud.remove;
+
+  const addCliente = clientesCrud.add;
+  const updateCliente = clientesCrud.update;
+  const removeCliente = clientesCrud.remove;
+
+  const addCompra = comprasCrud.add;
+  const updateCompra = comprasCrud.update;
+  const removeCompra = comprasCrud.remove;
+
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -647,12 +698,24 @@ export const AppProvider = ({ children }) => {
   const value = {
     pedidos,
     setPedidos,
+    addPedido,
+    updatePedido,
+    removePedido,
     compras,
     setCompras,
+    addCompra,
+    updateCompra,
+    removeCompra,
     biblioteca,
     setBiblioteca,
+    addProducto,
+    updateProducto,
+    removeProducto,
     clientes,
     setClientes,
+    addCliente,
+    updateCliente,
+    removeCliente,
     empresa,
     setEmpresa,
     cfg,

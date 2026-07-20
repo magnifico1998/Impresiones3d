@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
-  const { compras, setCompras, showToast } = useApp();
+  const { compras, removeCompra, showToast } = useApp();
   const [filtroCat, setFiltroCat] = useState('todas');
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
@@ -34,7 +34,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
 
   const handleDelete = (id) => {
     if (window.confirm('¿Eliminar esta compra?')) {
-      setCompras(prev => prev.filter(c => c.id !== id));
+      removeCompra(id);
       showToast('Compra eliminada', 'info');
     }
   };

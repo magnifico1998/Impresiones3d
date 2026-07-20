@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function ModalCompra({ isOpen, onClose, editId }) {
-  const { compras, setCompras, getNewId, showToast } = useApp();
+  const { compras, addCompra, updateCompra, getNewId, showToast } = useApp();
 
   const [form, setForm] = useState({
     desc: '',
@@ -69,10 +69,10 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
     };
 
     if (editId !== null) {
-      setCompras(prev => prev.map(x => x.id === editId ? c : x));
+      updateCompra(editId, c);
       showToast('Compra actualizada con éxito');
     } else {
-      setCompras(prev => [...prev, c]);
+      addCompra(c);
       showToast('Compra guardada con éxito');
     }
 
