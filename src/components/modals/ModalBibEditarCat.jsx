@@ -87,9 +87,24 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
       }
     }
 
-    updateProducto(editId, { cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagenFinal || undefined });
-    showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? '$' + Math.round(cleanPrecio).toLocaleString('es-AR') : 'sin precio'}`);
-    onClose();
+    // BUG encontrado: Firestore rechaza la escritura ENTERA si algún campo
+    // llega en `undefined` (no tiene `ignoreUndefinedProperties` habilitado
+    // en la inicialización). Antes, cuando el producto no tenía imagen,
+    // `imagenFinal || undefined` mandaba justamente `undefined`, así que
+    // cualquier edición (nombre, categoría, precio) se caía entera aunque
+    // no tuviera nada que ver con la imagen. Usamos '' en su lugar: es un
+    // valor válido para Firestore y además borra correctamente el campo si
+    // el usuario sacó la imagen.
+    try {
+      await updateProducto(editId, { cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagenFinal });
+      showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? '$' + Math.round(cleanPrecio).toLocaleString('es-AR') : 'sin precio'}`);
+      onClose();
+    } catch (err) {
+      // updateProducto ya muestra su propio toast de error, pero si además
+      // tira acá (ej. error inesperado no contemplado), no cerramos el
+      // modal para que el usuario no pierda los cambios sin darse cuenta.
+      console.error("Error al guardar producto:", err);
+    }
   };
 
   return (

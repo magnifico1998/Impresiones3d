@@ -288,6 +288,13 @@ export const AppProvider = ({ children }) => {
     } catch (e) {
       console.error("Error al actualizar producto:", e);
       showToast('⚠ No se pudo actualizar el producto en la nube.', 'error');
+      // Antes este error se atrapaba acá y nunca se volvía a lanzar, así que
+      // quien llamaba a updateProducto no tenía forma de saber que la
+      // escritura había fallado — por eso el modal de edición mostraba
+      // igual el toast de "✓ actualizado" aunque el guardado real hubiera
+      // fracasado. Relanzamos para que el caller pueda reaccionar (ver
+      // ModalBibEditarCat.jsx).
+      throw e;
     }
   };
 
