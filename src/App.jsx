@@ -74,6 +74,11 @@ function App() {
   // Link selected products context targeting order
   const [pedidoObjetivoBib, setPedidoObjetivoBib] = useState(null);
 
+  // Drawer de navegación en mobile (el sidebar de desktop se oculta con
+  // CSS por debajo de 700px; este estado controla el hamburguesa/drawer
+  // que lo reemplaza en pantallas chicas).
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   // Authentication Loading Spinner
   if (loading) {
     return (
@@ -334,9 +339,9 @@ function App() {
 
   return (
     <>
-      <Header />
+      <Header onToggleMenu={() => setMobileMenuOpen(o => !o)} />
       <div className="layout">
-        <Sidebar />
+        <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
         <main className="main">
           {renderActivePage()}
         </main>

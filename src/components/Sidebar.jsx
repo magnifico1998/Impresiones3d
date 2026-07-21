@@ -1,8 +1,17 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { activePage, setActivePage } = useApp();
+
+  const handleNavigate = (id) => {
+    setActivePage(id);
+    // En mobile el sidebar es un drawer superpuesto: al elegir una sección
+    // lo cerramos para volver a ver el contenido. En desktop onClose no
+    // tiene efecto visual (el sidebar siempre está visible ahí), así que es
+    // seguro llamarlo siempre sin distinguir el tamaño de pantalla acá.
+    if (onClose) onClose();
+  };
 
   const items = [
     {
@@ -97,22 +106,29 @@ export default function Sidebar() {
   ];
 
   return (
-    <nav className="sidebar">
-      {items.map((group, gi) => (
-        <React.Fragment key={gi}>
-          <div className="nav-label">{group.label}</div>
-          {group.links.map(link => (
-            <div 
-              key={link.id} 
-              className={`nav-item ${activePage === link.id ? 'active' : ''}`}
-              onClick={() => setActivePage(link.id)}
-            >
-              {link.icon}
-              {link.name}
-            </div>
-          ))}
-        </React.Fragment>
-      ))}
-    </nav>
+    <>
+      {/* Fondo oscuro detrás del drawer en mobile. No se renderiza en
+          desktop porque ahí .sidebar-backdrop nunca se muestra (ver CSS),
+          pero lo controlamos igual por isOpen para no dejarlo interceptando
+          clicks cuando el menú está cerrado. */}
+      {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+      <nav className={`sidebar ${isOpen ? 'sidebar-open' : ''}`}>
+        {items.map((group, gi) => (
+          <React.Fragment key={gi}>
+            <div className="nav-label">{group.label}</div>
+            {group.links.map(link => (
+              <div 
+                key={link.id} 
+                className={`nav-item ${activePage === link.id ? 'active' : ''}`}
+                onClick={() => handleNavigate(link.id)}
+              >
+                {link.icon}
+                {link.name}
+              </div>
+            ))}
+          </React.Fragment>
+        ))}
+      </nav>
+    </>
   );
 }

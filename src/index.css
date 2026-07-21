@@ -54,6 +54,10 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
 .header{display:flex;align-items:center;gap:12px;padding:18px 28px;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:50}
+.hamburger-btn{display:none;align-items:center;justify-content:center;width:34px;height:34px;flex-shrink:0;background:none;border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);cursor:pointer;padding:0}
+.hamburger-btn:hover{color:var(--text);background:var(--bg3)}
+.hamburger-btn svg{width:18px;height:18px}
+.sidebar-backdrop{display:none}
 .header-logo{width:32px;height:32px;background:var(--accentDim);border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center}
 .header-logo svg{width:18px;height:18px;color:var(--accent)}
 .header-title{font-size:16px;font-weight:600;letter-spacing:-.3px}
@@ -190,7 +194,44 @@ select option{background:var(--bg3)}
 .data-table th{font-size:10px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--border);font-weight:500}
 .data-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
 .data-table tbody tr:hover{background:var(--bg3)}
-@media(max-width:700px){.sidebar{display:none}.main{padding:16px}.grid2,.grid4,.grid5,.grid6{grid-template-columns:1fr}}
+@media(max-width:700px){
+  .hamburger-btn{display:flex}
+  .header{padding:14px 16px;gap:10px}
+  .header-title{font-size:15px}
+  /* Elementos secundarios que no entran cómodos en una pantalla chica junto
+     con el botón de menú: se ocultan sólo acá, siguen visibles en desktop. */
+  .header-version,#header-empresa{display:none}
+
+  /* El sidebar pasa de ser una columna fija en el layout a un panel
+     superpuesto (drawer) que entra desde la izquierda. position:fixed lo
+     saca del flujo, por eso .main ya no necesita ceder espacio para él. */
+  .sidebar{
+    position:fixed;
+    top:0;
+    left:0;
+    height:100vh;
+    z-index:200;
+    transform:translateX(-100%);
+    transition:transform .2s ease;
+    box-shadow:var(--shadow);
+  }
+  .sidebar.sidebar-open{transform:translateX(0)}
+
+  .sidebar-backdrop{
+    display:block;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.5);
+    z-index:150;
+  }
+
+  .header-actions{gap:4px}
+  .header-actions .btn-sm,.header-actions button{padding:5px 8px;font-size:11px}
+  .header-action-label{display:none}
+
+  .main{padding:16px}
+  .grid2,.grid4,.grid5,.grid6{grid-template-columns:1fr}
+}
 .periodo-btn{background:none;border-color:transparent;color:var(--text3)}
 .periodo-btn:hover{color:var(--text);background:var(--bg3);border-color:var(--border)}
 .periodo-btn.active{background:var(--accentDim);color:var(--accent);border-color:rgba(110,231,183,.3)}

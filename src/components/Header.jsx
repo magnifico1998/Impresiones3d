@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 
-export default function Header() {
+export default function Header({ onToggleMenu }) {
   const { user, logout, empresa, exportarBackupData, restaurarBackupData, syncError } = useApp();
 
   const handleImportarBackup = () => {
@@ -37,6 +37,16 @@ export default function Header() {
 
   return (
     <header className="header">
+      <button
+        type="button"
+        className="hamburger-btn"
+        onClick={onToggleMenu}
+        aria-label="Abrir menú de navegación"
+      >
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <path d="M3 5h14M3 10h14M3 15h14" />
+        </svg>
+      </button>
       <div className="header-logo">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
           <polygon points="10,2 18,6 18,14 10,18 2,14 2,6" />
@@ -44,7 +54,7 @@ export default function Header() {
         </svg>
       </div>
       <span className="header-title">Manager3D</span>
-      <span style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px' }}>v2.2</span>
+      <span className="header-version" style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px' }}>v2.2</span>
       
       {(empresa.nombre || empresa.logo) && (
         <div id="header-empresa" style={{
@@ -104,7 +114,7 @@ export default function Header() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
+      <div className="header-actions" style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
         <button 
           onClick={exportarBackupData} 
           style={{
@@ -119,7 +129,7 @@ export default function Header() {
           }}
           title="Exportar backup JSON"
         >
-          ⬇ backup
+          ⬇<span className="header-action-label"> backup</span>
         </button>
         <button 
           onClick={handleImportarBackup} 
@@ -135,7 +145,7 @@ export default function Header() {
           }}
           title="Importar backup JSON"
         >
-          ⬆ restaurar
+          ⬆<span className="header-action-label"> restaurar</span>
         </button>
         
         {user && (
