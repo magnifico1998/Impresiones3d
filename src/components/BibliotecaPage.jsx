@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
 import { generarListadoProductosPDF } from '../utils/listadoPDF';
+import { ordenarCategorias } from '../utils/categoriaOrden';
+import ModalOrdenCategorias from './modals/ModalOrdenCategorias';
 
 /**
  * Recalcula costos de un producto manteniendo estructura física pero actualizando precios
@@ -315,12 +317,16 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const [sortMode, setSortMode] = useState('nombreAsc');
   const [recalcModal, setRecalcModal] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null);
+  const [ordenCatModalOpen, setOrdenCatModalOpen] = useState(false);
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const uniqueCats = useMemo(
-    () => Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort(),
-    [biblioteca]
+    () => ordenarCategorias(
+      Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))),
+      cfg?.categoriaOrden
+    ),
+    [biblioteca, cfg?.categoriaOrden]
   );
 
   const filteredList = useMemo(() => {
@@ -444,6 +450,16 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             <option value="">Categorías</option>
             {uniqueCats.map((c, i) => <option key={i} value={c}>{c}</option>)}
           </select>
+          {uniqueCats.length > 1 && (
+            <button
+              className="btn btn-sm"
+              style={{ whiteSpace: 'nowrap' }}
+              onClick={() => setOrdenCatModalOpen(true)}
+              title="Definir el orden de las categorías (arrastrar)"
+            >
+              ⠿ Ordenar categorías
+            </button>
+          )}
           <select value={sortMode} onChange={(e) => setSortMode(e.target.value)} style={{ width: '160px', fontSize: '13px' }}>
             <option value="nombreAsc">Nombre A → Z</option>
             <option value="nombreDesc">Nombre Z → A</option>
@@ -474,7 +490,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             <button
               className="btn btn-sm"
               style={{ whiteSpace: 'nowrap', borderColor: '#5A7B9E', color: '#5A7B9E' }}
-              onClick={() => generarListadoProductosPDF(sortedList, empresa)}
+              onClick={() => generarListadoProductosPDF(sortedList, empresa, cfg?.palette, cfg?.categoriaOrden)}
               title="Descargar listado de productos en PDF"
             >
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '13px', height: '13px' }}>
@@ -683,6 +699,12 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
           onClose={() => setAdjustModal(null)}
         />
       )}
+
+      {/* Modal de orden de categorías */}
+      <ModalOrdenCategorias
+        isOpen={ordenCatModalOpen}
+        onClose={() => setOrdenCatModalOpen(false)}
+      />
     </div>
   );
 }

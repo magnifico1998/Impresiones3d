@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { paletas } from './paletas';
+import { ordenarCategorias } from './categoriaOrden';
 
 // Colores "neutros" que no dependen de la paleta: el precio se mantiene
 // siempre en verde (significado semántico) y los grises de texto/bordes
@@ -50,8 +51,12 @@ function construirPaletaPDF(paletaId) {
  * @param {Object} empresa
  * @param {string} [paletaId] id de la paleta elegida en Configuración
  *   (cfg.palette). Si no se pasa, usa 'mint' por defecto.
+ * @param {string[]} [categoriaOrden] orden manual de categorías
+ *   (cfg.categoriaOrden), definido arrastrando en Biblioteca. Si no se pasa
+ *   o está vacío, las categorías se listan alfabéticamente (comportamiento
+ *   anterior).
  */
-export async function generarListadoProductosPDF(biblioteca, empresa, paletaId) {
+export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, categoriaOrden) {
   if (!biblioteca || biblioteca.length === 0) {
     alert('No hay productos para generar el listado');
     return;
@@ -89,6 +94,13 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId) 
   const headerBandHeight = 28;
 
   let imagenesFallidas = 0;
+
+  // Altura real que consume el encabezado de categoría (pill + gap posterior).
+  // Se usa tanto en dibujarCategoria() como en el chequeo de salto de página
+  // para que ambos coincidan exactamente.
+  const categoriaPillHeight = 9;
+  const categoriaGapDespues = 6;
+  const categoriaBlockHeight = categoriaPillHeight + categoriaGapDespues;
 
   const setFill = (c) => pdf.setFillColor(c[0], c[1], c[2]);
   const setDraw = (c) => pdf.setDrawColor(c[0], c[1], c[2]);
@@ -140,7 +152,7 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId) 
   let colCount = 0;
 
   const dibujarCategoria = (categoria, cantidad) => {
-    const pillHeight = 9;
+    const pillHeight = categoriaPillHeight;
     setFill(COLOR.accentTint);
     pdf.roundedRect(margin, currentY, pageWidth - margin * 2, pillHeight, 1.5, 1.5, 'F');
     setFill(COLOR.accent);
@@ -161,15 +173,18 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId) 
       { align: 'right' }
     );
     pdf.setTextColor(0, 0, 0);
-    currentY += pillHeight + 6;
+    currentY += pillHeight + categoriaGapDespues;
   };
 
-  const categories = Object.keys(productosPorCategoria).sort();
+  const categories = ordenarCategorias(Object.keys(productosPorCategoria), categoriaOrden);
 
   for (const categoria of categories) {
     const productos = productosPorCategoria[categoria];
 
-    if (currentY + 9 + cardHeight > usableBottom) {
+    // Si el título de categoría no entra junto con al menos una fila de
+    // productos debajo, arrancamos la categoría en la hoja siguiente en vez
+    // de dejar el título solo al pie de la página actual.
+    if (currentY + categoriaBlockHeight + cardHeight > usableBottom) {
       pdf.addPage();
       await dibujarHeader();
       currentY = headerBandHeight + 10;

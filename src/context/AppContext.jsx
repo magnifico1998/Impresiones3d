@@ -42,7 +42,11 @@ const defaultCfg = {
   kwh: 120,
   mo: 500,
   margen: 100,
-  desperdicio: 5
+  desperdicio: 5,
+  // Orden manual de categorías (arrastrar para reordenar en Biblioteca).
+  // Lista de nombres de categoría; las que no aparecen acá se agregan al
+  // final ordenadas alfabéticamente. Se persiste igual que el resto de cfg.
+  categoriaOrden: []
 };
 
 const defaultEmpresa = {
