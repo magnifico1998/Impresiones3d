@@ -95,12 +95,10 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, 
 
   let imagenesFallidas = 0;
 
-  // Altura real que consume el encabezado de categoría (pill + gap posterior).
-  // Se usa tanto en dibujarCategoria() como en el chequeo de salto de página
-  // para que ambos coincidan exactamente.
+  // Altura real que consume el encabezado de categoría (pill), usada dentro
+  // de dibujarCategoria() para avanzar currentY.
   const categoriaPillHeight = 9;
   const categoriaGapDespues = 6;
-  const categoriaBlockHeight = categoriaPillHeight + categoriaGapDespues;
 
   const setFill = (c) => pdf.setFillColor(c[0], c[1], c[2]);
   const setDraw = (c) => pdf.setDrawColor(c[0], c[1], c[2]);
@@ -177,19 +175,22 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, 
   };
 
   const categories = ordenarCategorias(Object.keys(productosPorCategoria), categoriaOrden);
+  let primeraCategoria = true;
 
   for (const categoria of categories) {
     const productos = productosPorCategoria[categoria];
 
-    // Si el título de categoría no entra junto con al menos una fila de
-    // productos debajo, arrancamos la categoría en la hoja siguiente en vez
-    // de dejar el título solo al pie de la página actual.
-    if (currentY + categoriaBlockHeight + cardHeight > usableBottom) {
+    // Cada categoría arranca en una hoja nueva (salvo la primera, que ya
+    // arranca en la hoja recién creada). Así el título de categoría nunca
+    // queda a mitad de página ni compite por espacio con los productos de
+    // la categoría anterior.
+    if (!primeraCategoria) {
       pdf.addPage();
       await dibujarHeader();
       currentY = headerBandHeight + 10;
       colCount = 0;
     }
+    primeraCategoria = false;
 
     dibujarCategoria(categoria, productos.length);
 
