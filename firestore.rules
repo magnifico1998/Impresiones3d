@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// ⚠️ IMPORTANTE ANTES DE DESPLEGAR ESTE ARCHIVO ⚠️
+// Este repo no tenía firestore.rules versionado (firebase.json ya lo
+// referenciaba, pero el archivo no existía acá) — las reglas actuales
+// viven sólo en la consola de Firebase. Este archivo reconstruye el
+// patrón "owner-only" que ya se observa en AppContext.jsx (todo bajo
+// users/{uid}/... sólo accesible por ese mismo uid autenticado) y le suma
+// las colecciones nuevas del catálogo web. Antes de correr
+// `firebase deploy --only firestore:rules`, compará esto con lo que hay
+// hoy en Firebase Console → Firestore → Reglas, por si hay algo más
+// (por ejemplo reglas para otras colecciones) que no esté reflejado acá.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Datos privados del dueño (biblioteca, pedidos, clientes, etc.) ----
+    // Sólo el usuario autenticado dueño de ese uid puede leer/escribir lo
+    // suyo. Nadie más, ni siquiera otro usuario logueado, puede tocarlo.
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ---- Catálogo web público ----
+    // Lo navega gente SIN login desde un link de WhatsApp. Sólo exponemos
+    // acá lo que el dueño decidió publicar explícitamente (ver
+    // publicarProductosEnCatalogo en AppContext.jsx) — nunca biblioteca ni
+    // pedidos reales.
+
+    // Config visible del catálogo (nombre, colores, si está activo).
+    // Cualquiera la puede leer; sólo el dueño autenticado la escribe.
+    match /catalogoConfig/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Productos publicados (mirror sanitizado de biblioteca: nombre, cat,
+    // desc, imagen, precio — nunca costos internos). Lectura pública,
+    // escritura sólo del dueño autenticado.
+    match /catalogoProductos/{prodId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Solicitudes que arma un cliente en el catálogo. Cualquiera puede
+    // CREAR una (con forma validada y estado inicial fijo en "pendiente"),
+    // pero NADIE sin login puede leer, editar ni borrar solicitudes ajenas
+    // — así un cliente no puede ver el pedido de otro ni alterar uno ya
+    // enviado. Sólo el dueño autenticado gestiona esta colección desde el
+    // panel "Catálogo web" de la app.
+    match /catalogoSolicitudes/{docId} {
+      allow create: if request.resource.data.keys().hasAll(['cliente', 'items', 'estado', 'creado'])
+                    && request.resource.data.estado == 'pendiente'
+                    && request.resource.data.cliente is string
+                    && request.resource.data.cliente.size() > 0
+                    && request.resource.data.cliente.size() < 200
+                    && request.resource.data.items is list
+                    && request.resource.data.items.size() > 0
+                    && request.resource.data.items.size() < 50;
+      allow read, update, delete: if request.auth != null;
+    }
+  }
+}

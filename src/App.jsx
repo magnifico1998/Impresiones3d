@@ -10,6 +10,7 @@ import ClientesPage from './components/ClientesPage';
 import CalculadoraPage from './components/CalculadoraPage';
 import ComprasPage from './components/ComprasPage';
 import BibliotecaPage from './components/BibliotecaPage';
+import CatalogoAdminPage from './components/CatalogoAdminPage';
 import ConfiguracionPage from './components/ConfiguracionPage';
 import EmpresaPage from './components/EmpresaPage';
 import Toasts from './components/Toasts';
@@ -325,6 +326,9 @@ function App() {
             }}
           />
         );
+      
+      case 'catalogoweb':
+        return <CatalogoAdminPage />;
       
       case 'config':
         return <ConfiguracionPage />;
