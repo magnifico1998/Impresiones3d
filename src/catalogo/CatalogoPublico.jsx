@@ -164,6 +164,10 @@ export default function CatalogoPublico() {
       alert('Dejanos un teléfono de contacto para poder coordinar el pedido.');
       return;
     }
+    if (telefono.trim().length !== 10) {
+      alert('El teléfono debe tener 10 dígitos, sin el 0 ni el 15 (ej: 1123456789).');
+      return;
+    }
     if (!carrito.length || cantidadCarrito === 0) {
       alert('Agregá al menos un producto con cantidad mayor a 0.');
       return;
@@ -469,8 +473,15 @@ export default function CatalogoPublico() {
                 <label className="fl" style={{ marginTop: 0 }}>Tu nombre *</label>
                 <input type="text" value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Nombre y apellido" />
 
-                <label className="fl">Teléfono / WhatsApp *</label>
-                <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Tu número de teléfono" />
+                <label className="fl">Teléfono / WhatsApp * <span style={{ fontWeight: 400, color: 'var(--text3)' }}>(sin 0 ni 15)</span></label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="Ej: 1123456789"
+                />
 
                 <label className="fl">Email (opcional)</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
