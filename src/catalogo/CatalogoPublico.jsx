@@ -262,30 +262,6 @@ export default function CatalogoPublico() {
       ? `https://wa.me/${config.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(waTexto)}`
       : null;
 
-    // Constancia por mail: arma un mailto: con el detalle del pedido para
-    // que el cliente se lo mande a sí mismo (o a quien quiera) y le quede
-    // guardado. No hay backend de envío de mails, así que esto abre el
-    // cliente de correo del cliente con todo precargado — mismo criterio
-    // que ya se usa acá con los links de wa.me.
-    const cuerpoMail = [
-      `Pedido a ${config.empresaNombre || ''}`,
-      `Cliente: ${payload.cliente}`,
-      payload.telefono ? `Teléfono: ${payload.telefono}` : null,
-      '',
-      ...payload.items.map(it => {
-        const lineas = [`${it.cantidad}x ${it.nombre} — ${fmt(it.precioUnit)} c/u`];
-        (it.versiones || []).forEach(v => {
-          lineas.push(`   - ${v.cantidad}x ${v.color || 'sin color'}${v.comentario ? ` (${v.comentario})` : ''}`);
-        });
-        return lineas.join('\n');
-      }),
-      '',
-      payload.comentarioGeneral ? `Comentario: ${payload.comentarioGeneral}` : null,
-      `Total estimado: ${fmt(payload.totalEstimado)}`
-    ].filter(Boolean).join('\n');
-
-    const mailLink = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Constancia de tu pedido${config.empresaNombre ? ' - ' + config.empresaNombre : ''}`)}&body=${encodeURIComponent(cuerpoMail)}`;
-
     return (
       <EstadoCentrado>
         <div style={{ fontSize: '40px', marginBottom: '8px' }}>✓</div>
@@ -295,27 +271,10 @@ export default function CatalogoPublico() {
         </div>
 
         {waLink && (
-          <a className="btn btn-primary" href={waLink} target="_blank" rel="noreferrer" style={{ marginBottom: '18px' }}>
+          <a className="btn btn-primary" href={waLink} target="_blank" rel="noreferrer">
             Avisar por WhatsApp
           </a>
         )}
-
-        <div className="card" style={{ textAlign: 'left', maxWidth: '320px', margin: '0 auto' }}>
-          <label className="fl" style={{ marginTop: 0 }}>Mandarme una constancia por mail</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="tu@email.com"
-          />
-          <a
-            className="btn btn-sm"
-            style={{ width: '100%', justifyContent: 'center', marginTop: '8px', opacity: email.trim() ? 1 : 0.5, pointerEvents: email.trim() ? 'auto' : 'none' }}
-            href={mailLink}
-          >
-            Abrir mail con el detalle
-          </a>
-        </div>
       </EstadoCentrado>
     );
   }
