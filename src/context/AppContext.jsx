@@ -1113,38 +1113,53 @@ export const AppProvider = ({ children }) => {
       const nuevasPiezas = (solicitud.items || []).map(construirPiezaDesdeSolicitud);
       let pedidoDestinoId = null;
 
-      // Si no hay un cliente con ese nombre todavía, lo creamos con los
-      // datos de contacto que dejó al hacer el pedido en el catálogo web
-      // — así no hace falta cargarlo a mano después. Coincidencia por
-      // nombre (case-insensitive, sin espacios), mismo criterio que ya
-      // usa el resto de la app para relacionar pedidos con clientes.
+      // El teléfono es el único dato realmente único acá: el nombre lo
+      // escribe el cliente a mano en el catálogo y puede variar de un
+      // pedido a otro (mayúsculas, apellido, apodo), pero el teléfono no
+      // cambia. Por eso el teléfono manda: si ya existe un cliente con
+      // ese teléfono, es esa persona sin importar cómo escribió el
+      // nombre esta vez — y usamos el nombre que YA tenía guardado (no
+      // el nuevo) para que el pedido quede bien enlazado a él en las
+      // estadísticas de Clientes. Sólo si no hay teléfono cargado caemos
+      // a comparar por nombre.
       const nombreSolicitud = (solicitud.cliente || '').trim();
-      if (nombreSolicitud) {
-        const yaExiste = clientes.some(
+      const telSolicitud = (solicitud.telefono || '').replace(/\D/g, '');
+
+      let clienteExistente = null;
+      if (telSolicitud) {
+        clienteExistente = clientes.find(c => (c.tel || '').replace(/\D/g, '') === telSolicitud) || null;
+      }
+      if (!clienteExistente && nombreSolicitud) {
+        clienteExistente = clientes.find(
           c => (c.nombre || '').trim().toLowerCase() === nombreSolicitud.toLowerCase()
-        );
-        if (!yaExiste) {
-          await addCliente({
-            id: getNewId(),
-            nombre: nombreSolicitud,
-            tel: solicitud.telefono || '',
-            email: solicitud.email || '',
-            prov: '',
-            loc: '',
-            cp: '',
-            calle: '',
-            altura: '',
-            fechaAlta: new Date().toLocaleDateString('es-AR'),
-            fechaAltaTs: Date.now()
-          });
-        }
+        ) || null;
+      }
+
+      // Nombre que va a llevar el pedido: el del cliente ya existente
+      // (si lo encontramos), o si no el que escribió recién.
+      const nombreParaPedido = clienteExistente?.nombre || nombreSolicitud || 'Sin nombre';
+
+      if (nombreSolicitud && !clienteExistente) {
+        await addCliente({
+          id: getNewId(),
+          nombre: nombreSolicitud,
+          tel: solicitud.telefono || '',
+          email: solicitud.email || '',
+          prov: '',
+          loc: '',
+          cp: '',
+          calle: '',
+          altura: '',
+          fechaAlta: new Date().toLocaleDateString('es-AR'),
+          fechaAltaTs: Date.now()
+        });
       }
 
       if (destino === 'nuevo') {
         const newIdVal = getNewId();
         const nuevo = {
           id: newIdVal,
-          cliente: solicitud.cliente || 'Sin nombre',
+          cliente: nombreParaPedido,
           desc: solicitud.comentarioGeneral || 'Pedido desde catálogo web',
           estado: 'en_verificacion',
           fechaPedido: new Date().toISOString().slice(0, 10),
