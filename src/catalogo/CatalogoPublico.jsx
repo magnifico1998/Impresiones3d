@@ -55,6 +55,16 @@ export default function CatalogoPublico() {
       .catch(() => setConfig(null));
   }, []);
 
+  // El <title> que ve un bot de preview (WhatsApp, etc.) lo arma
+  // api/catalogo-meta.js del lado del servidor; esto es sólo para que la
+  // pestaña del navegador también muestre el nombre real mientras se
+  // navega la SPA, en vez de quedarse con "Manager3D · Catálogo".
+  useEffect(() => {
+    if (config?.empresaNombre) {
+      document.title = `${config.empresaNombre} · Catálogo`;
+    }
+  }, [config]);
+
   // Productos publicados, en vivo (si el dueño agrega/saca algo mientras
   // el cliente está mirando el catálogo, se actualiza solo).
   useEffect(() => {
