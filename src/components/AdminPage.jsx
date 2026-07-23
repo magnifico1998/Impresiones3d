@@ -18,6 +18,7 @@ export default function AdminPage() {
   const [loadingCuentas, setLoadingCuentas] = useState(true);
   const [accionEnCurso, setAccionEnCurso] = useState(null); // uid+accion en curso, para deshabilitar el botón
   const [contadoresPorUid, setContadoresPorUid] = useState({});
+  const [cargandoConsumoUid, setCargandoConsumoUid] = useState(null);
 
   const [solicitudes, setSolicitudes] = useState([]);
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
@@ -32,6 +33,8 @@ export default function AdminPage() {
   const [loadingPlanes, setLoadingPlanes] = useState(true);
   const [modalPlanAbierto, setModalPlanAbierto] = useState(false);
   const [planEditando, setPlanEditando] = useState(null); // null = nuevo
+  const [listaPlanesAbierta, setListaPlanesAbierta] = useState(false);
+  const [listaSolicitudesAbierta, setListaSolicitudesAbierta] = useState(false);
 
   // Plan elegido en el <select> de cada fila de la tabla de cuentas, para
   // pasárselo a la acción "Activar". Empieza vacío; se inicializa con el
@@ -79,32 +82,26 @@ export default function AdminPage() {
     return unsub;
   }, []);
 
-  // Trae el contador de consumo del ciclo vigente de cada cuenta. No es en
-  // tiempo real (se re-hace cada vez que cambia la lista de cuentas, por
-  // ejemplo al activar una nueva), pero alcanza para un panel de admin --
-  // evita abrir un listener por cada cuenta a la vez.
-  useEffect(() => {
-    const cuentasConCiclo = cuentas.filter(c => c.cicloId);
-    if (cuentasConCiclo.length === 0) return;
-
-    let cancelado = false;
-    Promise.all(
-      cuentasConCiclo.map(async (c) => {
-        try {
-          const snap = await getDoc(doc(db, 'users', c.uid, 'suscripcion', 'actual', 'contadores', c.cicloId));
-          return [c.uid, snap.exists() ? snap.data() : null];
-        } catch (e) {
-          console.error(`Error al leer el contador de ${c.uid}:`, e);
-          return [c.uid, null];
-        }
-      })
-    ).then((pares) => {
-      if (cancelado) return;
-      setContadoresPorUid(Object.fromEntries(pares));
-    });
-
-    return () => { cancelado = true; };
-  }, [cuentas]);
+  // Trae el contador de consumo de UNA cuenta puntual, sólo cuando el admin
+  // lo pide con el botón "Ver consumo" -- pedirlos todos de una para toda
+  // la tabla de golpe (como hacíamos antes) ralentiza el panel a medida
+  // que crecen los suscriptores.
+  const verConsumo = async (uid, cicloId) => {
+    if (!cicloId) return;
+    setCargandoConsumoUid(uid);
+    try {
+      const snap = await getDoc(doc(db, 'users', uid, 'suscripcion', 'actual', 'contadores', cicloId));
+      setContadoresPorUid(prev => ({
+        ...prev,
+        [uid]: snap.exists() ? snap.data() : { pedidosCreados: 0, aperturasCatalogo: 0, montoFacturado: 0 }
+      }));
+    } catch (e) {
+      console.error(`Error al leer el consumo de ${uid}:`, e);
+      showToast('No se pudo leer el consumo de esa cuenta.', 'error');
+    } finally {
+      setCargandoConsumoUid(null);
+    }
+  };
 
   useEffect(() => {
     const colRef = collection(db, 'solicitudesContacto');
@@ -160,6 +157,35 @@ export default function AdminPage() {
       console.error('Error al marcar la solicitud como contactada:', e);
       showToast('No se pudo actualizar la solicitud.', 'error');
     }
+  };
+
+  // Lookup rápido para saber si el uid de una solicitud ya tiene una
+  // suscripción activa (osea, ya se convirtió en cliente pago).
+  const cuentaPorUid = Object.fromEntries(cuentas.map(c => [c.uid, c]));
+
+  // Sólo las solicitudes que TODAVÍA no se convirtieron en suscripción
+  // activa se muestran en la lista y se incluyen en la exportación — una
+  // vez que se activa, esa persona ya vive en la tabla de Suscripciones de
+  // arriba, no tiene sentido seguir viéndola acá como "contacto pendiente".
+  const solicitudesPendientes = solicitudes.filter(s => cuentaPorUid[s.uid]?.estado !== 'activa');
+
+  const exportarContactosTxt = () => {
+    if (solicitudesPendientes.length === 0) {
+      showToast('No hay contactos sin suscripción para exportar.', 'info');
+      return;
+    }
+    const contenido = solicitudesPendientes
+      .map(s => `${s.nombre || ''} ${s.apellido || ''}`.trim() + ' - ' + (s.email || ''))
+      .join('\n');
+    const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contactos-sin-suscripcion-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   const badgeEstado = (estado) => {
@@ -230,12 +256,29 @@ export default function AdminPage() {
                       </td>
                       <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap' }}>
                         {!c.cicloId && <span>—</span>}
-                        {c.cicloId && !contador && <span>cargando…</span>}
+                        {c.cicloId && !contador && (
+                          <button
+                            className="btn"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            disabled={cargandoConsumoUid === c.uid}
+                            onClick={() => verConsumo(c.uid, c.cicloId)}
+                          >
+                            {cargandoConsumoUid === c.uid ? 'Cargando...' : 'Ver consumo'}
+                          </button>
+                        )}
                         {c.cicloId && contador && (
                           <div>
                             <div>pedidos: {contador.pedidosCreados || 0}{planDeLaCuenta?.limites?.pedidosMes != null ? `/${planDeLaCuenta.limites.pedidosMes}` : ''}</div>
                             <div>catálogo: {contador.aperturasCatalogo || 0}{planDeLaCuenta?.limites?.aperturasCatalogoMes != null ? `/${planDeLaCuenta.limites.aperturasCatalogoMes}` : ''}</div>
                             <div>facturado: ${Math.round(contador.montoFacturado || 0).toLocaleString('es-AR')}{planDeLaCuenta?.limites?.montoFacturadoMes != null ? ` / $${Number(planDeLaCuenta.limites.montoFacturadoMes).toLocaleString('es-AR')}` : ''}</div>
+                            <button
+                              className="btn"
+                              style={{ fontSize: '10px', padding: '2px 6px', marginTop: '4px' }}
+                              disabled={cargandoConsumoUid === c.uid}
+                              onClick={() => verConsumo(c.uid, c.cicloId)}
+                            >
+                              ↻ actualizar
+                            </button>
                           </div>
                         )}
                       </td>
@@ -276,120 +319,147 @@ export default function AdminPage() {
 
       {/* ---- Planes ---- */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>Planes</div>
+        <div
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaPlanesAbierta ? '14px' : 0, cursor: 'pointer' }}
+          onClick={() => setListaPlanesAbierta(v => !v)}
+        >
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            {listaPlanesAbierta ? '▾' : '▸'} Planes {!loadingPlanes && `(${planes.length})`}
+          </div>
           <button
             className="btn btn-primary"
             style={{ fontSize: '11px', padding: '5px 10px' }}
-            onClick={() => { setPlanEditando(null); setModalPlanAbierto(true); }}
+            onClick={(e) => { e.stopPropagation(); setPlanEditando(null); setModalPlanAbierto(true); }}
           >
             + Nuevo plan
           </button>
         </div>
 
-        {loadingPlanes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
-        {!loadingPlanes && planes.length === 0 && (
-          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no creaste ningún plan.</div>
-        )}
+        {listaPlanesAbierta && (
+          <>
+            {loadingPlanes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+            {!loadingPlanes && planes.length === 0 && (
+              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no creaste ningún plan.</div>
+            )}
 
-        {!loadingPlanes && planes.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {planes.map((p) => (
-              <div
-                key={p.id}
-                style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
-                  padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius2)', background: 'var(--bg)'
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600 }}>
-                    {p.nombre} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>— ${Number(p.precioMensual || 0).toLocaleString('es-AR')}/mes</span>
-                    {p.activo === false && <span className="badge badge-cancelled" style={{ marginLeft: '8px' }}>inactivo</span>}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px', fontFamily: 'var(--mono)' }}>
-                    {p.limites?.usuarios ?? '∞'} usuarios · {p.limites?.pedidosMes ?? '∞'} pedidos/mes · {p.limites?.aperturasCatalogoMes ?? '∞'} aperturas/mes · ${Number(p.limites?.montoFacturadoMes ?? 0).toLocaleString('es-AR')}/mes facturado
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    className="btn"
-                    style={{ fontSize: '11px', padding: '4px 8px' }}
-                    onClick={() => { setPlanEditando(p); setModalPlanAbierto(true); }}
+            {!loadingPlanes && planes.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {planes.map((p) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
+                      padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius2)', background: 'var(--bg)'
+                    }}
                   >
-                    Editar
-                  </button>
-                  <button
-                    className="btn"
-                    style={{ fontSize: '11px', padding: '4px 8px' }}
-                    onClick={() => updateDoc(doc(db, 'planes', p.id), { activo: p.activo === false })}
-                  >
-                    {p.activo === false ? 'Activar' : 'Desactivar'}
-                  </button>
-                </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                        {p.nombre} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>— ${Number(p.precioMensual || 0).toLocaleString('es-AR')}/mes</span>
+                        {p.activo === false && <span className="badge badge-cancelled" style={{ marginLeft: '8px' }}>inactivo</span>}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px', fontFamily: 'var(--mono)' }}>
+                        {p.limites?.usuarios ?? '∞'} usuarios · {p.limites?.pedidosMes ?? '∞'} pedidos/mes · {p.limites?.aperturasCatalogoMes ?? '∞'} aperturas/mes · ${Number(p.limites?.montoFacturadoMes ?? 0).toLocaleString('es-AR')}/mes facturado
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        className="btn"
+                        style={{ fontSize: '11px', padding: '4px 8px' }}
+                        onClick={() => { setPlanEditando(p); setModalPlanAbierto(true); }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        className="btn"
+                        style={{ fontSize: '11px', padding: '4px 8px' }}
+                        onClick={() => updateDoc(doc(db, 'planes', p.id), { activo: p.activo === false })}
+                      >
+                        {p.activo === false ? 'Activar' : 'Desactivar'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
       {/* ---- Solicitudes de contacto ---- */}
       <div className="card">
-        <div className="card-title">Solicitudes de contacto</div>
-
-        {loadingSolicitudes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
-
-        {!loadingSolicitudes && solicitudes.length === 0 && (
-          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No hay solicitudes todavía.</div>
-        )}
-
-        {!loadingSolicitudes && solicitudes.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {solicitudes.map((s) => (
-              <div key={s.uid} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600 }}>{s.nombre} {s.apellido}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{s.localidad} · {s.telefono} · {s.email}</div>
-                    {s.resena && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>{s.resena}</div>}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span className={`badge ${s.estado === 'contactado' ? 'badge-done' : 'badge-pending'}`}>{s.estado || 'pendiente'}</span>
-                    {s.estado !== 'contactado' && (
-                      <button className="btn" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => marcarContactado(s.uid)}>
-                        Marcar contactado
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Activar la suscripción de este solicitante directo desde acá:
-                    su "uid" es el mismo ID de este documento, así no hace
-                    falta ir a buscarlo a la tabla de Suscripciones (y si es
-                    una cuenta vieja sin suscripcion/actual, esto se la crea). */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
-                  <select
-                    value={planSeleccionadoPorSolicitud[s.uid] || ''}
-                    onChange={(e) => setPlanSeleccionadoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
-                    style={{ fontSize: '12px' }}
-                  >
-                    <option value="">Elegir plan…</option>
-                    {planes.map(p => (
-                      <option key={p.id} value={p.id}>{p.nombre}</option>
-                    ))}
-                  </select>
-                  <button
-                    className="btn btn-primary"
-                    style={{ fontSize: '11px', padding: '4px 8px' }}
-                    disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
-                    onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid])}
-                  >
-                    Activar suscripción
-                  </button>
-                </div>
-              </div>
-            ))}
+        <div
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaSolicitudesAbierta ? '14px' : 0, cursor: 'pointer' }}
+          onClick={() => setListaSolicitudesAbierta(v => !v)}
+        >
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            {listaSolicitudesAbierta ? '▾' : '▸'} Solicitudes de contacto {!loadingSolicitudes && `(${solicitudesPendientes.length})`}
           </div>
+          <button
+            className="btn"
+            style={{ fontSize: '11px', padding: '5px 10px' }}
+            onClick={(e) => { e.stopPropagation(); exportarContactosTxt(); }}
+          >
+            ⬇ Exportar contactos (.txt)
+          </button>
+        </div>
+
+        {listaSolicitudesAbierta && (
+          <>
+            {loadingSolicitudes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+
+            {!loadingSolicitudes && solicitudesPendientes.length === 0 && (
+              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No hay solicitudes pendientes — las que ya se activaron pasaron a Suscripciones.</div>
+            )}
+
+            {!loadingSolicitudes && solicitudesPendientes.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {solicitudesPendientes.map((s) => (
+                  <div key={s.uid} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{s.nombre} {s.apellido}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{s.localidad} · {s.telefono} · {s.email}</div>
+                        {s.resena && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>{s.resena}</div>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span className={`badge ${s.estado === 'contactado' ? 'badge-done' : 'badge-pending'}`}>{s.estado || 'pendiente'}</span>
+                        {s.estado !== 'contactado' && (
+                          <button className="btn" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => marcarContactado(s.uid)}>
+                            Marcar contactado
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Activar la suscripción de este solicitante directo desde acá:
+                        su "uid" es el mismo ID de este documento, así no hace
+                        falta ir a buscarlo a la tabla de Suscripciones (y si es
+                        una cuenta vieja sin suscripcion/actual, esto se la crea). */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                      <select
+                        value={planSeleccionadoPorSolicitud[s.uid] || ''}
+                        onChange={(e) => setPlanSeleccionadoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
+                        style={{ fontSize: '12px' }}
+                      >
+                        <option value="">Elegir plan…</option>
+                        {planes.map(p => (
+                          <option key={p.id} value={p.id}>{p.nombre}</option>
+                        ))}
+                      </select>
+                      <button
+                        className="btn btn-primary"
+                        style={{ fontSize: '11px', padding: '4px 8px' }}
+                        disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
+                        onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid])}
+                      >
+                        {accionEnCurso === `${s.uid}:activar` ? 'Activando...' : 'Activar suscripción'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
