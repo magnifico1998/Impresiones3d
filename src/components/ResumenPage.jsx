@@ -60,6 +60,21 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
     );
   }
 
+  if (suscripcion.estado === 'suspendida') {
+    return (
+      <div className="card" style={{ background: 'var(--dangerDim)', border: '1px solid var(--danger)', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text)' }}>
+            🔒 Tu suscripción está <strong>suspendida</strong>. No podés crear ni editar información hasta que se reactive. Contactate con el admin para regularizar tu situación.
+          </div>
+          <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
+            Solicitar reactivación
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return null;
 }
 
