@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { db, functions } from '../firebase';
-import { collection, collectionGroup, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
+import ModalPlan from './modals/ModalPlan';
 
 // Panel de administración: sólo lo ven los emails presentes en la
 // colección Firestore "admins" (ver App.jsx -> guard de isAdmin y
@@ -19,6 +20,17 @@ export default function AdminPage() {
 
   const [solicitudes, setSolicitudes] = useState([]);
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
+
+  const [planes, setPlanes] = useState([]);
+  const [loadingPlanes, setLoadingPlanes] = useState(true);
+  const [modalPlanAbierto, setModalPlanAbierto] = useState(false);
+  const [planEditando, setPlanEditando] = useState(null); // null = nuevo
+
+  // Plan elegido en el <select> de cada fila de la tabla de cuentas, para
+  // pasárselo a la acción "Activar". Empieza vacío; se inicializa con el
+  // planId actual de la cuenta la primera vez que llegan los datos (ver
+  // más abajo, dentro del map de la tabla).
+  const [planSeleccionadoPorCuenta, setPlanSeleccionadoPorCuenta] = useState({});
 
   useEffect(() => {
     const colRef = collection(db, 'admins');
@@ -76,11 +88,27 @@ export default function AdminPage() {
     return unsubscribe;
   }, []);
 
-  const ejecutarAccion = async (uid, accion) => {
+  useEffect(() => {
+    const q = query(collection(db, 'planes'), orderBy('orden'));
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setPlanes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setLoadingPlanes(false);
+      },
+      (err) => {
+        console.error('Error al listar planes:', err);
+        setLoadingPlanes(false);
+      }
+    );
+    return unsubscribe;
+  }, []);
+
+  const ejecutarAccion = async (uid, accion, planId) => {
     setAccionEnCurso(`${uid}:${accion}`);
     try {
       const cambiarEstado = httpsCallable(functions, 'cambiarEstadoSuscripcion');
-      await cambiarEstado({ uid, accion });
+      await cambiarEstado({ uid, accion, planId });
       showToast('Listo, se actualizó la suscripción.');
     } catch (e) {
       console.error('Error al cambiar el estado de la suscripción:', e);
@@ -135,6 +163,7 @@ export default function AdminPage() {
                   <th>Cuenta</th>
                   <th>Estado</th>
                   <th>Vence</th>
+                  <th>Plan</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -144,17 +173,30 @@ export default function AdminPage() {
                     : c.estado === 'activa' ? fmtFecha(c.cicloFin)
                     : c.estado === 'lectura' ? fmtFecha(c.fechaLimiteLectura)
                     : '—';
+                  const planElegido = planSeleccionadoPorCuenta[c.uid] ?? c.planId ?? '';
                   return (
                     <tr key={c.uid}>
                       <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
                       <td>{badgeEstado(c.estado)}</td>
                       <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{vence}</td>
+                      <td>
+                        <select
+                          value={planElegido}
+                          onChange={(e) => setPlanSeleccionadoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
+                          style={{ fontSize: '12px' }}
+                        >
+                          <option value="">Sin plan</option>
+                          {planes.map(p => (
+                            <option key={p.id} value={p.id}>{p.nombre}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <button
                           className="btn"
                           style={{ fontSize: '11px', padding: '4px 8px' }}
                           disabled={accionEnCurso === `${c.uid}:activar`}
-                          onClick={() => ejecutarAccion(c.uid, 'activar')}
+                          onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null)}
                         >
                           Activar
                         </button>
@@ -180,6 +222,65 @@ export default function AdminPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* ---- Planes ---- */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div className="card-title" style={{ marginBottom: 0 }}>Planes</div>
+          <button
+            className="btn btn-primary"
+            style={{ fontSize: '11px', padding: '5px 10px' }}
+            onClick={() => { setPlanEditando(null); setModalPlanAbierto(true); }}
+          >
+            + Nuevo plan
+          </button>
+        </div>
+
+        {loadingPlanes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+        {!loadingPlanes && planes.length === 0 && (
+          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no creaste ningún plan.</div>
+        )}
+
+        {!loadingPlanes && planes.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {planes.map((p) => (
+              <div
+                key={p.id}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
+                  padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius2)', background: 'var(--bg)'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                    {p.nombre} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>— ${Number(p.precioMensual || 0).toLocaleString('es-AR')}/mes</span>
+                    {p.activo === false && <span className="badge badge-cancelled" style={{ marginLeft: '8px' }}>inactivo</span>}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px', fontFamily: 'var(--mono)' }}>
+                    {p.limites?.usuarios ?? '∞'} usuarios · {p.limites?.pedidosMes ?? '∞'} pedidos/mes · {p.limites?.aperturasCatalogoMes ?? '∞'} aperturas/mes · ${Number(p.limites?.montoFacturadoMes ?? 0).toLocaleString('es-AR')}/mes facturado
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    className="btn"
+                    style={{ fontSize: '11px', padding: '4px 8px' }}
+                    onClick={() => { setPlanEditando(p); setModalPlanAbierto(true); }}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className="btn"
+                    style={{ fontSize: '11px', padding: '4px 8px' }}
+                    onClick={() => updateDoc(doc(db, 'planes', p.id), { activo: p.activo === false })}
+                  >
+                    {p.activo === false ? 'Activar' : 'Desactivar'}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -247,6 +348,12 @@ export default function AdminPage() {
           Agregar o quitar administradores se gestiona desde Firebase Console → Firestore → colección <code>admins</code> (documento con ID = email en minúsculas).
         </p>
       </div>
+
+      <ModalPlan
+        isOpen={modalPlanAbierto}
+        onClose={() => setModalPlanAbierto(false)}
+        plan={planEditando}
+      />
     </div>
   );
 }
