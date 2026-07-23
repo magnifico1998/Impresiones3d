@@ -1,4 +1,5 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { getAuth } = require('firebase-admin/auth');
 const { db, Timestamp, FieldValue, sumarMesCalendario, formatearFecha } = require('../admin');
 
 // Única puerta de entrada para que un admin cambie el estado de la
@@ -28,8 +29,31 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
 
   const subRef = db.doc(`users/${uid}/suscripcion/actual`);
   const subSnap = await subRef.get();
+
+  // Cuentas que se registraron ANTES de que existiera onNuevoUsuario (o
+  // cualquier caso raro donde el trigger no corrió) no tienen este
+  // documento. Para "activar"/"reactivar" no lo tratamos como error: son
+  // justamente las acciones que un admin usa para dar de alta a alguien
+  // manualmente, así que si no existe, lo creamos con valores base antes
+  // de aplicar el cambio. El resto de las acciones sí necesitan que ya
+  // exista algo previo sobre lo que actuar (no tiene sentido "extender el
+  // trial" de una cuenta que nunca tuvo uno).
+  if (!subSnap.exists && accion !== 'activar' && accion !== 'reactivar') {
+    throw new HttpsError('not-found', 'Esa cuenta todavía no tiene suscripción inicializada. Usá "Activar" para darla de alta.');
+  }
+  const datosPrevios = subSnap.exists ? subSnap.data() : {};
+
+  // Si el doc no existía, de paso le guardamos el email (buscándolo en
+  // Firebase Auth por uid) para que la tabla del panel no muestre el uid
+  // pelado la primera vez que se activa una cuenta legacy.
+  let emailCuenta = datosPrevios.email || null;
   if (!subSnap.exists) {
-    throw new HttpsError('not-found', 'Esa cuenta todavía no tiene suscripción inicializada.');
+    try {
+      const registro = await getAuth().getUser(uid);
+      emailCuenta = registro.email || null;
+    } catch (e) {
+      // No es crítico: si falla, seguimos sin email y listo.
+    }
   }
 
   const ahora = Timestamp.now();
@@ -43,7 +67,8 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
       const cicloFin = sumarMesCalendario(ahora);
       update = {
         estado: 'activa',
-        planId: planId || subSnap.data().planId || null,
+        planId: planId || datosPrevios.planId || null,
+        email: emailCuenta,
         cicloInicio: ahora,
         cicloId: formatearFecha(ahora),
         cicloFin,
@@ -57,7 +82,7 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
       // pago de renovación: corre el ciclo un mes más desde el cicloFin
       // anterior (no desde "ahora"), para no regalar ni recortar días si
       // el pago llega un poco antes o después de la fecha exacta.
-      const cicloAnteriorFin = subSnap.data().cicloFin || ahora;
+      const cicloAnteriorFin = datosPrevios.cicloFin || ahora;
       const nuevoCicloInicio = cicloAnteriorFin;
       const nuevoCicloFin = sumarMesCalendario(cicloAnteriorFin);
       update = {
@@ -71,7 +96,7 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
     }
 
     case 'extenderTrial': {
-      const trialFinActual = subSnap.data().trialFin || ahora;
+      const trialFinActual = datosPrevios.trialFin || ahora;
       const nuevoTrialFin = Timestamp.fromMillis(
         Math.max(trialFinActual.toMillis(), ahora.toMillis()) + 7 * 24 * 60 * 60 * 1000
       );
@@ -88,6 +113,7 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
       // a mano). Le da un ciclo nuevo completo desde hoy.
       update = {
         estado: 'activa',
+        email: emailCuenta,
         cicloInicio: ahora,
         cicloId: formatearFecha(ahora),
         cicloFin: sumarMesCalendario(ahora),

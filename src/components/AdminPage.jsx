@@ -21,6 +21,12 @@ export default function AdminPage() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
 
+  // Plan elegido en el <select> de cada solicitud de contacto, para poder
+  // activar directamente a un cliente nuevo sin esperar a que aparezca en
+  // la tabla de Suscripciones (lo cual, para una cuenta legacy sin
+  // suscripcion/actual, nunca iba a pasar antes de este fix).
+  const [planSeleccionadoPorSolicitud, setPlanSeleccionadoPorSolicitud] = useState({});
+
   const [planes, setPlanes] = useState([]);
   const [loadingPlanes, setLoadingPlanes] = useState(true);
   const [modalPlanAbierto, setModalPlanAbierto] = useState(false);
@@ -305,7 +311,7 @@ export default function AdminPage() {
                     <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{s.localidad} · {s.telefono} · {s.email}</div>
                     {s.resena && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>{s.resena}</div>}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span className={`badge ${s.estado === 'contactado' ? 'badge-done' : 'badge-pending'}`}>{s.estado || 'pendiente'}</span>
                     {s.estado !== 'contactado' && (
                       <button className="btn" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => marcarContactado(s.uid)}>
@@ -313,6 +319,31 @@ export default function AdminPage() {
                       </button>
                     )}
                   </div>
+                </div>
+
+                {/* Activar la suscripción de este solicitante directo desde acá:
+                    su "uid" es el mismo ID de este documento, así no hace
+                    falta ir a buscarlo a la tabla de Suscripciones (y si es
+                    una cuenta vieja sin suscripcion/actual, esto se la crea). */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                  <select
+                    value={planSeleccionadoPorSolicitud[s.uid] || ''}
+                    onChange={(e) => setPlanSeleccionadoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
+                    style={{ fontSize: '12px' }}
+                  >
+                    <option value="">Elegir plan…</option>
+                    {planes.map(p => (
+                      <option key={p.id} value={p.id}>{p.nombre}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn btn-primary"
+                    style={{ fontSize: '11px', padding: '4px 8px' }}
+                    disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
+                    onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid])}
+                  >
+                    Activar suscripción
+                  </button>
                 </div>
               </div>
             ))}
