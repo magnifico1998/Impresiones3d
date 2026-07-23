@@ -17,6 +17,7 @@ export default function AdminPage() {
   const [cuentas, setCuentas] = useState([]);
   const [loadingCuentas, setLoadingCuentas] = useState(true);
   const [accionEnCurso, setAccionEnCurso] = useState(null); // uid+accion en curso, para deshabilitar el botón
+  const [inicializandoLegacy, setInicializandoLegacy] = useState(false);
   const [contadoresPorUid, setContadoresPorUid] = useState({});
   const [cargandoConsumoUid, setCargandoConsumoUid] = useState(null);
 
@@ -135,6 +136,25 @@ export default function AdminPage() {
     return unsubscribe;
   }, []);
 
+  // Backfill de una sola vez para cuentas que se registraron antes de que
+  // existiera el sistema de suscripciones (no tienen suscripcion/actual, y
+  // por eso nunca aparecían en esta tabla). Las deja en estado "activa"
+  // sin plan asignado -- de ahí en más se editan una por una con el
+  // selector de plan de cada fila, como cualquier otra cuenta.
+  const inicializarLegacy = async () => {
+    setInicializandoLegacy(true);
+    try {
+      const inicializar = httpsCallable(functions, 'inicializarCuentasLegacy');
+      const { data } = await inicializar();
+      showToast(`Listo: se inicializaron ${data.creadas} de ${data.totalUsuarios} cuentas.`);
+    } catch (e) {
+      console.error('Error al inicializar cuentas legacy:', e);
+      showToast(e?.message || 'No se pudo completar la inicialización.', 'error');
+    } finally {
+      setInicializandoLegacy(false);
+    }
+  };
+
   const ejecutarAccion = async (uid, accion, planId) => {
     setAccionEnCurso(`${uid}:${accion}`);
     try {
@@ -207,7 +227,18 @@ export default function AdminPage() {
 
       {/* ---- Suscripciones ---- */}
       <div className="card">
-        <div className="card-title">Suscripciones</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div className="card-title" style={{ marginBottom: 0 }}>Suscripciones</div>
+          <button
+            className="btn"
+            style={{ fontSize: '11px', padding: '5px 10px' }}
+            disabled={inicializandoLegacy}
+            onClick={inicializarLegacy}
+            title="Da de alta en estado 'activa' a las cuentas viejas que todavía no tienen suscripción inicializada"
+          >
+            {inicializandoLegacy ? 'Inicializando...' : '⚙ Inicializar cuentas antiguas'}
+          </button>
+        </div>
 
         {loadingCuentas && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
 

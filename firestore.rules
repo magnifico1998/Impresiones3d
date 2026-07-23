@@ -54,6 +54,17 @@ service cloud.firestore {
           get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.limites.pedidosMes;
     }
 
+    // ---- Documento legacy users/{uid} (raíz, sin subcolección) ----
+    // Ya no es la fuente de verdad de nada (ver Fase 5 en AppContext.jsx:
+    // cargarDatosDeFirestore), pero la carga inicial de CUALQUIER cuenta
+    // -incluidas las viejas- lo lee una vez al loguearse para migrar datos
+    // legacy si hiciera falta, y lo borra después. Sin esta regla, ese
+    // getDoc() da permission-denied y la app entera no puede cargar para
+    // NADIE -- ojo con esto si el día de mañana se toca esta sección.
+    match /users/{uid} {
+      allow read, delete: if esDueno(uid);
+    }
+
     match /users/{uid}/meta/{document=**} {
       allow read: if esDueno(uid);
       allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
@@ -92,16 +103,30 @@ service cloud.firestore {
     // functions/index.js), así queda todo loggeado en "eventos" y no hay
     // riesgo de que alguien —dueño o admin comprometido— se autoactive la
     // cuenta editando Firestore directo.
-    match /users/{uid}/suscripcion/{docId} {
-      allow read: if esDueno(uid) || esAdmin();
+    //
+    // OJO acá con "{pathPrefix=**}": el panel admin lista TODAS las
+    // suscripciones de golpe con collectionGroup('suscripcion') (no
+    // conoce de antemano cada uid). Una regla con ruta fija como
+    // "match /users/{uid}/suscripcion/{docId}" sólo cubre lecturas de UN
+    // documento puntual por su ruta exacta -- Firestore exige el patrón
+    // recursivo {path=**} para que una regla también aplique a ese tipo
+    // de consulta transversal. pathPrefix queda como ['users', uid].
+    match /{pathPrefix=**}/suscripcion/{docId} {
+      allow read: if request.auth != null &&
+                    pathPrefix.size() == 2 && pathPrefix[0] == 'users' &&
+                    (request.auth.uid == pathPrefix[1] || esAdmin());
       allow write: if false;
 
       match /eventos/{eventoId} {
-        allow read: if esDueno(uid) || esAdmin();
+        allow read: if request.auth != null &&
+                      pathPrefix.size() == 2 && pathPrefix[0] == 'users' &&
+                      (request.auth.uid == pathPrefix[1] || esAdmin());
         allow write: if false;
       }
       match /contadores/{cicloId} {
-        allow read: if esDueno(uid) || esAdmin();
+        allow read: if request.auth != null &&
+                      pathPrefix.size() == 2 && pathPrefix[0] == 'users' &&
+                      (request.auth.uid == pathPrefix[1] || esAdmin());
         allow write: if false;
       }
     }

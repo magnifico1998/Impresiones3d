@@ -6,6 +6,7 @@ const { onNuevoUsuario } = require('./triggers/onNuevoUsuario');
 const { onPedidoCreado } = require('./triggers/onPedidoCreado');
 const { registrarAperturaCatalogo } = require('./http/registrarAperturaCatalogo');
 const { cambiarEstadoSuscripcion } = require('./http/cambiarEstadoSuscripcion');
+const { inicializarCuentasLegacy } = require('./http/inicializarCuentasLegacy');
 const { webhookMercadoPago } = require('./http/webhookMercadoPago');
 const { transicionSuscripciones } = require('./scheduled/transicionSuscripciones');
 
@@ -14,6 +15,7 @@ module.exports = {
   onPedidoCreado,
   registrarAperturaCatalogo,
   cambiarEstadoSuscripcion,
+  inicializarCuentasLegacy,
   webhookMercadoPago,
   transicionSuscripciones
 };

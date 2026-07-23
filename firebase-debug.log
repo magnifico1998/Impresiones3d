@@ -1,0 +1,48 @@
+[debug] [2026-07-23T18:45:18.780Z] ----------------------------------------------------------------------
+[debug] [2026-07-23T18:45:18.791Z] Command:       C:\Users\u194700\AppData\Local\nodejs\node-v24.18.0-win-x64\node.exe C:\Users\u194700\AppData\Local\nodejs\node-v24.18.0-win-x64\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:inicializarCuentasLegacy
+[debug] [2026-07-23T18:45:18.792Z] CLI Version:   15.24.0
+[debug] [2026-07-23T18:45:18.792Z] Platform:      win32
+[debug] [2026-07-23T18:45:18.793Z] Node Version:  v24.18.0
+[debug] [2026-07-23T18:45:18.793Z] Detected Agent: unknown
+[debug] [2026-07-23T18:45:18.794Z] Time:          Thu Jul 23 2026 15:45:18 GMT-0300 (hora estándar de Argentina)
+[debug] [2026-07-23T18:45:18.794Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-07-23T18:45:23.996Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-23T18:45:23.996Z] > authorizing via signed-in user (gustavokimmel@gmail.com)
+[debug] [2026-07-23T18:45:23.996Z] [iam] checking project print3d-manager-73846 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-07-23T18:45:24.018Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:24.018Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:24.020Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/print3d-manager-73846:testIamPermissions [none]
+[debug] [2026-07-23T18:45:24.021Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/print3d-manager-73846:testIamPermissions  x-goog-user-project=print3d-manager-73846
+[debug] [2026-07-23T18:45:24.021Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/print3d-manager-73846:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-07-23T18:45:25.076Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/print3d-manager-73846:testIamPermissions 200
+[debug] [2026-07-23T18:45:25.076Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/print3d-manager-73846:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-07-23T18:45:25.078Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:25.078Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:25.078Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/print3d-manager-73846/serviceAccounts/print3d-manager-73846@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-07-23T18:45:25.078Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/print3d-manager-73846/serviceAccounts/print3d-manager-73846@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-07-23T18:45:26.028Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/print3d-manager-73846/serviceAccounts/print3d-manager-73846@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-07-23T18:45:26.028Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/print3d-manager-73846/serviceAccounts/print3d-manager-73846@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'print3d-manager-73846'...
+[info] 
+[info] i  deploying functions 
+[debug] [2026-07-23T18:45:26.063Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:26.063Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:26.063Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/print3d-manager-73846 [none]
+[debug] [2026-07-23T18:45:26.282Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/print3d-manager-73846 200
+[debug] [2026-07-23T18:45:26.282Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/print3d-manager-73846 {"projectNumber":"534221073184","projectId":"print3d-manager-73846","lifecycleState":"ACTIVE","name":"Print3D Manager","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-06-01T14:52:53.458Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2026-07-23T18:45:26.293Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:26.293Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:26.294Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/print3d-manager-73846/adminSdkConfig [none]
+[debug] [2026-07-23T18:45:26.833Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/print3d-manager-73846/adminSdkConfig 200
+[debug] [2026-07-23T18:45:26.833Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/print3d-manager-73846/adminSdkConfig {"projectId":"print3d-manager-73846","storageBucket":"print3d-manager-73846.firebasestorage.app"}
+[debug] [2026-07-23T18:45:26.834Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:26.835Z] Checked if tokens are valid: true, expires at: 1784833332472
+[debug] [2026-07-23T18:45:26.835Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/print3d-manager-73846/configs [none]
+[debug] [2026-07-23T18:45:27.943Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/print3d-manager-73846/configs 200
+[debug] [2026-07-23T18:45:27.943Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/print3d-manager-73846/configs {}
