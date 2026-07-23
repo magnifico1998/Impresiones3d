@@ -5,6 +5,26 @@ import { collection, doc, getDoc, onSnapshot, addDoc } from 'firebase/firestore'
 const fmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 const newLocalId = () => Date.now() + Math.random();
 
+// Mobile-first por defecto (así se comparte por WhatsApp y se abre en el
+// celular la mayoría de las veces), con un breakpoint de escritorio: el
+// contenido se ensancha, los productos de cada categoría pasan a 2
+// columnas, y el carrito deja de ser una hoja que sube desde abajo para
+// convertirse en un panel fijo a la derecha (más cómodo con mouse).
+// Uso !important en los overrides porque los elementos ya tienen estilos
+// inline (que si no, ganan siempre por especificidad sobre esta hoja).
+const ESTILOS_RESPONSIVE = `
+  @media (min-width: 860px) {
+    .catalogo-header-inner { max-width: 900px !important; margin: 0 auto !important; padding: 18px 24px !important; }
+    .catalogo-content { max-width: 900px !important; padding: 20px 24px !important; }
+    .catalogo-productos-grid { display: grid !important; grid-template-columns: 1fr 1fr; column-gap: 20px; }
+    .catalogo-producto-item { border-top: none !important; border-bottom: 1px solid var(--border); padding: 14px 4px !important; }
+    .catalogo-producto-item:nth-last-child(-n+2) { border-bottom: none; }
+    .catalogo-cart-bar { max-width: 900px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); border-radius: 12px 12px 0 0; bottom: 0 !important; }
+    .catalogo-cart-overlay { align-items: stretch !important; justify-content: flex-end !important; }
+    .catalogo-cart-panel { max-width: 420px !important; width: 420px !important; height: 100vh !important; max-height: 100vh !important; border-radius: 0 !important; }
+  }
+`;
+
 export default function CatalogoPublico() {
   const [config, setConfig] = useState(undefined); // undefined = cargando, null = no existe
   const [productos, setProductos] = useState([]);
@@ -140,6 +160,10 @@ export default function CatalogoPublico() {
       alert('Contanos tu nombre para poder armar el pedido.');
       return;
     }
+    if (!telefono.trim()) {
+      alert('Dejanos un teléfono de contacto para poder coordinar el pedido.');
+      return;
+    }
     if (!carrito.length || cantidadCarrito === 0) {
       alert('Agregá al menos un producto con cantidad mayor a 0.');
       return;
@@ -264,11 +288,13 @@ export default function CatalogoPublico() {
 
   return (
     <div style={{ minHeight: '100vh', paddingBottom: carrito.length ? '76px' : '0' }}>
+      <style>{ESTILOS_RESPONSIVE}</style>
+
       <header style={{
         position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg)',
         borderBottom: '1px solid var(--border)', padding: '14px 16px',
         display: 'flex', alignItems: 'center', gap: '10px'
-      }}>
+      }} className="catalogo-header-inner">
         {config.logo && (
           <img src={config.logo} alt="" style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '6px' }} />
         )}
@@ -278,7 +304,7 @@ export default function CatalogoPublico() {
         </div>
       </header>
 
-      <div style={{ maxWidth: '640px', margin: '0 auto', padding: '12px' }}>
+      <div className="catalogo-content" style={{ maxWidth: '640px', margin: '0 auto', padding: '12px' }}>
         {!productos.length && (
           <div className="empty" style={{ marginTop: '20px' }}>Todavía no hay productos publicados.</div>
         )}
@@ -299,14 +325,14 @@ export default function CatalogoPublico() {
               </button>
 
               {catAbierta === cat && (
-                <div style={{ padding: '0 12px 12px' }}>
+                <div className="catalogo-productos-grid" style={{ padding: '0 12px 12px' }}>
                   {items.map(p => {
                     const enCarrito = carrito.find(it => it.prodId === p.id);
                     const cantEnCarrito = enCarrito ? enCarrito.versiones.reduce((s, v) => s + (v.cantidad || 0), 0) : 0;
                     const detalleEstaAbierto = detalleAbierto === p.id;
 
                     return (
-                      <div key={p.id} style={{ padding: '10px 4px', borderTop: '1px solid var(--border)' }}>
+                      <div key={p.id} className="catalogo-producto-item" style={{ padding: '10px 4px', borderTop: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', gap: '10px' }}>
                           {p.imagen ? (
                             <img
@@ -325,7 +351,7 @@ export default function CatalogoPublico() {
                           </div>
                           <div style={{ flexShrink: 0, alignSelf: 'center' }}>
                             {detalleEstaAbierto ? (
-                              <button className="btn btn-ghost btn-sm" onClick={cerrarDetalle}>Cerrar</button>
+                              <button className="btn btn-sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={cerrarDetalle}>Cerrar</button>
                             ) : enCarrito ? (
                               <button className="btn btn-sm" onClick={() => abrirDetalle(p)}>Editar ({cantEnCarrito})</button>
                             ) : (
@@ -377,6 +403,7 @@ export default function CatalogoPublico() {
       {carrito.length > 0 && !carritoAbierto && (
         <div
           onClick={() => setCarritoAbierto(true)}
+          className="catalogo-cart-bar"
           style={{
             position: 'fixed', bottom: 0, left: 0, right: 0, background: 'var(--accent)', color: '#0a1a12',
             padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -391,10 +418,12 @@ export default function CatalogoPublico() {
       {carritoAbierto && (
         <div
           onClick={() => setCarritoAbierto(false)}
+          className="catalogo-cart-overlay"
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.65)', zIndex: 30, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
+            className="catalogo-cart-panel"
             style={{
               background: 'var(--bg2)', borderTopLeftRadius: '16px', borderTopRightRadius: '16px',
               width: '100%', maxWidth: '640px', maxHeight: '88vh', overflowY: 'auto', padding: '18px'
@@ -402,7 +431,7 @@ export default function CatalogoPublico() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ fontWeight: 700, fontSize: '15px' }}>Tu pedido</div>
-              <button className="btn btn-ghost btn-sm" onClick={() => setCarritoAbierto(false)}>✕</button>
+              <button className="btn btn-sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => setCarritoAbierto(false)}>✕</button>
             </div>
 
             {!carrito.length ? (
@@ -440,10 +469,10 @@ export default function CatalogoPublico() {
                 <label className="fl" style={{ marginTop: 0 }}>Tu nombre *</label>
                 <input type="text" value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Nombre y apellido" />
 
-                <label className="fl">Teléfono / WhatsApp (opcional)</label>
-                <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Para coordinar el pedido" />
+                <label className="fl">Teléfono / WhatsApp *</label>
+                <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Tu número de teléfono" />
 
-                <label className="fl">Email (opcional, para mandarte una constancia)</label>
+                <label className="fl">Email (opcional)</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
 
                 <label className="fl">Comentario general (opcional)</label>
