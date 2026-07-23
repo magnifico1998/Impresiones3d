@@ -13,10 +13,20 @@ export default function CatalogoPublico() {
   const [carrito, setCarrito] = useState([]); // { localId, prodId, nombre, precio, versiones:[{localId,cantidad,color,comentario}] }
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [enviado, setEnviado] = useState(null); // { docId } una vez enviado
+  const [enviado, setEnviado] = useState(null); // { docId, payload } una vez enviado
   const [cliente, setCliente] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [email, setEmail] = useState('');
   const [comentarioGeneral, setComentarioGeneral] = useState('');
+
+  // Imagen ampliada (lightbox). Guarda { src, nombre } o null si está cerrado.
+  const [imagenAmpliada, setImagenAmpliada] = useState(null);
+
+  // Panel de detalle por producto: se abre al tocar "Agregar"/"Editar" y
+  // recién agrega/actualiza el carrito cuando el cliente toca "Confirmar".
+  // Tocar Agregar ya NO suma nada solo; hasta ahí es sólo un borrador.
+  const [detalleAbierto, setDetalleAbierto] = useState(null); // prodId o null
+  const [draftVersiones, setDraftVersiones] = useState([]);
 
   // Config pública (colores, nombre, activo/inactivo)
   useEffect(() => {
@@ -57,48 +67,72 @@ export default function CatalogoPublico() {
   const totalCarrito = carrito.reduce((s, it) => s + it.precio * it.versiones.reduce((a, v) => a + (v.cantidad || 0), 0), 0);
   const cantidadCarrito = carrito.reduce((s, it) => s + it.versiones.reduce((a, v) => a + (v.cantidad || 0), 0), 0);
 
-  const agregarProducto = (p) => {
+  // ---- Panel de detalle (borrador previo a confirmar) ----
+
+  const abrirDetalle = (p) => {
+    const enCarrito = carrito.find(it => it.prodId === p.id);
+    setDraftVersiones(
+      enCarrito
+        ? enCarrito.versiones.map(v => ({ ...v }))
+        : [{ localId: newLocalId(), cantidad: 1, color: '', comentario: '' }]
+    );
+    setDetalleAbierto(p.id);
+  };
+
+  const cerrarDetalle = () => {
+    setDetalleAbierto(null);
+    setDraftVersiones([]);
+  };
+
+  const actualizarDraftVersion = (versionLocalId, campo, valor) => {
+    setDraftVersiones(prev => prev.map(v => v.localId === versionLocalId
+      ? { ...v, [campo]: campo === 'cantidad' ? Math.max(0, parseInt(valor) || 0) : valor }
+      : v));
+  };
+
+  const agregarDraftVersion = () => {
+    setDraftVersiones(prev => [...prev, { localId: newLocalId(), cantidad: 1, color: '', comentario: '' }]);
+  };
+
+  const quitarDraftVersion = (versionLocalId) => {
+    setDraftVersiones(prev => prev.filter(v => v.localId !== versionLocalId));
+  };
+
+  const confirmarAgregado = (p) => {
+    const versionesValidas = draftVersiones.filter(v => v.cantidad > 0);
+    if (!versionesValidas.length) {
+      alert('Poné al menos una cantidad mayor a 0 antes de confirmar.');
+      return;
+    }
+
     setCarrito(prev => {
-      if (prev.some(it => it.prodId === p.id)) return prev; // ya está, se edita desde el carrito
+      const existe = prev.some(it => it.prodId === p.id);
+      if (existe) {
+        return prev.map(it => it.prodId === p.id ? { ...it, versiones: versionesValidas } : it);
+      }
       return [...prev, {
         localId: newLocalId(),
         prodId: p.id,
         nombre: p.nombre,
         precio: p.precio || 0,
-        versiones: [{ localId: newLocalId(), cantidad: 1, color: '', comentario: '' }]
+        versiones: versionesValidas
       }];
     });
-    setCarritoAbierto(true);
+
+    cerrarDetalle();
   };
 
   const quitarProducto = (prodId) => {
     setCarrito(prev => prev.filter(it => it.prodId !== prodId));
+    if (detalleAbierto === prodId) cerrarDetalle();
   };
 
-  const actualizarVersion = (prodId, versionLocalId, campo, valor) => {
-    setCarrito(prev => prev.map(it => {
-      if (it.prodId !== prodId) return it;
-      return {
-        ...it,
-        versiones: it.versiones.map(v => v.localId === versionLocalId
-          ? { ...v, [campo]: campo === 'cantidad' ? Math.max(0, parseInt(valor) || 0) : valor }
-          : v)
-      };
-    }));
-  };
-
-  const agregarVersion = (prodId) => {
-    setCarrito(prev => prev.map(it => it.prodId === prodId
-      ? { ...it, versiones: [...it.versiones, { localId: newLocalId(), cantidad: 1, color: '', comentario: '' }] }
-      : it));
-  };
-
-  const quitarVersion = (prodId, versionLocalId) => {
-    setCarrito(prev => prev.map(it => {
-      if (it.prodId !== prodId) return it;
-      const versiones = it.versiones.filter(v => v.localId !== versionLocalId);
-      return { ...it, versiones };
-    }).filter(it => it.versiones.length > 0));
+  const editarDesdeCarrito = (prodId) => {
+    const p = productos.find(pr => pr.id === prodId);
+    if (!p) return;
+    setCarritoAbierto(false);
+    setCatAbierta(p.cat || 'Otros');
+    abrirDetalle(p);
   };
 
   const handleEnviar = async () => {
@@ -130,6 +164,7 @@ export default function CatalogoPublico() {
       const payload = {
         cliente: cliente.trim(),
         telefono: telefono.trim(),
+        email: email.trim(),
         comentarioGeneral: comentarioGeneral.trim(),
         items,
         totalEstimado: totalCarrito,
@@ -163,10 +198,35 @@ export default function CatalogoPublico() {
   }
 
   if (enviado) {
-    const waTexto = `Hola! Te acabo de mandar un pedido desde el catálogo (${cliente}). Total estimado: ${fmt(totalCarrito)}.`;
+    const { payload } = enviado;
+    const waTexto = `Hola! Te acabo de mandar un pedido desde el catálogo (${payload.cliente}). Total estimado: ${fmt(payload.totalEstimado)}.`;
     const waLink = config.telefono
       ? `https://wa.me/${config.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(waTexto)}`
       : null;
+
+    // Constancia por mail: arma un mailto: con el detalle del pedido para
+    // que el cliente se lo mande a sí mismo (o a quien quiera) y le quede
+    // guardado. No hay backend de envío de mails, así que esto abre el
+    // cliente de correo del cliente con todo precargado — mismo criterio
+    // que ya se usa acá con los links de wa.me.
+    const cuerpoMail = [
+      `Pedido a ${config.empresaNombre || ''}`,
+      `Cliente: ${payload.cliente}`,
+      payload.telefono ? `Teléfono: ${payload.telefono}` : null,
+      '',
+      ...payload.items.map(it => {
+        const lineas = [`${it.cantidad}x ${it.nombre} — ${fmt(it.precioUnit)} c/u`];
+        (it.versiones || []).forEach(v => {
+          lineas.push(`   - ${v.cantidad}x ${v.color || 'sin color'}${v.comentario ? ` (${v.comentario})` : ''}`);
+        });
+        return lineas.join('\n');
+      }),
+      '',
+      payload.comentarioGeneral ? `Comentario: ${payload.comentarioGeneral}` : null,
+      `Total estimado: ${fmt(payload.totalEstimado)}`
+    ].filter(Boolean).join('\n');
+
+    const mailLink = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`Constancia de tu pedido${config.empresaNombre ? ' - ' + config.empresaNombre : ''}`)}&body=${encodeURIComponent(cuerpoMail)}`;
 
     return (
       <EstadoCentrado>
@@ -175,11 +235,29 @@ export default function CatalogoPublico() {
         <div style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '18px' }}>
           {config.empresaNombre || 'Te'} va a revisar tu pedido y te contacta a la brevedad.
         </div>
+
         {waLink && (
-          <a className="btn btn-primary" href={waLink} target="_blank" rel="noreferrer">
+          <a className="btn btn-primary" href={waLink} target="_blank" rel="noreferrer" style={{ marginBottom: '18px' }}>
             Avisar por WhatsApp
           </a>
         )}
+
+        <div className="card" style={{ textAlign: 'left', maxWidth: '320px', margin: '0 auto' }}>
+          <label className="fl" style={{ marginTop: 0 }}>Mandarme una constancia por mail</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tu@email.com"
+          />
+          <a
+            className="btn btn-sm"
+            style={{ width: '100%', justifyContent: 'center', marginTop: '8px', opacity: email.trim() ? 1 : 0.5, pointerEvents: email.trim() ? 'auto' : 'none' }}
+            href={mailLink}
+          >
+            Abrir mail con el detalle
+          </a>
+        </div>
       </EstadoCentrado>
     );
   }
@@ -224,25 +302,68 @@ export default function CatalogoPublico() {
                 <div style={{ padding: '0 12px 12px' }}>
                   {items.map(p => {
                     const enCarrito = carrito.find(it => it.prodId === p.id);
+                    const cantEnCarrito = enCarrito ? enCarrito.versiones.reduce((s, v) => s + (v.cantidad || 0), 0) : 0;
+                    const detalleEstaAbierto = detalleAbierto === p.id;
+
                     return (
-                      <div key={p.id} style={{ display: 'flex', gap: '10px', padding: '10px 4px', borderTop: '1px solid var(--border)' }}>
-                        {p.imagen ? (
-                          <img src={p.imagen} alt={p.nombre} style={{ width: '56px', height: '56px', objectFit: 'contain', background: 'var(--bg3)', borderRadius: '8px', flexShrink: 0 }} />
-                        ) : (
-                          <div style={{ width: '56px', height: '56px', background: 'var(--bg3)', borderRadius: '8px', flexShrink: 0 }} />
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 500 }}>{p.nombre}</div>
-                          {p.desc && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>{p.desc}</div>}
-                          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)', marginTop: '4px', fontFamily: 'var(--mono)' }}>{fmt(p.precio)}</div>
-                        </div>
-                        <div style={{ flexShrink: 0, alignSelf: 'center' }}>
-                          {enCarrito ? (
-                            <button className="btn btn-sm" onClick={() => setCarritoAbierto(true)}>Editar</button>
+                      <div key={p.id} style={{ padding: '10px 4px', borderTop: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          {p.imagen ? (
+                            <img
+                              src={p.imagen}
+                              alt={p.nombre}
+                              onClick={() => setImagenAmpliada({ src: p.imagen, nombre: p.nombre })}
+                              style={{ width: '56px', height: '56px', objectFit: 'contain', background: 'var(--bg3)', borderRadius: '8px', flexShrink: 0, cursor: 'zoom-in' }}
+                            />
                           ) : (
-                            <button className="btn btn-primary btn-sm" onClick={() => agregarProducto(p)}>Agregar</button>
+                            <div style={{ width: '56px', height: '56px', background: 'var(--bg3)', borderRadius: '8px', flexShrink: 0 }} />
                           )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '13px', fontWeight: 500 }}>{p.nombre}</div>
+                            {p.desc && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>{p.desc}</div>}
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)', marginTop: '4px', fontFamily: 'var(--mono)' }}>{fmt(p.precio)}</div>
+                          </div>
+                          <div style={{ flexShrink: 0, alignSelf: 'center' }}>
+                            {detalleEstaAbierto ? (
+                              <button className="btn btn-ghost btn-sm" onClick={cerrarDetalle}>Cerrar</button>
+                            ) : enCarrito ? (
+                              <button className="btn btn-sm" onClick={() => abrirDetalle(p)}>Editar ({cantEnCarrito})</button>
+                            ) : (
+                              <button className="btn btn-primary btn-sm" onClick={() => abrirDetalle(p)}>Agregar</button>
+                            )}
+                          </div>
                         </div>
+
+                        {detalleEstaAbierto && (
+                          <div style={{ background: 'rgba(255,255,255,.03)', border: '1px dashed var(--border2)', borderRadius: '8px', padding: '10px', marginTop: '10px' }}>
+                            {draftVersiones.map(v => (
+                              <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                                <input
+                                  type="number" min="0" value={v.cantidad}
+                                  onChange={(e) => actualizarDraftVersion(v.localId, 'cantidad', e.target.value)}
+                                />
+                                <select value={v.color} onChange={(e) => actualizarDraftVersion(v.localId, 'color', e.target.value)}>
+                                  <option value="">Sin color</option>
+                                  {colores.map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
+                                </select>
+                                <input
+                                  type="text" placeholder="Comentario (ej: talle, versión)"
+                                  value={v.comentario}
+                                  onChange={(e) => actualizarDraftVersion(v.localId, 'comentario', e.target.value)}
+                                />
+                                {draftVersiones.length > 1 && (
+                                  <button className="btn btn-danger btn-sm" onClick={() => quitarDraftVersion(v.localId)}>✕</button>
+                                )}
+                              </div>
+                            ))}
+                            <button className="btn btn-sm" style={{ width: '100%', marginTop: '2px' }} onClick={agregarDraftVersion}>
+                              + Otra variante (otro color / comentario)
+                            </button>
+                            <button className="btn btn-primary btn-sm" style={{ width: '100%', marginTop: '8px' }} onClick={() => confirmarAgregado(p)}>
+                              Confirmar
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -291,34 +412,22 @@ export default function CatalogoPublico() {
                 const asignado = it.versiones.reduce((s, v) => s + (v.cantidad || 0), 0);
                 return (
                   <div key={it.prodId} className="card" style={{ marginBottom: '10px', padding: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <div style={{ fontWeight: 600, fontSize: '13px' }}>{it.nombre}</div>
-                      <button className="btn btn-ghost btn-sm" onClick={() => quitarProducto(it.prodId)}>✕</button>
-                    </div>
-
-                    {it.versiones.map(v => (
-                      <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                        <input
-                          type="number" min="0" value={v.cantidad}
-                          onChange={(e) => actualizarVersion(it.prodId, v.localId, 'cantidad', e.target.value)}
-                        />
-                        <select value={v.color} onChange={(e) => actualizarVersion(it.prodId, v.localId, 'color', e.target.value)}>
-                          <option value="">Sin color</option>
-                          {colores.map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
-                        </select>
-                        <input
-                          type="text" placeholder="Comentario (ej: talle, versión)"
-                          value={v.comentario}
-                          onChange={(e) => actualizarVersion(it.prodId, v.localId, 'comentario', e.target.value)}
-                        />
-                        <button className="btn btn-danger btn-sm" onClick={() => quitarVersion(it.prodId, v.localId)}>✕</button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '13px' }}>{it.nombre}</div>
+                        {it.versiones.map(v => (
+                          <div key={v.localId} style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
+                            {v.cantidad}× {v.color || 'sin color'}{v.comentario ? ` — ${v.comentario}` : ''}
+                          </div>
+                        ))}
+                        <div style={{ fontSize: '12px', fontFamily: 'var(--mono)', marginTop: '6px', color: 'var(--text2)' }}>
+                          {asignado} × {fmt(it.precio)} = <strong style={{ color: 'var(--text)' }}>{fmt(asignado * it.precio)}</strong>
+                        </div>
                       </div>
-                    ))}
-                    <button className="btn btn-sm" style={{ width: '100%', marginTop: '2px' }} onClick={() => agregarVersion(it.prodId)}>
-                      + Otra variante (otro color / comentario)
-                    </button>
-                    <div style={{ textAlign: 'right', marginTop: '6px', fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--text3)' }}>
-                      {asignado} × {fmt(it.precio)} = <strong style={{ color: 'var(--text)' }}>{fmt(asignado * it.precio)}</strong>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+                        <button className="btn btn-sm" onClick={() => editarDesdeCarrito(it.prodId)}>Editar</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => quitarProducto(it.prodId)}>Quitar</button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -334,6 +443,9 @@ export default function CatalogoPublico() {
                 <label className="fl">Teléfono / WhatsApp (opcional)</label>
                 <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Para coordinar el pedido" />
 
+                <label className="fl">Email (opcional, para mandarte una constancia)</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
+
                 <label className="fl">Comentario general (opcional)</label>
                 <input type="text" value={comentarioGeneral} onChange={(e) => setComentarioGeneral(e.target.value)} placeholder="Ej: lo necesito para el viernes" />
 
@@ -347,6 +459,25 @@ export default function CatalogoPublico() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {imagenAmpliada && (
+        <div
+          onClick={() => setImagenAmpliada(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 40,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', cursor: 'zoom-out'
+          }}
+        >
+          <div style={{ textAlign: 'center' }}>
+            <img
+              src={imagenAmpliada.src}
+              alt={imagenAmpliada.nombre}
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', background: 'var(--bg2)' }}
+            />
+            <div style={{ color: 'var(--text2)', fontSize: '13px', marginTop: '10px' }}>{imagenAmpliada.nombre}</div>
           </div>
         </div>
       )}
