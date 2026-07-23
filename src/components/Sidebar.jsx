@@ -76,6 +76,16 @@ export default function Sidebar({ isOpen, onClose }) {
               <path d="M10 15h7M13 12v6" />
             </svg>
           )
+        },
+        {
+          id: 'catalogoweb',
+          name: 'Catálogo web',
+          icon: (
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="3" y="4" width="14" height="12" rx="2" />
+              <path d="M3 8h14M7 12h2M11 12h2" />
+            </svg>
+          )
         }
       ]
     },

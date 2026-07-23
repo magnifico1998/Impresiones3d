@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy } from 'firebase/firestore';
 import { paletas } from '../utils/paletas';
 
 const AppContext = createContext();
@@ -38,7 +38,12 @@ const defaultCfg = {
     { nombre: 'Gris', hex: '#9e9e9e' },
     { nombre: 'Amarillo', hex: '#fdd835' }
   ],
-  metodosEnvio: ['Correo Argentino', 'Andreani', 'Retiro en persona', 'Envío propio'],
+  metodosEnvio: [
+    { nombre: 'Correo Argentino', urlSeguimiento: 'https://www.correoargentino.com.ar/seguimiento?codigo={codigo}' },
+    { nombre: 'Andreani', urlSeguimiento: 'https://www.andreani.com/#!/informacionEnvio/{codigo}' },
+    { nombre: 'Retiro en persona', urlSeguimiento: '' },
+    { nombre: 'Envío propio', urlSeguimiento: '' }
+  ],
   kwh: 120,
   mo: 500,
   margen: 100,
@@ -69,6 +74,14 @@ export const AppProvider = ({ children }) => {
   const [empresa, setEmpresa] = useState(defaultEmpresa);
   const [cfg, setCfg] = useState(defaultCfg);
   const [idCounter, setIdCounter] = useState(1);
+
+  // Catálogo web público (colecciones raíz, fuera de users/{uid}, porque
+  // las lee gente sin login desde /catalogo). catalogoConfig/meta guarda la
+  // config visible del catálogo (colores, nombre, activo/inactivo).
+  // catalogoSolicitudes son los "carritos" que arma un cliente y se leen
+  // acá para poder importarlos como Pedido con un clic.
+  const [catalogoConfig, setCatalogoConfig] = useState(null);
+  const [solicitudesWeb, setSolicitudesWeb] = useState([]);
   
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -827,6 +840,48 @@ export const AppProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user, datosCargadosOk]);
 
+  // Listener de la config pública del catálogo web (colores, nombre, si
+  // está activo). Sólo se suscribe con sesión iniciada porque es la
+  // pantalla de administración la que la necesita en vivo; el catálogo
+  // público (/catalogo, sin login) la lee por su cuenta con getDoc/onSnapshot
+  // propio, sin pasar por este Context.
+  useEffect(() => {
+    if (!user || !datosCargadosOk) return;
+
+    const ref = doc(db, "catalogoConfig", "meta");
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => {
+        setCatalogoConfig(snap.exists() ? snap.data() : null);
+      },
+      (error) => {
+        console.error("Error en la suscripción de catalogoConfig:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, datosCargadosOk]);
+
+  // Listener de las solicitudes que llegan desde el catálogo web público.
+  // Colección raíz (no bajo users/{uid}) porque la escribe gente sin login;
+  // acá sólo leemos (requiere estar autenticado, ver reglas de Firestore).
+  useEffect(() => {
+    if (!user || !datosCargadosOk) return;
+
+    const colRef = query(collection(db, "catalogoSolicitudes"), orderBy("creado", "desc"));
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        setSolicitudesWeb(snapshot.docs.map(d => ({ ...d.data(), _docId: d.id })));
+      },
+      (error) => {
+        console.error("Error en la suscripción de catalogoSolicitudes:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, datosCargadosOk]);
+
   useEffect(() => {
     try {
       const logo = empresa && empresa.logo ? empresa.logo : null;
@@ -936,6 +991,171 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // ---- Catálogo web público ----
+  // Colecciones raíz (catalogoConfig, catalogoProductos, catalogoSolicitudes)
+  // separadas de users/{uid}/* a propósito: el catálogo lo navega gente sin
+  // login, y sólo debe poder LEER estas tres cosas (y CREAR solicitudes),
+  // nunca tocar biblioteca/pedidos/etc. reales. Ver firestore.rules.
+
+  const catalogoProductoDocRef = (id) => doc(db, "catalogoProductos", String(id));
+
+  const guardarCatalogoConfig = async (parcial) => {
+    try {
+      const actual = catalogoConfig || {};
+      const nuevo = { ...actual, ...parcial, actualizado: new Date().toISOString() };
+      await setDoc(doc(db, "catalogoConfig", "meta"), nuevo);
+    } catch (e) {
+      console.error("Error al guardar la configuración del catálogo:", e);
+      showToast('⚠ No se pudo guardar la configuración del catálogo.', 'error');
+    }
+  };
+
+  // ids: Set o array de ids de biblioteca que deben quedar PUBLICADOS en
+  // /catalogo. Sólo se copian campos "públicos" (nombre, cat, desc, imagen,
+  // precio de venta) a catalogoProductos — nunca costoUnitario, filDetalle,
+  // impresora, etc. Cualquier producto que estaba publicado y se
+  // desmarcó acá se borra de catalogoProductos.
+  const publicarProductosEnCatalogo = async (ids) => {
+    try {
+      const idSet = ids instanceof Set ? ids : new Set(ids);
+      const batch = writeBatch(db);
+
+      biblioteca.forEach(p => {
+        const debePublicarse = idSet.has(p.id);
+        const estabaPublicado = !!p.pub;
+
+        if (debePublicarse) {
+          batch.set(catalogoProductoDocRef(p.id), {
+            id: p.id,
+            nombre: p.nombre,
+            cat: p.cat || 'Sin categoría',
+            desc: p.desc || '',
+            imagen: p.imagen || '',
+            precio: p.precioSugUnitario || p.costoUnitario || 0,
+            actualizado: new Date().toISOString()
+          });
+          if (!estabaPublicado) {
+            batch.set(productoDocRef(p.id), { ...p, pub: true });
+          }
+        } else if (estabaPublicado) {
+          batch.delete(catalogoProductoDocRef(p.id));
+          batch.set(productoDocRef(p.id), { ...p, pub: false });
+        }
+      });
+
+      await batch.commit();
+      showToast('✓ Catálogo publicado.');
+    } catch (e) {
+      console.error("Error al publicar el catálogo:", e);
+      showToast('⚠ No se pudo publicar el catálogo.', 'error');
+    }
+  };
+
+  // Arma una "pieza" de pedido a partir de un ítem de solicitud web,
+  // heredando datos de costo del producto original en biblioteca. Mismo
+  // criterio que construirPiezaDesdeBibParaPedido (ModalArmarPedido.jsx),
+  // pero vive acá porque el origen es una solicitud ya armada por el
+  // cliente y no una selección manual del admin.
+  const construirPiezaDesdeSolicitud = (item) => {
+    const prod = biblioteca.find(p => p.id === item.prodId) || {};
+    const horas = prod.horas || 0;
+    const watts = prod.watts || 0;
+    const precioKwh = prod.precioKwh || cfg.kwh || 0;
+    const moHora = prod.moHora || 0;
+    const horasTrab = prod.horasTrab || 0;
+    const costeElec = (watts / 1000) * horas * precioKwh;
+    const costeMO = moHora * horasTrab;
+
+    let mant = 0;
+    if (prod.impresoraNombre) {
+      const imp = cfg.impresoras.find(i => i.nombre === prod.impresoraNombre);
+      if (imp) mant = imp.mant || 0;
+    }
+    const costeMant = mant * horas;
+
+    return {
+      id: getNewId(),
+      nombre: item.nombre,
+      archivoNombre: prod.gcodeNombre || null,
+      gcodeArchivos: prod.gcodeArchivos || null,
+      filDetalle: prod.filDetalle || [],
+      costeElec,
+      costeMant,
+      costeMO,
+      horas,
+      impresoraNombre: prod.impresoraNombre || null,
+      costoUnitario: prod.costoUnitario || 0,
+      precioEstimado: item.precioUnit || prod.precioSugUnitario || 0,
+      precioVenta: item.precioUnit || prod.precioSugUnitario || 0,
+      cantidad: item.cantidad,
+      elaborados: 0,
+      notas: 'Pedido vía catálogo web',
+      versiones: (item.versiones || []).map(v => ({
+        id: Date.now() + Math.random(),
+        cantidad: v.cantidad,
+        color: v.color || '',
+        comentario: v.comentario || '',
+        realizados: 0
+      }))
+    };
+  };
+
+  // Convierte una solicitud del catálogo web en un Pedido real (nuevo o
+  // agregado a uno existente) y marca la solicitud como "importado" para
+  // que no vuelva a aparecer como pendiente.
+  const importarSolicitudComoPedido = async (solicitud, destino = 'nuevo') => {
+    try {
+      const nuevasPiezas = (solicitud.items || []).map(construirPiezaDesdeSolicitud);
+      let pedidoDestinoId = null;
+
+      if (destino === 'nuevo') {
+        const newIdVal = getNewId();
+        const nuevo = {
+          id: newIdVal,
+          cliente: solicitud.cliente || 'Sin nombre',
+          desc: solicitud.comentarioGeneral || 'Pedido desde catálogo web',
+          estado: 'en_verificacion',
+          fechaPedido: new Date().toISOString().slice(0, 10),
+          fechaEntrega: '',
+          notaGeneral: solicitud.telefono ? `Tel: ${solicitud.telefono}` : '',
+          piezas: nuevasPiezas,
+          precioVenta: solicitud.totalEstimado || nuevasPiezas.reduce((s, p) => s + p.cantidad * p.precioVenta, 0),
+          envio: 0,
+          insumos: [],
+          creado: new Date().toLocaleDateString('es-AR')
+        };
+        await addPedido(nuevo);
+        pedidoDestinoId = newIdVal;
+      } else {
+        const targetId = parseInt(destino, 10);
+        await updatePedido(targetId, (p) => ({
+          ...p,
+          piezas: [...p.piezas, ...nuevasPiezas]
+        }));
+        pedidoDestinoId = targetId;
+      }
+
+      const { _docId, ...datosSolicitud } = solicitud;
+      await setDoc(doc(db, "catalogoSolicitudes", _docId), { ...datosSolicitud, estado: 'importado' }, { merge: true });
+
+      showToast('✓ Solicitud importada como pedido.');
+      return pedidoDestinoId;
+    } catch (e) {
+      console.error("Error al importar la solicitud como pedido:", e);
+      showToast('⚠ No se pudo importar la solicitud.', 'error');
+      return null;
+    }
+  };
+
+  const descartarSolicitud = async (docId) => {
+    try {
+      await deleteDoc(doc(db, "catalogoSolicitudes", docId));
+    } catch (e) {
+      console.error("Error al descartar la solicitud:", e);
+      showToast('⚠ No se pudo descartar la solicitud.', 'error');
+    }
+  };
+
   const value = {
     pedidos,
     addPedido,
@@ -974,7 +1194,13 @@ export const AppProvider = ({ children }) => {
     showToast,
     syncError,
     exportarBackupData,
-    restaurarBackupData
+    restaurarBackupData,
+    catalogoConfig,
+    guardarCatalogoConfig,
+    publicarProductosEnCatalogo,
+    solicitudesWeb,
+    importarSolicitudComoPedido,
+    descartarSolicitud
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

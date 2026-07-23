@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/catalogo", "destination": "/api/catalogo-meta" },
+    { "source": "/catalogo/(.*)", "destination": "/api/catalogo-meta" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

@@ -9,7 +9,12 @@ export default function ConfiguracionPage() {
     setCfg(prev => {
       const list = [...prev[section]];
       if (field !== null) {
-        list[idx] = { ...list[idx], [field]: value };
+        // Compatibilidad: si el item todavía es un string viejo (caso de
+        // metodosEnvio antes de tener URL de seguimiento), lo normalizamos
+        // a objeto antes de aplicarle el campo nuevo. Si ya es objeto, el
+        // spread de un string no rompe nada porque nunca se llega acá.
+        const base = typeof list[idx] === 'string' ? { nombre: list[idx] } : list[idx];
+        list[idx] = { ...base, [field]: value };
       } else {
         list[idx] = value;
       }
@@ -166,24 +171,34 @@ export default function ConfiguracionPage() {
           <div className="card">
             <div className="card-title">Métodos de envío</div>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px', fontFamily: 'var(--mono)' }}>
-              Opciones del envío en cada pedido
+              Opciones del envío en cada pedido. La URL de seguimiento se usa para armar el link cuando marcás un pedido como "Enviado" — poné <code>{'{codigo}'}</code> donde debería ir el número de seguimiento.
             </div>
             <div id="cfg-envios">
-              {(cfg.metodosEnvio || []).map((m, i) => (
-                <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr auto' }}>
-                  <input 
-                    type="text"
-                    value={m} 
-                    onChange={(e) => handleUpdateField('metodosEnvio', i, null, e.target.value)} 
-                  />
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('metodosEnvio', i)}>✕</button>
-                </div>
-              ))}
+              {(cfg.metodosEnvio || []).map((raw, i) => {
+                const m = typeof raw === 'string' ? { nombre: raw, urlSeguimiento: '' } : raw;
+                return (
+                  <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr 1fr auto', gap: '6px' }}>
+                    <input
+                      type="text"
+                      value={m.nombre}
+                      placeholder="Nombre del método"
+                      onChange={(e) => handleUpdateField('metodosEnvio', i, 'nombre', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      value={m.urlSeguimiento || ''}
+                      placeholder="https://.../seguimiento?codigo={codigo}"
+                      onChange={(e) => handleUpdateField('metodosEnvio', i, 'urlSeguimiento', e.target.value)}
+                    />
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('metodosEnvio', i)}>✕</button>
+                  </div>
+                );
+              })}
             </div>
             <button 
               className="btn btn-sm" 
               style={{ marginTop: '10px', width: '100%' }}
-              onClick={() => handleAddItem('metodosEnvio', 'Nuevo método')}
+              onClick={() => handleAddItem('metodosEnvio', { nombre: 'Nuevo método', urlSeguimiento: '' })}
             >
               + Agregar
             </button>
