@@ -1,0 +1,203 @@
+rules_version = '2';
+
+// ⚠️ IMPORTANTE ANTES DE DESPLEGAR ESTE ARCHIVO ⚠️
+// Comparalo con lo que hay hoy en Firebase Console → Firestore → Reglas
+// antes de publicar, por si hay algo más que no esté reflejado acá.
+//
+// CAMBIO IMPORTANTE (fix de bug): el catálogo web pasó de vivir en
+// colecciones raíz compartidas (catalogoConfig, catalogoProductos,
+// catalogoSolicitudes) a vivir bajo catalogoTiendas/{uid}/... — porque
+// cualquier cuenta de Google puede loguearse en esta app (no hay lista
+// blanca), y con las reglas viejas "allow write: if request.auth != null"
+// dejaba que CUALQUIER usuario autenticado publicara productos en el
+// MISMO catálogo público, mezclando tiendas de distintos dueños. Ahora
+// cada tienda vive en su propio uid y sólo su dueño puede escribirla.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Datos privados del dueño (biblioteca, pedidos, clientes, etc.) ----
+    // OJO: a propósito NO usamos un comodín "{document=**}" acá. En
+    // Firestore, si dos reglas hacen match con el mismo path, alcanza con
+    // que UNA lo permita para que se otorgue el acceso (es un OR, no un
+    // AND). Un comodín tan amplio taparía cualquier regla más estricta que
+    // agreguemos más abajo para users/{uid}/suscripcion/** — por eso acá
+    // enumeramos explícitamente sólo las colecciones que hoy existen y que
+    // el dueño debe poder tocar libremente.
+    function esDueno(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function esAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
+    }
+
+    // Cuenta sin suscripcion/actual todavía (dato viejo, o algo falló al
+    // darla de alta) -> no bloqueamos, para no romper cuentas existentes.
+    function suscripcionRef(uid) {
+      return /databases/$(database)/documents/users/$(uid)/suscripcion/actual;
+    }
+
+    function cuentaPuedeEscribir(uid) {
+      return !exists(suscripcionRef(uid)) ||
+             get(suscripcionRef(uid)).data.estado in ['trial', 'activa'];
+    }
+
+    function dentroDelLimiteDePedidos(uid) {
+      return !exists(suscripcionRef(uid)) ||
+        get(suscripcionRef(uid)).data.cicloId == null ||
+        !exists(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)) ||
+        get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.limites.pedidosMes == null ||
+        !exists(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)) ||
+        get(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)).data.pedidosCreados <
+          get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.limites.pedidosMes;
+    }
+
+    match /users/{uid}/meta/{document=**} {
+      allow read: if esDueno(uid);
+      allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
+    }
+    match /users/{uid}/clientes/{docId} {
+      allow read: if esDueno(uid);
+      allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
+    }
+    match /users/{uid}/compras/{docId} {
+      allow read: if esDueno(uid);
+      allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
+    }
+    match /users/{uid}/biblioteca/{docId} {
+      allow read: if esDueno(uid);
+      allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
+    }
+    match /users/{uid}/pedidos/{docId} {
+      allow read: if esDueno(uid);
+      allow update, delete: if esDueno(uid) && cuentaPuedeEscribir(uid);
+
+      // Crear un pedido nuevo exige además que la cuenta no esté en modo
+      // lectura/suspendida, y que no haya superado el límite de pedidos
+      // del plan contratado para el ciclo de facturación vigente. Si algo
+      // de esto no existe todavía (cuenta vieja sin suscripcion/actual, o
+      // plan sin límite configurado), dejamos pasar para no romper cuentas
+      // existentes — el enforcement real entra en vigencia a medida que
+      // se van dando de alta las suscripciones.
+      allow create: if esDueno(uid) && cuentaPuedeEscribir(uid) && dentroDelLimiteDePedidos(uid);
+    }
+
+    // ---- Suscripción de cada cuenta ----
+    // Cada usuario lee SU propia suscripción (para mostrar el cartel de
+    // trial/vencimiento), y cualquier admin puede leer la de cualquiera
+    // (para el panel). Las escrituras están cerradas del todo: todo cambio
+    // de estado pasa por una Cloud Function con Admin SDK (ver
+    // functions/index.js), así queda todo loggeado en "eventos" y no hay
+    // riesgo de que alguien —dueño o admin comprometido— se autoactive la
+    // cuenta editando Firestore directo.
+    match /users/{uid}/suscripcion/{docId} {
+      allow read: if esDueno(uid) || esAdmin();
+      allow write: if false;
+
+      match /eventos/{eventoId} {
+        allow read: if esDueno(uid) || esAdmin();
+        allow write: if false;
+      }
+      match /contadores/{cicloId} {
+        allow read: if esDueno(uid) || esAdmin();
+        allow write: if false;
+      }
+    }
+
+    // ---- Catálogo de planes (configurable desde el panel admin) ----
+    // Lectura pública: la necesitamos tanto en la app (para comparar
+    // límites del plan actual) como eventualmente en una pantalla pública
+    // de precios. Sólo un admin puede crear/editar/borrar planes.
+    match /planes/{planId} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
+    // ---- Solicitudes de contacto ("contactate con el admin") ----
+    // Un doc por cuenta (ID = uid), así crear y editar son la misma
+    // operación. El dueño arma/edita la suya con los campos mínimos
+    // validados acá; un admin sólo puede tocar el campo "estado" (para
+    // marcarla como "contactado"), nunca los datos personales cargados
+    // por el usuario.
+    match /solicitudesContacto/{uid} {
+      allow read: if esDueno(uid) || esAdmin();
+
+      allow create: if esDueno(uid) &&
+        request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
+        request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() < 100 &&
+        request.resource.data.apellido is string && request.resource.data.apellido.size() > 0 && request.resource.data.apellido.size() < 100 &&
+        request.resource.data.localidad is string && request.resource.data.localidad.size() > 0 && request.resource.data.localidad.size() < 100 &&
+        request.resource.data.telefono is string && request.resource.data.telefono.matches('^[0-9]{10}$') &&
+        request.resource.data.email is string && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
+        request.resource.data.resena is string && request.resource.data.resena.size() < 600;
+
+      allow update: if
+        (esDueno(uid) &&
+          request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
+          request.resource.data.telefono.matches('^[0-9]{10}$') &&
+          request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')) ||
+        (esAdmin() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']));
+
+      allow delete: if false;
+    }
+
+    // ---- Catálogo web público, uno por tienda (uid del dueño) ----
+    // Lo navega gente SIN login desde /catalogo/{uid}. Sólo exponemos acá
+    // lo que cada dueño decidió publicar explícitamente (ver
+    // publicarProductosEnCatalogo en AppContext.jsx) — nunca su biblioteca
+    // ni sus pedidos reales. La parte importante del fix: todas las
+    // escrituras exigen que sea el MISMO uid autenticado el que está
+    // tocando SU propia carpeta de catálogo — no cualquier usuario logueado.
+    match /catalogoTiendas/{uid} {
+
+      // Config visible del catálogo de esta tienda (nombre, colores, si
+      // está activo). Cualquiera la puede leer; sólo su dueño la escribe.
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid;
+
+      // Productos publicados de ESTA tienda (mirror sanitizado de su
+      // biblioteca: nombre, cat, desc, imagen, precio — nunca costos
+      // internos). Lectura pública, escritura sólo del dueño de esa tienda.
+      match /productos/{prodId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Solicitudes que arma un cliente en ESTE catálogo. Cualquiera
+      // puede CREAR una (con forma validada y estado inicial fijo en
+      // "pendiente"), pero NADIE sin login puede leer, editar ni borrar
+      // solicitudes ajenas — así un cliente no puede ver el pedido de
+      // otro. Sólo el dueño de esta tienda gestiona esta colección desde
+      // el panel "Catálogo web" de la app.
+      match /solicitudes/{docId} {
+        allow create: if request.resource.data.keys().hasAll(['cliente', 'items', 'estado', 'creado'])
+                      && request.resource.data.estado == 'pendiente'
+                      && request.resource.data.cliente is string
+                      && request.resource.data.cliente.size() > 0
+                      && request.resource.data.cliente.size() < 200
+                      && request.resource.data.items is list
+                      && request.resource.data.items.size() > 0
+                      && request.resource.data.items.size() < 50;
+        allow read, update, delete: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // ---- Panel de administración (whitelist de emails admin) ----
+    // El ID de cada doc es el email en minúsculas (ej: admins/pepe@gmail.com).
+    // Cualquier usuario logueado puede chequear SI ÉL MISMO es admin (lectura
+    // de su propio doc), y quien ya es admin puede ver el listado completo
+    // para gestionarlo desde el panel. Las escrituras están cerradas desde
+    // el cliente a propósito: agregar/quitar admins se hace a mano desde
+    // Firebase Console (o más adelante con una Cloud Function con Admin SDK,
+    // que igual ignora estas reglas) — así ningún usuario, ni siquiera un
+    // admin comprometido vía XSS, puede escalar privilegios escribiendo acá.
+    match /admins/{email} {
+      allow read: if request.auth != null &&
+                    (request.auth.token.email.lower() == email || esAdmin());
+      allow write: if false;
+    }
+  }
+}

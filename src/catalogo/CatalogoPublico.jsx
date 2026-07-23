@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { db } from '../firebase';
+import { db, functions } from '../firebase';
 import { collection, doc, getDoc, onSnapshot, addDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 const fmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 const newLocalId = () => Date.now() + Math.random();
@@ -63,6 +64,19 @@ export default function CatalogoPublico() {
     getDoc(doc(db, 'catalogoTiendas', uidTienda))
       .then(snap => setConfig(snap.exists() ? snap.data() : null))
       .catch(() => setConfig(null));
+  }, [uidTienda]);
+
+  // Cuenta esta visita para el límite de "aperturas de catálogo" del plan
+  // de la tienda dueña. Va por una Cloud Function porque un visitante sin
+  // login no tiene permiso de escritura sobre los contadores de otra
+  // cuenta (ver firestore.rules). No afecta la carga del catálogo si
+  // falla: sólo se registra silenciosamente en la consola.
+  useEffect(() => {
+    if (!uidTienda) return;
+    const registrarApertura = httpsCallable(functions, 'registrarAperturaCatalogo');
+    registrarApertura({ uidTienda }).catch((err) => {
+      console.warn('No se pudo registrar la apertura del catálogo:', err);
+    });
   }, [uidTienda]);
 
   // El <title> que ve un bot de preview (WhatsApp, etc.) lo arma

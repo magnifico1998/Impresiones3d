@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "suscripcion",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "trialFin", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "suscripcion",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "cicloFin", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "suscripcion",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "fechaLimiteLectura", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

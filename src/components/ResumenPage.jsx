@@ -1,8 +1,58 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import ModalContacto from './modals/ModalContacto';
+
+// Cuántos días faltan hasta un Timestamp de Firestore, redondeado para
+// arriba (así "faltan 0 días" nunca se muestra como "ya venció" de
+// prepo si todavía quedan un par de horas).
+const diasHasta = (timestamp) => {
+  if (!timestamp?.toDate) return null;
+  const ms = timestamp.toDate().getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+};
+
+function CartelSuscripcion({ suscripcion, onAbrirContacto }) {
+  if (!suscripcion) return null;
+
+  if (suscripcion.estado === 'trial') {
+    const dias = diasHasta(suscripcion.trialFin);
+    return (
+      <div className="card" style={{ background: 'var(--infoDim)', border: '1px solid var(--info)', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text)' }}>
+            🕐 Estás en una <strong>versión de prueba</strong>{dias !== null ? ` — te quedan ${dias} día${dias === 1 ? '' : 's'}` : ''}. Contactate con el admin para ver las opciones de contratación.
+          </div>
+          <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
+            Contactar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (suscripcion.estado === 'lectura') {
+    const dias = diasHasta(suscripcion.fechaLimiteLectura);
+    return (
+      <div className="card" style={{ background: 'var(--dangerDim)', border: '1px solid var(--danger)', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text)' }}>
+            ⚠ Tu cuenta está en <strong>modo lectura</strong> por falta de pago
+            {dias !== null ? ` — si no se regulariza en ${dias} día${dias === 1 ? '' : 's'}, tu información se elimina` : ', tu información se eliminará si no se regulariza'}.
+          </div>
+          <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
+            Contactar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 export default function ResumenPage() {
-  const { pedidos, compras } = useApp();
+  const { pedidos, compras, suscripcion } = useApp();
+  const [modalContactoOpen, setModalContactoOpen] = useState(false);
 
   const [diasPeriodo, setDiasPeriodo] = useState(7);
   const [fechaDesde, setFechaDesde] = useState('');
@@ -326,6 +376,7 @@ export default function ResumenPage() {
 
   return (
     <div className="page active">
+      <CartelSuscripcion suscripcion={suscripcion} onAbrirContacto={() => setModalContactoOpen(true)} />
       <div className="page-title">Resumen</div>
       <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
       
@@ -529,6 +580,8 @@ export default function ResumenPage() {
           </div>
         )}
       </div>
+
+      <ModalContacto isOpen={modalContactoOpen} onClose={() => setModalContactoOpen(false)} />
     </div>
   );
 }

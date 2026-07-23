@@ -85,6 +85,7 @@ export const AppProvider = ({ children }) => {
   
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [suscripcion, setSuscripcion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState('resumen');
 
@@ -619,6 +620,28 @@ export const AppProvider = ({ children }) => {
       }
     );
     return unsubscribeAdmin;
+  }, [user]);
+
+  // Estado de la suscripción propia: trial/activa/lectura/suspendida. Lo
+  // escuchamos en tiempo real para que el cartel de Resumen (y cualquier
+  // bloqueo de UI) reaccione al toque si un admin activa la cuenta o si
+  // la función programada la pasa a modo lectura mientras la app está
+  // abierta, sin necesidad de recargar.
+  useEffect(() => {
+    if (!user) {
+      setSuscripcion(null);
+      return;
+    }
+    const subRef = doc(db, 'users', user.uid, 'suscripcion', 'actual');
+    const unsubscribeSub = onSnapshot(
+      subRef,
+      (snap) => setSuscripcion(snap.exists() ? snap.data() : null),
+      (err) => {
+        console.error('Error al escuchar la suscripción:', err);
+        setSuscripcion(null);
+      }
+    );
+    return unsubscribeSub;
   }, [user]);
 
   useEffect(() => {
@@ -1255,6 +1278,7 @@ export const AppProvider = ({ children }) => {
     getNewId,
     user,
     isAdmin,
+    suscripcion,
     loading,
     loadError,
     datosCargadosOk,
