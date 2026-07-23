@@ -97,7 +97,8 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
       const newClient = {
         id: getNewId(),
         ...d,
-        fechaAlta: new Date().toLocaleDateString('es-AR')
+        fechaAlta: new Date().toLocaleDateString('es-AR'),
+        fechaAltaTs: Date.now()
       };
       addCliente(newClient);
       showToast('Cliente guardado con éxito');

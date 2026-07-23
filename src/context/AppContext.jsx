@@ -1113,6 +1113,33 @@ export const AppProvider = ({ children }) => {
       const nuevasPiezas = (solicitud.items || []).map(construirPiezaDesdeSolicitud);
       let pedidoDestinoId = null;
 
+      // Si no hay un cliente con ese nombre todavía, lo creamos con los
+      // datos de contacto que dejó al hacer el pedido en el catálogo web
+      // — así no hace falta cargarlo a mano después. Coincidencia por
+      // nombre (case-insensitive, sin espacios), mismo criterio que ya
+      // usa el resto de la app para relacionar pedidos con clientes.
+      const nombreSolicitud = (solicitud.cliente || '').trim();
+      if (nombreSolicitud) {
+        const yaExiste = clientes.some(
+          c => (c.nombre || '').trim().toLowerCase() === nombreSolicitud.toLowerCase()
+        );
+        if (!yaExiste) {
+          await addCliente({
+            id: getNewId(),
+            nombre: nombreSolicitud,
+            tel: solicitud.telefono || '',
+            email: solicitud.email || '',
+            prov: '',
+            loc: '',
+            cp: '',
+            calle: '',
+            altura: '',
+            fechaAlta: new Date().toLocaleDateString('es-AR'),
+            fechaAltaTs: Date.now()
+          });
+        }
+      }
+
       if (destino === 'nuevo') {
         const newIdVal = getNewId();
         const nuevo = {
