@@ -365,7 +365,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   // confirmar qué entendió antes de arrancar a producir. A pedido: sin
   // detalle de versiones/colores, sólo cantidad + monto por producto.
   const handleGenerarResumenTexto = () => {
-    const lineas = [`Pedido de ${draft.cliente}`, ''];
+    const lineas = [`Estimado ${draft.cliente} Le remito el detalle del pedido realizado. Por favor, verifique que sea correcto para enviarlo a producción.`, ''];
 
     draft.piezas.forEach(pz => {
       const unit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado || 0);
