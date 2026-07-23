@@ -277,7 +277,7 @@ export default function AdminPage() {
                         <select
                           value={planElegido}
                           onChange={(e) => setPlanSeleccionadoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
-                          style={{ fontSize: '12px' }}
+                          style={{ fontSize: '12px', width: '150px' }}
                         >
                           <option value="">Sin plan</option>
                           {planes.map(p => (
@@ -285,12 +285,12 @@ export default function AdminPage() {
                           ))}
                         </select>
                       </td>
-                      <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap' }}>
+                      <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap', width: '160px' }}>
                         {!c.cicloId && <span>—</span>}
                         {c.cicloId && !contador && (
                           <button
                             className="btn"
-                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            style={{ fontSize: '11px', padding: '4px 8px', width: '110px' }}
                             disabled={cargandoConsumoUid === c.uid}
                             onClick={() => verConsumo(c.uid, c.cicloId)}
                           >
@@ -304,7 +304,7 @@ export default function AdminPage() {
                             <div>facturado: ${Math.round(contador.montoFacturado || 0).toLocaleString('es-AR')}{planDeLaCuenta?.limites?.montoFacturadoMes != null ? ` / $${Number(planDeLaCuenta.limites.montoFacturadoMes).toLocaleString('es-AR')}` : ''}</div>
                             <button
                               className="btn"
-                              style={{ fontSize: '10px', padding: '2px 6px', marginTop: '4px' }}
+                              style={{ fontSize: '10px', padding: '2px 6px', marginTop: '4px', width: '110px' }}
                               disabled={cargandoConsumoUid === c.uid}
                               onClick={() => verConsumo(c.uid, c.cicloId)}
                             >
@@ -316,7 +316,7 @@ export default function AdminPage() {
                       <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <button
                           className="btn"
-                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                          style={{ fontSize: '11px', padding: '4px 8px', width: '90px' }}
                           disabled={accionEnCurso === `${c.uid}:activar`}
                           onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null)}
                         >
@@ -324,7 +324,7 @@ export default function AdminPage() {
                         </button>
                         <button
                           className="btn"
-                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                          style={{ fontSize: '11px', padding: '4px 8px', width: '90px' }}
                           disabled={accionEnCurso === `${c.uid}:extenderTrial`}
                           onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
                         >
@@ -332,7 +332,7 @@ export default function AdminPage() {
                         </button>
                         <button
                           className="btn"
-                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                          style={{ fontSize: '11px', padding: '4px 8px', width: '90px' }}
                           disabled={accionEnCurso === `${c.uid}:suspender`}
                           onClick={() => ejecutarAccion(c.uid, 'suspender')}
                         >
