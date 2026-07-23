@@ -79,7 +79,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
   // Actions
   const handleSave = () => {
-    updatePedido(draft.id, draft);
+    // draft.envio viene del input como string (así lo entrega el DOM);
+    // lo normalizamos a número acá para no volver a guardar texto en
+    // Firestore — así se ataca la causa del bug de la suma del PDF, no
+    // sólo el síntoma.
+    updatePedido(draft.id, { ...draft, envio: parseFloat(draft.envio) || 0 });
     showToast('Cambios guardados con éxito');
     onClose();
   };
@@ -654,7 +658,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.setDrawColor(180); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
     doc.text('TOTAL', xPUR + 2, y + 5.5);
-    doc.text(fmt(precioVentaNetoPdf + (p.envio || 0)), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
+    doc.text(fmt(precioVentaNetoPdf + (parseFloat(p.envio) || 0)), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
     y += rowH + 10;
 
     // Shipping info

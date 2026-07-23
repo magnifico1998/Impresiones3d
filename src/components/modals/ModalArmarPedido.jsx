@@ -248,7 +248,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         ...p,
         piezas: [...p.piezas, ...nuevasPiezas],
         precioVenta: (p.precioVenta || 0) + finalPriceVal,
-        envio: (p.envio || 0) + shippingVal
+        envio: (parseFloat(p.envio) || 0) + shippingVal
       }));
       pedidoDestinoId = targetId;
     }

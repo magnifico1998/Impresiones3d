@@ -26,6 +26,15 @@ const ESTILOS_RESPONSIVE = `
 `;
 
 export default function CatalogoPublico() {
+  // El catálogo es por tienda: la URL es /catalogo/{uid}, y todo lo que
+  // se lee/escribe acá cuelga de catalogoTiendas/{uid}/... — así el
+  // catálogo de una tienda nunca se mezcla con el de otra (antes vivía en
+  // colecciones compartidas y cualquier cuenta logueada podía pisarlas).
+  const uidTienda = useMemo(() => {
+    const partes = window.location.pathname.split('/').filter(Boolean); // ['catalogo', '{uid}']
+    return partes[1] || null;
+  }, []);
+
   const [config, setConfig] = useState(undefined); // undefined = cargando, null = no existe
   const [productos, setProductos] = useState([]);
   const [cargandoProductos, setCargandoProductos] = useState(true);
@@ -48,12 +57,13 @@ export default function CatalogoPublico() {
   const [detalleAbierto, setDetalleAbierto] = useState(null); // prodId o null
   const [draftVersiones, setDraftVersiones] = useState([]);
 
-  // Config pública (colores, nombre, activo/inactivo)
+  // Config pública (colores, nombre, activo/inactivo) de esta tienda
   useEffect(() => {
-    getDoc(doc(db, 'catalogoConfig', 'meta'))
+    if (!uidTienda) { setConfig(null); return; }
+    getDoc(doc(db, 'catalogoTiendas', uidTienda))
       .then(snap => setConfig(snap.exists() ? snap.data() : null))
       .catch(() => setConfig(null));
-  }, []);
+  }, [uidTienda]);
 
   // El <title> que ve un bot de preview (WhatsApp, etc.) lo arma
   // api/catalogo-meta.js del lado del servidor; esto es sólo para que la
@@ -65,11 +75,12 @@ export default function CatalogoPublico() {
     }
   }, [config]);
 
-  // Productos publicados, en vivo (si el dueño agrega/saca algo mientras
-  // el cliente está mirando el catálogo, se actualiza solo).
+  // Productos publicados de esta tienda, en vivo (si el dueño agrega/saca
+  // algo mientras el cliente está mirando el catálogo, se actualiza solo).
   useEffect(() => {
+    if (!uidTienda) { setCargandoProductos(false); return; }
     const unsub = onSnapshot(
-      collection(db, 'catalogoProductos'),
+      collection(db, 'catalogoTiendas', uidTienda, 'productos'),
       (snap) => {
         setProductos(snap.docs.map(d => d.data()));
         setCargandoProductos(false);
@@ -77,7 +88,7 @@ export default function CatalogoPublico() {
       () => setCargandoProductos(false)
     );
     return () => unsub();
-  }, []);
+  }, [uidTienda]);
 
   const categorias = useMemo(() => {
     const set = new Set(productos.map(p => p.cat || 'Otros'));
@@ -210,7 +221,7 @@ export default function CatalogoPublico() {
         creado: new Date().toISOString()
       };
 
-      const ref = await addDoc(collection(db, 'catalogoSolicitudes'), payload);
+      const ref = await addDoc(collection(db, 'catalogoTiendas', uidTienda, 'solicitudes'), payload);
       setEnviado({ docId: ref.id, payload });
     } catch (e) {
       console.error('Error al enviar el pedido:', e);
@@ -221,6 +232,15 @@ export default function CatalogoPublico() {
   };
 
   // ---- Pantallas de estado ----
+
+  if (!uidTienda) {
+    return (
+      <EstadoCentrado>
+        Este link de catálogo está incompleto.
+        <br />Pedile al vendedor que te pase el link completo.
+      </EstadoCentrado>
+    );
+  }
 
   if (config === undefined || cargandoProductos) {
     return <EstadoCentrado>Cargando catálogo…</EstadoCentrado>;
