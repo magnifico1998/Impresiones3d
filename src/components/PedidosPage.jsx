@@ -18,6 +18,15 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   };
 
   const getTimestamp = (p) => {
+    // creadoTs es un timestamp real (con hora/minuto/segundo) fijado una
+    // sola vez al crear el pedido, y nunca se edita — es la única fuente
+    // confiable de "cuándo se creó" este pedido. Antes se ordenaba por
+    // fechaPedido, que es un campo que el usuario puede editar libremente
+    // (no refleja creación), y como respaldo por 'creado', que sólo tiene
+    // fecha sin hora — dos pedidos del mismo día quedaban en un orden
+    // arbitrario. Pedidos creados antes de este cambio no tienen
+    // creadoTs, así que caen al respaldo de siempre.
+    if (p.creadoTs) return p.creadoTs;
     if (p.fechaPedido) return new Date(p.fechaPedido + 'T12:00:00').getTime();
     if (p.creado) {
       let pts = p.creado.split('/');

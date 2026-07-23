@@ -840,15 +840,15 @@ export const AppProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user, datosCargadosOk]);
 
-  // Listener de la config pública del catálogo web (colores, nombre, si
-  // está activo). Sólo se suscribe con sesión iniciada porque es la
-  // pantalla de administración la que la necesita en vivo; el catálogo
-  // público (/catalogo, sin login) la lee por su cuenta con getDoc/onSnapshot
-  // propio, sin pasar por este Context.
+  // Listener de la config pública del catálogo web de ESTA tienda (colores,
+  // nombre, si está activo). Sólo se suscribe con sesión iniciada porque es
+  // la pantalla de administración la que la necesita en vivo; el catálogo
+  // público (/catalogo/{uid}, sin login) la lee por su cuenta con
+  // getDoc/onSnapshot propio, sin pasar por este Context.
   useEffect(() => {
     if (!user || !datosCargadosOk) return;
 
-    const ref = doc(db, "catalogoConfig", "meta");
+    const ref = doc(db, "catalogoTiendas", user.uid);
     const unsubscribe = onSnapshot(
       ref,
       (snap) => {
@@ -862,13 +862,14 @@ export const AppProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user, datosCargadosOk]);
 
-  // Listener de las solicitudes que llegan desde el catálogo web público.
-  // Colección raíz (no bajo users/{uid}) porque la escribe gente sin login;
-  // acá sólo leemos (requiere estar autenticado, ver reglas de Firestore).
+  // Listener de las solicitudes que llegan desde el catálogo web de ESTA
+  // tienda. Subcolección bajo catalogoTiendas/{uid} (no bajo users/{uid})
+  // porque la escribe gente sin login; acá sólo leemos (requiere estar
+  // autenticado como el dueño de esa tienda, ver reglas de Firestore).
   useEffect(() => {
     if (!user || !datosCargadosOk) return;
 
-    const colRef = query(collection(db, "catalogoSolicitudes"), orderBy("creado", "desc"));
+    const colRef = query(collection(db, "catalogoTiendas", user.uid, "solicitudes"), orderBy("creado", "desc"));
     const unsubscribe = onSnapshot(
       colRef,
       (snapshot) => {
@@ -992,18 +993,22 @@ export const AppProvider = ({ children }) => {
   };
 
   // ---- Catálogo web público ----
-  // Colecciones raíz (catalogoConfig, catalogoProductos, catalogoSolicitudes)
-  // separadas de users/{uid}/* a propósito: el catálogo lo navega gente sin
-  // login, y sólo debe poder LEER estas tres cosas (y CREAR solicitudes),
-  // nunca tocar biblioteca/pedidos/etc. reales. Ver firestore.rules.
+  // catalogoTiendas/{uid}/... — separadas de users/{uid}/* a propósito: el
+  // catálogo lo navega gente sin login, y sólo debe poder LEER estas
+  // cosas (y CREAR solicitudes), nunca tocar biblioteca/pedidos/etc.
+  // reales. Está scopeado por uid (no en colecciones raíz compartidas)
+  // para que cada tienda tenga su propio catálogo — cualquier cuenta de
+  // Google puede loguearse en esta app, así que si esto viviera en una
+  // colección global, un usuario podría pisar/mezclar el catálogo de
+  // otro. Ver firestore.rules.
 
-  const catalogoProductoDocRef = (id) => doc(db, "catalogoProductos", String(id));
+  const catalogoProductoDocRef = (id) => doc(db, "catalogoTiendas", user.uid, "productos", String(id));
 
   const guardarCatalogoConfig = async (parcial) => {
     try {
       const actual = catalogoConfig || {};
       const nuevo = { ...actual, ...parcial, actualizado: new Date().toISOString() };
-      await setDoc(doc(db, "catalogoConfig", "meta"), nuevo);
+      await setDoc(doc(db, "catalogoTiendas", user.uid), nuevo);
     } catch (e) {
       console.error("Error al guardar la configuración del catálogo:", e);
       showToast('⚠ No se pudo guardar la configuración del catálogo.', 'error');
@@ -1108,11 +1113,53 @@ export const AppProvider = ({ children }) => {
       const nuevasPiezas = (solicitud.items || []).map(construirPiezaDesdeSolicitud);
       let pedidoDestinoId = null;
 
+      // El teléfono es el único dato realmente único acá: el nombre lo
+      // escribe el cliente a mano en el catálogo y puede variar de un
+      // pedido a otro (mayúsculas, apellido, apodo), pero el teléfono no
+      // cambia. Por eso el teléfono manda: si ya existe un cliente con
+      // ese teléfono, es esa persona sin importar cómo escribió el
+      // nombre esta vez — y usamos el nombre que YA tenía guardado (no
+      // el nuevo) para que el pedido quede bien enlazado a él en las
+      // estadísticas de Clientes. Sólo si no hay teléfono cargado caemos
+      // a comparar por nombre.
+      const nombreSolicitud = (solicitud.cliente || '').trim();
+      const telSolicitud = (solicitud.telefono || '').replace(/\D/g, '');
+
+      let clienteExistente = null;
+      if (telSolicitud) {
+        clienteExistente = clientes.find(c => (c.tel || '').replace(/\D/g, '') === telSolicitud) || null;
+      }
+      if (!clienteExistente && nombreSolicitud) {
+        clienteExistente = clientes.find(
+          c => (c.nombre || '').trim().toLowerCase() === nombreSolicitud.toLowerCase()
+        ) || null;
+      }
+
+      // Nombre que va a llevar el pedido: el del cliente ya existente
+      // (si lo encontramos), o si no el que escribió recién.
+      const nombreParaPedido = clienteExistente?.nombre || nombreSolicitud || 'Sin nombre';
+
+      if (nombreSolicitud && !clienteExistente) {
+        await addCliente({
+          id: getNewId(),
+          nombre: nombreSolicitud,
+          tel: solicitud.telefono || '',
+          email: solicitud.email || '',
+          prov: '',
+          loc: '',
+          cp: '',
+          calle: '',
+          altura: '',
+          fechaAlta: new Date().toLocaleDateString('es-AR'),
+          fechaAltaTs: Date.now()
+        });
+      }
+
       if (destino === 'nuevo') {
         const newIdVal = getNewId();
         const nuevo = {
           id: newIdVal,
-          cliente: solicitud.cliente || 'Sin nombre',
+          cliente: nombreParaPedido,
           desc: solicitud.comentarioGeneral || 'Pedido desde catálogo web',
           estado: 'en_verificacion',
           fechaPedido: new Date().toISOString().slice(0, 10),
@@ -1122,7 +1169,8 @@ export const AppProvider = ({ children }) => {
           precioVenta: solicitud.totalEstimado || nuevasPiezas.reduce((s, p) => s + p.cantidad * p.precioVenta, 0),
           envio: 0,
           insumos: [],
-          creado: new Date().toLocaleDateString('es-AR')
+          creado: new Date().toLocaleDateString('es-AR'),
+          creadoTs: Date.now()
         };
         await addPedido(nuevo);
         pedidoDestinoId = newIdVal;
@@ -1136,7 +1184,7 @@ export const AppProvider = ({ children }) => {
       }
 
       const { _docId, ...datosSolicitud } = solicitud;
-      await setDoc(doc(db, "catalogoSolicitudes", _docId), { ...datosSolicitud, estado: 'importado' }, { merge: true });
+      await setDoc(doc(db, "catalogoTiendas", user.uid, "solicitudes", _docId), { ...datosSolicitud, estado: 'importado' }, { merge: true });
 
       showToast('✓ Solicitud importada como pedido.');
       return pedidoDestinoId;
@@ -1149,7 +1197,7 @@ export const AppProvider = ({ children }) => {
 
   const descartarSolicitud = async (docId) => {
     try {
-      await deleteDoc(doc(db, "catalogoSolicitudes", docId));
+      await deleteDoc(doc(db, "catalogoTiendas", user.uid, "solicitudes", docId));
     } catch (e) {
       console.error("Error al descartar la solicitud:", e);
       showToast('⚠ No se pudo descartar la solicitud.', 'error');

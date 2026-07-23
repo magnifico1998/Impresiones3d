@@ -8,12 +8,14 @@
 // es una SPA que recién pinta el título después de cargar React, el bot
 // nunca llega a verlo; siempre lee el <title> estático de index.html.
 //
-// Esta función intercepta sólo /catalogo (ver vercel.json), trae el
+// Esta función intercepta /catalogo/:uid (ver vercel.json), trae el
 // index.html real ya compilado (así no hay que hardcodear los nombres de
 // archivo con hash que genera cada build), le reemplaza el <title> y le
 // suma meta tags de Open Graph con el nombre del emprendimiento leído en
-// vivo desde catalogoConfig/meta en Firestore (lectura pública, ver
+// vivo desde catalogoTiendas/{uid} en Firestore (lectura pública, ver
 // firestore.rules) vía REST — sin necesitar el SDK de firebase-admin acá.
+// El catálogo es por tienda: sin el uid en el path no hay forma de saber
+// de qué negocio se trata, así que en ese caso se sirve un preview genérico.
 
 const FIRESTORE_PROJECT_ID = 'print3d-manager-73846';
 
@@ -27,23 +29,26 @@ export default async function handler(req, res) {
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   const protocol = req.headers['x-forwarded-proto'] || 'https';
   const baseUrl = `${protocol}://${host}`;
+  const uid = req.query?.uid || null;
 
   let empresaNombre = 'Catálogo';
   let logo = '';
 
-  try {
-    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/catalogoConfig/meta`;
-    const r = await fetch(firestoreUrl);
-    if (r.ok) {
-      const data = await r.json();
-      const fields = data.fields || {};
-      if (fields.empresaNombre?.stringValue) empresaNombre = fields.empresaNombre.stringValue;
-      if (fields.logo?.stringValue) logo = fields.logo.stringValue;
+  if (uid) {
+    try {
+      const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/catalogoTiendas/${encodeURIComponent(uid)}`;
+      const r = await fetch(firestoreUrl);
+      if (r.ok) {
+        const data = await r.json();
+        const fields = data.fields || {};
+        if (fields.empresaNombre?.stringValue) empresaNombre = fields.empresaNombre.stringValue;
+        if (fields.logo?.stringValue) logo = fields.logo.stringValue;
+      }
+    } catch (e) {
+      console.error('No se pudo leer catalogoTiendas para armar el preview de /catalogo:', e);
+      // Seguimos con los valores por defecto — mejor un preview genérico
+      // que romper la carga del catálogo entero.
     }
-  } catch (e) {
-    console.error('No se pudo leer catalogoConfig para armar el preview de /catalogo:', e);
-    // Seguimos con los valores por defecto — mejor un preview genérico
-    // que romper la carga del catálogo entero.
   }
 
   let html;
@@ -58,7 +63,7 @@ export default async function handler(req, res) {
 
   const titulo = `${empresaNombre} · Catálogo`;
   const descripcion = 'Elegí tus productos y armá tu pedido';
-  const urlCatalogo = `${baseUrl}/catalogo`;
+  const urlCatalogo = uid ? `${baseUrl}/catalogo/${uid}` : `${baseUrl}/catalogo`;
 
   const metaTags = `<title>${escapeHtml(titulo)}</title>
     <meta property="og:title" content="${escapeHtml(titulo)}" />

@@ -82,6 +82,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
         insumos: [],
         ...d,
         creado: new Date().toLocaleDateString('es-AR'),
+        creadoTs: Date.now(),
         fechaCompletado: calcularFechaCompletado(null, null, form.estado)
       };
       addPedido(nuevo);
