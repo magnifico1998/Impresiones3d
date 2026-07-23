@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { paletas } from './paletas';
 import { ordenarCategorias } from './categoriaOrden';
+import { loadImageAsBase64 } from './loadImageAsBase64';
 
 // Colores "neutros" que no dependen de la paleta: el precio se mantiene
 // siempre en verde (significado semántico) y los grises de texto/bordes
@@ -324,45 +325,8 @@ function fitContain(naturalWidth, naturalHeight, maxSize) {
  * el bucket de Firebase Storage) envíe headers CORS habilitados para el
  * dominio de la app. Si no los tiene configurados, TODAS las imágenes van a
  * fallar acá con un error de red/CORS (revisar la consola del navegador).
+ *
+ * (Esta función ahora vive en ./loadImageAsBase64.js — queda importada
+ * arriba para que la puedan usar otros generadores de PDF, como el de
+ * ModalPedidoDetalle.jsx.)
  */
-async function loadImageAsBase64(imageUrl) {
-  return new Promise((resolve, reject) => {
-    let urlFinal = imageUrl;
-    if (imageUrl.includes('firebasestorage.googleapis.com') || imageUrl.includes('firebasestorage.app')) {
-      urlFinal = imageUrl.includes('?')
-        ? `${imageUrl}&alt=media`
-        : `${imageUrl}?alt=media`;
-    }
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) {
-          reject(new Error('No se pudo crear contexto de canvas'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0);
-        const base64 = canvas.toDataURL('image/jpeg', 0.85);
-        resolve({ dataUrl: base64, width: canvas.width, height: canvas.height });
-      } catch (err) {
-        // Esto es lo típico cuando falta CORS en el bucket: la imagen carga
-        // visualmente pero el canvas queda "tainted" y toDataURL tira SecurityError.
-        reject(new Error(`Canvas tainted (probable falta de CORS en el bucket): ${err.message}`));
-      }
-    };
-
-    img.onerror = () => {
-      reject(new Error(`No se pudo cargar la imagen (red/CORS): ${imageUrl}`));
-    };
-
-    img.src = urlFinal;
-  });
-}

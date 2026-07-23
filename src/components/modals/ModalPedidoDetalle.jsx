@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { jsPDF } from 'jspdf';
+import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
   const { 
@@ -433,7 +434,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     });
   };
 
-  const generatePdf = () => {
+  const generatePdf = async () => {
     const p = draft;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = 210, pageH = 297, marginX = 15, contentW = pageW - marginX * 2;
@@ -451,10 +452,16 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     let titleX = marginX;
     if (empresa.logo) {
       try {
-        const fmtImg = empresa.logo.includes('image/png') ? 'PNG' : (empresa.logo.includes('image/jpeg') || empresa.logo.includes('image/jpg')) ? 'JPEG' : 'PNG';
-        doc.addImage(empresa.logo, fmtImg, marginX, y - 9, 14, 14);
+        // empresa.logo es una URL de Firebase Storage, no base64 — jsPDF
+        // necesita los datos ya convertidos, por eso se carga acá (esto
+        // es lo que faltaba: antes se le pasaba la URL directo a
+        // addImage y fallaba en silencio, el logo nunca aparecía).
+        const { dataUrl } = await loadImageAsBase64(empresa.logo);
+        doc.addImage(dataUrl, 'JPEG', marginX, y - 9, 14, 14);
         titleX = marginX + 18;
-      } catch { /* empty */ }
+      } catch (err) {
+        console.error('No se pudo cargar el logo para el PDF del pedido:', err);
+      }
     }
     doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.setTextColor(30, 33, 40);
     doc.text('PEDIDO', titleX, y);
