@@ -86,6 +86,8 @@ export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [suscripcion, setSuscripcion] = useState(null);
+  const [planContratado, setPlanContratado] = useState(null);
+  const [consumoActual, setConsumoActual] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState('resumen');
 
@@ -643,6 +645,48 @@ export const AppProvider = ({ children }) => {
     );
     return unsubscribeSub;
   }, [user]);
+
+  // Plan contratado (para mostrar nombre/precio/límites en Resumen y en
+  // "Mi emprendimiento"). Depende de suscripcion.planId, así que se
+  // re-suscribe solo cuando cambia el plan asignado, no en cada cambio de
+  // otra cosa dentro de suscripcion.
+  useEffect(() => {
+    if (!suscripcion?.planId) {
+      setPlanContratado(null);
+      return;
+    }
+    const planRef = doc(db, 'planes', suscripcion.planId);
+    const unsubscribePlan = onSnapshot(
+      planRef,
+      (snap) => setPlanContratado(snap.exists() ? { id: snap.id, ...snap.data() } : null),
+      (err) => {
+        console.error('Error al escuchar el plan contratado:', err);
+        setPlanContratado(null);
+      }
+    );
+    return unsubscribePlan;
+  }, [suscripcion?.planId]);
+
+  // Consumo del ciclo de facturación vigente (pedidos, aperturas de
+  // catálogo, monto facturado) -- lo incrementan las Cloud Functions, acá
+  // sólo lo leemos para mostrarlo. Depende de suscripcion.cicloId, así que
+  // al arrancar un ciclo nuevo se cambia solo de documento.
+  useEffect(() => {
+    if (!user || !suscripcion?.cicloId) {
+      setConsumoActual(null);
+      return;
+    }
+    const contadorRef = doc(db, 'users', user.uid, 'suscripcion', 'actual', 'contadores', suscripcion.cicloId);
+    const unsubscribeContador = onSnapshot(
+      contadorRef,
+      (snap) => setConsumoActual(snap.exists() ? snap.data() : { pedidosCreados: 0, aperturasCatalogo: 0, montoFacturado: 0 }),
+      (err) => {
+        console.error('Error al escuchar el consumo del ciclo:', err);
+        setConsumoActual(null);
+      }
+    );
+    return unsubscribeContador;
+  }, [user, suscripcion?.cicloId]);
 
   useEffect(() => {
     if (cfg?.palette) {
@@ -1279,6 +1323,8 @@ export const AppProvider = ({ children }) => {
     user,
     isAdmin,
     suscripcion,
+    planContratado,
+    consumoActual,
     loading,
     loadError,
     datosCargadosOk,

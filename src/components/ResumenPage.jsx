@@ -11,8 +11,21 @@ const diasHasta = (timestamp) => {
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 };
 
-function CartelSuscripcion({ suscripcion, onAbrirContacto }) {
+function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
   if (!suscripcion) return null;
+
+  if (suscripcion.estado === 'activa') {
+    const dias = diasHasta(suscripcion.cicloFin);
+    return (
+      <div className="card" style={{ background: 'var(--accentDim)', border: '1px solid var(--accent)', marginBottom: '16px' }}>
+        <div style={{ fontSize: '13px', color: 'var(--text)' }}>
+          ✓ Plan <strong>{planContratado?.nombre || '—'}</strong> activo
+          {dias !== null ? ` — se renueva en ${dias} día${dias === 1 ? '' : 's'}` : ''}.
+          {' '}Mirá el detalle de tu consumo en <strong>Mi emprendimiento</strong>.
+        </div>
+      </div>
+    );
+  }
 
   if (suscripcion.estado === 'trial') {
     const dias = diasHasta(suscripcion.trialFin);
@@ -51,7 +64,7 @@ function CartelSuscripcion({ suscripcion, onAbrirContacto }) {
 }
 
 export default function ResumenPage() {
-  const { pedidos, compras, suscripcion } = useApp();
+  const { pedidos, compras, suscripcion, planContratado } = useApp();
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
 
   const [diasPeriodo, setDiasPeriodo] = useState(7);
@@ -376,7 +389,7 @@ export default function ResumenPage() {
 
   return (
     <div className="page active">
-      <CartelSuscripcion suscripcion={suscripcion} onAbrirContacto={() => setModalContactoOpen(true)} />
+      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} />
       <div className="page-title">Resumen</div>
       <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
       

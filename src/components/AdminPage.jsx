@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { db, functions } from '../firebase';
-import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import ModalPlan from './modals/ModalPlan';
 
@@ -17,6 +17,7 @@ export default function AdminPage() {
   const [cuentas, setCuentas] = useState([]);
   const [loadingCuentas, setLoadingCuentas] = useState(true);
   const [accionEnCurso, setAccionEnCurso] = useState(null); // uid+accion en curso, para deshabilitar el botón
+  const [contadoresPorUid, setContadoresPorUid] = useState({});
 
   const [solicitudes, setSolicitudes] = useState([]);
   const [loadingSolicitudes, setLoadingSolicitudes] = useState(true);
@@ -77,6 +78,33 @@ export default function AdminPage() {
     );
     return unsub;
   }, []);
+
+  // Trae el contador de consumo del ciclo vigente de cada cuenta. No es en
+  // tiempo real (se re-hace cada vez que cambia la lista de cuentas, por
+  // ejemplo al activar una nueva), pero alcanza para un panel de admin --
+  // evita abrir un listener por cada cuenta a la vez.
+  useEffect(() => {
+    const cuentasConCiclo = cuentas.filter(c => c.cicloId);
+    if (cuentasConCiclo.length === 0) return;
+
+    let cancelado = false;
+    Promise.all(
+      cuentasConCiclo.map(async (c) => {
+        try {
+          const snap = await getDoc(doc(db, 'users', c.uid, 'suscripcion', 'actual', 'contadores', c.cicloId));
+          return [c.uid, snap.exists() ? snap.data() : null];
+        } catch (e) {
+          console.error(`Error al leer el contador de ${c.uid}:`, e);
+          return [c.uid, null];
+        }
+      })
+    ).then((pares) => {
+      if (cancelado) return;
+      setContadoresPorUid(Object.fromEntries(pares));
+    });
+
+    return () => { cancelado = true; };
+  }, [cuentas]);
 
   useEffect(() => {
     const colRef = collection(db, 'solicitudesContacto');
@@ -170,6 +198,7 @@ export default function AdminPage() {
                   <th>Estado</th>
                   <th>Vence</th>
                   <th>Plan</th>
+                  <th>Consumo del ciclo</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -180,6 +209,8 @@ export default function AdminPage() {
                     : c.estado === 'lectura' ? fmtFecha(c.fechaLimiteLectura)
                     : '—';
                   const planElegido = planSeleccionadoPorCuenta[c.uid] ?? c.planId ?? '';
+                  const planDeLaCuenta = planes.find(p => p.id === c.planId);
+                  const contador = contadoresPorUid[c.uid];
                   return (
                     <tr key={c.uid}>
                       <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
@@ -196,6 +227,17 @@ export default function AdminPage() {
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}
                         </select>
+                      </td>
+                      <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap' }}>
+                        {!c.cicloId && <span>—</span>}
+                        {c.cicloId && !contador && <span>cargando…</span>}
+                        {c.cicloId && contador && (
+                          <div>
+                            <div>pedidos: {contador.pedidosCreados || 0}{planDeLaCuenta?.limites?.pedidosMes != null ? `/${planDeLaCuenta.limites.pedidosMes}` : ''}</div>
+                            <div>catálogo: {contador.aperturasCatalogo || 0}{planDeLaCuenta?.limites?.aperturasCatalogoMes != null ? `/${planDeLaCuenta.limites.aperturasCatalogoMes}` : ''}</div>
+                            <div>facturado: ${Math.round(contador.montoFacturado || 0).toLocaleString('es-AR')}{planDeLaCuenta?.limites?.montoFacturadoMes != null ? ` / $${Number(planDeLaCuenta.limites.montoFacturadoMes).toLocaleString('es-AR')}` : ''}</div>
+                          </div>
+                        )}
                       </td>
                       <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <button
