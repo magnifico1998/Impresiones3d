@@ -1127,7 +1127,8 @@ export const AppProvider = ({ children }) => {
           precioVenta: solicitud.totalEstimado || nuevasPiezas.reduce((s, p) => s + p.cantidad * p.precioVenta, 0),
           envio: 0,
           insumos: [],
-          creado: new Date().toLocaleDateString('es-AR')
+          creado: new Date().toLocaleDateString('es-AR'),
+          creadoTs: Date.now()
         };
         await addPedido(nuevo);
         pedidoDestinoId = newIdVal;

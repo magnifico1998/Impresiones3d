@@ -237,7 +237,8 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         precioVenta: finalPriceVal,
         envio: shippingVal,
         insumos: [],
-        creado: new Date().toLocaleDateString('es-AR')
+        creado: new Date().toLocaleDateString('es-AR'),
+        creadoTs: Date.now()
       };
       
       addPedido(nuevo);
