@@ -330,3 +330,4 @@ function fitContain(naturalWidth, naturalHeight, maxSize) {
  * arriba para que la puedan usar otros generadores de PDF, como el de
  * ModalPedidoDetalle.jsx.)
  */
+
