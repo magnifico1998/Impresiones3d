@@ -119,7 +119,10 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   };
 
   const getNextPedidoEstado = (prevEstado, piezas) => {
-    if (prevEstado === 'completado' || prevEstado === 'cancelado') {
+    // en_verificacion y enviado son estados manuales del flujo de
+    // administración (no de producción) — igual que completado/cancelado,
+    // no se tocan solos por marcar piezas como elaboradas.
+    if (['completado', 'cancelado', 'en_verificacion', 'enviado'].includes(prevEstado)) {
       return prevEstado;
     }
 
@@ -356,6 +359,84 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   };
 
   // PDF Generation function (jsPDF integration)
+  // ---- Resumen de texto para WhatsApp (sólo visible en "En verificación") ----
+  // El pedido recién importado del catálogo web todavía no fue chequeado a
+  // mano; este resumen es lo que el dueño le manda al cliente para
+  // confirmar qué entendió antes de arrancar a producir.
+  const handleGenerarResumenTexto = () => {
+    const lineas = [`Pedido de ${draft.cliente}`, ''];
+
+    draft.piezas.forEach(pz => {
+      const versiones = (pz.versiones || []).filter(v => (v.cantidad || 0) > 0);
+      const esUnaSolaVersionSimple = versiones.length <= 1 && !(versiones[0]?.color) && !(versiones[0]?.comentario);
+
+      if (esUnaSolaVersionSimple) {
+        lineas.push(`- ${pz.cantidad}x ${pz.nombre}`);
+      } else {
+        lineas.push(`- ${pz.nombre}`);
+        versiones.forEach(v => {
+          const detalle = [v.color, v.comentario].filter(Boolean).join(' — ');
+          lineas.push(`   • ${v.cantidad}x${detalle ? ' ' + detalle : ''}`);
+        });
+      }
+    });
+
+    lineas.push('');
+    lineas.push(`Total: ${fmt(precioVentaNeto)} (no incluye envío)`);
+
+    const texto = lineas.join('\n');
+
+    navigator.clipboard.writeText(texto).then(() => {
+      showToast('✓ Resumen copiado, pegalo donde lo necesites.');
+    }).catch(() => {
+      window.prompt('Copiá el resumen manualmente:', texto);
+    });
+  };
+
+  // ---- Link de seguimiento (sólo visible en "Enviado") ----
+  // Arma la URL de tracking a partir del método de envío configurado en
+  // "Métodos de envío" (con su plantilla de URL) y el número de
+  // seguimiento cargado en este pedido, reemplazando el placeholder
+  // {codigo} de la plantilla.
+  const nombreMetodo = (m) => (typeof m === 'string' ? m : m?.nombre) || '';
+  const urlMetodo = (m) => (typeof m === 'string' ? '' : m?.urlSeguimiento) || '';
+
+  const handleGenerarLinkSeguimiento = () => {
+    if (!draft.metodoEnvio) {
+      showToast('Elegí primero un método de envío.', 'error');
+      return;
+    }
+    if (!draft.numeroSeguimiento) {
+      showToast('Cargá el número de seguimiento primero.', 'error');
+      return;
+    }
+
+    const metodoCfg = (cfg.metodosEnvio || []).find(m => nombreMetodo(m) === draft.metodoEnvio);
+    const plantilla = metodoCfg ? urlMetodo(metodoCfg) : '';
+
+    if (!plantilla) {
+      showToast(`"${draft.metodoEnvio}" todavía no tiene una URL de seguimiento configurada (Configuración → Métodos de envío).`, 'error');
+      return;
+    }
+
+    const link = plantilla.includes('{codigo}')
+      ? plantilla.replace('{codigo}', encodeURIComponent(draft.numeroSeguimiento))
+      : plantilla + encodeURIComponent(draft.numeroSeguimiento);
+
+    const mensaje = [
+      'Tu pedido ya fue enviado 📦',
+      `Método: ${draft.metodoEnvio}`,
+      `N° de seguimiento: ${draft.numeroSeguimiento}`,
+      `Seguilo acá: ${link}`
+    ].join('\n');
+
+    navigator.clipboard.writeText(mensaje).then(() => {
+      showToast('✓ Mensaje con el link de seguimiento copiado.');
+    }).catch(() => {
+      window.prompt('Copiá el mensaje manualmente:', mensaje);
+    });
+  };
+
   const generatePdf = () => {
     const p = draft;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -1080,7 +1161,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             >
               <option value="">— Sin especificar —</option>
               {(cfg.metodosEnvio || []).map((metodo, mi) => (
-                <option key={mi} value={metodo}>{metodo}</option>
+                <option key={mi} value={nombreMetodo(metodo)}>{nombreMetodo(metodo)}</option>
               ))}
             </select>
           </div>
@@ -1122,7 +1203,19 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
         <div className="modal-footer">
           <button className="btn btn-danger btn-sm" onClick={handleDeletePedido}>Eliminar pedido</button>
-          
+
+          {draft.estado === 'en_verificacion' && (
+            <button className="btn" onClick={handleGenerarResumenTexto} title="Copia un resumen en texto del pedido, con detalle de versiones y total (sin envío)">
+              Generar resumen para confirmar
+            </button>
+          )}
+
+          {draft.estado === 'enviado' && (
+            <button className="btn" onClick={handleGenerarLinkSeguimiento} title="Copia un mensaje con el link de seguimiento del envío">
+              Generar link de seguimiento
+            </button>
+          )}
+
           <button className="btn" onClick={generatePdf} title="Generar PDF para enviar por WhatsApp">
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px', marginRight: '4px', display: 'inline-block', verticalAlign: '-2px' }}>
               <path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z" />

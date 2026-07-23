@@ -59,7 +59,7 @@ export default function ResumenPage() {
     const { desde, hasta } = periodDates;
 
     const getIsOrderInPeriod = (p) => {
-      const fechaRef = (p.state === 'completado' || p.estado === 'completado') && p.fechaCompletado
+      const fechaRef = (p.state === 'completado' || p.estado === 'completado' || p.estado === 'enviado') && p.fechaCompletado
         ? p.fechaCompletado
         : (p.fechaPedido || p.fecha || p.creado);
       if (!fechaRef) return true;
@@ -78,7 +78,7 @@ export default function ResumenPage() {
     const fp = pedidos.filter(getIsOrderInPeriod);
 
     // Completados with sales price (neto: descuento aplicado)
-    const comp = fp.filter(p => (p.estado === 'completado' || p.estado === 'listo') && (p.precioVenta || 0) > 0);
+    const comp = fp.filter(p => (p.estado === 'completado' || p.estado === 'listo' || p.estado === 'enviado') && (p.precioVenta || 0) > 0);
 
     const v = comp.reduce((s, p) => s + precioNetoFor(p), 0);
     
@@ -465,10 +465,6 @@ export default function ResumenPage() {
               </thead>
               <tbody>
                 {sortedCompletados.map(p => {
-                  const costo = p.piezas.reduce((s, pz) => s + (((pz.costeElec || 0) + (pz.costeMO || 0)) * pz.cantidad), 0);
-                  const precioFinal = precioNetoFor(p);
-                  const gan = precioFinal - costo;
-                  const margen = precioFinal > 0 ? (gan / precioFinal * 100).toFixed(1) : 0;
                   const fechaMostrar = p.fechaCompletado || p.fechaPedido || p.creado || '—';
                   return (
                     <tr key={p.id}>

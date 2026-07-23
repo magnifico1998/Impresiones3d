@@ -38,7 +38,12 @@ const defaultCfg = {
     { nombre: 'Gris', hex: '#9e9e9e' },
     { nombre: 'Amarillo', hex: '#fdd835' }
   ],
-  metodosEnvio: ['Correo Argentino', 'Andreani', 'Retiro en persona', 'Envío propio'],
+  metodosEnvio: [
+    { nombre: 'Correo Argentino', urlSeguimiento: 'https://www.correoargentino.com.ar/seguimiento?codigo={codigo}' },
+    { nombre: 'Andreani', urlSeguimiento: 'https://www.andreani.com/#!/informacionEnvio/{codigo}' },
+    { nombre: 'Retiro en persona', urlSeguimiento: '' },
+    { nombre: 'Envío propio', urlSeguimiento: '' }
+  ],
   kwh: 120,
   mo: 500,
   margen: 100,
@@ -1109,7 +1114,7 @@ export const AppProvider = ({ children }) => {
           id: newIdVal,
           cliente: solicitud.cliente || 'Sin nombre',
           desc: solicitud.comentarioGeneral || 'Pedido desde catálogo web',
-          estado: 'pendiente',
+          estado: 'en_verificacion',
           fechaPedido: new Date().toISOString().slice(0, 10),
           fechaEntrega: '',
           notaGeneral: solicitud.telefono ? `Tel: ${solicitud.telefono}` : '',

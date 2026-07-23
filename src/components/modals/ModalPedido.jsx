@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { calcularFechaCompletado } from '../../utils/fechaCompletado';
 
 export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
   const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast } = useApp();
@@ -67,16 +68,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
 
     if (editId !== null) {
       updatePedido(editId, (p) => {
-        const eraCompletado = p.estado === 'completado';
-        const newEstado = form.estado;
-        let fechaCompletado = p.fechaCompletado;
-
-        if (newEstado === 'completado' && !eraCompletado) {
-          fechaCompletado = new Date().toISOString().slice(0, 10);
-        } else if (newEstado !== 'completado') {
-          fechaCompletado = null;
-        }
-
+        const fechaCompletado = calcularFechaCompletado(p.estado, p.fechaCompletado, form.estado);
         return { ...p, ...d, fechaCompletado };
       });
       savedId = editId;
@@ -90,7 +82,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
         insumos: [],
         ...d,
         creado: new Date().toLocaleDateString('es-AR'),
-        fechaCompletado: form.estado === 'completado' ? new Date().toISOString().slice(0, 10) : null
+        fechaCompletado: calcularFechaCompletado(null, null, form.estado)
       };
       addPedido(nuevo);
       savedId = newIdVal;
@@ -157,9 +149,11 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
 
         <label className="fl">Estado</label>
         <select id="estado" value={form.estado} onChange={handleChange}>
+          <option value="en_verificacion">En verificación</option>
           <option value="pendiente">Pendiente</option>
           <option value="progreso">En progreso</option>
           <option value="listo">Listo para entregar</option>
+          <option value="enviado">Enviado</option>
           <option value="completado">Completado / Entregado</option>
           <option value="cancelado">Cancelado</option>
         </select>

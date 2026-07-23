@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { precioNeto } from '../utils/precioNeto';
+import { calcularFechaCompletado } from '../utils/fechaCompletado';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, updatePedido, showToast } = useApp();
@@ -8,7 +9,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const esUrgente = (p) => {
-    if (!p.fechaEntrega || p.estado === 'completado' || p.estado === 'listo' || p.estado === 'cancelado') return false;
+    if (!p.fechaEntrega || p.estado === 'completado' || p.estado === 'listo' || p.estado === 'enviado' || p.estado === 'cancelado') return false;
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const entr = new Date(p.fechaEntrega + 'T00:00:00');
@@ -31,7 +32,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     const done = pedidos.filter(p => p.estado === 'completado').length;
 
     const fact = pedidos
-      .filter(p => (p.estado === 'completado' || p.estado === 'listo') && (p.precioVenta || 0) > 0)
+      .filter(p => (p.estado === 'completado' || p.estado === 'listo' || p.estado === 'enviado') && (p.precioVenta || 0) > 0)
       .reduce((s, p) => s + precioNeto(p), 0);
 
     const pendGlobal = pedidos
@@ -48,20 +49,16 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const handleStatusChange = (e, id, newStatus) => {
     e.stopPropagation();
     updatePedido(id, (p) => {
-      const eraCompletado = p.estado === 'completado';
-      let fechaCompletado = p.fechaCompletado;
-      if (newStatus === 'completado' && !eraCompletado) {
-        fechaCompletado = new Date().toISOString().slice(0, 10);
-      } else if (newStatus !== 'completado') {
-        fechaCompletado = null;
-      }
+      const fechaCompletado = calcularFechaCompletado(p.estado, p.fechaCompletado, newStatus);
       return { ...p, estado: newStatus, fechaCompletado };
     });
 
     const badgeText = {
+      en_verificacion: 'En verificación',
       pendiente: 'Pendiente',
       progreso: 'En progreso',
       listo: 'Listo p/ entregar',
+      enviado: 'Enviado',
       completado: 'Completado',
       cancelado: 'Cancelado'
     }[newStatus] || newStatus;
@@ -136,7 +133,6 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
               (t, pz) => t + (pz.elaborados || 0),
               0
             );
-            const unidadesPendientes = Math.max(totalUnidades - totalElaboradas, 0);
             const unidadesTexto = String(totalUnidades);
             const avanceColor = totalUnidades === 0
               ? 'var(--danger)'
@@ -232,9 +228,11 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                         minWidth: 'auto'
                       }}
                     >
+                      <option value="en_verificacion">En verificación</option>
                       <option value="pendiente">Pendiente</option>
                       <option value="progreso">En progreso</option>
                       <option value="listo">Listo p/ entregar</option>
+                      <option value="enviado">Enviado</option>
                       <option value="completado">Completado</option>
                       <option value="cancelado">Cancelado</option>
                     </select>

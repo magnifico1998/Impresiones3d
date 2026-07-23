@@ -155,9 +155,11 @@ select option{background:var(--bg3)}
 .badge-cancelled{background:var(--dangerDim);color:var(--danger)}
 .badge-listo{background:rgba(167,139,250,.15);color:#a78bfa}
 .status-select { font-size:11px; font-family:var(--mono); padding:3px 20px 3px 8px; border-radius:20px; font-weight:500; border:1px solid transparent; cursor:pointer; outline:none; -webkit-appearance:none; text-align:center; position:relative; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238b92a8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6px center; background-size: 10px; }
+.status-select.en_verificacion { background-color:rgba(244,114,182,.15); color:#f472b6; }
 .status-select.pendiente { background-color:var(--warnDim); color:var(--warn); }
 .status-select.progreso { background-color:var(--infoDim); color:var(--info); }
 .status-select.listo { background-color:rgba(167,139,250,.15); color:#a78bfa; }
+.status-select.enviado { background-color:rgba(34,211,238,.15); color:#22d3ee; }
 .status-select.completado { background-color:var(--accentDim); color:var(--accent); }
 .status-select.cancelado { background-color:var(--dangerDim); color:var(--danger); }
 .status-select option { background-color:var(--bg2); color:var(--text); font-family:var(--sans); }
