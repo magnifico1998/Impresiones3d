@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { paletas } from './paletas';
 import { ordenarCategorias } from './categoriaOrden';
+import { loadImageAsBase64 } from './loadImageAsBase64';
 
 // Colores "neutros" que no dependen de la paleta: el precio se mantiene
 // siempre en verde (significado semántico) y los grises de texto/bordes

@@ -84,6 +84,7 @@ export const AppProvider = ({ children }) => {
   const [solicitudesWeb, setSolicitudesWeb] = useState([]);
   
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState('resumen');
 
@@ -596,6 +597,29 @@ export const AppProvider = ({ children }) => {
 
     return unsubscribe;
   }, []);
+
+  // Chequeo de permisos de administrador: escuchamos en tiempo real el doc
+  // admins/{email} (ID = email en minúsculas). Si existe, el usuario es
+  // admin; si no, o si cambia (se lo quitan mientras tiene la app abierta),
+  // se refleja al toque sin necesidad de recargar. Ver firestore.rules:
+  // sólo puede leer su propio doc (o el listado completo si ya es admin),
+  // y nadie puede escribir esta colección desde el cliente.
+  useEffect(() => {
+    if (!user || !user.email) {
+      setIsAdmin(false);
+      return;
+    }
+    const adminRef = doc(db, 'admins', user.email.toLowerCase());
+    const unsubscribeAdmin = onSnapshot(
+      adminRef,
+      (snap) => setIsAdmin(snap.exists()),
+      (err) => {
+        console.error('Error verificando permisos de administrador:', err);
+        setIsAdmin(false);
+      }
+    );
+    return unsubscribeAdmin;
+  }, [user]);
 
   useEffect(() => {
     if (cfg?.palette) {
@@ -1230,6 +1254,7 @@ export const AppProvider = ({ children }) => {
     idCounter,
     getNewId,
     user,
+    isAdmin,
     loading,
     loadError,
     datosCargadosOk,
