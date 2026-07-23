@@ -13,6 +13,7 @@ import BibliotecaPage from './components/BibliotecaPage';
 import CatalogoAdminPage from './components/CatalogoAdminPage';
 import ConfiguracionPage from './components/ConfiguracionPage';
 import EmpresaPage from './components/EmpresaPage';
+import AdminPage from './components/AdminPage';
 import Toasts from './components/Toasts';
 
 // Modals
@@ -30,6 +31,7 @@ import ModalArmarPedido from './components/modals/ModalArmarPedido';
 function App() {
   const {
     user,
+    isAdmin,
     loading,
     loginWithGoogle,
     activePage,
@@ -335,6 +337,14 @@ function App() {
       
       case 'empresa':
         return <EmpresaPage />;
+
+      case 'admin':
+        // Defensa en profundidad: aunque el Sidebar ya oculta este ítem a
+        // quien no es admin, activePage es un simple useState y nada
+        // impide que quede seteado en 'admin' por otra vía. Volvemos a
+        // chequear isAdmin acá antes de renderizar. Los datos reales detrás
+        // de esta pantalla ya están protegidos aparte por firestore.rules.
+        return isAdmin ? <AdminPage /> : <ResumenPage />;
       
       default:
         return <ResumenPage />;
