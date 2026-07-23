@@ -362,23 +362,15 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   // ---- Resumen de texto para WhatsApp (sólo visible en "En verificación") ----
   // El pedido recién importado del catálogo web todavía no fue chequeado a
   // mano; este resumen es lo que el dueño le manda al cliente para
-  // confirmar qué entendió antes de arrancar a producir.
+  // confirmar qué entendió antes de arrancar a producir. A pedido: sin
+  // detalle de versiones/colores, sólo cantidad + monto por producto.
   const handleGenerarResumenTexto = () => {
     const lineas = [`Pedido de ${draft.cliente}`, ''];
 
     draft.piezas.forEach(pz => {
-      const versiones = (pz.versiones || []).filter(v => (v.cantidad || 0) > 0);
-      const esUnaSolaVersionSimple = versiones.length <= 1 && !(versiones[0]?.color) && !(versiones[0]?.comentario);
-
-      if (esUnaSolaVersionSimple) {
-        lineas.push(`- ${pz.cantidad}x ${pz.nombre}`);
-      } else {
-        lineas.push(`- ${pz.nombre}`);
-        versiones.forEach(v => {
-          const detalle = [v.color, v.comentario].filter(Boolean).join(' — ');
-          lineas.push(`   • ${v.cantidad}x${detalle ? ' ' + detalle : ''}`);
-        });
-      }
+      const unit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado || 0);
+      const subtotal = unit * pz.cantidad;
+      lineas.push(`- ${pz.cantidad}x ${pz.nombre} — ${fmt(subtotal)}`);
     });
 
     lineas.push('');
@@ -1205,14 +1197,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           <button className="btn btn-danger btn-sm" onClick={handleDeletePedido}>Eliminar pedido</button>
 
           {draft.estado === 'en_verificacion' && (
-            <button className="btn" onClick={handleGenerarResumenTexto} title="Copia un resumen en texto del pedido, con detalle de versiones y total (sin envío)">
-              Generar resumen para confirmar
+            <button className="btn" onClick={handleGenerarResumenTexto} title="Copia un resumen en texto con cantidad, producto, monto y total (sin envío)">
+              Generar Resumen
             </button>
           )}
 
           {draft.estado === 'enviado' && (
             <button className="btn" onClick={handleGenerarLinkSeguimiento} title="Copia un mensaje con el link de seguimiento del envío">
-              Generar link de seguimiento
+              Link de seguimiento
             </button>
           )}
 
