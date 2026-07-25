@@ -49,9 +49,14 @@ exports.transicionSuscripciones = onSchedule('every day 03:00', async () => {
     cambios++;
   });
 
-  // 3) Modo lectura vencido (pasaron los 10 días de gracia) -> suspendida
-  //    Sólo cambia el flag de estado: los datos NO se borran físicamente
-  //    (ver definición de Fase 0). Quedan archivados y recuperables a mano.
+  // 3) Modo lectura vencido (pasaron los DURACION_LECTURA_DIAS días de
+  //    gracia) -> suspendida. A partir de acá firestore.rules le corta
+  //    también la LECTURA de sus datos (ver cuentaPuedeLeer), no sólo la
+  //    escritura -- el cambio de estado acá es lo único que dispara ese
+  //    bloqueo. Los datos en sí NO se borran físicamente (ver definición de
+  //    Fase 0): quedan archivados y recuperables a mano por un admin, o se
+  //    pueden purgar del todo con la Cloud Function borrarCuenta si nunca
+  //    se reactiva (ver panel de Suscriptores).
   const lecturaVencida = await db.collectionGroup('suscripcion')
     .where('estado', '==', 'lectura')
     .where('fechaLimiteLectura', '<=', ahora)

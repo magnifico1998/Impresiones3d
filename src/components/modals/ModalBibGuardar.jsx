@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 
-export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) {
-  const { biblioteca, addProducto, updateProducto, getNewId, showToast, user } = useApp();
+export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, onGuardado }) {
+  const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado } = useApp();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState('');
@@ -39,7 +39,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
         maxBytes: 90 * 1024
       });
       const url = await subirImagenAFirebase(dataUrl, {
-        userId: user?.uid,
+        userId: cuentaId,
         fileName: file.name
       });
       setImagen(url);
@@ -69,7 +69,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
     if (imagenFinal && imagenFinal.startsWith('data:')) {
       try {
         imagenFinal = await subirImagenAFirebase(imagenFinal, {
-          userId: user?.uid,
+          userId: cuentaId,
           fileName: `${nameTrimmed}.jpg`
         });
       } catch (err) {
@@ -118,11 +118,18 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual }) 
         updateProducto(existente.id, { ...snap, id: existente.id });
         showToast('Producto actualizado en biblioteca.');
         onClose();
+        onGuardado?.();
       }
     } else {
+      const limite = planContratado?.limites?.productosBiblioteca;
+      if (limite != null && biblioteca.length >= limite) {
+        showToast(`Llegaste al máximo de ${limite} productos en biblioteca de tu plan. Borrá alguno o contratá un plan superior.`, 'error');
+        return;
+      }
       addProducto(snap);
       showToast('✓ Producto guardado en biblioteca.');
       onClose();
+      onGuardado?.();
     }
   };
 

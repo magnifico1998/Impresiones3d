@@ -86,6 +86,17 @@ export default function Sidebar({ isOpen, onClose }) {
               <path d="M3 8h14M7 12h2M11 12h2" />
             </svg>
           )
+        },
+        {
+          id: 'faq',
+          name: 'Preguntas frecuentes',
+          icon: (
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="10" cy="10" r="7.5" />
+              <path d="M7.8 8a2.2 2.2 0 114 1.2c-.6.6-1.3.9-1.3 2" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="10" cy="14.2" r="0.4" fill="currentColor" stroke="none" />
+            </svg>
+          )
         }
       ]
     },

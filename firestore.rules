@@ -28,6 +28,33 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // ---- Usuarios adicionales por cuenta ("equipo") ----
+    // Un dueño puede dar acceso total a su cuenta a otros emails de Gmail
+    // (hasta el límite de su plan), sin usar custom claims: el vínculo vive
+    // en invitacionesMiembro/{email}, con ID = email en minúsculas, así se
+    // resuelve con un get() puntual (ver gestionarMiembros.js, que es la
+    // única forma de escribir esa colección). emailDeAuth() normaliza el
+    // email del token tal como lo escribe Firestore Auth (Google no
+    // garantiza minúsculas).
+    function emailDeAuth() {
+      return request.auth != null && request.auth.token.email != null
+        ? request.auth.token.email.lower() : '';
+    }
+
+    function esMiembroActivo(uid) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/invitacionesMiembro/$(emailDeAuth())) &&
+        get(/databases/$(database)/documents/invitacionesMiembro/$(emailDeAuth())).data.ownerUid == uid &&
+        get(/databases/$(database)/documents/invitacionesMiembro/$(emailDeAuth())).data.estado == 'activo';
+    }
+
+    // Reemplaza a esDueno(uid) en las colecciones operativas de la cuenta
+    // (biblioteca, pedidos, clientes, etc.): el dueño o un miembro con
+    // acceso activo pueden tocarlas por igual (acceso total, sin roles).
+    function tieneAcceso(uid) {
+      return esDueno(uid) || esMiembroActivo(uid);
+    }
+
     function esAdmin() {
       return request.auth != null &&
              exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
@@ -44,14 +71,25 @@ service cloud.firestore {
              get(suscripcionRef(uid)).data.estado in ['trial', 'activa'];
     }
 
+    // 'suspendida' = pasaron los 30 días de modo lectura sin regularizar
+    // (ver DURACION_LECTURA_DIAS en functions/admin.js y
+    // transicionSuscripciones.js): a partir de ahí se corta también la
+    // LECTURA, no sólo la escritura -- antes de esto, una cuenta suspendida
+    // todavía podía seguir viendo (sólo no editar) sus datos para siempre.
+    function cuentaPuedeLeer(uid) {
+      return !exists(suscripcionRef(uid)) ||
+             get(suscripcionRef(uid)).data.estado != 'suspendida';
+    }
+
     function dentroDelLimiteDePedidos(uid) {
       return !exists(suscripcionRef(uid)) ||
         get(suscripcionRef(uid)).data.cicloId == null ||
+        get(suscripcionRef(uid)).data.planId == null ||
         !exists(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)) ||
-        get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.limites.pedidosMes == null ||
+        get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('pedidosMes', null) == null ||
         !exists(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)) ||
-        get(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)).data.pedidosCreados <
-          get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.limites.pedidosMes;
+        get(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)).data.get('pedidosCreados', 0) <
+          get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('pedidosMes', null);
     }
 
     // ---- Documento legacy users/{uid} (raíz, sin subcolección) ----
@@ -61,29 +99,44 @@ service cloud.firestore {
     // legacy si hiciera falta, y lo borra después. Sin esta regla, ese
     // getDoc() da permission-denied y la app entera no puede cargar para
     // NADIE -- ojo con esto si el día de mañana se toca esta sección.
+    // tieneAcceso (no esDueno): cargarDatosDeFirestore se llama con
+    // cuentaId, incluso cuando quien está logueado es un usuario agregado
+    // (ver AppContext.jsx) -- con esDueno a secas, esa persona nunca podía
+    // ni empezar a cargar la app (permission-denied acá tumbaba todo).
     match /users/{uid} {
-      allow read, delete: if esDueno(uid);
+      allow read, delete: if tieneAcceso(uid);
     }
 
     match /users/{uid}/meta/{document=**} {
-      allow read: if esDueno(uid);
-      allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      // "create" separado de "update/delete" a propósito: la primera carga
+      // de CUALQUIER cuenta necesita poder crear este doc con valores
+      // default si todavía no existe (ver cargarConfigDeFirestore en
+      // AppContext.jsx) -- si esa creación quedara atada a
+      // cuentaPuedeEscribir, una cuenta que nunca llegó a cargar la app ni
+      // una vez (ej: quedó de miembro de otra cuenta todo este tiempo) y
+      // pasa a lectura/suspendida sin ese doc creado, queda trabada en un
+      // loop de error para siempre: ni puede leer (no hay nada creado) ni
+      // puede escribir para crearlo. Crear con valores default no filtra
+      // ni pisa nada real, así que dejarlo pasar siempre es seguro.
+      allow create: if tieneAcceso(uid);
+      allow update, delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
     }
     match /users/{uid}/clientes/{docId} {
-      allow read: if esDueno(uid);
-      allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
     }
     match /users/{uid}/compras/{docId} {
-      allow read: if esDueno(uid);
-      allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
     }
     match /users/{uid}/biblioteca/{docId} {
-      allow read: if esDueno(uid);
-      allow write: if esDueno(uid) && cuentaPuedeEscribir(uid);
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
     }
     match /users/{uid}/pedidos/{docId} {
-      allow read: if esDueno(uid);
-      allow update, delete: if esDueno(uid) && cuentaPuedeEscribir(uid);
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow update, delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
 
       // Crear un pedido nuevo exige además que la cuenta no esté en modo
       // lectura/suspendida, y que no haya superado el límite de pedidos
@@ -92,7 +145,7 @@ service cloud.firestore {
       // plan sin límite configurado), dejamos pasar para no romper cuentas
       // existentes — el enforcement real entra en vigencia a medida que
       // se van dando de alta las suscripciones.
-      allow create: if esDueno(uid) && cuentaPuedeEscribir(uid) && dentroDelLimiteDePedidos(uid);
+      allow create: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) && dentroDelLimiteDePedidos(uid);
     }
 
     // ---- Suscripción de cada cuenta ----
@@ -103,32 +156,32 @@ service cloud.firestore {
     // functions/index.js), así queda todo loggeado en "eventos" y no hay
     // riesgo de que alguien —dueño o admin comprometido— se autoactive la
     // cuenta editando Firestore directo.
-    //
-    // OJO acá con "{pathPrefix=**}": el panel admin lista TODAS las
-    // suscripciones de golpe con collectionGroup('suscripcion') (no
-    // conoce de antemano cada uid). Una regla con ruta fija como
-    // "match /users/{uid}/suscripcion/{docId}" sólo cubre lecturas de UN
-    // documento puntual por su ruta exacta -- Firestore exige el patrón
-    // recursivo {path=**} para que una regla también aplique a ese tipo
-    // de consulta transversal. pathPrefix queda como ['users', uid].
-    match /{pathPrefix=**}/suscripcion/{docId} {
-      allow read: if request.auth != null &&
-                    pathPrefix.size() == 2 && pathPrefix[0] == 'users' &&
-                    (request.auth.uid == pathPrefix[1] || esAdmin());
+    match /users/{uid}/suscripcion/{docId} {
+      allow read: if tieneAcceso(uid) || esAdmin();
       allow write: if false;
 
       match /eventos/{eventoId} {
-        allow read: if request.auth != null &&
-                      pathPrefix.size() == 2 && pathPrefix[0] == 'users' &&
-                      (request.auth.uid == pathPrefix[1] || esAdmin());
+        allow read: if tieneAcceso(uid) || esAdmin();
         allow write: if false;
       }
       match /contadores/{cicloId} {
-        allow read: if request.auth != null &&
-                      pathPrefix.size() == 2 && pathPrefix[0] == 'users' &&
-                      (request.auth.uid == pathPrefix[1] || esAdmin());
+        allow read: if tieneAcceso(uid) || esAdmin();
         allow write: if false;
       }
+    }
+
+    // Regla ADICIONAL (Firestore combina reglas que matchean el mismo path
+    // con OR), sólo para destrabar el listado con collectionGroup('suscripcion')
+    // que usa el panel admin para traer TODAS las cuentas de golpe -- una
+    // regla de ruta fija como la de arriba no alcanza a cubrir ese tipo de
+    // consulta transversal, Firestore exige el patrón recursivo {path=**}
+    // para eso. A propósito NO repetimos acá la lógica de "es el dueño"
+    // extrayendo el uid del wildcard (evitamos indexar un `path`, que sin
+    // poder probarlo contra el emulador real es fuente fácil de bugs) --
+    // el dueño ya tiene su acceso cubierto por la regla de arriba vía
+    // getDoc/onSnapshot normal, así que esta sólo necesita cubrir admins.
+    match /{pathPrefix=**}/suscripcion/{docId} {
+      allow read: if esAdmin();
     }
 
     // ---- Catálogo de planes (configurable desde el panel admin) ----
@@ -140,16 +193,39 @@ service cloud.firestore {
       allow write: if esAdmin();
     }
 
-    // ---- Solicitudes de contacto ("contactate con el admin") ----
-    // Un doc por cuenta (ID = uid), así crear y editar son la misma
-    // operación. El dueño arma/edita la suya con los campos mínimos
-    // validados acá; un admin sólo puede tocar el campo "estado" (para
-    // marcarla como "contactado"), nunca los datos personales cargados
-    // por el usuario.
-    match /solicitudesContacto/{uid} {
-      allow read: if esDueno(uid) || esAdmin();
+    // ---- Preguntas frecuentes (contenido global, no por-cuenta) ----
+    // Visible para cualquier usuario con sesión iniciada (dueño o miembro
+    // invitado de cualquier cuenta) -- a diferencia de "planes" no es
+    // pública del todo, por eso exige request.auth != null en vez de
+    // "true". Sólo un admin general puede crear/editar/borrar preguntas.
+    match /faq/{faqId} {
+      allow read: if request.auth != null;
+      allow write: if esAdmin();
+    }
 
-      allow create: if esDueno(uid) &&
+    // Orden manual de las categorías de FAQ (arrastrar para reordenar en el
+    // panel admin, mismo concepto que cfg.categoriaOrden de Biblioteca pero
+    // guardado acá porque es global, no por cuenta).
+    match /faqMeta/{docId} {
+      allow read: if request.auth != null;
+      allow write: if esAdmin();
+    }
+
+    // ---- Solicitudes de contacto ("contactate con el área comercial") ----
+    // Un doc por cuenta (ID = uid), así crear y editar son la misma
+    // operación. Sólo el dueño arma/edita la suya (los datos que el
+    // interesado carga en el formulario), con los campos mínimos validados
+    // acá. Un admin sólo puede tocar el campo "estado" (para marcarla como
+    // "contactado") -- para corregir datos personales/impositivos de un
+    // suscriptor ya existe "datosSuscriptor" más abajo, una colección
+    // aparte a propósito: antes esas correcciones se guardaban acá mismo y,
+    // como esta colección tiene su propio flujo de "pendiente/contactado"
+    // para leads entrantes, cada corrección resucitaba la cuenta como si
+    // fuera una solicitud de contacto nueva.
+    match /solicitudesContacto/{uid} {
+      allow read: if tieneAcceso(uid) || esAdmin();
+
+      allow create: if tieneAcceso(uid) &&
         request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
         request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() < 100 &&
         request.resource.data.apellido is string && request.resource.data.apellido.size() > 0 && request.resource.data.apellido.size() < 100 &&
@@ -159,7 +235,7 @@ service cloud.firestore {
         request.resource.data.resena is string && request.resource.data.resena.size() < 600;
 
       allow update: if
-        (esDueno(uid) &&
+        (tieneAcceso(uid) &&
           request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
           request.resource.data.telefono.matches('^[0-9]{10}$') &&
           request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')) ||
@@ -167,6 +243,17 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']));
 
       allow delete: if false;
+    }
+
+    // ---- Datos personales/impositivos de un suscriptor (uso interno admin) ----
+    // Un doc por cuenta (ID = uid), completamente separado de
+    // solicitudesContacto -- ver el comentario de arriba. Sólo lo gestiona
+    // un admin desde "Consultar datos" en el panel de Suscriptores; el
+    // dueño de la cuenta no tiene hoy ninguna pantalla que lo muestre, pero
+    // puede leer el suyo por si el día de mañana se expone.
+    match /datosSuscriptor/{uid} {
+      allow read: if tieneAcceso(uid) || esAdmin();
+      allow write: if esAdmin();
     }
 
     // ---- Catálogo web público, uno por tienda (uid del dueño) ----
@@ -179,16 +266,17 @@ service cloud.firestore {
     match /catalogoTiendas/{uid} {
 
       // Config visible del catálogo de esta tienda (nombre, colores, si
-      // está activo). Cualquiera la puede leer; sólo su dueño la escribe.
+      // está activo). Cualquiera la puede leer; sólo su dueño (o un
+      // miembro con acceso) la escribe.
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow write: if tieneAcceso(uid);
 
       // Productos publicados de ESTA tienda (mirror sanitizado de su
       // biblioteca: nombre, cat, desc, imagen, precio — nunca costos
-      // internos). Lectura pública, escritura sólo del dueño de esa tienda.
+      // internos). Lectura pública, escritura sólo del dueño o un miembro.
       match /productos/{prodId} {
         allow read: if true;
-        allow write: if request.auth != null && request.auth.uid == uid;
+        allow write: if tieneAcceso(uid);
       }
 
       // Solicitudes que arma un cliente en ESTE catálogo. Cualquiera
@@ -206,8 +294,25 @@ service cloud.firestore {
                       && request.resource.data.items is list
                       && request.resource.data.items.size() > 0
                       && request.resource.data.items.size() < 50;
-        allow read, update, delete: if request.auth != null && request.auth.uid == uid;
+        allow read, update, delete: if tieneAcceso(uid);
       }
+    }
+
+    // ---- Usuarios adicionales por cuenta ("equipo") ----
+    // El ID de cada doc es el email en minúsculas del colaborador. Lo puede
+    // leer el dueño de la cuenta a la que pertenece (resource.data.ownerUid)
+    // -- así el listado que arma "Mi emprendimiento" con
+    // where('ownerUid','==',cuentaId) funciona, Firestore evalúa esta regla
+    // por cada doc que devuelve la query -- o la propia persona invitada
+    // (para saber si tiene un vínculo activo al loguearse). Las escrituras
+    // están cerradas del todo: sólo agregarMiembro/quitarMiembro (Cloud
+    // Functions con Admin SDK) pueden crear o borrar un vínculo, así el
+    // límite de usuarios del plan se valida siempre server-side y nadie
+    // puede auto-otorgarse acceso a una cuenta ajena editando Firestore.
+    match /invitacionesMiembro/{emailId} {
+      allow read: if request.auth != null &&
+        (resource.data.ownerUid == request.auth.uid || emailDeAuth() == emailId);
+      allow write: if false;
     }
 
     // ---- Panel de administración (whitelist de emails admin) ----

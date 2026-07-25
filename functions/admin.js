@@ -6,7 +6,7 @@ const db = getFirestore();
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 const DURACION_TRIAL_DIAS = 7;
-const DURACION_LECTURA_DIAS = 10;
+const DURACION_LECTURA_DIAS = 30;
 
 // Suma un mes calendario a un Timestamp, anclado al día de activación (no
 // a 30 días fijos). Ej: activó el 15/07 -> próximo ciclo 15/08. Si el mes

@@ -3,8 +3,20 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /users/{userId}/{allPaths=**} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      // Acceso total, sin roles: el dueño de la carpeta, o cualquier email
+      // vinculado como miembro activo de esa cuenta (ver
+      // firestore.rules / invitacionesMiembro y functions/http/gestionarMiembros.js).
+      // Los uploads de un miembro (logo, imágenes de producto) quedan en la
+      // MISMA carpeta users/{uid del dueño}/... porque el cliente arma la
+      // ruta con cuentaId (ver AppContext.jsx), nunca con su propio uid.
+      allow read, write: if request.auth != null && (
+        request.auth.uid == userId ||
+        (
+          firestore.exists(/databases/(default)/documents/invitacionesMiembro/$(request.auth.token.email.lower())) &&
+          firestore.get(/databases/(default)/documents/invitacionesMiembro/$(request.auth.token.email.lower())).data.ownerUid == userId &&
+          firestore.get(/databases/(default)/documents/invitacionesMiembro/$(request.auth.token.email.lower())).data.estado == 'activo'
+        )
+      );
     }
   }
 }

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { db, functions } from '../firebase';
 import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import ModalPlan from './modals/ModalPlan';
+import ModalDatosSuscriptor from './modals/ModalDatosSuscriptor';
 
 // Panel de administración: sólo lo ven los emails presentes en la
 // colección Firestore "admins" (ver App.jsx -> guard de isAdmin y
@@ -17,7 +18,6 @@ export default function AdminPage() {
   const [cuentas, setCuentas] = useState([]);
   const [loadingCuentas, setLoadingCuentas] = useState(true);
   const [accionEnCurso, setAccionEnCurso] = useState(null); // uid+accion en curso, para deshabilitar el botón
-  const [inicializandoLegacy, setInicializandoLegacy] = useState(false);
   const [contadoresPorUid, setContadoresPorUid] = useState({});
   const [cargandoConsumoUid, setCargandoConsumoUid] = useState(null);
 
@@ -42,6 +42,28 @@ export default function AdminPage() {
   // planId actual de la cuenta la primera vez que llegan los datos (ver
   // más abajo, dentro del map de la tabla).
   const [planSeleccionadoPorCuenta, setPlanSeleccionadoPorCuenta] = useState({});
+
+  // Suscriptores agrupados por plan (colapsados por defecto, para no tener
+  // que scrollear una tabla larga): cada grupo se abre individualmente, o
+  // todos juntos con el botón "Expandir todo". La búsqueda filtra por email
+  // de la cuenta o por los datos de contacto (nombre/apellido/teléfono/
+  // localidad) que dejó esa persona en el formulario, y auto-expande los
+  // grupos que tengan resultados para no pedir un clic de más.
+  const [busquedaSuscriptores, setBusquedaSuscriptores] = useState('');
+  const [filtroEstadoSuscriptores, setFiltroEstadoSuscriptores] = useState('todos');
+  const [gruposAbiertos, setGruposAbiertos] = useState(() => new Set());
+
+  // Cuenta cuyos datos de contacto se están viendo/editando desde el botón
+  // "Consultar datos" de cada fila (ver más abajo).
+  const [cuentaDatosAbierta, setCuentaDatosAbierta] = useState(null);
+
+  const toggleGrupo = (key) => {
+    setGruposAbiertos(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const colRef = collection(db, 'admins');
@@ -136,25 +158,6 @@ export default function AdminPage() {
     return unsubscribe;
   }, []);
 
-  // Backfill de una sola vez para cuentas que se registraron antes de que
-  // existiera el sistema de suscripciones (no tienen suscripcion/actual, y
-  // por eso nunca aparecían en esta tabla). Las deja en estado "activa"
-  // sin plan asignado -- de ahí en más se editan una por una con el
-  // selector de plan de cada fila, como cualquier otra cuenta.
-  const inicializarLegacy = async () => {
-    setInicializandoLegacy(true);
-    try {
-      const inicializar = httpsCallable(functions, 'inicializarCuentasLegacy');
-      const { data } = await inicializar();
-      showToast(`Listo: se inicializaron ${data.creadas} de ${data.totalUsuarios} cuentas.`);
-    } catch (e) {
-      console.error('Error al inicializar cuentas legacy:', e);
-      showToast(e?.message || 'No se pudo completar la inicialización.', 'error');
-    } finally {
-      setInicializandoLegacy(false);
-    }
-  };
-
   const ejecutarAccion = async (uid, accion, planId) => {
     setAccionEnCurso(`${uid}:${accion}`);
     try {
@@ -166,6 +169,35 @@ export default function AdminPage() {
       showToast(e?.message || 'No se pudo actualizar la suscripción.', 'error');
     } finally {
       setAccionEnCurso(null);
+    }
+  };
+
+  // Purga total de una cuenta suspendida que nunca se reactivó -- sin
+  // vuelta atrás, ver functions/http/borrarCuenta.js (ahí también se
+  // revalida server-side que esté "suspendida", por si acá se coló algo).
+  const [borrandoUid, setBorrandoUid] = useState(null);
+
+  const borrarCuentaDefinitivamente = async (uid, emailCuenta) => {
+    const etiqueta = emailCuenta || uid;
+    const confirmacion = window.prompt(
+      `Esto borra TODO lo de "${etiqueta}" (pedidos, biblioteca, clientes, catálogo web, la cuenta de Google) sin posibilidad de recuperarlo.\n\nPara confirmar, escribí "${etiqueta}":`
+    );
+    if (confirmacion === null) return;
+    if (confirmacion.trim().toLowerCase() !== etiqueta.toLowerCase()) {
+      showToast('No coincide, no se borró nada.', 'error');
+      return;
+    }
+
+    setBorrandoUid(uid);
+    try {
+      const borrar = httpsCallable(functions, 'borrarCuenta');
+      await borrar({ uid });
+      showToast('Cuenta borrada por completo.');
+    } catch (e) {
+      console.error('Error al borrar la cuenta:', e);
+      showToast(e?.message || 'No se pudo borrar la cuenta.', 'error');
+    } finally {
+      setBorrandoUid(null);
     }
   };
 
@@ -189,6 +221,55 @@ export default function AdminPage() {
   // arriba, no tiene sentido seguir viéndola acá como "contacto pendiente".
   const solicitudesPendientes = solicitudes.filter(s => cuentaPorUid[s.uid]?.estado !== 'activa');
 
+  // Datos personales del formulario de contacto, indexados por uid, para
+  // mostrarlos junto a cada suscriptor (no sólo mientras está "pendiente"
+  // de activar) — es la única fuente de nombre/teléfono/localidad real que
+  // existe hoy, la cuenta en sí sólo tiene el email de Google.
+  const solicitudPorUid = useMemo(
+    () => Object.fromEntries(solicitudes.map(s => [s.uid, s])),
+    [solicitudes]
+  );
+
+  const cuentasFiltradas = useMemo(() => {
+    const q = busquedaSuscriptores.trim().toLowerCase();
+    return cuentas.filter(c => {
+      if (filtroEstadoSuscriptores !== 'todos' && c.estado !== filtroEstadoSuscriptores) return false;
+      if (!q) return true;
+      const s = solicitudPorUid[c.uid];
+      const campos = [c.email, c.uid, s?.nombre, s?.apellido, s?.telefono, s?.localidad, s?.email]
+        .filter(Boolean).join(' ').toLowerCase();
+      return campos.includes(q);
+    });
+  }, [cuentas, busquedaSuscriptores, filtroEstadoSuscriptores, solicitudPorUid]);
+
+  // Agrupa por plan, respetando el orden de "planes" (ya viene ordenado por
+  // el campo "orden") y dejando las cuentas sin plan asignado al final.
+  const gruposDeSuscriptores = useMemo(() => {
+    const SIN_PLAN = '__sin_plan__';
+    const map = new Map();
+    cuentasFiltradas.forEach(c => {
+      const key = c.planId || SIN_PLAN;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(c);
+    });
+    const ordenados = [];
+    planes.forEach(p => {
+      if (map.has(p.id)) {
+        ordenados.push({ key: p.id, nombre: p.nombre, cuentas: map.get(p.id) });
+        map.delete(p.id);
+      }
+    });
+    if (map.has(SIN_PLAN)) {
+      ordenados.push({ key: SIN_PLAN, nombre: 'Sin plan', cuentas: map.get(SIN_PLAN) });
+    }
+    return ordenados;
+  }, [cuentasFiltradas, planes]);
+
+  const hayBusquedaActiva = busquedaSuscriptores.trim() !== '' || filtroEstadoSuscriptores !== 'todos';
+
+  const expandirTodo = () => setGruposAbiertos(new Set(gruposDeSuscriptores.map(g => g.key)));
+  const colapsarTodo = () => setGruposAbiertos(new Set());
+
   const exportarContactosTxt = () => {
     if (solicitudesPendientes.length === 0) {
       showToast('No hay contactos sin suscripción para exportar.', 'info');
@@ -202,6 +283,35 @@ export default function AdminPage() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `contactos-sin-suscripcion-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  // Exporta email + nombre/apellido (si existe, del formulario de
+  // contacto) de los suscriptores que queden después del filtro de estado
+  // y la búsqueda vigentes -- así se puede sacar, por ejemplo, sólo los
+  // "trial" o sólo los "suspendida" para armar una campaña de contacto
+  // puntual, en vez de exportar la base entera siempre.
+  const exportarSuscriptoresTxt = () => {
+    if (cuentasFiltradas.length === 0) {
+      showToast('No hay suscriptores para exportar con este filtro.', 'info');
+      return;
+    }
+    const contenido = cuentasFiltradas
+      .map(c => {
+        const s = solicitudPorUid[c.uid];
+        const nombreCompleto = `${s?.nombre || ''} ${s?.apellido || ''}`.trim();
+        return (nombreCompleto || 'Sin nombre') + ' - ' + (c.email || c.uid);
+      })
+      .join('\n');
+    const blob = new Blob([contenido], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const sufijoEstado = filtroEstadoSuscriptores !== 'todos' ? `-${filtroEstadoSuscriptores}` : '';
+    a.download = `suscriptores${sufijoEstado}-${new Date().toISOString().slice(0, 10)}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -225,126 +335,81 @@ export default function AdminPage() {
       <div className="page-title">Administrador</div>
       <div className="page-sub">Panel visible sólo para administradores.</div>
 
-      {/* ---- Suscripciones ---- */}
+      {/* ---- Solicitudes de contacto ---- */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>Suscripciones</div>
+        <div
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaSolicitudesAbierta ? '14px' : 0, cursor: 'pointer' }}
+          onClick={() => setListaSolicitudesAbierta(v => !v)}
+        >
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            {listaSolicitudesAbierta ? '▾' : '▸'} Solicitudes de contacto {!loadingSolicitudes && `(${solicitudesPendientes.length})`}
+          </div>
           <button
             className="btn"
             style={{ fontSize: '11px', padding: '5px 10px' }}
-            disabled={inicializandoLegacy}
-            onClick={inicializarLegacy}
-            title="Da de alta en estado 'activa' a las cuentas viejas que todavía no tienen suscripción inicializada"
+            onClick={(e) => { e.stopPropagation(); exportarContactosTxt(); }}
           >
-            {inicializandoLegacy ? 'Inicializando...' : '⚙ Inicializar cuentas antiguas'}
+            ⬇ Exportar contactos (.txt)
           </button>
         </div>
 
-        {loadingCuentas && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+        {listaSolicitudesAbierta && (
+          <>
+            {loadingSolicitudes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
 
-        {!loadingCuentas && cuentas.length === 0 && (
-          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no hay cuentas con suscripción.</div>
-        )}
+            {!loadingSolicitudes && solicitudesPendientes.length === 0 && (
+              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No hay solicitudes pendientes — las que ya se activaron pasaron a Suscriptores.</div>
+            )}
 
-        {!loadingCuentas && cuentas.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th>Cuenta</th>
-                  <th>Estado</th>
-                  <th>Vence</th>
-                  <th>Plan</th>
-                  <th>Consumo del ciclo</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cuentas.map((c) => {
-                  const vence = c.estado === 'trial' ? fmtFecha(c.trialFin)
-                    : c.estado === 'activa' ? fmtFecha(c.cicloFin)
-                    : c.estado === 'lectura' ? fmtFecha(c.fechaLimiteLectura)
-                    : '—';
-                  const planElegido = planSeleccionadoPorCuenta[c.uid] ?? c.planId ?? '';
-                  const planDeLaCuenta = planes.find(p => p.id === c.planId);
-                  const contador = contadoresPorUid[c.uid];
-                  return (
-                    <tr key={c.uid}>
-                      <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
-                      <td>{badgeEstado(c.estado)}</td>
-                      <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{vence}</td>
-                      <td>
-                        <select
-                          value={planElegido}
-                          onChange={(e) => setPlanSeleccionadoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
-                          style={{ fontSize: '12px', width: '130px', boxSizing: 'border-box' }}
-                        >
-                          <option value="">Sin plan</option>
-                          {planes.map(p => (
-                            <option key={p.id} value={p.id}>{p.nombre}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap', width: '160px' }}>
-                        {!c.cicloId && <span>—</span>}
-                        {c.cicloId && !contador && (
-                          <button
-                            className="btn"
-                            style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                            disabled={cargandoConsumoUid === c.uid}
-                            onClick={() => verConsumo(c.uid, c.cicloId)}
-                          >
-                            {cargandoConsumoUid === c.uid ? 'Cargando...' : 'Ver consumo'}
+            {!loadingSolicitudes && solicitudesPendientes.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {solicitudesPendientes.map((s) => (
+                  <div key={s.uid} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{s.nombre} {s.apellido}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{s.localidad} · {s.telefono} · {s.email}</div>
+                        {s.resena && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>{s.resena}</div>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span className={`badge ${s.estado === 'contactado' ? 'badge-done' : 'badge-pending'}`}>{s.estado || 'pendiente'}</span>
+                        {s.estado !== 'contactado' && (
+                          <button className="btn" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => marcarContactado(s.uid)}>
+                            Marcar contactado
                           </button>
                         )}
-                        {c.cicloId && contador && (
-                          <div>
-                            <div>pedidos: {contador.pedidosCreados || 0}{planDeLaCuenta?.limites?.pedidosMes != null ? `/${planDeLaCuenta.limites.pedidosMes}` : ''}</div>
-                            <div>catálogo: {contador.aperturasCatalogo || 0}{planDeLaCuenta?.limites?.aperturasCatalogoMes != null ? `/${planDeLaCuenta.limites.aperturasCatalogoMes}` : ''}</div>
-                            <div>facturado: ${Math.round(contador.montoFacturado || 0).toLocaleString('es-AR')}{planDeLaCuenta?.limites?.montoFacturadoMes != null ? ` / $${Number(planDeLaCuenta.limites.montoFacturadoMes).toLocaleString('es-AR')}` : ''}</div>
-                            <button
-                              className="btn"
-                              style={{ fontSize: '10px', padding: '2px 6px', marginTop: '4px', width: '130px', boxSizing: 'border-box' }}
-                              disabled={cargandoConsumoUid === c.uid}
-                              onClick={() => verConsumo(c.uid, c.cicloId)}
-                            >
-                              ↻ actualizar
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <button
-                          className="btn"
-                          style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                          disabled={accionEnCurso === `${c.uid}:activar`}
-                          onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null)}
-                        >
-                          Activar
-                        </button>
-                        <button
-                          className="btn"
-                          style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                          disabled={accionEnCurso === `${c.uid}:extenderTrial`}
-                          onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
-                        >
-                          +7 días trial
-                        </button>
-                        <button
-                          className="btn"
-                          style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                          disabled={accionEnCurso === `${c.uid}:suspender`}
-                          onClick={() => ejecutarAccion(c.uid, 'suspender')}
-                        >
-                          Suspender
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+
+                    {/* Activar la suscripción de este solicitante directo desde acá:
+                        su "uid" es el mismo ID de este documento, así no hace
+                        falta ir a buscarlo a la tabla de Suscriptores (y si es
+                        una cuenta vieja sin suscripcion/actual, esto se la crea). */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                      <select
+                        value={planSeleccionadoPorSolicitud[s.uid] || ''}
+                        onChange={(e) => setPlanSeleccionadoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
+                        style={{ fontSize: '12px' }}
+                      >
+                        <option value="">Elegir plan…</option>
+                        {planes.map(p => (
+                          <option key={p.id} value={p.id}>{p.nombre}</option>
+                        ))}
+                      </select>
+                      <button
+                        className="btn btn-primary"
+                        style={{ fontSize: '11px', padding: '4px 8px' }}
+                        disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
+                        onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid])}
+                      >
+                        {accionEnCurso === `${s.uid}:activar` ? 'Activando...' : 'Activar suscripción'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -389,7 +454,7 @@ export default function AdminPage() {
                         {p.activo === false && <span className="badge badge-cancelled" style={{ marginLeft: '8px' }}>inactivo</span>}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px', fontFamily: 'var(--mono)' }}>
-                        {p.limites?.usuarios ?? '∞'} usuarios · {p.limites?.pedidosMes ?? '∞'} pedidos/mes · {p.limites?.aperturasCatalogoMes ?? '∞'} aperturas/mes · ${Number(p.limites?.montoFacturadoMes ?? 0).toLocaleString('es-AR')}/mes facturado
+                        {p.limites?.usuarios ?? '∞'} usuarios · {p.limites?.productosBiblioteca ?? '∞'} productos en biblioteca · {p.limites?.pedidosMes ?? '∞'} pedidos/mes · {p.limites?.aperturasCatalogoMes ?? '∞'} aperturas/mes · ${Number(p.limites?.montoFacturadoMes ?? 0).toLocaleString('es-AR')}/mes facturado
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '6px' }}>
@@ -416,82 +481,213 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* ---- Solicitudes de contacto ---- */}
+      {/* ---- Suscriptores (agrupados por plan, colapsados por defecto) ---- */}
       <div className="card">
-        <div
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaSolicitudesAbierta ? '14px' : 0, cursor: 'pointer' }}
-          onClick={() => setListaSolicitudesAbierta(v => !v)}
-        >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
           <div className="card-title" style={{ marginBottom: 0 }}>
-            {listaSolicitudesAbierta ? '▾' : '▸'} Solicitudes de contacto {!loadingSolicitudes && `(${solicitudesPendientes.length})`}
+            Suscriptores {!loadingCuentas && `(${cuentasFiltradas.length})`}
           </div>
-          <button
-            className="btn"
-            style={{ fontSize: '11px', padding: '5px 10px' }}
-            onClick={(e) => { e.stopPropagation(); exportarContactosTxt(); }}
-          >
-            ⬇ Exportar contactos (.txt)
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button className="btn" style={{ fontSize: '11px', padding: '5px 10px' }} onClick={expandirTodo}>
+              Expandir todo
+            </button>
+            <button className="btn" style={{ fontSize: '11px', padding: '5px 10px' }} onClick={colapsarTodo}>
+              Colapsar todo
+            </button>
+            <button
+              className="btn"
+              style={{ fontSize: '11px', padding: '5px 10px' }}
+              onClick={exportarSuscriptoresTxt}
+              title="Exporta email + nombre/apellido de los suscriptores que queden con el filtro actual"
+            >
+              ⬇ Exportar suscriptores (.txt)
+            </button>
+          </div>
         </div>
 
-        {listaSolicitudesAbierta && (
-          <>
-            {loadingSolicitudes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+          <input
+            type="text"
+            value={busquedaSuscriptores}
+            onChange={(e) => setBusquedaSuscriptores(e.target.value)}
+            placeholder="Buscar por email, nombre, teléfono o localidad..."
+            style={{ fontSize: '13px', flex: 1, minWidth: '220px' }}
+          />
+          <select
+            value={filtroEstadoSuscriptores}
+            onChange={(e) => setFiltroEstadoSuscriptores(e.target.value)}
+            style={{ fontSize: '13px', width: '160px' }}
+          >
+            <option value="todos">Todos los estados</option>
+            <option value="trial">Trial</option>
+            <option value="activa">Activa</option>
+            <option value="lectura">Modo lectura</option>
+            <option value="suspendida">Suspendida</option>
+          </select>
+        </div>
 
-            {!loadingSolicitudes && solicitudesPendientes.length === 0 && (
-              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No hay solicitudes pendientes — las que ya se activaron pasaron a Suscripciones.</div>
-            )}
+        {loadingCuentas && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
 
-            {!loadingSolicitudes && solicitudesPendientes.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {solicitudesPendientes.map((s) => (
-                  <div key={s.uid} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{s.nombre} {s.apellido}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{s.localidad} · {s.telefono} · {s.email}</div>
-                        {s.resena && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>{s.resena}</div>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span className={`badge ${s.estado === 'contactado' ? 'badge-done' : 'badge-pending'}`}>{s.estado || 'pendiente'}</span>
-                        {s.estado !== 'contactado' && (
-                          <button className="btn" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => marcarContactado(s.uid)}>
-                            Marcar contactado
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Activar la suscripción de este solicitante directo desde acá:
-                        su "uid" es el mismo ID de este documento, así no hace
-                        falta ir a buscarlo a la tabla de Suscripciones (y si es
-                        una cuenta vieja sin suscripcion/actual, esto se la crea). */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
-                      <select
-                        value={planSeleccionadoPorSolicitud[s.uid] || ''}
-                        onChange={(e) => setPlanSeleccionadoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
-                        style={{ fontSize: '12px' }}
-                      >
-                        <option value="">Elegir plan…</option>
-                        {planes.map(p => (
-                          <option key={p.id} value={p.id}>{p.nombre}</option>
-                        ))}
-                      </select>
-                      <button
-                        className="btn btn-primary"
-                        style={{ fontSize: '11px', padding: '4px 8px' }}
-                        disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
-                        onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid])}
-                      >
-                        {accionEnCurso === `${s.uid}:activar` ? 'Activando...' : 'Activar suscripción'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+        {!loadingCuentas && cuentasFiltradas.length === 0 && (
+          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+            {hayBusquedaActiva ? 'Ningún suscriptor coincide con la búsqueda.' : 'Todavía no hay cuentas con suscripción.'}
+          </div>
         )}
+
+        {!loadingCuentas && gruposDeSuscriptores.map((grupo) => {
+          const abierto = hayBusquedaActiva || gruposAbiertos.has(grupo.key);
+          return (
+            <div key={grupo.key} style={{ marginBottom: '10px', border: '1px solid var(--border)', borderRadius: 'var(--radius2)', overflow: 'hidden' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', cursor: 'pointer', background: 'var(--bg)' }}
+                onClick={() => toggleGrupo(grupo.key)}
+              >
+                <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{abierto ? '−' : '+'}</span>
+                  {grupo.nombre}
+                  <span style={{ color: 'var(--text3)', fontWeight: 400, fontFamily: 'var(--mono)' }}>({grupo.cuentas.length})</span>
+                </div>
+              </div>
+
+              {abierto && (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table" style={{ width: '100%' }}>
+                    <thead>
+                      <tr>
+                        <th>Cuenta</th>
+                        <th>Estado</th>
+                        <th>Vence</th>
+                        <th>Plan</th>
+                        <th>Consumo del ciclo</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grupo.cuentas.map((c) => {
+                        const vence = c.estado === 'trial' ? fmtFecha(c.trialFin)
+                          : c.estado === 'activa' ? fmtFecha(c.cicloFin)
+                          : c.estado === 'lectura' ? fmtFecha(c.fechaLimiteLectura)
+                          : c.estado === 'suspendida' ? `Bloqueada: ${fmtFecha(c.fechaLimiteLectura)}`
+                          : '—';
+                        const planElegido = planSeleccionadoPorCuenta[c.uid] ?? c.planId ?? '';
+                        const planDeLaCuenta = planes.find(p => p.id === c.planId);
+                        const contador = contadoresPorUid[c.uid];
+                        const solicitud = solicitudPorUid[c.uid];
+                        return (
+                          <tr key={c.uid}>
+                            <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
+                            <td>{badgeEstado(c.estado)}</td>
+                            <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{vence}</td>
+                            <td>
+                              <select
+                                value={planElegido}
+                                onChange={(e) => setPlanSeleccionadoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
+                                style={{ fontSize: '12px', width: '130px', boxSizing: 'border-box' }}
+                              >
+                                <option value="">Sin plan</option>
+                                {planes.map(p => (
+                                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap', width: '160px' }}>
+                              {!c.cicloId && <span>—</span>}
+                              {c.cicloId && !contador && (
+                                <button
+                                  className="btn"
+                                  style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                  disabled={cargandoConsumoUid === c.uid}
+                                  onClick={() => verConsumo(c.uid, c.cicloId)}
+                                >
+                                  {cargandoConsumoUid === c.uid ? 'Cargando...' : 'Ver consumo'}
+                                </button>
+                              )}
+                              {c.cicloId && contador && (
+                                <div>
+                                  <div>pedidos: {contador.pedidosCreados || 0}{planDeLaCuenta?.limites?.pedidosMes != null ? `/${planDeLaCuenta.limites.pedidosMes}` : ''}</div>
+                                  <div>catálogo: {contador.aperturasCatalogo || 0}{planDeLaCuenta?.limites?.aperturasCatalogoMes != null ? `/${planDeLaCuenta.limites.aperturasCatalogoMes}` : ''}</div>
+                                  <div>facturado: ${Math.round(contador.montoFacturado || 0).toLocaleString('es-AR')}{planDeLaCuenta?.limites?.montoFacturadoMes != null ? ` / $${Number(planDeLaCuenta.limites.montoFacturadoMes).toLocaleString('es-AR')}` : ''}</div>
+                                  <button
+                                    className="btn"
+                                    style={{ fontSize: '10px', padding: '2px 6px', marginTop: '4px', width: '130px', boxSizing: 'border-box' }}
+                                    disabled={cargandoConsumoUid === c.uid}
+                                    onClick={() => verConsumo(c.uid, c.cicloId)}
+                                  >
+                                    ↻ actualizar
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              <button
+                                className="btn"
+                                style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                disabled={accionEnCurso === `${c.uid}:activar`}
+                                onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null)}
+                              >
+                                Activar
+                              </button>
+                              <button
+                                className="btn"
+                                style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                disabled={accionEnCurso === `${c.uid}:extenderTrial`}
+                                onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
+                              >
+                                +7 días trial
+                              </button>
+                              <button
+                                className="btn"
+                                style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                onClick={() => setCuentaDatosAbierta({ uid: c.uid, email: c.email, solicitudInicial: solicitud || null })}
+                              >
+                                Consultar datos
+                              </button>
+                              <button
+                                className="btn"
+                                style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                disabled={accionEnCurso === `${c.uid}:suspender`}
+                                onClick={() => ejecutarAccion(c.uid, 'suspender')}
+                                title="Pasa la cuenta a modo lectura por 30 días. Recién si no se reactiva en ese plazo queda bloqueada del todo (automático)."
+                              >
+                                Modo Lectura (30 ds)
+                              </button>
+
+                              {c.estado === 'suspendida' && (
+                                <>
+                                  <button
+                                    className="btn"
+                                    style={{
+                                      fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box',
+                                      color: c.contactadoPostBloqueo ? 'var(--accent)' : undefined,
+                                      borderColor: c.contactadoPostBloqueo ? 'var(--accent)' : undefined
+                                    }}
+                                    disabled={accionEnCurso === `${c.uid}:toggleContactadoPostBloqueo`}
+                                    onClick={() => ejecutarAccion(c.uid, 'toggleContactadoPostBloqueo')}
+                                    title={c.contactadoPostBloqueoFecha ? `Marcado el ${fmtFecha(c.contactadoPostBloqueoFecha)}` : 'Todavía no se marcó'}
+                                  >
+                                    {c.contactadoPostBloqueo ? '✓ Contactado' : 'Marcar contactado'}
+                                  </button>
+                                  <button
+                                    className="btn btn-danger"
+                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                    disabled={borrandoUid === c.uid}
+                                    onClick={() => borrarCuentaDefinitivamente(c.uid, c.email)}
+                                  >
+                                    {borrandoUid === c.uid ? 'Borrando...' : '✕ Borrar cuenta'}
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* ---- Administradores actuales ---- */}
@@ -527,6 +723,14 @@ export default function AdminPage() {
         isOpen={modalPlanAbierto}
         onClose={() => setModalPlanAbierto(false)}
         plan={planEditando}
+      />
+
+      <ModalDatosSuscriptor
+        isOpen={!!cuentaDatosAbierta}
+        onClose={() => setCuentaDatosAbierta(null)}
+        uid={cuentaDatosAbierta?.uid}
+        emailCuenta={cuentaDatosAbierta?.email}
+        solicitudInicial={cuentaDatosAbierta?.solicitudInicial}
       />
     </div>
   );

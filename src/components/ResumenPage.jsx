@@ -33,7 +33,7 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
       <div className="card" style={{ background: 'var(--infoDim)', border: '1px solid var(--info)', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ fontSize: '13px', color: 'var(--text)' }}>
-            🕐 Estás en una <strong>versión de prueba</strong>{dias !== null ? ` — te quedan ${dias} día${dias === 1 ? '' : 's'}` : ''}. Contactate con el admin para ver las opciones de contratación.
+            🕐 Estás en una <strong>versión de prueba</strong>{dias !== null ? ` — te quedan ${dias} día${dias === 1 ? '' : 's'}` : ''}. Contactate con el área comercial para ver las opciones de contratación.
           </div>
           <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
             Contactar
@@ -65,7 +65,7 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
       <div className="card" style={{ background: 'var(--dangerDim)', border: '1px solid var(--danger)', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ fontSize: '13px', color: 'var(--text)' }}>
-            🔒 Tu suscripción está <strong>suspendida</strong>. No podés crear ni editar información hasta que se reactive. Contactate con el admin para regularizar tu situación.
+            🔒 Tu suscripción está <strong>suspendida</strong>. No podés crear ni editar información hasta que se reactive. Contactate con el área comercial para regularizar tu situación.
           </div>
           <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
             Solicitar reactivación

@@ -1,27 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-// Formulario de "contactate con el admin". Se guarda en
-// solicitudesContacto/{uid} — un doc por cuenta, así que enviarlo de nuevo
-// simplemente actualiza el mismo registro (ver definición de Fase 0: se
-// manda una vez, después se puede editar).
-export default function ModalContacto({ isOpen, onClose }) {
-  const { user, cuentaId, showToast } = useApp();
+const FORM_VACIO = {
+  nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '', condicionImpositiva: '',
+  localidad: '', telefono: '', email: ''
+};
 
-  const [form, setForm] = useState({
-    nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '', condicionImpositiva: '',
-    localidad: '', telefono: '', email: '', resena: ''
-  });
-  const [yaEnviado, setYaEnviado] = useState(false);
+// Ver/editar, desde el panel de admin, los datos personales/impositivos de
+// un suscriptor. Viven en su PROPIA colección (datosSuscriptor/{uid}),
+// separada de solicitudesContacto/{uid} -- antes se guardaban ahí mismo, y
+// como solicitudesContacto tiene su propio flujo de "pendiente/contactado"
+// para leads entrantes, cada corrección que hacía el admin (ej: arreglar un
+// teléfono mal tipeado) terminaba resucitando esa cuenta en la lista de
+// "Solicitudes de contacto" como si fuera un pedido de contacto nuevo. Acá
+// no pasa: esta colección no tiene estado ni se lista en ningún lado más
+// que este modal.
+//
+// Para no obligar a retipear todo la primera vez, si todavía no existe un
+// datosSuscriptor para ese uid se precarga (una sola vez, al abrir) con lo
+// que el interesado haya cargado en su solicitud de contacto original
+// (solicitudInicial) -- pero a partir de ahí guarda siempre acá, nunca en
+// solicitudesContacto.
+//
+// A propósito NO se pide acá "¿Qué harías con la aplicación?" (resena):
+// sirve para el primer contacto, pero una vez que el admin ya está
+// gestionando al suscriptor no aporta nada.
+export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta, solicitudInicial }) {
+  const { showToast } = useApp();
+  const [form, setForm] = useState(FORM_VACIO);
   const [cargando, setCargando] = useState(true);
+  const [existeRegistro, setExisteRegistro] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    if (!isOpen || !cuentaId) return;
+    if (!isOpen || !uid) return;
     setCargando(true);
-    getDoc(doc(db, 'solicitudesContacto', cuentaId))
+    getDoc(doc(db, 'datosSuscriptor', uid))
       .then((snap) => {
         if (snap.exists()) {
           const d = snap.data();
@@ -33,22 +49,31 @@ export default function ModalContacto({ isOpen, onClose }) {
             condicionImpositiva: d.condicionImpositiva || '',
             localidad: d.localidad || '',
             telefono: d.telefono || '',
-            email: d.email || user.email || '',
-            resena: d.resena || ''
+            email: d.email || ''
           });
-          setYaEnviado(true);
+          setExisteRegistro(true);
         } else {
-          setForm(prev => ({ ...prev, email: user.email || '' }));
-          setYaEnviado(false);
+          // Primera vez: precarga con lo que ya había en la solicitud de
+          // contacto original, sólo como punto de partida.
+          setForm({
+            nombre: solicitudInicial?.nombre || '',
+            apellido: solicitudInicial?.apellido || '',
+            tipoDocumento: 'DNI',
+            numeroDocumento: '',
+            condicionImpositiva: '',
+            localidad: solicitudInicial?.localidad || '',
+            telefono: solicitudInicial?.telefono || '',
+            email: solicitudInicial?.email || emailCuenta || ''
+          });
+          setExisteRegistro(false);
         }
       })
-      .catch(() => showToast('No se pudo cargar tu solicitud previa.', 'error'))
+      .catch(() => showToast('No se pudieron cargar los datos del suscriptor.', 'error'))
       .finally(() => setCargando(false));
-  }, [isOpen, cuentaId, user, showToast]);
+  }, [isOpen, uid, solicitudInicial, emailCuenta, showToast]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    // El teléfono sólo acepta dígitos, y como máximo 10 (10 dígitos, sin 0 ni 15).
     if (id === 'telefono') {
       setForm(prev => ({ ...prev, telefono: value.replace(/\D/g, '').slice(0, 10) }));
       return;
@@ -59,9 +84,8 @@ export default function ModalContacto({ isOpen, onClose }) {
   const validar = () => {
     if (!form.nombre.trim()) return 'Falta el nombre.';
     if (!form.apellido.trim()) return 'Falta el apellido.';
-    if (!form.localidad.trim()) return 'Falta la localidad.';
-    if (!/^[0-9]{10}$/.test(form.telefono)) return 'El teléfono debe tener exactamente 10 dígitos, sin 0 ni 15 (ej: 3511234567).';
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) return 'El email no es válido.';
+    if (form.telefono && !/^[0-9]{10}$/.test(form.telefono)) return 'El teléfono debe tener exactamente 10 dígitos, sin 0 ni 15 (ej: 3511234567).';
+    if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) return 'El email no es válido.';
     return null;
   };
 
@@ -71,18 +95,16 @@ export default function ModalContacto({ isOpen, onClose }) {
 
     setGuardando(true);
     try {
-      await setDoc(doc(db, 'solicitudesContacto', cuentaId), {
+      await setDoc(doc(db, 'datosSuscriptor', uid), {
         ...form,
-        estado: 'pendiente',
         actualizadoEl: serverTimestamp(),
-        ...(yaEnviado ? {} : { creadoEl: serverTimestamp() })
+        ...(existeRegistro ? {} : { creadoEl: serverTimestamp() })
       }, { merge: true });
-      setYaEnviado(true);
-      showToast(yaEnviado ? 'Solicitud actualizada' : 'Solicitud enviada, pronto nos contactaremos');
+      showToast('✓ Datos del suscriptor actualizados.');
       onClose();
     } catch (e) {
-      console.error('Error al guardar la solicitud de contacto:', e);
-      showToast('No se pudo enviar la solicitud. Probá de nuevo.', 'error');
+      console.error('Error al guardar los datos del suscriptor:', e);
+      showToast('No se pudo guardar. Probá de nuevo.', 'error');
     } finally {
       setGuardando(false);
     }
@@ -93,26 +115,19 @@ export default function ModalContacto({ isOpen, onClose }) {
   return (
     <div className="modal-overlay open" onClick={onClose}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-title">
-          {yaEnviado ? 'Tu solicitud de contratación' : 'Contactate con el área comercial'}
-        </div>
-
-        {yaEnviado && (
-          <p style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '14px', lineHeight: 1.5 }}>
-            Ya recibimos tu solicitud, pronto nos contactaremos. Si algún dato cambió, lo podés actualizar acá abajo.
-          </p>
-        )}
+        <div className="modal-title">Datos del suscriptor</div>
+        <p className="modal-sub">{emailCuenta || uid}</p>
 
         {cargando ? (
           <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>
         ) : (
           <div className="grid2">
             <div>
-              <label className="fl">Nombre</label>
+              <label className="fl" style={{ marginTop: 0 }}>Nombre</label>
               <input type="text" id="nombre" value={form.nombre} onChange={handleChange} />
             </div>
             <div>
-              <label className="fl">Apellido</label>
+              <label className="fl" style={{ marginTop: 0 }}>Apellido</label>
               <input type="text" id="apellido" value={form.apellido} onChange={handleChange} />
             </div>
             <div>
@@ -142,24 +157,13 @@ export default function ModalContacto({ isOpen, onClose }) {
               <label className="fl">Correo electrónico</label>
               <input type="email" id="email" value={form.email} onChange={handleChange} />
             </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="fl">¿Qué harías con la aplicación?</label>
-              <textarea
-                id="resena"
-                rows={3}
-                maxLength={600}
-                value={form.resena}
-                onChange={handleChange}
-                style={{ width: '100%', resize: 'vertical' }}
-              />
-            </div>
           </div>
         )}
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando || cargando}>
-            {guardando ? 'Enviando...' : (yaEnviado ? 'Actualizar solicitud' : 'Enviar solicitud')}
+            {guardando ? 'Guardando...' : 'Guardar cambios'}
           </button>
         </div>
       </div>

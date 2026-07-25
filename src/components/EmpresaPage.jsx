@@ -29,8 +29,35 @@ function BarraConsumo({ etiqueta, usado, limite, formatear = (n) => n.toLocaleSt
 }
 
 export default function EmpresaPage() {
-  const { empresa, setEmpresa, showToast, user, suscripcion, planContratado, consumoActual } = useApp();
+  const {
+    empresa, setEmpresa, showToast, cuentaId, esMiembro, miembros,
+    agregarMiembro, quitarMiembro, suscripcion, planContratado, consumoActual, biblioteca
+  } = useApp();
   const fileInputRef = useRef(null);
+
+  const [emailNuevo, setEmailNuevo] = useState('');
+  const [agregando, setAgregando] = useState(false);
+  const [quitandoEmail, setQuitandoEmail] = useState(null);
+
+  const miembrosActivos = miembros.filter(m => m.estado === 'activo');
+  const limiteUsuarios = planContratado?.limites?.usuarios ?? null;
+  const enLimite = limiteUsuarios !== null && (1 + miembrosActivos.length) >= limiteUsuarios;
+
+  const handleAgregarMiembro = async () => {
+    const email = emailNuevo.trim();
+    if (!email) return;
+    setAgregando(true);
+    const ok = await agregarMiembro(email);
+    setAgregando(false);
+    if (ok) setEmailNuevo('');
+  };
+
+  const handleQuitarMiembro = async (email) => {
+    if (!window.confirm(`¿Quitarle el acceso a ${email}?`)) return;
+    setQuitandoEmail(email);
+    await quitarMiembro(email);
+    setQuitandoEmail(null);
+  };
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -55,7 +82,7 @@ export default function EmpresaPage() {
       });
 
       const logoUrl = await subirImagenAFirebase(dataUrl, {
-        userId: user?.uid,
+        userId: cuentaId,
         fileName: `logo-${empresa.nombre || 'empresa'}.jpg`
       });
 
@@ -278,9 +305,75 @@ export default function EmpresaPage() {
             />
             <BarraConsumo
               etiqueta="Usuarios"
-              usado={1}
+              usado={1 + miembrosActivos.length}
               limite={planContratado.limites?.usuarios}
             />
+            <BarraConsumo
+              etiqueta="Productos en biblioteca"
+              usado={biblioteca.length}
+              limite={planContratado.limites?.productosBiblioteca}
+            />
+          </>
+        )}
+      </div>
+
+      {/* ---- Usuarios con acceso a la cuenta ---- */}
+      <div className="card">
+        <div className="card-title">Usuarios con acceso</div>
+
+        {esMiembro ? (
+          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+            Estás administrando la cuenta de otro emprendimiento — tenés acceso total, igual que su dueño.
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', marginBottom: '8px' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 500 }}>Vos (dueño)</div>
+              </div>
+            </div>
+
+            {miembrosActivos.map(m => (
+              <div key={m._docId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '13px' }}>{m.email}</div>
+                <button
+                  className="btn btn-sm btn-danger"
+                  disabled={quitandoEmail === m.email}
+                  onClick={() => handleQuitarMiembro(m.email)}
+                >
+                  {quitandoEmail === m.email ? 'Quitando...' : 'Quitar'}
+                </button>
+              </div>
+            ))}
+
+            <div style={{ marginTop: '14px' }}>
+              <label className="fl" style={{ marginTop: 0 }}>Agregar usuario (Gmail)</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="email"
+                  value={emailNuevo}
+                  onChange={(e) => setEmailNuevo(e.target.value)}
+                  placeholder="colaborador@gmail.com"
+                  disabled={enLimite || agregando}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={enLimite || agregando || !emailNuevo.trim()}
+                  onClick={handleAgregarMiembro}
+                >
+                  {agregando ? 'Agregando...' : 'Agregar'}
+                </button>
+              </div>
+              {enLimite && (
+                <div style={{ fontSize: '12px', color: 'var(--warn)', marginTop: '6px' }}>
+                  Llegaste al máximo de usuarios de tu plan ({limiteUsuarios}). Necesitás un plan superior para agregar más.
+                </div>
+              )}
+              <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>
+                La persona que agregues tiene que entrar con esa cuenta de Google — ahí pasa a administrar tu cuenta con acceso total.
+              </div>
+            </div>
           </>
         )}
       </div>

@@ -2,13 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import JSZip from 'jszip';
 
-export default function CalculadoraPage({ 
-  onOpenBibUsar, 
-  onOpenBibGuardar, 
-  onOpenAgregarPieza, 
-  onOpenNewOrderWithCallback 
+export default function CalculadoraPage({
+  onOpenBibUsar,
+  onOpenBibGuardar,
+  onOpenAgregarPieza,
+  resetTick
 }) {
-  const { cfg, biblioteca, pedidos, showToast } = useApp();
+  const { cfg, biblioteca, showToast } = useApp();
 
   const [horas, setHoras] = useState(2);
   const [watts, setWatts] = useState(120);
@@ -480,6 +480,21 @@ export default function CalculadoraPage({
     clearStatus();
   };
 
+  // App.jsx sube `resetTick` cada vez que "Guardar en biblioteca" o
+  // "Agregar a pedido" terminan con éxito. Antes había que acordarse de
+  // tocar "Limpiar" a mano antes de importar el próximo G-code -- si no,
+  // buildCompositeGcode sigue sumando los archivos del producto anterior
+  // (que ya quedó guardado) con los del nuevo, inflando gramos/horas del
+  // siguiente producto. Sólo se limpia lo relativo a la importación de
+  // G-code: los demás valores (margen, desperdicio, impresora, etc.) se
+  // mantienen porque suelen repetirse de un producto a otro en la misma
+  // sesión. `resetTick` arranca en 0 en App.jsx, así que el chequeo de
+  // truthy evita disparar esto en el montaje inicial.
+  useEffect(() => {
+    if (resetTick) handleResetGcode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetTick]);
+
   const buildCompositeGcode = (items) => {
     if (!items || !items.length) return null;
     const isAllBambu = items.every(item => item.tipo === 'bambu');
@@ -733,6 +748,8 @@ export default function CalculadoraPage({
     const currentPresupuesto = {
       nombreArchivo: (isGcodeApplied && gcodeData) ? gcodeData.nombre : null,
         gcodeArchivos: gcodeItems.length ? gcodeItems.map(item => item.nombre) : ((isGcodeApplied && gcodeData) ? [gcodeData.nombre] : []),
+      costeFil,
+      filDetalle,
       costeElec,
       costeMant,
       costeMO,
@@ -796,17 +813,10 @@ export default function CalculadoraPage({
     setPrecioVentaTocado(false);
   };
 
-  // Add calculated part to order action
+  // Add calculated part to order action. ModalAgregarPieza ya resuelve el
+  // caso de "no hay pedidos todavía" con su propia opción "+ Crear pedido
+  // nuevo" -- no hace falta ningún caso especial acá.
   const handleAddToOrder = () => {
-    const activeOrders = pedidos.filter(p => p.estado !== 'cancelado' && p.estado !== 'completado');
-    if (!activeOrders.length) {
-      if (window.confirm('No hay pedidos activos disponibles. ¿Querés crear un pedido nuevo?')) {
-        onOpenNewOrderWithCallback((newIdVal) => {
-          onOpenAgregarPieza(newIdVal);
-        });
-      }
-      return;
-    }
     onOpenAgregarPieza(null);
   };
 

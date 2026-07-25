@@ -99,7 +99,9 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
         loc: '',
         cp: '',
         tel: '',
-        email: ''
+        email: '',
+        fechaAlta: new Date().toLocaleDateString('es-AR'),
+        fechaAltaTs: Date.now()
       };
       addCliente(newClient);
       showToast('Cliente nuevo creado automáticamente. Completa sus datos en la sección Clientes.', 'info');

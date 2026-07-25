@@ -8,7 +8,7 @@ const FORM_VACIO = {
   precioMensual: '',
   orden: '1',
   activo: true,
-  limites: { usuarios: '', pedidosMes: '', aperturasCatalogoMes: '', montoFacturadoMes: '' }
+  limites: { usuarios: '', productosBiblioteca: '', pedidosMes: '', aperturasCatalogoMes: '', montoFacturadoMes: '' }
 };
 
 // Alta/edición de un plan. Un límite vacío significa "sin límite" para esa
@@ -29,6 +29,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
         activo: plan.activo !== false,
         limites: {
           usuarios: plan.limites?.usuarios ?? '',
+          productosBiblioteca: plan.limites?.productosBiblioteca ?? '',
           pedidosMes: plan.limites?.pedidosMes ?? '',
           aperturasCatalogoMes: plan.limites?.aperturasCatalogoMes ?? '',
           montoFacturadoMes: plan.limites?.montoFacturadoMes ?? ''
@@ -65,6 +66,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
         activo: !!form.activo,
         limites: {
           usuarios: aNumeroONull(form.limites.usuarios),
+          productosBiblioteca: aNumeroONull(form.limites.productosBiblioteca),
           pedidosMes: aNumeroONull(form.limites.pedidosMes),
           aperturasCatalogoMes: aNumeroONull(form.limites.aperturasCatalogoMes),
           montoFacturadoMes: aNumeroONull(form.limites.montoFacturadoMes)
@@ -111,6 +113,10 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
           <div>
             <label className="fl">Usuarios</label>
             <input type="number" id="usuarios" value={form.limites.usuarios} onChange={handleChangeLimite} min="0" />
+          </div>
+          <div>
+            <label className="fl">Productos en biblioteca</label>
+            <input type="number" id="productosBiblioteca" value={form.limites.productosBiblioteca} onChange={handleChangeLimite} min="0" />
           </div>
           <div>
             <label className="fl">Pedidos / mes</label>

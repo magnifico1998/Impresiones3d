@@ -122,7 +122,7 @@ export const comprimirImagen = async (file, opts = {}) => {
   };
 };
 
-export const subirImagenAFirebase = async (dataUrl, { userId, fileName = 'producto.jpg' } = {}) => {
+export const subirImagenAFirebase = async (dataUrl, { userId, fileName = 'producto.jpg', folder = 'biblioteca' } = {}) => {
   if (!dataUrl) throw new Error('No hay imagen para subir.');
   if (!userId) throw new Error('Necesitás iniciar sesión para guardar la imagen en la nube.');
 
@@ -131,7 +131,7 @@ export const subirImagenAFirebase = async (dataUrl, { userId, fileName = 'produc
     .replace(/[^a-z0-9.\-]/g, '_')
     .replace(/_+/g, '_');
 
-  const storagePath = `users/${userId}/biblioteca/${Date.now()}-${safeName}`;
+  const storagePath = `users/${userId}/${folder}/${Date.now()}-${safeName}`;
   const imageRef = ref(storage, storagePath);
 
   await uploadString(imageRef, dataUrl, 'data_url');

@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
-  const { biblioteca, updateProducto, showToast, user } = useApp();
+  const { biblioteca, updateProducto, showToast, cuentaId } = useApp();
   const [categoria, setCategoria] = useState('');
   const [productName, setProductName] = useState('');
   const [precio, setPrecio] = useState('');
@@ -48,7 +48,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         maxBytes: 90 * 1024
       });
       const url = await subirImagenAFirebase(dataUrl, {
-        userId: user?.uid,
+        userId: cuentaId,
         fileName: file.name
       });
       setImagen(url);
@@ -78,7 +78,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     if (imagenFinal && imagenFinal.startsWith('data:')) {
       try {
         imagenFinal = await subirImagenAFirebase(imagenFinal, {
-          userId: user?.uid,
+          userId: cuentaId,
           fileName: `${cleanName}.jpg`
         });
       } catch (err) {

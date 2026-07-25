@@ -1,10 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { precioNeto } from '../utils/precioNeto';
 import { calcularFechaCompletado } from '../utils/fechaCompletado';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, updatePedido, showToast } = useApp();
+
+  // Los completados quedan colapsados por defecto: con el tiempo se
+  // acumulan y ocupan espacio sin aportar nada al vistazo diario.
+  const [completadosExpandido, setCompletadosExpandido] = useState(false);
 
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
@@ -55,6 +59,15 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     return [...pedidos].sort((a, b) => getTimestamp(b) - getTimestamp(a));
   }, [pedidos]);
 
+  const pedidosActivos = useMemo(
+    () => sortedPedidos.filter(p => p.estado !== 'completado'),
+    [sortedPedidos]
+  );
+  const pedidosCompletados = useMemo(
+    () => sortedPedidos.filter(p => p.estado === 'completado'),
+    [sortedPedidos]
+  );
+
   const handleStatusChange = (e, id, newStatus) => {
     e.stopPropagation();
     updatePedido(id, (p) => {
@@ -73,6 +86,134 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     }[newStatus] || newStatus;
 
     showToast('Estado actualizado a: ' + badgeText);
+  };
+
+  const renderPedidoCard = (p) => {
+    const urgente = esUrgente(p);
+
+    const costoPiezas = p.piezas.reduce(
+      (s, pz) => s + ((pz.costoUnitario || pz.total || 0) * pz.cantidad),
+      0
+    );
+    const costoIns = (p.insumos || []).reduce(
+      (s, i) => s + i.precio * i.qty,
+      0
+    );
+    const costoTotal = costoPiezas + costoIns;
+
+    const ganancia = (p.precioVenta || 0) ? precioNeto(p) - costoTotal : null;
+
+    const totalUnidades = p.piezas.reduce((t, pz) => t + pz.cantidad, 0);
+    const totalElaboradas = p.piezas.reduce(
+      (t, pz) => t + (pz.elaborados || 0),
+      0
+    );
+    const unidadesTexto = String(totalUnidades);
+    const avanceColor = totalUnidades === 0
+      ? 'var(--danger)'
+      : (totalElaboradas === 0 ? 'var(--danger)' : (totalElaboradas < totalUnidades ? 'var(--warn)' : 'var(--accent)'));
+
+    return (
+      <div
+        key={p.id}
+        className={`pedido-card ${urgente ? 'urgente' : ''}`}
+        onClick={() => onOpenOrderDetail(p.id)}
+      >
+        <div style={{ flex: '0 0 30%', minWidth: 0, maxWidth: '30%' }}>
+          <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {p.cliente}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {p.desc || 'Sin descripción'}
+          </div>
+        </div>
+
+        {/* ✅ CONTENEDOR DERECHO FIX */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            flex: 1,
+            flexWrap: 'nowrap',
+            justifyContent: 'flex-end'
+          }}
+        >
+          <div style={{ textAlign: 'center', minWidth: '70px' }}>
+            <div style={{ fontSize: '9px', color: 'var(--text3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '3px' }}>
+              Unidades
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700 }}>
+              {unidadesTexto}
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', minWidth: '60px' }}>
+            <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
+              Avance
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)', color: avanceColor }}>
+              {totalElaboradas}/{totalUnidades}
+            </div>
+            <div style={{ fontSize: '10px', color: avanceColor, marginTop: '2px' }}>
+              listas
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', minWidth: '200px', textAlign: 'right', alignItems: 'flex-start' }}>
+            <div style={{ minWidth: '64px' }}>
+              <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
+                Costos
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                {fmt(costoTotal)}
+              </div>
+            </div>
+            <div style={{ minWidth: '64px' }}>
+              <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
+                Ganancia
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+                {ganancia !== null ? fmt(ganancia) : '-'}
+              </div>
+            </div>
+            <div style={{ minWidth: '64px' }}>
+              <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
+                Venta
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
+                {p.precioVenta ? fmt(precioNeto(p)) : '-'}
+              </div>
+            </div>
+          </div>
+
+          {/* ✅ STATUS AL LADO */}
+          <select
+              className={`status-select ${p.estado}`}
+              value={p.estado}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) =>
+                handleStatusChange(e, p.id, e.target.value)
+              }
+              style={{
+                height: '28px',
+                width: '110px',
+                padding: '3px 8px',
+                fontSize: '11px',
+                minWidth: 'auto'
+              }}
+            >
+              <option value="en_verificacion">En verificación</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="progreso">En progreso</option>
+              <option value="listo">Listo p/ entregar</option>
+              <option value="enviado">Enviado</option>
+              <option value="completado">Completado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+        </div>
+     );
   };
 
   return (
@@ -122,133 +263,32 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
         {!sortedPedidos.length ? (
           <div className="empty">Todavía no hay pedidos.</div>
         ) : (
-          sortedPedidos.map(p => {
-            const urgente = esUrgente(p);
+          <>
+            {pedidosActivos.map(p => renderPedidoCard(p))}
 
-            const costoPiezas = p.piezas.reduce(
-              (s, pz) => s + ((pz.costoUnitario || pz.total || 0) * pz.cantidad),
-              0
-            );
-            const costoIns = (p.insumos || []).reduce(
-              (s, i) => s + i.precio * i.qty,
-              0
-            );
-            const costoTotal = costoPiezas + costoIns;
-
-            const ganancia = (p.precioVenta || 0) ? precioNeto(p) - costoTotal : null;
-
-            const totalUnidades = p.piezas.reduce((t, pz) => t + pz.cantidad, 0);
-            const totalElaboradas = p.piezas.reduce(
-              (t, pz) => t + (pz.elaborados || 0),
-              0
-            );
-            const unidadesTexto = String(totalUnidades);
-            const avanceColor = totalUnidades === 0
-              ? 'var(--danger)'
-              : (totalElaboradas === 0 ? 'var(--danger)' : (totalElaboradas < totalUnidades ? 'var(--warn)' : 'var(--accent)'));
-
-            return (
-              <div
-                key={p.id}
-                className={`pedido-card ${urgente ? 'urgente' : ''}`}
-                onClick={() => onOpenOrderDetail(p.id)}
-              >
-                <div style={{ flex: '0 0 30%', minWidth: 0, maxWidth: '30%' }}>
-                  <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {p.cliente}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {p.desc || 'Sin descripción'}
-                  </div>
-                </div>
-
-                {/* ✅ CONTENEDOR DERECHO FIX */}
+            {pedidosCompletados.length > 0 && (
+              <div className="card" style={{ padding: 0, overflow: 'hidden', marginTop: pedidosActivos.length ? '12px' : 0 }}>
                 <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    flex: 1,
-                    flexWrap: 'nowrap',
-                    justifyContent: 'flex-end'
-                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer' }}
+                  onClick={() => setCompletadosExpandido(v => !v)}
                 >
-                  <div style={{ textAlign: 'center', minWidth: '70px' }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '3px' }}>
-                      Unidades
-                    </div>
-                    <div style={{ fontSize: '20px', fontWeight: 700 }}>
-                      {unidadesTexto}
-                    </div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{completadosExpandido ? '−' : '+'}</span>
+                    Completados
                   </div>
-
-                  <div style={{ textAlign: 'center', minWidth: '60px' }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
-                      Avance
-                    </div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)', color: avanceColor }}>
-                      {totalElaboradas}/{totalUnidades}
-                    </div>
-                    <div style={{ fontSize: '10px', color: avanceColor, marginTop: '2px' }}>
-                      listas
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px', minWidth: '200px', textAlign: 'right', alignItems: 'flex-start' }}>
-                    <div style={{ minWidth: '64px' }}>
-                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
-                        Costos
-                      </div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
-                        {fmt(costoTotal)}
-                      </div>
-                    </div>
-                    <div style={{ minWidth: '64px' }}>
-                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
-                        Ganancia
-                      </div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
-                        {ganancia !== null ? fmt(ganancia) : '-'}
-                      </div>
-                    </div>
-                    <div style={{ minWidth: '64px' }}>
-                      <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
-                        Venta
-                      </div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
-                        {p.precioVenta ? fmt(precioNeto(p)) : '-'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ✅ STATUS AL LADO */}
-                  <select
-                      className={`status-select ${p.estado}`}
-                      value={p.estado}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) =>
-                        handleStatusChange(e, p.id, e.target.value)
-                      }
-                      style={{
-                        height: '28px',
-                        width: '110px',
-                        padding: '3px 8px',
-                        fontSize: '11px',
-                        minWidth: 'auto'
-                      }}
-                    >
-                      <option value="en_verificacion">En verificación</option>
-                      <option value="pendiente">Pendiente</option>
-                      <option value="progreso">En progreso</option>
-                      <option value="listo">Listo p/ entregar</option>
-                      <option value="enviado">Enviado</option>
-                      <option value="completado">Completado</option>
-                      <option value="cancelado">Cancelado</option>
-                    </select>
-                  </div>
+                  <span style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+                    {pedidosCompletados.length} pedido{pedidosCompletados.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
-             );
-          })
+
+                {completadosExpandido && (
+                  <div style={{ padding: '0 12px 12px' }}>
+                    {pedidosCompletados.map(p => renderPedidoCard(p))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -319,6 +319,10 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const [adjustModal, setAdjustModal] = useState(null);
   const [ordenCatModalOpen, setOrdenCatModalOpen] = useState(false);
 
+  // Categorías colapsadas por defecto: con muchos productos, agrupar y
+  // colapsar por categoría ordena la vista. Se abren a demanda.
+  const [catsExpandidas, setCatsExpandidas] = useState(() => new Set());
+
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const uniqueCats = useMemo(
@@ -328,6 +332,14 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
     ),
     [biblioteca, cfg?.categoriaOrden]
   );
+
+  const toggleCategoriaExpandida = (cat) => {
+    setCatsExpandidas(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  };
 
   const filteredList = useMemo(() => {
     const query = q.toLowerCase().trim();
@@ -345,6 +357,30 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
       : a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
     return rows;
   }, [filteredList, sortMode]);
+
+  // Agrupa la lista ya filtrada/ordenada por categoría, respetando el
+  // orden de uniqueCats (definido por el usuario en "Ordenar categorías").
+  const gruposPorCategoria = useMemo(() => {
+    const porCat = new Map();
+    sortedList.forEach(p => {
+      const cat = p.cat || 'General';
+      if (!porCat.has(cat)) porCat.set(cat, []);
+      porCat.get(cat).push(p);
+    });
+    const ordenados = [];
+    uniqueCats.forEach(cat => {
+      if (porCat.has(cat)) {
+        ordenados.push([cat, porCat.get(cat)]);
+        porCat.delete(cat);
+      }
+    });
+    porCat.forEach((items, cat) => ordenados.push([cat, items]));
+    return ordenados;
+  }, [sortedList, uniqueCats]);
+
+  // Buscando o filtrando por una categoría puntual, se expande todo para
+  // no obligar a un clic extra sobre resultados que el usuario ya pidió ver.
+  const forzarExpandidas = q.trim() !== '' || filterCat !== '';
 
   const handleSelectToggle = (id) => {
     setSelectedIds(prev => {
@@ -545,130 +581,151 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
         </div>
       )}
 
-      {/* Grid/Lista de productos */}
-      <div
-        style={
-          viewMode === 'grid'
-            ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }
-            : { display: 'flex', flexDirection: 'column', gap: '12px' }
-        }
-      >
-        {!sortedList.length ? (
-          <div className="empty" style={{ gridColumn: viewMode === 'grid' ? '1/-1' : 'auto' }}>
-            No hay productos registrados en la Biblioteca.
-          </div>
-        ) : (
-          sortedList.map(p => {
-            const isChecked = selectedIds.has(p.id);
-            return (
+      {/* Lista de productos agrupada por categoría, colapsable */}
+      {!sortedList.length ? (
+        <div className="empty">No hay productos registrados en la Biblioteca.</div>
+      ) : (
+        gruposPorCategoria.map(([cat, items]) => {
+          const expandida = forzarExpandidas || catsExpandidas.has(cat);
+          return (
+            <div key={cat} className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '10px' }}>
               <div
-                key={p.id}
-                className={`card ${isChecked ? 'bib-selected' : ''}`}
-                style={{
-                  marginBottom: 0,
-                  display: 'flex',
-                  flexDirection: viewMode === 'grid' ? 'column' : 'row',
-                  gap: '10px',
-                  borderColor: isChecked ? 'var(--accent)' : 'var(--border)',
-                  transition: 'all 0.15s',
-                  alignItems: viewMode === 'grid' ? 'stretch' : 'center',
-                  padding: viewMode === 'list' ? '12px 14px' : undefined,
-                }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer' }}
+                onClick={() => toggleCategoriaExpandida(cat)}
               >
-                {/* Checkbox + nombre */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    style={{ marginTop: '3px', cursor: 'pointer', accentColor: 'var(--accent)' }}
-                    onChange={() => handleSelectToggle(p.id)}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {p.nombre}
-                    </div>
-                    {p.desc && (
-                      <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.desc}
-                      </div>
-                    )}
-                  </div>
+                <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{expandida ? '−' : '+'}</span>
+                  {cat}
                 </div>
-
-                {p.imagen && (
-                  <div style={{ width: viewMode === 'grid' ? '100%' : '84px', height: viewMode === 'grid' ? '140px' : '84px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <img src={p.imagen} alt={p.nombre} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }} />
-                  </div>
-                )}
-
-                {/* Chips informativos */}
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }}>
-                    {p.cat || 'General'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
-                    ⏱ {p.horas ? p.horas.toFixed(1) + 'h' : '—'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
-                    💲 {fmt(p.precioSugUnitario || p.costoUnitario || 0)}
-                  </span>
-                  {p.impresoraNombre && (
-                    <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
-                      🖨 {p.impresoraNombre}
-                    </span>
-                  )}
-                  {p.fechaRecalculo && (
-                    <span style={{ fontSize: '10px', color: 'var(--accent)', fontFamily: 'var(--mono)', paddingTop: '2px' }} title={`Actualizado ${p.fechaRecalculo}`}>
-                      ↺ {p.fechaRecalculo}
-                    </span>
-                  )}
-                </div>
-
-                {/* Costo/Precio */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}>
-                  <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>Costo: {fmt(p.costoUnitario * p.cantidad)}</span>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
-                    Venta: {fmt(p.precioSugUnitario * p.cantidad)}
-                  </span>
-                </div>
-
-                {/* Botones de acción */}
-                <div style={{ display: 'flex', gap: '6px', marginTop: 'auto', paddingTop: '4px' }}>
-                  <button
-                    className="btn btn-sm"
-                    style={{ flex: 1, justifyContent: 'center' }}
-                    onClick={() => onLoadInCalculator(p.id)}
-                  >
-                    Calcular u.
-                  </button>
-                  <button
-                    className="btn btn-sm"
-                    style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
-                    title="Recalcular este producto"
-                    onClick={() => handleRecalcSingle(p)}
-                  >
-                    ↺
-                  </button>
-                  <button className="btn btn-sm" onClick={() => onOpenEditCat(p.id)}>
-                    Editar
-                  </button>
-                  <button
-                    className="btn btn-sm"
-                    title="Ajustar precio"
-                    onClick={() => setAdjustModal([{ prod: p }])}
-                    style={{ color: 'var(--text)', borderColor: 'transparent' }}
-                  >
-                    %
-                  </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(p.id, p.nombre)}>
-                    ✕
-                  </button>
-                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+                  {items.length} producto{items.length !== 1 ? 's' : ''}
+                </span>
               </div>
-            );
-          })
-        )}
-      </div>
+
+              {expandida && (
+                <div
+                  style={{
+                    padding: '0 14px 14px',
+                    ...(viewMode === 'grid'
+                      ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }
+                      : { display: 'flex', flexDirection: 'column', gap: '12px' })
+                  }}
+                >
+                  {items.map(p => {
+                    const isChecked = selectedIds.has(p.id);
+                    return (
+                      <div
+                        key={p.id}
+                        className={`card ${isChecked ? 'bib-selected' : ''}`}
+                        style={{
+                          marginBottom: 0,
+                          display: 'flex',
+                          flexDirection: viewMode === 'grid' ? 'column' : 'row',
+                          gap: '10px',
+                          borderColor: isChecked ? 'var(--accent)' : 'var(--border)',
+                          transition: 'all 0.15s',
+                          alignItems: viewMode === 'grid' ? 'stretch' : 'center',
+                          padding: viewMode === 'list' ? '12px 14px' : undefined,
+                        }}
+                      >
+                        {/* Checkbox + nombre */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            style={{ marginTop: '3px', cursor: 'pointer', accentColor: 'var(--accent)' }}
+                            onChange={() => handleSelectToggle(p.id)}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {p.nombre}
+                            </div>
+                            {p.desc && (
+                              <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {p.desc}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {p.imagen && (
+                          <div style={{ width: viewMode === 'grid' ? '100%' : '84px', height: viewMode === 'grid' ? '140px' : '84px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg3)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <img src={p.imagen} alt={p.nombre} style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', display: 'block' }} />
+                          </div>
+                        )}
+
+                        {/* Chips informativos */}
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }}>
+                            {p.cat || 'General'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
+                            ⏱ {p.horas ? p.horas.toFixed(1) + 'h' : '—'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
+                            💲 {fmt(p.precioSugUnitario || p.costoUnitario || 0)}
+                          </span>
+                          {p.impresoraNombre && (
+                            <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
+                              🖨 {p.impresoraNombre}
+                            </span>
+                          )}
+                          {p.fechaRecalculo && (
+                            <span style={{ fontSize: '10px', color: 'var(--accent)', fontFamily: 'var(--mono)', paddingTop: '2px' }} title={`Actualizado ${p.fechaRecalculo}`}>
+                              ↺ {p.fechaRecalculo}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Costo/Precio */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px', fontSize: '12px' }}>
+                          <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>Costo: {fmt(p.costoUnitario * p.cantidad)}</span>
+                          <span style={{ fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
+                            Venta: {fmt(p.precioSugUnitario * p.cantidad)}
+                          </span>
+                        </div>
+
+                        {/* Botones de acción */}
+                        <div style={{ display: 'flex', gap: '6px', marginTop: 'auto', paddingTop: '4px' }}>
+                          <button
+                            className="btn btn-sm"
+                            style={{ flex: 1, justifyContent: 'center' }}
+                            onClick={() => onLoadInCalculator(p.id)}
+                          >
+                            Calcular u.
+                          </button>
+                          <button
+                            className="btn btn-sm"
+                            style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
+                            title="Recalcular este producto"
+                            onClick={() => handleRecalcSingle(p)}
+                          >
+                            ↺
+                          </button>
+                          <button className="btn btn-sm" onClick={() => onOpenEditCat(p.id)}>
+                            Editar
+                          </button>
+                          <button
+                            className="btn btn-sm"
+                            title="Ajustar precio"
+                            onClick={() => setAdjustModal([{ prod: p }])}
+                            style={{ color: 'var(--text)', borderColor: 'transparent' }}
+                          >
+                            %
+                          </button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(p.id, p.nombre)}>
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
 
       {/* Modal de recálculo */}
       {recalcModal && (

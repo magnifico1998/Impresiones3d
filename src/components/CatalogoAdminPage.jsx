@@ -9,7 +9,7 @@ export default function CatalogoAdminPage() {
     biblioteca,
     cfg,
     empresa,
-    user,
+    cuentaId,
     catalogoConfig,
     guardarCatalogoConfig,
     publicarProductosEnCatalogo,
@@ -98,10 +98,12 @@ export default function CatalogoAdminPage() {
     showToast('✓ Datos copiados a la configuración del catálogo.');
   };
 
-  // El catálogo es por tienda: la URL lleva el uid del dueño, así cada
-  // negocio tiene el suyo propio y no se mezclan entre distintas cuentas.
-  const catalogoUrl = typeof window !== 'undefined' && user
-    ? `${window.location.origin}${CATALOGO_PATH}/${user.uid}`
+  // El catálogo es por cuenta: la URL lleva el uid del dueño (cuentaId,
+  // no user.uid -- así un usuario agregado ve/comparte el mismo link que
+  // el dueño), así cada negocio tiene el suyo propio y no se mezclan entre
+  // distintas cuentas.
+  const catalogoUrl = typeof window !== 'undefined' && cuentaId
+    ? `${window.location.origin}${CATALOGO_PATH}/${cuentaId}`
     : CATALOGO_PATH;
 
   const handleCopiarLink = () => {

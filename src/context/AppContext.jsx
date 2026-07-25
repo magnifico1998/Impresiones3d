@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { auth, db, googleProvider } from '../firebase';
+import { auth, db, googleProvider, functions } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
 
 const AppContext = createContext();
@@ -82,8 +83,28 @@ export const AppProvider = ({ children }) => {
   // acá para poder importarlos como Pedido con un clic.
   const [catalogoConfig, setCatalogoConfig] = useState(null);
   const [solicitudesWeb, setSolicitudesWeb] = useState([]);
-  
+
+  // Preguntas frecuentes: colección raíz "faq" (no bajo users/{uid}),
+  // porque es contenido global compartido por todas las cuentas -- lo
+  // arma/edita un admin general y lo ve cualquier usuario logueado (ver
+  // firestore.rules).
+  const [faq, setFaq] = useState([]);
+  // Orden manual de categorías de FAQ (faqMeta/config.categoriaOrden),
+  // mismo concepto que cfg.categoriaOrden de Biblioteca pero global.
+  const [faqCategoriaOrden, setFaqCategoriaOrden] = useState([]);
+
   const [user, setUser] = useState(null);
+  // cuentaId: la raíz real de todas las rutas de datos (users/{cuentaId}/...,
+  // catalogoTiendas/{cuentaId}/...). Para el dueño es igual a user.uid; para
+  // alguien agregado como usuario de otra cuenta (ver invitacionesMiembro /
+  // EmpresaPage "Usuarios con acceso") es el uid del DUEÑO de esa cuenta, no
+  // el propio. Se resuelve una vez al loguearse (ver el useEffect de
+  // onAuthStateChanged) y de ahí en más se usa en vez de user.uid en TODO
+  // lo que sea dato de la cuenta -- user.uid/user.email siguen usándose tal
+  // cual sólo para lo que es de la persona real logueada (ej. isAdmin).
+  const [cuentaId, setCuentaId] = useState(null);
+  const [esMiembro, setEsMiembro] = useState(false);
+  const [miembros, setMiembros] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [suscripcion, setSuscripcion] = useState(null);
   const [planContratado, setPlanContratado] = useState(null);
@@ -161,7 +182,7 @@ export const AppProvider = ({ children }) => {
   // lugar en Firestore, y el documento users/{uid} deja de usarse para
   // guardar datos — sólo se lee una vez, al migrar, por si un usuario
   // viejo todavía tiene algo ahí (ver cargarDatosDeFirestore).
-  const compraDocRef = (id) => doc(db, "users", user.uid, "compras", String(id));
+  const compraDocRef = (id) => doc(db, "users", cuentaId, "compras", String(id));
 
   const addCompra = async (item) => {
     try {
@@ -224,7 +245,7 @@ export const AppProvider = ({ children }) => {
   // Mantenemos los mismos nombres (addCliente/updateCliente/removeCliente)
   // que ya exportaba Fase 0, así ningún componente necesita cambios: sólo
   // cambió qué hacen estas funciones por dentro.
-  const clienteDocRef = (id) => doc(db, "users", user.uid, "clientes", String(id));
+  const clienteDocRef = (id) => doc(db, "users", cuentaId, "clientes", String(id));
 
   const addCliente = async (item) => {
     try {
@@ -289,7 +310,7 @@ export const AppProvider = ({ children }) => {
   // actualizar VARIOS productos a la vez — para eso se agrega
   // updateProductosBulk, que hace un solo writeBatch en vez de N escrituras
   // sueltas.
-  const productoDocRef = (id) => doc(db, "users", user.uid, "biblioteca", String(id));
+  const productoDocRef = (id) => doc(db, "users", cuentaId, "biblioteca", String(id));
 
   const addProducto = async (item) => {
     try {
@@ -325,6 +346,55 @@ export const AppProvider = ({ children }) => {
     } catch (e) {
       console.error("Error al eliminar producto:", e);
       showToast('⚠ No se pudo eliminar el producto en la nube.', 'error');
+    }
+  };
+
+  // FAQ: mismo patrón que biblioteca (escritura directa por documento, sin
+  // debounce), pero sobre la colección raíz "faq" -- firestore.rules ya
+  // restringe la escritura a admins, así que estas funciones son seguras de
+  // exponer a cualquier usuario (un no-admin simplemente recibirá
+  // permission-denied si intentara llamarlas).
+  const faqDocRef = (id) => doc(db, "faq", String(id));
+
+  const addFaq = async (item) => {
+    try {
+      await setDoc(faqDocRef(item.id), item);
+    } catch (e) {
+      console.error("Error al guardar pregunta frecuente:", e);
+      showToast('⚠ No se pudo guardar la pregunta en la nube.', 'error');
+      throw e;
+    }
+  };
+
+  const updateFaq = async (id, updater) => {
+    try {
+      const actual = faq.find(f => f.id === id);
+      if (!actual) return;
+      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
+      await setDoc(faqDocRef(id), nuevo);
+    } catch (e) {
+      console.error("Error al actualizar pregunta frecuente:", e);
+      showToast('⚠ No se pudo actualizar la pregunta en la nube.', 'error');
+      throw e;
+    }
+  };
+
+  const removeFaq = async (id) => {
+    try {
+      await deleteDoc(faqDocRef(id));
+    } catch (e) {
+      console.error("Error al eliminar pregunta frecuente:", e);
+      showToast('⚠ No se pudo eliminar la pregunta en la nube.', 'error');
+    }
+  };
+
+  const guardarFaqCategoriaOrden = async (orden) => {
+    try {
+      await setDoc(doc(db, "faqMeta", "config"), { categoriaOrden: orden });
+    } catch (e) {
+      console.error("Error al guardar el orden de categorías de FAQ:", e);
+      showToast('⚠ No se pudo guardar el orden de categorías en la nube.', 'error');
+      throw e;
     }
   };
 
@@ -383,7 +453,7 @@ export const AppProvider = ({ children }) => {
   // edita el nombre del cliente) — a diferencia de updateProductosBulk
   // (Fase 3), acá no se conoce el conjunto de ids de antemano, se filtra
   // por una condición.
-  const pedidoDocRef = (id) => doc(db, "users", user.uid, "pedidos", String(id));
+  const pedidoDocRef = (id) => doc(db, "users", cuentaId, "pedidos", String(id));
 
   const addPedido = async (item) => {
     try {
@@ -582,10 +652,29 @@ export const AppProvider = ({ children }) => {
   // Permite reintentar la carga manualmente (botón "Reintentar" en la
   // pantalla de error) sin tener que recargar toda la página.
   const reintentarCargaDatos = async () => {
-    if (!user) return;
+    if (!cuentaId) return;
     setLoading(true);
-    await cargarDatosDeFirestore(user.uid);
+    await cargarDatosDeFirestore(cuentaId);
     setLoading(false);
+  };
+
+  // Resuelve, a partir del email de Google recién logueado, si esta persona
+  // es dueña de su propia cuenta (caso normal) o fue agregada como usuario
+  // de la cuenta de otra persona (ver invitacionesMiembro / EmpresaPage
+  // "Usuarios con acceso"). El ID del doc es el email en minúsculas, así
+  // que es un getDoc puntual, sin queries -- ver firestore.rules y
+  // functions/http/gestionarMiembros.js para cómo se crea ese vínculo.
+  const resolverCuentaId = async (currentUser) => {
+    if (!currentUser.email) return { idEfectivo: currentUser.uid, miembro: false };
+    try {
+      const invSnap = await getDoc(doc(db, 'invitacionesMiembro', currentUser.email.toLowerCase()));
+      if (invSnap.exists() && invSnap.data().estado === 'activo') {
+        return { idEfectivo: invSnap.data().ownerUid, miembro: true };
+      }
+    } catch (e) {
+      console.error('Error al resolver el vínculo de equipo:', e);
+    }
+    return { idEfectivo: currentUser.uid, miembro: false };
   };
 
   // Initial load from Firebase
@@ -593,7 +682,13 @@ export const AppProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        await cargarDatosDeFirestore(currentUser.uid);
+        const { idEfectivo, miembro } = await resolverCuentaId(currentUser);
+        setCuentaId(idEfectivo);
+        setEsMiembro(miembro);
+        await cargarDatosDeFirestore(idEfectivo);
+      } else {
+        setCuentaId(null);
+        setEsMiembro(false);
       }
       setLoading(false);
     });
@@ -630,11 +725,11 @@ export const AppProvider = ({ children }) => {
   // la función programada la pasa a modo lectura mientras la app está
   // abierta, sin necesidad de recargar.
   useEffect(() => {
-    if (!user) {
+    if (!cuentaId) {
       setSuscripcion(null);
       return;
     }
-    const subRef = doc(db, 'users', user.uid, 'suscripcion', 'actual');
+    const subRef = doc(db, 'users', cuentaId, 'suscripcion', 'actual');
     const unsubscribeSub = onSnapshot(
       subRef,
       (snap) => setSuscripcion(snap.exists() ? snap.data() : null),
@@ -644,7 +739,7 @@ export const AppProvider = ({ children }) => {
       }
     );
     return unsubscribeSub;
-  }, [user]);
+  }, [cuentaId]);
 
   // Plan contratado (para mostrar nombre/precio/límites en Resumen y en
   // "Mi emprendimiento"). Depende de suscripcion.planId, así que se
@@ -672,11 +767,11 @@ export const AppProvider = ({ children }) => {
   // sólo lo leemos para mostrarlo. Depende de suscripcion.cicloId, así que
   // al arrancar un ciclo nuevo se cambia solo de documento.
   useEffect(() => {
-    if (!user || !suscripcion?.cicloId) {
+    if (!cuentaId || !suscripcion?.cicloId) {
       setConsumoActual(null);
       return;
     }
-    const contadorRef = doc(db, 'users', user.uid, 'suscripcion', 'actual', 'contadores', suscripcion.cicloId);
+    const contadorRef = doc(db, 'users', cuentaId, 'suscripcion', 'actual', 'contadores', suscripcion.cicloId);
     const unsubscribeContador = onSnapshot(
       contadorRef,
       (snap) => setConsumoActual(snap.exists() ? snap.data() : { pedidosCreados: 0, aperturasCatalogo: 0, montoFacturado: 0 }),
@@ -686,7 +781,28 @@ export const AppProvider = ({ children }) => {
       }
     );
     return unsubscribeContador;
-  }, [user, suscripcion?.cicloId]);
+  }, [cuentaId, suscripcion?.cicloId]);
+
+  // Usuarios con acceso a esta cuenta (ver EmpresaPage "Usuarios con
+  // acceso"). Sólo lo necesita el dueño para gestionar su equipo -- un
+  // miembro no puede listar esto (ver firestore.rules: sólo el dueño puede
+  // leer el conjunto completo vía la query ownerUid == cuentaId).
+  useEffect(() => {
+    if (!cuentaId || esMiembro) {
+      setMiembros([]);
+      return;
+    }
+    const q = query(collection(db, 'invitacionesMiembro'), where('ownerUid', '==', cuentaId));
+    const unsubscribeMiembros = onSnapshot(
+      q,
+      (snapshot) => setMiembros(snapshot.docs.map(d => ({ ...d.data(), _docId: d.id }))),
+      (err) => {
+        console.error('Error al escuchar los usuarios con acceso:', err);
+        setMiembros([]);
+      }
+    );
+    return unsubscribeMiembros;
+  }, [cuentaId, esMiembro]);
 
   useEffect(() => {
     if (cfg?.palette) {
@@ -706,7 +822,7 @@ export const AppProvider = ({ children }) => {
   const saveRetryTimeoutRefMeta = useRef(null);
 
   useEffect(() => {
-    if (loading || !user || !datosCargadosOk) return;
+    if (loading || !cuentaId || !datosCargadosOk) return;
 
     if (skipNextAutosaveRefMeta.current) {
       skipNextAutosaveRefMeta.current = false;
@@ -735,7 +851,7 @@ export const AppProvider = ({ children }) => {
         ultimaActualizacion: timestamp
       };
 
-      const metaRef = doc(db, "users", user.uid, "meta", "config");
+      const metaRef = doc(db, "users", cuentaId, "meta", "config");
 
       const intentarGuardar = (intento = 0) => {
         lastWrittenTimestampRefMeta.current = timestamp;
@@ -787,16 +903,16 @@ export const AppProvider = ({ children }) => {
         saveRetryTimeoutRefMeta.current = null;
       }
     };
-  }, [cfg, empresa, idCounter, user, loading, datosCargadosOk]);
+  }, [cfg, empresa, idCounter, cuentaId, loading, datosCargadosOk]);
 
   // Listener en tiempo real para la subcolección de compras (Fase 5, la
   // última sección en migrar). Mismo criterio que clientes/biblioteca/
   // pedidos: sin detección de eco por timestamp global — cada documento de
   // compra es independiente, no hay riesgo de que se pisen entre sí.
   useEffect(() => {
-    if (!user || !datosCargadosOk) return;
+    if (!cuentaId || !datosCargadosOk) return;
 
-    const colRef = collection(db, "users", user.uid, "compras");
+    const colRef = collection(db, "users", cuentaId, "compras");
 
     const unsubscribe = onSnapshot(
       colRef,
@@ -809,7 +925,7 @@ export const AppProvider = ({ children }) => {
     );
 
     return () => unsubscribe();
-  }, [user, datosCargadosOk]);
+  }, [cuentaId, datosCargadosOk]);
 
   // Listener en tiempo real para config + empresa + counter, ahora en su
   // propio documento (users/{uid}/meta/config). Independiente del listener
@@ -817,9 +933,9 @@ export const AppProvider = ({ children }) => {
   // (lastWrittenTimestampRefMeta / pendingWriteTimestampRefMeta), así un
   // cambio remoto en config no se confunde con uno en pedidos/biblioteca/etc.
   useEffect(() => {
-    if (!user || !datosCargadosOk) return;
+    if (!cuentaId || !datosCargadosOk) return;
 
-    const metaRef = doc(db, "users", user.uid, "meta", "config");
+    const metaRef = doc(db, "users", cuentaId, "meta", "config");
 
     const unsubscribe = onSnapshot(
       metaRef,
@@ -856,7 +972,7 @@ export const AppProvider = ({ children }) => {
     );
 
     return () => unsubscribe();
-  }, [user, datosCargadosOk]);
+  }, [cuentaId, datosCargadosOk]);
 
   // Listener en tiempo real para la subcolección de clientes (Fase 2).
   // A diferencia de los otros listeners, acá no hace falta el mecanismo de
@@ -870,9 +986,9 @@ export const AppProvider = ({ children }) => {
   // lo que hay en Firestore en todo momento, incluida la escritura local
   // optimista antes de la confirmación del servidor.
   useEffect(() => {
-    if (!user || !datosCargadosOk) return;
+    if (!cuentaId || !datosCargadosOk) return;
 
-    const colRef = collection(db, "users", user.uid, "clientes");
+    const colRef = collection(db, "users", cuentaId, "clientes");
 
     const unsubscribe = onSnapshot(
       colRef,
@@ -885,16 +1001,59 @@ export const AppProvider = ({ children }) => {
     );
 
     return () => unsubscribe();
-  }, [user, datosCargadosOk]);
+  }, [cuentaId, datosCargadosOk]);
+
+  // Listener en tiempo real para la colección global "faq". A diferencia
+  // de las demás colecciones de acá abajo, no depende de cuentaId ni de
+  // datosCargadosOk -- no es dato de una cuenta, sino contenido compartido
+  // que cualquier usuario logueado puede leer (ver firestore.rules).
+  useEffect(() => {
+    if (!user) {
+      setFaq([]);
+      return;
+    }
+
+    const colRef = collection(db, "faq");
+
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        setFaq(snapshot.docs.map(d => d.data()));
+      },
+      (error) => {
+        console.error("Error en la suscripción en tiempo real de faq:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Orden manual de categorías de FAQ: doc único faqMeta/config.
+  useEffect(() => {
+    if (!user) {
+      setFaqCategoriaOrden([]);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(db, "faqMeta", "config"),
+      (snap) => setFaqCategoriaOrden(snap.exists() ? (snap.data().categoriaOrden || []) : []),
+      (error) => {
+        console.error("Error en la suscripción en tiempo real de faqMeta:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   // Listener en tiempo real para la subcolección de biblioteca (Fase 3).
   // Mismo criterio que clientes en Fase 2: sin detección de eco por
   // timestamp (cada producto es independiente), sin toast de "otra sesión"
   // por ser potencialmente ruidoso con muchos productos.
   useEffect(() => {
-    if (!user || !datosCargadosOk) return;
+    if (!cuentaId || !datosCargadosOk) return;
 
-    const colRef = collection(db, "users", user.uid, "biblioteca");
+    const colRef = collection(db, "users", cuentaId, "biblioteca");
 
     const unsubscribe = onSnapshot(
       colRef,
@@ -907,16 +1066,16 @@ export const AppProvider = ({ children }) => {
     );
 
     return () => unsubscribe();
-  }, [user, datosCargadosOk]);
+  }, [cuentaId, datosCargadosOk]);
 
   // Listener en tiempo real para la subcolección de pedidos (Fase 4).
   // Mismo criterio que clientes/biblioteca: sin detección de eco por
   // timestamp global — acá es justamente donde más valía la pena, porque
   // era la sección que disparaba el bug de la race condition original.
   useEffect(() => {
-    if (!user || !datosCargadosOk) return;
+    if (!cuentaId || !datosCargadosOk) return;
 
-    const colRef = collection(db, "users", user.uid, "pedidos");
+    const colRef = collection(db, "users", cuentaId, "pedidos");
 
     const unsubscribe = onSnapshot(
       colRef,
@@ -929,7 +1088,7 @@ export const AppProvider = ({ children }) => {
     );
 
     return () => unsubscribe();
-  }, [user, datosCargadosOk]);
+  }, [cuentaId, datosCargadosOk]);
 
   // Listener de la config pública del catálogo web de ESTA tienda (colores,
   // nombre, si está activo). Sólo se suscribe con sesión iniciada porque es
@@ -937,9 +1096,9 @@ export const AppProvider = ({ children }) => {
   // público (/catalogo/{uid}, sin login) la lee por su cuenta con
   // getDoc/onSnapshot propio, sin pasar por este Context.
   useEffect(() => {
-    if (!user || !datosCargadosOk) return;
+    if (!cuentaId || !datosCargadosOk) return;
 
-    const ref = doc(db, "catalogoTiendas", user.uid);
+    const ref = doc(db, "catalogoTiendas", cuentaId);
     const unsubscribe = onSnapshot(
       ref,
       (snap) => {
@@ -951,16 +1110,16 @@ export const AppProvider = ({ children }) => {
     );
 
     return () => unsubscribe();
-  }, [user, datosCargadosOk]);
+  }, [cuentaId, datosCargadosOk]);
 
   // Listener de las solicitudes que llegan desde el catálogo web de ESTA
   // tienda. Subcolección bajo catalogoTiendas/{uid} (no bajo users/{uid})
   // porque la escribe gente sin login; acá sólo leemos (requiere estar
   // autenticado como el dueño de esa tienda, ver reglas de Firestore).
   useEffect(() => {
-    if (!user || !datosCargadosOk) return;
+    if (!cuentaId || !datosCargadosOk) return;
 
-    const colRef = query(collection(db, "catalogoTiendas", user.uid, "solicitudes"), orderBy("creado", "desc"));
+    const colRef = query(collection(db, "catalogoTiendas", cuentaId, "solicitudes"), orderBy("creado", "desc"));
     const unsubscribe = onSnapshot(
       colRef,
       (snapshot) => {
@@ -972,7 +1131,7 @@ export const AppProvider = ({ children }) => {
     );
 
     return () => unsubscribe();
-  }, [user, datosCargadosOk]);
+  }, [cuentaId, datosCargadosOk]);
 
   useEffect(() => {
     try {
@@ -1037,11 +1196,11 @@ export const AppProvider = ({ children }) => {
       setIdCounter(Number(nextCounter));
       
       // Upload to Firebase immediately if logged in
-      if (user) {
+      if (cuentaId) {
         const restoreTimestamp = new Date().toISOString();
 
         // Fase 1: config/empresa/counter van a su documento propio.
-        await setDoc(doc(db, "users", user.uid, "meta", "config"), {
+        await setDoc(doc(db, "users", cuentaId, "meta", "config"), {
           config: data.cfg || defaultCfg,
           empresa: data.empresa || defaultEmpresa,
           counter: nextCounter,
@@ -1058,12 +1217,12 @@ export const AppProvider = ({ children }) => {
         // ítems que los actuales, no deben quedar huérfanos), luego
         // escribimos los del backup.
         const restaurarSeccion = async (nombreColeccion, items) => {
-          const colRef = collection(db, "users", user.uid, nombreColeccion);
+          const colRef = collection(db, "users", cuentaId, nombreColeccion);
           const actuales = await getDocs(colRef);
           const batch = writeBatch(db);
           actuales.forEach(d => batch.delete(d.ref));
           (items || []).forEach(item => {
-            batch.set(doc(db, "users", user.uid, nombreColeccion, String(item.id)), item);
+            batch.set(doc(db, "users", cuentaId, nombreColeccion, String(item.id)), item);
           });
           await batch.commit();
         };
@@ -1093,13 +1252,13 @@ export const AppProvider = ({ children }) => {
   // colección global, un usuario podría pisar/mezclar el catálogo de
   // otro. Ver firestore.rules.
 
-  const catalogoProductoDocRef = (id) => doc(db, "catalogoTiendas", user.uid, "productos", String(id));
+  const catalogoProductoDocRef = (id) => doc(db, "catalogoTiendas", cuentaId, "productos", String(id));
 
   const guardarCatalogoConfig = async (parcial) => {
     try {
       const actual = catalogoConfig || {};
       const nuevo = { ...actual, ...parcial, actualizado: new Date().toISOString() };
-      await setDoc(doc(db, "catalogoTiendas", user.uid), nuevo);
+      await setDoc(doc(db, "catalogoTiendas", cuentaId), nuevo);
     } catch (e) {
       console.error("Error al guardar la configuración del catálogo:", e);
       showToast('⚠ No se pudo guardar la configuración del catálogo.', 'error');
@@ -1275,7 +1434,7 @@ export const AppProvider = ({ children }) => {
       }
 
       const { _docId, ...datosSolicitud } = solicitud;
-      await setDoc(doc(db, "catalogoTiendas", user.uid, "solicitudes", _docId), { ...datosSolicitud, estado: 'importado' }, { merge: true });
+      await setDoc(doc(db, "catalogoTiendas", cuentaId, "solicitudes", _docId), { ...datosSolicitud, estado: 'importado' }, { merge: true });
 
       showToast('✓ Solicitud importada como pedido.');
       return pedidoDestinoId;
@@ -1288,10 +1447,42 @@ export const AppProvider = ({ children }) => {
 
   const descartarSolicitud = async (docId) => {
     try {
-      await deleteDoc(doc(db, "catalogoTiendas", user.uid, "solicitudes", docId));
+      await deleteDoc(doc(db, "catalogoTiendas", cuentaId, "solicitudes", docId));
     } catch (e) {
       console.error("Error al descartar la solicitud:", e);
       showToast('⚠ No se pudo descartar la solicitud.', 'error');
+    }
+  };
+
+  // ---- Usuarios adicionales por cuenta ("equipo") ----
+  // Sólo el dueño gestiona esto (ver EmpresaPage "Usuarios con acceso"); las
+  // dos operaciones pasan por Cloud Functions porque son las únicas que
+  // pueden escribir invitacionesMiembro (ver firestore.rules) — acá se
+  // valida el límite de usuarios del plan contratado antes de crear el
+  // vínculo. Mismo patrón que AdminPage.jsx con cambiarEstadoSuscripcion.
+  const agregarMiembro = async (email) => {
+    try {
+      const fn = httpsCallable(functions, 'agregarMiembro');
+      await fn({ email });
+      showToast(`✓ ${email} ya puede administrar tu cuenta.`);
+      return true;
+    } catch (e) {
+      console.error("Error al agregar usuario:", e);
+      showToast(e.message || 'No se pudo agregar el usuario.', 'error');
+      return false;
+    }
+  };
+
+  const quitarMiembro = async (email) => {
+    try {
+      const fn = httpsCallable(functions, 'quitarMiembro');
+      await fn({ email });
+      showToast(`Se quitó el acceso de ${email}.`, 'info');
+      return true;
+    } catch (e) {
+      console.error("Error al quitar usuario:", e);
+      showToast(e.message || 'No se pudo quitar el usuario.', 'error');
+      return false;
     }
   };
 
@@ -1310,6 +1501,12 @@ export const AppProvider = ({ children }) => {
     updateProducto,
     removeProducto,
     updateProductosBulk,
+    faq,
+    addFaq,
+    updateFaq,
+    removeFaq,
+    faqCategoriaOrden,
+    guardarFaqCategoriaOrden,
     clientes,
     addCliente,
     updateCliente,
@@ -1321,6 +1518,11 @@ export const AppProvider = ({ children }) => {
     idCounter,
     getNewId,
     user,
+    cuentaId,
+    esMiembro,
+    miembros,
+    agregarMiembro,
+    quitarMiembro,
     isAdmin,
     suscripcion,
     planContratado,

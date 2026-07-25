@@ -1,6 +1,6 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getAuth } = require('firebase-admin/auth');
-const { db, Timestamp, FieldValue, sumarMesCalendario, formatearFecha } = require('../admin');
+const { db, Timestamp, FieldValue, DIA_MS, DURACION_LECTURA_DIAS, sumarMesCalendario, formatearFecha } = require('../admin');
 
 // Única puerta de entrada para que un admin cambie el estado de la
 // suscripción de una cuenta desde el panel. Centralizarlo acá (en vez de
@@ -104,8 +104,29 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
       break;
     }
 
+    // Pasa la cuenta a modo lectura manualmente, con los mismos 30 días de
+    // gracia que le da el vencimiento automático de un trial o un ciclo
+    // (ver transicionSuscripciones.js) -- SIN saltarse directo a
+    // "suspendida". Si un admin necesita cortar el acceso ya mismo sin
+    // esperar la gracia, sigue pudiendo hacerlo achicando a mano
+    // fechaLimiteLectura desde Firestore Console, pero no es lo que hace
+    // este botón por default.
     case 'suspender':
-      update = { estado: 'suspendida' };
+      update = {
+        estado: 'lectura',
+        fechaLimiteLectura: Timestamp.fromMillis(ahora.toMillis() + DURACION_LECTURA_DIAS * DIA_MS)
+      };
+      break;
+
+    // Marca/desmarca "ya lo contacté después de que se bloqueó" -- no
+    // cambia el estado de la cuenta, sólo deja constancia de que el admin
+    // hizo el seguimiento (para no perder de vista a quién ya se le avisó
+    // y a quién todavía no, entre todas las cuentas bloqueadas). Es un
+    // toggle: invierte lo que había antes.
+    case 'toggleContactadoPostBloqueo':
+      update = datosPrevios.contactadoPostBloqueo
+        ? { contactadoPostBloqueo: false, contactadoPostBloqueoFecha: FieldValue.delete() }
+        : { contactadoPostBloqueo: true, contactadoPostBloqueoFecha: ahora };
       break;
 
     case 'reactivar':

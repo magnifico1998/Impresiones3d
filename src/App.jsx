@@ -14,6 +14,7 @@ import CatalogoAdminPage from './components/CatalogoAdminPage';
 import ConfiguracionPage from './components/ConfiguracionPage';
 import EmpresaPage from './components/EmpresaPage';
 import AdminPage from './components/AdminPage';
+import FaqPage from './components/FaqPage';
 import Toasts from './components/Toasts';
 
 // Modals
@@ -27,6 +28,9 @@ import ModalBibGuardar from './components/modals/ModalBibGuardar';
 import ModalBibEditarCat from './components/modals/ModalBibEditarCat';
 import ModalBibUsar from './components/modals/ModalBibUsar';
 import ModalArmarPedido from './components/modals/ModalArmarPedido';
+import ModalContacto from './components/modals/ModalContacto';
+import ModalFaqGuardar from './components/modals/ModalFaqGuardar';
+import ModalFaqOrdenCategorias from './components/modals/ModalFaqOrdenCategorias';
 
 function App() {
   const {
@@ -40,8 +44,18 @@ function App() {
     loadError,
     datosCargadosOk,
     reintentarCargaDatos,
-    logout
+    logout,
+    suscripcion
   } = useApp();
+
+  // Cuenta bloqueada: se muestra en vez de la pantalla genérica de "no
+  // pudimos cargar tus datos" (que igual dispara, porque las reglas de
+  // Firestore ya no dejan leer nada -- ver cuentaPuedeLeer en
+  // firestore.rules -- una vez que pasaron los 30 días de modo lectura).
+  // La suscripción se sigue pudiendo leer siempre (no está gateada), así
+  // que esta pantalla se puede armar con datos reales incluso con el resto
+  // de la app bloqueada.
+  const [modalContactoOpen, setModalContactoOpen] = useState(false);
 
   // Modals visibility state
   const [modalClienteOpen, setModalClienteOpen] = useState(false);
@@ -63,11 +77,22 @@ function App() {
   const [modalAgregarPiezaOpen, setModalAgregarPiezaOpen] = useState(false);
   const [modalAgregarPiezaPedidoId, setModalAgregarPiezaPedidoId] = useState(null);
 
+  // Sube cada vez que se guarda un producto en biblioteca o se agrega una
+  // pieza a un pedido desde la Calculadora, para que ésta limpie sola los
+  // datos del G-code importado (ver CalculadoraPage.jsx) y no arrastre
+  // archivos del producto anterior al siguiente.
+  const [calcResetTick, setCalcResetTick] = useState(0);
+
   const [modalBibGuardarOpen, setModalBibGuardarOpen] = useState(false);
   const [modalBibGuardarPresupuesto, setModalBibGuardarPresupuesto] = useState(null);
 
   const [modalBibEditarCatOpen, setModalBibEditarCatOpen] = useState(false);
   const [modalBibEditarCatId, setModalBibEditarCatId] = useState(null);
+
+  const [modalFaqGuardarOpen, setModalFaqGuardarOpen] = useState(false);
+  const [modalFaqGuardarEditId, setModalFaqGuardarEditId] = useState(null);
+
+  const [modalFaqOrdenCategoriasOpen, setModalFaqOrdenCategoriasOpen] = useState(false);
 
   const [modalBibUsarOpen, setModalBibUsarOpen] = useState(false);
   
@@ -143,7 +168,7 @@ function App() {
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontFamily: 'var(--sans)', fontSize: '24px', fontWeight: 600, color: 'var(--text)', letterSpacing: '-.5px', marginBottom: '6px' }}>
-            ManagerConReact|  
+            Manager3D - Todo para emprender en 3D
           </h1>
           <p style={{ fontFamily: 'var(--sans)', fontSize: '13px', color: 'var(--text2)' }}>
             Ingresá con tu cuenta para sincronizar tus datos en la nube
@@ -170,6 +195,70 @@ function App() {
           </svg>
           Iniciar sesión con Google
         </button>
+      </div>
+    );
+  }
+
+  // Cuenta suspendida (pasaron los 30 días de modo lectura sin
+  // reactivarse): ni lectura ni escritura, en vez del error genérico de
+  // conexión. Va ANTES del chequeo de loadError porque, al estar
+  // suspendida, la carga de datos real (pedidos/biblioteca/etc.) también
+  // va a fallar con permission-denied -- este cartel explica por qué.
+  if (suscripcion?.estado === 'suspendida' && !isAdmin) {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'var(--bg)',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '20px',
+        padding: '20px',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          width: '56px',
+          height: '56px',
+          background: 'var(--dangerDim)',
+          border: '1px solid var(--danger)',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <svg viewBox="0 0 20 20" fill="none" stroke="var(--danger)" strokeWidth="1.5" style={{ width: '30px', height: '30px' }}>
+            <rect x="4" y="9" width="12" height="8" rx="1.5" />
+            <path d="M7 9V6a3 3 0 0 1 6 0v3" />
+          </svg>
+        </div>
+        <div>
+          <h1 style={{ fontFamily: 'var(--sans)', fontSize: '20px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
+            Tu cuenta está bloqueada
+          </h1>
+          <p style={{ fontFamily: 'var(--sans)', fontSize: '13px', color: 'var(--text2)', maxWidth: '380px', lineHeight: 1.5 }}>
+            Pasaron los 30 días de modo lectura sin que se reactivara la suscripción, así que ya no podés acceder a tu información. Contactate con el área comercial para regularizar tu situación y recuperar el acceso — tus datos siguen guardados.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => setModalContactoOpen(true)}
+            className="btn btn-primary"
+            style={{ fontSize: '14px', padding: '10px 20px', borderRadius: 'var(--radius2)' }}
+          >
+            Contactate con el área comercial
+          </button>
+          <button
+            onClick={logout}
+            className="btn"
+            style={{ fontSize: '14px', padding: '10px 20px', borderRadius: 'var(--radius2)' }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+        <ModalContacto isOpen={modalContactoOpen} onClose={() => setModalContactoOpen(false)} />
       </div>
     );
   }
@@ -284,11 +373,7 @@ function App() {
               setModalAgregarPiezaPedidoId(orderId);
               setModalAgregarPiezaOpen(true);
             }}
-            onOpenNewOrderWithCallback={(callback) => {
-              setModalPedidoEditId(null);
-              setModalPedidoSavedCallback(() => callback);
-              setModalPedidoOpen(true);
-            }}
+            resetTick={calcResetTick}
           />
         );
       
@@ -331,7 +416,22 @@ function App() {
       
       case 'catalogoweb':
         return <CatalogoAdminPage />;
-      
+
+      case 'faq':
+        return (
+          <FaqPage
+            onOpenNuevo={() => {
+              setModalFaqGuardarEditId(null);
+              setModalFaqGuardarOpen(true);
+            }}
+            onOpenEditar={(id) => {
+              setModalFaqGuardarEditId(id);
+              setModalFaqGuardarOpen(true);
+            }}
+            onOpenOrdenCategorias={() => setModalFaqOrdenCategoriasOpen(true)}
+          />
+        );
+
       case 'config':
         return <ConfiguracionPage />;
       
@@ -433,6 +533,7 @@ function App() {
         presupuestoActual={window._currentPresupuesto || null}
         defaultPedidoId={modalAgregarPiezaPedidoId}
         onConfirm={(name, orderId) => {
+          setCalcResetTick(t => t + 1);
           // Confirm window redirect workflow
           if (window.confirm(`✓ Pieza "${name}" agregada. ¿Ver el pedido?`)) {
             setActivePage('pedidos');
@@ -452,15 +553,30 @@ function App() {
           setModalBibGuardarPresupuesto(null);
         }}
         presupuestoActual={modalBibGuardarPresupuesto}
+        onGuardado={() => setCalcResetTick(t => t + 1)}
       />
 
-      <ModalBibEditarCat 
+      <ModalBibEditarCat
         isOpen={modalBibEditarCatOpen}
         onClose={() => {
           setModalBibEditarCatOpen(false);
           setModalBibEditarCatId(null);
         }}
         editId={modalBibEditarCatId}
+      />
+
+      <ModalFaqGuardar
+        isOpen={modalFaqGuardarOpen}
+        onClose={() => {
+          setModalFaqGuardarOpen(false);
+          setModalFaqGuardarEditId(null);
+        }}
+        editId={modalFaqGuardarEditId}
+      />
+
+      <ModalFaqOrdenCategorias
+        isOpen={modalFaqOrdenCategoriasOpen}
+        onClose={() => setModalFaqOrdenCategoriasOpen(false)}
       />
 
       <ModalBibUsar 
