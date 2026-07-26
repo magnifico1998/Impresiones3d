@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider, functions } from '../firebase';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
@@ -526,6 +526,27 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Login sin contraseña: le mandamos un link mágico al mail. Guardamos el
+  // email en localStorage para poder completar el ingreso automáticamente
+  // cuando vuelva a abrir la app en ESTE mismo dispositivo/navegador (ver
+  // useEffect de completado más abajo). Si lo abre en otro dispositivo,
+  // ese localStorage no va a estar y se le pide el mail de nuevo.
+  const loginWithEmailLink = async (email) => {
+    try {
+      const actionCodeSettings = {
+        url: window.location.href.split('?')[0],
+        handleCodeInApp: true,
+      };
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      window.localStorage.setItem('emailParaLink', email);
+      showToast('Te enviamos un link a tu correo. Abrilo desde este mismo dispositivo.');
+    } catch (error) {
+      console.error("Error al enviar el link de acceso:", error);
+      showToast('No se pudo enviar el link. Revisá el email e intentá de nuevo.', 'error');
+      throw error;
+    }
+  };
+
   const logout = async () => {
     if (window.confirm("¿Cerrar sesión en Manager3D?")) {
       await signOut(auth);
@@ -676,6 +697,30 @@ export const AppProvider = ({ children }) => {
     }
     return { idEfectivo: currentUser.uid, miembro: false };
   };
+
+  // Completa el login por link mágico cuando el usuario vuelve del mail.
+  // Si el email no está en localStorage (abrió el link en otro dispositivo
+  // o navegador distinto al que lo pidió), se lo pedimos manualmente.
+  useEffect(() => {
+    if (!isSignInWithEmailLink(auth, window.location.href)) return;
+
+    let email = window.localStorage.getItem('emailParaLink');
+    if (!email) {
+      email = window.prompt('Confirmá tu email para completar el ingreso:');
+    }
+    if (!email) return;
+
+    signInWithEmailLink(auth, email, window.location.href)
+      .then(() => {
+        window.localStorage.removeItem('emailParaLink');
+        window.history.replaceState(null, '', window.location.pathname);
+        showToast('Sesión iniciada');
+      })
+      .catch((error) => {
+        console.error("Error al completar el login con el link:", error);
+        showToast('El link no es válido o ya expiró. Pedí uno nuevo.', 'error');
+      });
+  }, []);
 
   // Initial load from Firebase
   useEffect(() => {
@@ -1532,6 +1577,7 @@ export const AppProvider = ({ children }) => {
     datosCargadosOk,
     reintentarCargaDatos,
     loginWithGoogle,
+    loginWithEmailLink,
     logout,
     activePage,
     setActivePage,

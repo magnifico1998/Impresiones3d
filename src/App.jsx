@@ -38,6 +38,7 @@ function App() {
     isAdmin,
     loading,
     loginWithGoogle,
+    loginWithEmailLink,
     activePage,
     setActivePage,
     showToast,
@@ -56,6 +57,29 @@ function App() {
   // que esta pantalla se puede armar con datos reales incluso con el resto
   // de la app bloqueada.
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
+
+  // Login por link de email (alternativa a Google para cuando el popup
+  // falla por bloqueos del navegador). mostrarFormEmail alterna entre el
+  // botón "Ingresar con email" y el input; emailLinkEnviado muestra el
+  // cartel de confirmación con la leyenda de "mismo dispositivo".
+  const [mostrarFormEmail, setMostrarFormEmail] = useState(false);
+  const [emailLinkInput, setEmailLinkInput] = useState('');
+  const [emailLinkEnviando, setEmailLinkEnviando] = useState(false);
+  const [emailLinkEnviado, setEmailLinkEnviado] = useState(false);
+
+  const handleEnviarEmailLink = async (e) => {
+    e.preventDefault();
+    if (!emailLinkInput.trim()) return;
+    setEmailLinkEnviando(true);
+    try {
+      await loginWithEmailLink(emailLinkInput.trim());
+      setEmailLinkEnviado(true);
+    } catch (e) {
+      // el toast de error ya lo muestra loginWithEmailLink
+    } finally {
+      setEmailLinkEnviando(false);
+    }
+  };
 
   // Modals visibility state
   const [modalClienteOpen, setModalClienteOpen] = useState(false);
@@ -195,6 +219,62 @@ function App() {
           </svg>
           Iniciar sesión con Google
         </button>
+
+        {emailLinkEnviado ? (
+          <div style={{
+            maxWidth: '320px',
+            textAlign: 'center',
+            fontSize: '13px',
+            color: 'var(--text2)',
+            fontFamily: 'var(--sans)',
+            background: 'var(--accentDim)',
+            border: '1px solid var(--accent)',
+            borderRadius: 'var(--radius2)',
+            padding: '12px 16px'
+          }}>
+            Te enviamos un link a <strong>{emailLinkInput.trim()}</strong>.
+            Abrilo <strong>desde este mismo dispositivo y navegador</strong> para completar el ingreso
+            (si lo abrís desde otro celular o PC, te vamos a pedir el email de nuevo).
+          </div>
+        ) : mostrarFormEmail ? (
+          <form onSubmit={handleEnviarEmailLink} style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '260px' }}>
+            <input
+              type="email"
+              id="email-link-login"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              required
+              placeholder="tu@email.com"
+              value={emailLinkInput}
+              onChange={(e) => setEmailLinkInput(e.target.value)}
+              className="input"
+              style={{ fontSize: '14px', padding: '10px 12px', borderRadius: 'var(--radius2)' }}
+            />
+            <button
+              type="submit"
+              disabled={emailLinkEnviando}
+              className="btn"
+              style={{ fontSize: '13px', padding: '9px 16px', borderRadius: 'var(--radius2)' }}
+            >
+              {emailLinkEnviando ? 'Enviando...' : 'Enviarme el link de acceso'}
+            </button>
+          </form>
+        ) : (
+          <button
+            onClick={() => setMostrarFormEmail(true)}
+            className="btn"
+            style={{
+              fontSize: '13px',
+              padding: '9px 16px',
+              borderRadius: 'var(--radius2)',
+              background: 'transparent',
+              color: 'var(--text2)'
+            }}
+          >
+            Ingresar con email (sin contraseña)
+          </button>
+        )}
       </div>
     );
   }
