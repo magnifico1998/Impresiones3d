@@ -11,6 +11,7 @@ const { webhookMercadoPago } = require('./http/webhookMercadoPago');
 const { agregarMiembro, quitarMiembro } = require('./http/gestionarMiembros');
 const { borrarCuenta } = require('./http/borrarCuenta');
 const { transicionSuscripciones } = require('./scheduled/transicionSuscripciones');
+const { onNuevaSolicitudContacto } = require('./triggers/onNuevaSolicitudContacto');
 
 module.exports = {
   onNuevoUsuario,
@@ -22,5 +23,6 @@ module.exports = {
   agregarMiembro,
   quitarMiembro,
   borrarCuenta,
-  transicionSuscripciones
+  transicionSuscripciones,
+  onNuevaSolicitudContacto
 };

@@ -1,5 +1,8 @@
 const functionsV1 = require('firebase-functions/v1');
+const { logger } = require('firebase-functions');
 const { db, Timestamp, DIA_MS, DURACION_TRIAL_DIAS } = require('../admin');
+const { enviarEmail, gmailAppPassword, EMAIL_ADMIN } = require('../mailer');
+const { plantillaNuevoSuscriptor } = require('../emailTemplates');
 
 // Se dispara cuando alguien se loguea por primera vez con Google (Firebase
 // Auth crea la cuenta al vuelo). Le arma su doc de suscripción en estado
@@ -8,7 +11,10 @@ const { db, Timestamp, DIA_MS, DURACION_TRIAL_DIAS } = require('../admin');
 // Usa el trigger de Auth "v1" (functions.auth.user().onCreate) porque en v2
 // todavía no hay un equivalente onCreate estable para nuevas cuentas -- lo
 // mezclamos sin problema con el resto de las funciones en v2.
-exports.onNuevoUsuario = functionsV1.auth.user().onCreate(async (user) => {
+exports.onNuevoUsuario = functionsV1
+  .runWith({ secrets: [gmailAppPassword] })
+  .auth.user()
+  .onCreate(async (user) => {
   const ahora = Timestamp.now();
   const trialFin = Timestamp.fromMillis(ahora.toMillis() + DURACION_TRIAL_DIAS * DIA_MS);
 
@@ -32,4 +38,11 @@ exports.onNuevoUsuario = functionsV1.auth.user().onCreate(async (user) => {
     fecha: ahora,
     detalle: { email: user.email || null }
   });
+
+  try {
+    const { subject, html } = plantillaNuevoSuscriptor(user.email);
+    await enviarEmail({ to: EMAIL_ADMIN, subject, html });
+  } catch (e) {
+    logger.error('Error al enviar mail de nuevo suscriptor:', e);
+  }
 });
