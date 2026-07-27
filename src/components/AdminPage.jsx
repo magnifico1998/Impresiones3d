@@ -653,8 +653,9 @@ export default function AdminPage() {
                                 style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
                                 disabled={accionEnCurso === `${c.uid}:activar`}
                                 onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null)}
+                                title="Si la cuenta ya venció (lectura/suspendida), la reactiva desde hoy. Si todavía está vigente, prorroga un ciclo desde el vencimiento actual."
                               >
-                                Activar
+                                Renovar suscripción
                               </button>
                               <button
                                 className="btn"

@@ -39,7 +39,7 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
   // exista algo previo sobre lo que actuar (no tiene sentido "extender el
   // trial" de una cuenta que nunca tuvo uno).
   if (!subSnap.exists && accion !== 'activar' && accion !== 'reactivar') {
-    throw new HttpsError('not-found', 'Esa cuenta todavía no tiene suscripción inicializada. Usá "Activar" para darla de alta.');
+    throw new HttpsError('not-found', 'Esa cuenta todavía no tiene suscripción inicializada. Usá "Renovar suscripción" para darla de alta.');
   }
   const datosPrevios = subSnap.exists ? subSnap.data() : {};
 
@@ -61,16 +61,29 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
 
   switch (accion) {
     case 'activar': {
-      // Ancla el ciclo al día de HOY (o al día en que Mercado Pago
-      // confirme el pago, cuando se conecte el webhook), no al mes
-      // calendario -- ver definición de Fase 1.
-      const cicloFin = sumarMesCalendario(ahora);
+      // Botón "Renovar suscripción" del panel: cubre tanto dar de alta /
+      // reactivar una cuenta caída como renovar una que sigue vigente.
+      //   - Si la cuenta YA está vigente (trial o ciclo pago que todavía
+      //     no venció), se PRORROGA: el ciclo nuevo arranca desde el
+      //     vencimiento actual (no desde hoy), para no resignarle al
+      //     suscriptor los días que le quedaban si paga antes de vencer.
+      //   - Si no está vigente (nunca tuvo suscripción, o ya venció:
+      //     lectura/suspendida/trial vencido), arranca de cero desde hoy.
+      const vencimientoVigente = datosPrevios.estado === 'trial'
+        ? datosPrevios.trialFin
+        : datosPrevios.estado === 'activa'
+          ? datosPrevios.cicloFin
+          : null;
+      const cicloInicio = (vencimientoVigente && vencimientoVigente.toMillis() > ahora.toMillis())
+        ? vencimientoVigente
+        : ahora;
+      const cicloFin = sumarMesCalendario(cicloInicio);
       update = {
         estado: 'activa',
         planId: planId || datosPrevios.planId || null,
         email: emailCuenta,
-        cicloInicio: ahora,
-        cicloId: formatearFecha(ahora),
+        cicloInicio,
+        cicloId: formatearFecha(cicloInicio),
         cicloFin,
         fechaLimiteLectura: FieldValue.delete()
       };
