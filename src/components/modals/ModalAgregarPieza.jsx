@@ -7,7 +7,7 @@ import { useApp } from '../../context/AppContext';
 // -- antes esto sólo se podía hacer armando el pedido desde Biblioteca, acá
 // se agrega la misma capacidad para la pieza que sale de la Calculadora.
 export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, defaultPedidoId, onConfirm }) {
-  const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast, cfg } = useApp();
+  const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast, cfg, fmt } = useApp();
   const [nombre, setNombre] = useState('');
   const [destino, setDestino] = useState('nuevo');
   const [cliente, setCliente] = useState('');
@@ -36,7 +36,6 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
 
   if (!isOpen || !presupuestoActual) return null;
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const badgeText = (e) =>
     ({

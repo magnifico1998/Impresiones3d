@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 
-const fmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 const fmtNumber = (n) => typeof n === 'number' ? n.toFixed(2) : '—';
 
 const getFilamentPriceKg = (product, cfg, type) => {
@@ -89,7 +88,7 @@ const calculateNewProduct = (product, cfg) => {
 };
 
 export default function ActualizacionMasivaPage() {
-  const { biblioteca, updateProducto, updateProductosBulk, cfg, showToast } = useApp();
+  const { biblioteca, updateProducto, updateProductosBulk, cfg, showToast, fmt } = useApp();
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [priceOverrides, setPriceOverrides] = useState({});
 

@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 
 export default function ModalBibUsar({ isOpen, onClose, onSelectProduct }) {
-  const { biblioteca } = useApp();
+  const { biblioteca, fmt } = useApp();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
 
   if (!isOpen) return null;
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const uniqueCats = Array.from(new Set(biblioteca.map(p => p.cat).filter(Boolean))).sort();
 

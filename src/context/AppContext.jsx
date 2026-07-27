@@ -4,6 +4,7 @@ import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, is
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
+import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
 
 const AppContext = createContext();
 
@@ -64,7 +65,8 @@ const defaultEmpresa = {
   telefono: '',
   facebook: '',
   instagram: '',
-  logo: ''
+  logo: '',
+  pais: PAIS_DEFAULT
 };
 
 export const AppProvider = ({ children }) => {
@@ -75,6 +77,13 @@ export const AppProvider = ({ children }) => {
   const [empresa, setEmpresa] = useState(defaultEmpresa);
   const [cfg, setCfg] = useState(defaultCfg);
   const [idCounter, setIdCounter] = useState(1);
+
+  // Derivados del país del emprendimiento (moneda/teléfono) -- ver
+  // src/utils/paises.js. paisActual siempre devuelve un país válido
+  // (cae a Argentina si empresa.pais está vacío o es un id desconocido),
+  // así que fmt nunca rompe aunque la cuenta nunca haya elegido país.
+  const paisActual = obtenerPais(empresa.pais || PAIS_DEFAULT);
+  const fmt = (n) => formatearMoneda(n, paisActual.id);
 
   // Catálogo web público (colecciones raíz, fuera de users/{uid}, porque
   // las lee gente sin login desde /catalogo). catalogoConfig/meta guarda la
@@ -1558,6 +1567,8 @@ export const AppProvider = ({ children }) => {
     removeCliente,
     empresa,
     setEmpresa,
+    paisActual,
+    fmt,
     cfg,
     setCfg,
     idCounter,

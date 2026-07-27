@@ -6,8 +6,8 @@ const { defineSecret } = require('firebase-functions/params');
 // Nunca vive en el código ni en un archivo del repo.
 const gmailAppPassword = defineSecret('GMAIL_APP_PASSWORD');
 
-const GMAIL_USER = 'gustavokimmel@gmail.com';
-const EMAIL_ADMIN = GMAIL_USER;
+const GMAIL_USER = 'manager3d.app@gmail.com';
+const EMAIL_ADMIN = 'gustavokimmel@gmail.com';
 
 function crearTransporter() {
   return nodemailer.createTransport({

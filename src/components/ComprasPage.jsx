@@ -2,10 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
-  const { compras, removeCompra, showToast } = useApp();
+  const { compras, removeCompra, showToast, fmt } = useApp();
   const [filtroCat, setFiltroCat] = useState('todas');
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   // Calculate statistics panel values
   const stats = useMemo(() => {

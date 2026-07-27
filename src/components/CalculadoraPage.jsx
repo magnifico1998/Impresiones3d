@@ -8,7 +8,7 @@ export default function CalculadoraPage({
   onOpenAgregarPieza,
   resetTick
 }) {
-  const { cfg, biblioteca, showToast } = useApp();
+  const { cfg, biblioteca, showToast, fmt } = useApp();
 
   const [horas, setHoras] = useState(2);
   const [watts, setWatts] = useState(120);
@@ -47,7 +47,6 @@ export default function CalculadoraPage({
 
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const formatH = (s) => {
     const h = Math.floor(s / 3600);

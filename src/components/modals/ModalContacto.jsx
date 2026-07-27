@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { validarTelefono } from '../../utils/paises';
 
 // Formulario de "contactate con el admin". Se guarda en
 // solicitudesContacto/{uid} — un doc por cuenta, así que enviarlo de nuevo
 // simplemente actualiza el mismo registro (ver definición de Fase 0: se
 // manda una vez, después se puede editar).
 export default function ModalContacto({ isOpen, onClose }) {
-  const { user, cuentaId, showToast } = useApp();
+  const { user, cuentaId, showToast, paisActual } = useApp();
 
   const [form, setForm] = useState({
     nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '', condicionImpositiva: '',
@@ -48,9 +49,9 @@ export default function ModalContacto({ isOpen, onClose }) {
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    // El teléfono sólo acepta dígitos, y como máximo 10 (10 dígitos, sin 0 ni 15).
+    // El teléfono sólo acepta dígitos, y como máximo los que tenga el país elegido.
     if (id === 'telefono') {
-      setForm(prev => ({ ...prev, telefono: value.replace(/\D/g, '').slice(0, 10) }));
+      setForm(prev => ({ ...prev, telefono: value.replace(/\D/g, '').slice(0, paisActual.longitudTelefono) }));
       return;
     }
     setForm(prev => ({ ...prev, [id]: value }));
@@ -60,7 +61,7 @@ export default function ModalContacto({ isOpen, onClose }) {
     if (!form.nombre.trim()) return 'Falta el nombre.';
     if (!form.apellido.trim()) return 'Falta el apellido.';
     if (!form.localidad.trim()) return 'Falta la localidad.';
-    if (!/^[0-9]{10}$/.test(form.telefono)) return 'El teléfono debe tener exactamente 10 dígitos, sin 0 ni 15 (ej: 3511234567).';
+    if (!validarTelefono(form.telefono, paisActual.id)) return paisActual.mensajeTelefono;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) return 'El email no es válido.';
     return null;
   };
@@ -135,8 +136,8 @@ export default function ModalContacto({ isOpen, onClose }) {
               <input type="text" id="localidad" value={form.localidad} onChange={handleChange} />
             </div>
             <div>
-              <label className="fl">Teléfono (10 dígitos, sin 0 ni 15)</label>
-              <input type="text" id="telefono" inputMode="numeric" placeholder="3511234567" value={form.telefono} onChange={handleChange} />
+              <label className="fl">Teléfono</label>
+              <input type="text" id="telefono" inputMode="numeric" placeholder={paisActual.mensajeTelefono} value={form.telefono} onChange={handleChange} />
             </div>
             <div>
               <label className="fl">Correo electrónico</label>

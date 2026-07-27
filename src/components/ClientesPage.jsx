@@ -12,11 +12,9 @@ const sortOptions = [
 ];
 
 export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
-  const { clientes, pedidos } = useApp();
+  const { clientes, pedidos, fmt } = useApp();
   const [sortMode, setSortMode] = useState('nombreAsc');
   const [busqueda, setBusqueda] = useState('');
-
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const formatDate = (timestamp) => {
     return timestamp ? new Date(timestamp).toLocaleDateString('es-AR') : '';

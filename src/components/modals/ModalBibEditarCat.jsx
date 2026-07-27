@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
-  const { biblioteca, updateProducto, showToast, cuentaId } = useApp();
+  const { biblioteca, updateProducto, showToast, cuentaId, fmt } = useApp();
   const [categoria, setCategoria] = useState('');
   const [productName, setProductName] = useState('');
   const [precio, setPrecio] = useState('');
@@ -97,7 +97,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     // el usuario sacó la imagen.
     try {
       await updateProducto(editId, { cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagenFinal });
-      showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? '$' + Math.round(cleanPrecio).toLocaleString('es-AR') : 'sin precio'}`);
+      showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? fmt(cleanPrecio) : 'sin precio'}`);
       onClose();
     } catch (err) {
       // updateProducto ya muestra su propio toast de error, pero si además

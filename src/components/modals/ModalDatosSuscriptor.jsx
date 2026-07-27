@@ -74,8 +74,13 @@ export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta
 
   const handleChange = (e) => {
     const { id, value } = e.target;
+    // Este modal lo usa el admin para editar suscriptores de CUALQUIER
+    // país (no hay forma de saber acá el país de ese suscriptor en
+    // particular, a diferencia de los formularios que llena el propio
+    // usuario), así que el teléfono se valida con un rango genérico en
+    // vez del formato exacto de un país puntual.
     if (id === 'telefono') {
-      setForm(prev => ({ ...prev, telefono: value.replace(/\D/g, '').slice(0, 10) }));
+      setForm(prev => ({ ...prev, telefono: value.replace(/\D/g, '').slice(0, 15) }));
       return;
     }
     setForm(prev => ({ ...prev, [id]: value }));
@@ -84,7 +89,7 @@ export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta
   const validar = () => {
     if (!form.nombre.trim()) return 'Falta el nombre.';
     if (!form.apellido.trim()) return 'Falta el apellido.';
-    if (form.telefono && !/^[0-9]{10}$/.test(form.telefono)) return 'El teléfono debe tener exactamente 10 dígitos, sin 0 ni 15 (ej: 3511234567).';
+    if (form.telefono && !/^[0-9]{6,15}$/.test(form.telefono)) return 'El teléfono debe tener entre 6 y 15 dígitos.';
     if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) return 'El email no es válido.';
     return null;
   };
@@ -150,8 +155,8 @@ export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta
               <input type="text" id="localidad" value={form.localidad} onChange={handleChange} />
             </div>
             <div>
-              <label className="fl">Teléfono (10 dígitos, sin 0 ni 15)</label>
-              <input type="text" id="telefono" inputMode="numeric" placeholder="3511234567" value={form.telefono} onChange={handleChange} />
+              <label className="fl">Teléfono</label>
+              <input type="text" id="telefono" inputMode="numeric" placeholder="Ej: 3511234567" value={form.telefono} onChange={handleChange} />
             </div>
             <div>
               <label className="fl">Correo electrónico</label>

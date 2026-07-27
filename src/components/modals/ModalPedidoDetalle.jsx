@@ -9,9 +9,10 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     updatePedido, 
     removePedido, 
     cfg, 
-    clientes, 
-    empresa, 
-    showToast 
+    clientes,
+    empresa,
+    showToast,
+    fmt
   } = useApp();
 
   const [draft, setDraft] = useState(null);
@@ -44,7 +45,6 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
   if (!isOpen || !draft) return null;
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
 
 

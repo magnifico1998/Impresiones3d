@@ -17,7 +17,8 @@ export default function CatalogoAdminPage() {
     importarSolicitudComoPedido,
     descartarSolicitud,
     pedidos,
-    showToast
+    showToast,
+    fmt
   } = useApp();
 
   // Selección de productos a publicar: arranca con lo que ya está marcado
@@ -127,7 +128,6 @@ export default function CatalogoAdminPage() {
     setImportandoId(null);
   };
 
-  const fmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 
   return (
     <div>

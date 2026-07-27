@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import { paletas } from './paletas';
 import { ordenarCategorias } from './categoriaOrden';
 import { loadImageAsBase64 } from './loadImageAsBase64';
+import { formatearMoneda } from './paises';
 
 // Colores "neutros" que no dependen de la paleta: el precio se mantiene
 // siempre en verde (significado semántico) y los grises de texto/bordes
@@ -260,7 +261,7 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, 
 
       // Precio como badge
       const precio = prod.precioSugUnitario || prod.costoUnitario || 0;
-      const precioTxt = `$${new Intl.NumberFormat('es-AR').format(Math.round(precio))}`;
+      const precioTxt = formatearMoneda(precio, empresa?.pais);
       pdf.setFontSize(9.5);
       pdf.setFont(undefined, 'bold');
       const badgeW = Math.min(cardWidth - 6, pdf.getTextWidth(precioTxt) + 8);

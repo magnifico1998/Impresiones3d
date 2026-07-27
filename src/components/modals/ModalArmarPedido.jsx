@@ -10,7 +10,8 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
     cfg, 
     getNewId, 
     showToast,
-    setActivePage
+    setActivePage,
+    fmt
   } = useApp();
 
   const [armarPedidoItems, setArmarPedidoItems] = useState([]);
@@ -70,7 +71,6 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
 
   if (!isOpen || !selectedProdIds || selectedProdIds.size === 0) return null;
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const badgeText = (e) =>
     ({

@@ -134,8 +134,8 @@ function recalcularProducto(prod, cfg) {
  * Modal de confirmación: muestra antes/después y permite seleccionar qué actualizar
  */
 function ModalRecalcular({ items, onConfirm, onClose }) {
+  const { fmt } = useApp();
   const [selectedIds, setSelectedIds] = useState(new Set(items.map(it => it.prod.id)));
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const handleToggleAll = (v) =>
     setSelectedIds(v ? new Set(items.map(it => it.prod.id)) : new Set());
@@ -308,7 +308,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
  * Componente principal BibliotecaPage
  */
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido }) {
-  const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa } = useApp();
+  const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa, fmt } = useApp();
 
   const [q, setQ] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -322,8 +322,6 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   // Categorías colapsadas por defecto: con muchos productos, agrupar y
   // colapsar por categoría ordena la vista. Se abren a demanda.
   const [catsExpandidas, setCatsExpandidas] = useState(() => new Set());
-
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const uniqueCats = useMemo(
     () => ordenarCategorias(
@@ -767,10 +765,10 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 }
 
 function ModalAjustarPrecio({ items, onConfirm, onClose }) {
+  const { fmt } = useApp();
   const [selectedIds, setSelectedIds] = useState(new Set(items.map(it => it.prod.id)));
   const [mode, setMode] = useState('percent');
   const [value, setValue] = useState('10');
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const handleToggleAll = (v) => setSelectedIds(v ? new Set(items.map(it => it.prod.id)) : new Set());
   const handleToggle = (id) => setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });

@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { precioNeto } from '../../utils/precioNeto';
 
 export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit, onViewOrder }) {
-  const { clientes, removeCliente, pedidos, showToast } = useApp();
+  const { clientes, removeCliente, pedidos, showToast, fmt } = useApp();
 
   if (!isOpen || clientId === null) return null;
 
@@ -35,7 +35,6 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
 
   const misPedidosSort = [...misPedidos].sort((a, b) => getTimestamp(b) - getTimestamp(a));
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const badgeText = (e) =>
     ({

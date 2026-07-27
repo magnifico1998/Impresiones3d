@@ -4,13 +4,12 @@ import { precioNeto } from '../utils/precioNeto';
 import { calcularFechaCompletado } from '../utils/fechaCompletado';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
-  const { pedidos, updatePedido, showToast } = useApp();
+  const { pedidos, updatePedido, showToast, fmt } = useApp();
 
   // Los completados quedan colapsados por defecto: con el tiempo se
   // acumulan y ocupan espacio sin aportar nada al vistazo diario.
   const [completadosExpandido, setCompletadosExpandido] = useState(false);
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const esUrgente = (p) => {
     if (!p.fechaEntrega || p.estado === 'completado' || p.estado === 'listo' || p.estado === 'enviado' || p.estado === 'cancelado') return false;

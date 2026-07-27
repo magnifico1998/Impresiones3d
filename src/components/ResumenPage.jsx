@@ -79,7 +79,7 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
 }
 
 export default function ResumenPage() {
-  const { pedidos, compras, suscripcion, planContratado } = useApp();
+  const { pedidos, compras, suscripcion, planContratado, fmt } = useApp();
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
 
   const [diasPeriodo, setDiasPeriodo] = useState(7);
@@ -88,7 +88,6 @@ export default function ResumenPage() {
 
   const canvasRef = useRef(null);
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const parseFechaCreado = (str) => {
     if (!str) return null;

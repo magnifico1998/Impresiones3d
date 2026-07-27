@@ -1,7 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../utils/imageCompress';
+import { paisesList, PAIS_DEFAULT } from '../utils/paises';
 
+// Nota: esto es el precio del PLAN de Manager3D (lo que le pagás a
+// Manager3D), no un monto del negocio del usuario -- se muestra siempre
+// en pesos argentinos independientemente del país elegido más abajo (ver
+// selector de país), igual que el panel de AdminPage.
 const fmtMoneda = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 
 // Barra de consumo de un ítem del plan. limite === null/undefined significa
@@ -31,7 +36,8 @@ function BarraConsumo({ etiqueta, usado, limite, formatear = (n) => n.toLocaleSt
 export default function EmpresaPage() {
   const {
     empresa, setEmpresa, showToast, cuentaId, esMiembro, miembros,
-    agregarMiembro, quitarMiembro, suscripcion, planContratado, consumoActual, biblioteca
+    agregarMiembro, quitarMiembro, suscripcion, planContratado, consumoActual, biblioteca,
+    guardarCatalogoConfig
   } = useApp();
   const fileInputRef = useRef(null);
 
@@ -65,6 +71,17 @@ export default function EmpresaPage() {
       ...prev,
       [id]: value
     }));
+  };
+
+  // El país determina moneda y formato de teléfono en toda la app (ver
+  // src/utils/paises.js). Se espeja también en catalogoTiendas/{uid} para
+  // que el catálogo público (sin sesión) pueda formatear precios y
+  // validar el teléfono del cliente sin depender del contexto de la
+  // cuenta logueada.
+  const handlePaisChange = (e) => {
+    const pais = e.target.value;
+    setEmpresa(prev => ({ ...prev, pais }));
+    guardarCatalogoConfig({ pais });
   };
 
   const [subiendoLogo, setSubiendoLogo] = useState(false);
@@ -208,13 +225,23 @@ export default function EmpresaPage() {
             />
             
             <label className="fl">Código postal</label>
-            <input 
-              type="text" 
-              id="cp" 
-              value={empresa.cp || ''} 
-              placeholder="Ej: X5000" 
-              onChange={handleChange} 
+            <input
+              type="text"
+              id="cp"
+              value={empresa.cp || ''}
+              placeholder="Ej: X5000"
+              onChange={handleChange}
             />
+
+            <label className="fl">País del emprendimiento</label>
+            <select id="pais" value={empresa.pais || PAIS_DEFAULT} onChange={handlePaisChange}>
+              {paisesList.map(p => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+            </select>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+              Define la moneda de los precios y el formato de teléfono en toda la app.
+            </div>
           </div>
         </div>
 

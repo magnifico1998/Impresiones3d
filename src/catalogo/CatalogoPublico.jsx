@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { db, functions } from '../firebase';
 import { collection, doc, getDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
+import { obtenerPais, validarTelefono, formatearMoneda } from '../utils/paises';
 
-const fmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 const newLocalId = () => Date.now() + Math.random();
 
 // Mobile-first por defecto (así se comparte por WhatsApp y se abre en el
@@ -37,6 +37,12 @@ export default function CatalogoPublico() {
   }, []);
 
   const [config, setConfig] = useState(undefined); // undefined = cargando, null = no existe
+
+  // País de la tienda (moneda + formato de teléfono): se espeja en
+  // catalogoTiendas/{uid} cuando el dueño lo elige en EmpresaPage (ver
+  // AppContext), con fallback a Argentina si la tienda nunca lo seteó.
+  const pais = obtenerPais(config?.pais);
+  const fmt = (n) => formatearMoneda(n, pais.id);
   const [productos, setProductos] = useState([]);
   const [cargandoProductos, setCargandoProductos] = useState(true);
   const [catAbierta, setCatAbierta] = useState(null);
@@ -199,8 +205,8 @@ export default function CatalogoPublico() {
       alert('Dejanos un teléfono de contacto para poder coordinar el pedido.');
       return;
     }
-    if (telefono.trim().length !== 10) {
-      alert('El teléfono debe tener 10 dígitos, sin el 0 ni el 15 (ej: 1123456789).');
+    if (!validarTelefono(telefono, pais.id)) {
+      alert(pais.mensajeTelefono);
       return;
     }
     if (!carrito.length || cantidadCarrito === 0) {
@@ -476,14 +482,14 @@ export default function CatalogoPublico() {
                 <label className="fl" style={{ marginTop: 0 }}>Tu nombre *</label>
                 <input type="text" value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Nombre y apellido" />
 
-                <label className="fl">Teléfono / WhatsApp * <span style={{ fontWeight: 400, color: 'var(--text3)' }}>(sin 0 ni 15)</span></label>
+                <label className="fl">Teléfono / WhatsApp *</label>
                 <input
                   type="tel"
                   inputMode="numeric"
-                  maxLength={10}
+                  maxLength={pais.longitudTelefono}
                   value={telefono}
-                  onChange={(e) => setTelefono(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="Ej: 1123456789"
+                  onChange={(e) => setTelefono(e.target.value.replace(/\D/g, '').slice(0, pais.longitudTelefono))}
+                  placeholder={pais.mensajeTelefono}
                 />
 
                 <label className="fl">Email (opcional)</label>

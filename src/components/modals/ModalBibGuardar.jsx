@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 
 export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, onGuardado }) {
-  const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado } = useApp();
+  const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado, fmt } = useApp();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState('');
@@ -54,7 +54,6 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
 
   if (!isOpen || !presupuestoActual) return null;
 
-  const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-AR');
 
   const handleSave = async () => {
     const nameTrimmed = nombre.trim();
