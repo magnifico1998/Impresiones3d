@@ -435,14 +435,8 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const removePedido = async (id) => {
-    try {
-      await deleteDoc(pedidoDocRef(id));
-    } catch (e) {
-      console.error("Error al eliminar pedido:", e);
-      showToast('⚠ No se pudo eliminar el pedido en la nube.', 'error');
-    }
-  };
+  // Los pedidos no se eliminan: sólo se cancelan (estado 'cancelado' desde
+  // PedidosPage o ModalPedidoDetalle). Por eso no existe un removePedido.
 
   // predicate: (pedido) => boolean. updater: (pedido) => nuevoPedido.
   const updatePedidosBulk = async (predicate, updater) => {
@@ -1436,7 +1430,6 @@ export const AppProvider = ({ children }) => {
     pedidos,
     addPedido,
     updatePedido,
-    removePedido,
     updatePedidosBulk,
     compras,
     addCompra,

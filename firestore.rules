@@ -126,7 +126,9 @@ service cloud.firestore {
     }
     match /users/{uid}/pedidos/{docId} {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
-      allow update, delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+      // Los pedidos no se borran, sólo se cancelan (estado 'cancelado'):
+      // no se permite delete, ni siquiera para el dueño de la cuenta.
+      allow update: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
 
       // Crear un pedido nuevo exige además que la cuenta no esté en modo
       // lectura/suspendida, y que no haya superado el límite de pedidos

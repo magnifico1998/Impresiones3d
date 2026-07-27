@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { jsPDF } from 'jspdf';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
+import { calcularFechaCompletado } from '../../utils/fechaCompletado';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
-  const { 
-    pedidos, 
-    updatePedido, 
-    removePedido, 
-    cfg, 
+  const {
+    pedidos,
+    updatePedido,
+    cfg,
     clientes,
     empresa,
     showToast,
@@ -89,10 +89,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     onClose();
   };
 
-  const handleDeletePedido = () => {
-    if (window.confirm('¿Eliminar este pedido y todas sus piezas?')) {
-      removePedido(draft.id);
-      showToast('Pedido eliminado', 'info');
+  const handleCancelarPedido = () => {
+    if (window.confirm('¿Cancelar este pedido? Va a quedar marcado como cancelado, pero no se borra.')) {
+      updatePedido(draft.id, (p) => ({
+        ...p,
+        estado: 'cancelado',
+        fechaCompletado: calcularFechaCompletado(p.estado, p.fechaCompletado, 'cancelado')
+      }));
+      showToast('Pedido cancelado', 'info');
       onClose();
     }
   };
@@ -1205,7 +1209,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         />
 
         <div className="modal-footer">
-          <button className="btn btn-danger btn-sm" onClick={handleDeletePedido}>Eliminar pedido</button>
+          {draft.estado !== 'cancelado' && (
+            <button className="btn btn-danger btn-sm" onClick={handleCancelarPedido}>Cancelar pedido</button>
+          )}
 
           {draft.estado === 'en_verificacion' && (
             <button className="btn" onClick={handleGenerarResumenTexto} title="Copia un resumen en texto con cantidad, producto, monto y total (sin envío)">
