@@ -184,13 +184,8 @@ export const AppProvider = ({ children }) => {
   };
 
   // ---------------------------------------------------------------------
-  // FASE 5 (limpieza final): compras era la última sección que seguía con
-  // el patrón "array + autosave debounced" de Fase 0 sobre el documento
-  // monolítico users/{uid}. Con esto, las 5 secciones (meta/config,
-  // clientes, biblioteca, pedidos, compras) ya viven cada una en su propio
-  // lugar en Firestore, y el documento users/{uid} deja de usarse para
-  // guardar datos — sólo se lee una vez, al migrar, por si un usuario
-  // viejo todavía tiene algo ahí (ver cargarDatosDeFirestore).
+  // Compras: subcolección propia (users/{uid}/compras/{compraId}), un
+  // documento por compra, escritura directa en cada add/update/remove.
   const compraDocRef = (id) => doc(db, "users", cuentaId, "compras", String(id));
 
   const addCompra = async (item) => {
@@ -221,20 +216,6 @@ export const AppProvider = ({ children }) => {
       console.error("Error al eliminar compra:", e);
       showToast('⚠ No se pudo eliminar la compra en la nube.', 'error');
     }
-  };
-
-  const migrarComprasSiHaceFalta = async (uid, legacyCompras) => {
-    const colRef = collection(db, "users", uid, "compras");
-    const snap = await getDocs(colRef);
-    if (!snap.empty) return;
-    if (!legacyCompras || legacyCompras.length === 0) return;
-
-    const batch = writeBatch(db);
-    legacyCompras.forEach(c => {
-      batch.set(doc(db, "users", uid, "compras", String(c.id)), c);
-    });
-    await batch.commit();
-    console.log(`Fase 5: ${legacyCompras.length} compra(s) migrada(s) a users/{uid}/compras.`);
   };
 
   // ---------------------------------------------------------------------
@@ -284,23 +265,6 @@ export const AppProvider = ({ children }) => {
       console.error("Error al eliminar cliente:", e);
       showToast('⚠ No se pudo eliminar el cliente en la nube.', 'error');
     }
-  };
-
-  // Migra los clientes del documento monolítico legacy (si existían) a la
-  // subcolección nueva, sólo la primera vez: si la subcolección ya tiene
-  // documentos, no hace nada.
-  const migrarClientesSiHaceFalta = async (uid, legacyClientes) => {
-    const colRef = collection(db, "users", uid, "clientes");
-    const snap = await getDocs(colRef);
-    if (!snap.empty) return;
-    if (!legacyClientes || legacyClientes.length === 0) return;
-
-    const batch = writeBatch(db);
-    legacyClientes.forEach(c => {
-      batch.set(doc(db, "users", uid, "clientes", String(c.id)), c);
-    });
-    await batch.commit();
-    console.log(`Fase 2: ${legacyClientes.length} cliente(s) migrados a users/{uid}/clientes.`);
   };
 
   // ---------------------------------------------------------------------
@@ -429,20 +393,6 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const migrarBibliotecaSiHaceFalta = async (uid, legacyBiblioteca) => {
-    const colRef = collection(db, "users", uid, "biblioteca");
-    const snap = await getDocs(colRef);
-    if (!snap.empty) return;
-    if (!legacyBiblioteca || legacyBiblioteca.length === 0) return;
-
-    const batch = writeBatch(db);
-    legacyBiblioteca.forEach(p => {
-      batch.set(doc(db, "users", uid, "biblioteca", String(p.id)), p);
-    });
-    await batch.commit();
-    console.log(`Fase 3: ${legacyBiblioteca.length} producto(s) migrados a users/{uid}/biblioteca.`);
-  };
-
   // ---------------------------------------------------------------------
   // FASE 4 de la migración a Firestore por secciones: pedidos pasa de ser
   // un array dentro del documento monolítico a una subcolección propia
@@ -511,20 +461,6 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const migrarPedidosSiHaceFalta = async (uid, legacyPedidos) => {
-    const colRef = collection(db, "users", uid, "pedidos");
-    const snap = await getDocs(colRef);
-    if (!snap.empty) return;
-    if (!legacyPedidos || legacyPedidos.length === 0) return;
-
-    const batch = writeBatch(db);
-    legacyPedidos.forEach(p => {
-      batch.set(doc(db, "users", uid, "pedidos", String(p.id)), p);
-    });
-    await batch.commit();
-    console.log(`Fase 4: ${legacyPedidos.length} pedido(s) migrados a users/{uid}/pedidos.`);
-  };
-
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -563,23 +499,12 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Limpia imágenes base64 antiguas de la biblioteca (migración automática)
-  const limpiarImagenesBase64 = (biblioteca) => {
-    return biblioteca.map(prod => {
-      if (prod.imagen && prod.imagen.startsWith('data:')) {
-        console.log(`Migrando producto: ${prod.nombre} - removiendo imagen base64`);
-        return { ...prod, imagen: null };
-      }
-      return prod;
-    });
-  };
-
   // Carga config + empresa + counter desde su documento propio
-  // (users/{uid}/meta/config). Si todavía no existe (usuario no migrado a
-  // Fase 1 todavía), cae de nuevo al documento monolítico legacy y, en el
-  // mismo momento, escribe ya la versión separada — así la próxima carga
-  // de esta sección no necesita el fallback.
-  const cargarConfigDeFirestore = async (uid, legacyCloud) => {
+  // (users/{uid}/meta/config). Si todavía no existe (cuenta nueva que abre
+  // la app por primera vez), lo crea con los valores default — ver el
+  // comentario de users/{uid}/meta en firestore.rules: esa creación tiene
+  // que poder pasar siempre.
+  const cargarConfigDeFirestore = async (uid) => {
     const metaRef = doc(db, "users", uid, "meta", "config");
     const metaSnap = await getDoc(metaRef);
 
@@ -593,66 +518,33 @@ export const AppProvider = ({ children }) => {
       return;
     }
 
-    // Fallback: usuario todavía no migrado a Fase 1. legacyCloud puede
-    // venir de un documento users/{uid} ya existente (usuario viejo) o ser
-    // null (usuario nuevo, sin nada todavía en ningún lado).
-    const cfgFallback = legacyCloud?.config ?? defaultCfg;
-    const empresaFallback = legacyCloud?.empresa ?? defaultEmpresa;
-    const counterFallback = Number(legacyCloud?.counter ?? 1);
+    // Cuenta nueva: inicializamos meta/config con los valores default.
+    setCfg(defaultCfg);
+    setEmpresa(defaultEmpresa);
+    setIdCounter(1);
 
-    setCfg(cfgFallback);
-    setEmpresa(empresaFallback);
-    setIdCounter(counterFallback);
-
-    const migrationTimestamp = new Date().toISOString();
-    const metaPayload = {
-      config: cfgFallback,
-      empresa: empresaFallback,
-      counter: counterFallback,
-      ultimaActualizacion: migrationTimestamp
-    };
-    await setDoc(metaRef, metaPayload);
-    lastWrittenTimestampRefMeta.current = migrationTimestamp;
+    const timestampInicial = new Date().toISOString();
+    await setDoc(metaRef, {
+      config: defaultCfg,
+      empresa: defaultEmpresa,
+      counter: 1,
+      ultimaActualizacion: timestampInicial
+    });
+    lastWrittenTimestampRefMeta.current = timestampInicial;
     pendingWriteTimestampRefMeta.current = null;
-    console.log("Fase 1: config/empresa/counter migrados a users/{uid}/meta/config.");
   };
 
   // Load data from Firestore
   const cargarDatosDeFirestore = async (uid) => {
     try {
       console.log("Cargando datos desde Firebase...");
-      // FASE 5 (limpieza final): el documento users/{uid} ya no es la fuente
-      // de verdad de nada — cada sección vive en su propia subcolección
-      // (meta/config, clientes, biblioteca, pedidos, compras). Este doc
-      // sólo se lee acá, una vez, por si un usuario todavía tiene datos
-      // legacy sin migrar (por ejemplo, alguien que no abrió la app desde
-      // antes de la Fase 1). Si existe, migramos lo que haga falta y
-      // borramos el documento — no vuelve a usarse nunca más.
-      const docRef = doc(db, "users", uid);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const cloud = docSnap.data();
-        const bibliotecaLimpia = limpiarImagenesBase64(cloud.biblioteca ?? []);
-
-        await migrarPedidosSiHaceFalta(uid, cloud.pedidos ?? []);
-        await migrarBibliotecaSiHaceFalta(uid, bibliotecaLimpia);
-        await migrarClientesSiHaceFalta(uid, cloud.clientes ?? []);
-        await migrarComprasSiHaceFalta(uid, cloud.compras ?? []);
-        await cargarConfigDeFirestore(uid, cloud);
-
-        // Ya migramos todo lo que pudiera haber legacy acá — el documento
-        // monolítico no se vuelve a leer ni escribir. Lo borramos para no
-        // dejar datos duplicados y desactualizados dando vueltas en la nube.
-        await deleteDoc(docRef);
-        console.log("Fase 5: documento legacy users/{uid} migrado y eliminado.");
-      } else {
-        // Usuario ya migrado (o nuevo): no hay nada que leer del doc
-        // principal. Cada subcolección se crea sola en el primer
-        // addCliente/addProducto/addPedido/addCompra, y meta/config se
-        // inicializa con sus valores default en cargarConfigDeFirestore.
-        await cargarConfigDeFirestore(uid, null);
-      }
+      // Cada sección vive en su propia subcolección (meta/config, clientes,
+      // biblioteca, pedidos, compras). Las subcolecciones se crean solas en
+      // el primer addCliente/addProducto/addPedido/addCompra; meta/config se
+      // inicializa con sus valores default acá si no existe. (El documento
+      // monolítico legacy users/{uid} y su migración Fase 1-5 se retiraron
+      // cuando ya no quedaba ninguna cuenta sin migrar.)
+      await cargarConfigDeFirestore(uid);
 
       // El próximo cambio de cfg/empresa/idCounter que dispare el efecto de
       // autosave de meta/config va a ser el "eco" de haber cargado datos de
