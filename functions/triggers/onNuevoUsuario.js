@@ -2,7 +2,7 @@ const functionsV1 = require('firebase-functions/v1');
 const { logger } = require('firebase-functions');
 const { db, Timestamp, DIA_MS, DURACION_TRIAL_DIAS } = require('../admin');
 const { enviarEmail, gmailAppPassword, EMAIL_ADMIN } = require('../mailer');
-const { plantillaNuevoSuscriptor } = require('../emailTemplates');
+const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
 
 // Se dispara cuando alguien se loguea por primera vez con Google (Firebase
 // Auth crea la cuenta al vuelo). Le arma su doc de suscripción en estado
@@ -39,10 +39,26 @@ exports.onNuevoUsuario = functionsV1
     detalle: { email: user.email || null }
   });
 
+  let overrides = {};
   try {
-    const { subject, html } = plantillaNuevoSuscriptor(user.email);
+    overrides = await obtenerOverridesPlantillas();
+  } catch (e) {
+    logger.error('Error al leer overrides de plantillas de mail:', e);
+  }
+
+  try {
+    const { subject, html } = renderPlantilla('nuevoSuscriptor', { email: user.email || '(sin email)' }, overrides);
     await enviarEmail({ to: EMAIL_ADMIN, subject, html });
   } catch (e) {
     logger.error('Error al enviar mail de nuevo suscriptor:', e);
+  }
+
+  if (user.email) {
+    try {
+      const { subject, html } = renderPlantilla('bienvenida', {}, overrides);
+      await enviarEmail({ to: user.email, subject, html });
+    } catch (e) {
+      logger.error('Error al enviar mail de bienvenida:', e);
+    }
   }
 });

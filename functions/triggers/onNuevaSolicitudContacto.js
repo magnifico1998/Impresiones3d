@@ -1,7 +1,7 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { logger } = require('firebase-functions');
 const { enviarEmail, gmailAppPassword, EMAIL_ADMIN } = require('../mailer');
-const { plantillaNuevaSolicitudContacto } = require('../emailTemplates');
+const { renderPlantilla, obtenerOverridesPlantillas, filasTablaContacto } = require('../emailTemplates');
 
 // solicitudesContacto/{uid} tiene ID fijo = uid (ver ModalContacto.jsx,
 // que hace setDoc con merge), así que reenviar el formulario actualiza el
@@ -12,7 +12,13 @@ exports.onNuevaSolicitudContacto = onDocumentCreated(
   async (event) => {
     const datos = event.data.data();
     try {
-      const { subject, html } = plantillaNuevaSolicitudContacto(datos);
+      const overrides = await obtenerOverridesPlantillas();
+      const vars = {
+        nombre: datos.nombre || '',
+        apellido: datos.apellido || '',
+        filasTabla: filasTablaContacto(datos),
+      };
+      const { subject, html } = renderPlantilla('nuevaSolicitudContacto', vars, overrides);
       await enviarEmail({ to: EMAIL_ADMIN, subject, html });
     } catch (e) {
       logger.error('Error al enviar mail de nueva solicitud de contacto:', e);

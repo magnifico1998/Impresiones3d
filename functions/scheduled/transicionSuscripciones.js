@@ -1,23 +1,20 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { logger } = require('firebase-functions');
-const { db, Timestamp, DIA_MS, DURACION_LECTURA_DIAS } = require('../admin');
+const { db, Timestamp, DIA_MS, DURACION_LECTURA_DIAS, formatearFecha } = require('../admin');
 const { enviarEmail, gmailAppPassword } = require('../mailer');
-const {
-  plantillaAvisoVencimiento,
-  plantillaModoLectura,
-  plantillaAvisoBloqueo,
-  plantillaCuentaBloqueada,
-} = require('../emailTemplates');
+const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
 
 // Manda un mail por cada doc de una lista, sin dejar que un fallo de mail
 // tire abajo nada más (nunca debe afectar la transición de estados real,
 // que es la parte crítica de esta función). Cada doc necesita { email }.
-async function mandarEnLote(docs, construirPlantilla) {
+// `armarVars` arma las variables de esa plantilla a partir del doc (o {} si
+// la plantilla no tiene variables).
+async function mandarEnLote(docs, plantillaId, armarVars, overrides) {
   const resultados = await Promise.allSettled(
     docs.map(async (doc) => {
       const email = doc.data().email;
       if (!email) return;
-      const { subject, html } = construirPlantilla(doc);
+      const { subject, html } = renderPlantilla(plantillaId, armarVars(doc), overrides);
       await enviarEmail({ to: email, subject, html });
     })
   );
@@ -167,16 +164,24 @@ exports.transicionSuscripciones = onSchedule(
     }
 
     // Los mails se mandan DESPUÉS de que el batch se confirmó, para no
-    // avisar de un cambio que en definitiva no se guardó.
-    await Promise.all([
-      mandarEnLote(trialsVencidos.docs, plantillaModoLectura),
-      mandarEnLote(ciclosVencidos.docs, plantillaModoLectura),
-      mandarEnLote(lecturaVencida.docs, plantillaCuentaBloqueada),
-      mandarEnLote(trialsPorVencerAAvisar, (doc) => plantillaAvisoVencimiento(doc.data().trialFin)),
-      mandarEnLote(ciclosPorVencerAAvisar, (doc) => plantillaAvisoVencimiento(doc.data().cicloFin)),
-      mandarEnLote(bloqueo10dAAvisar, () => plantillaAvisoBloqueo(10)),
-      mandarEnLote(bloqueo5dAAvisar, () => plantillaAvisoBloqueo(5)),
-    ]);
+    // avisar de un cambio que en definitiva no se guardó. Los overrides de
+    // plantillas se leen una sola vez acá y se reusan en todo el lote, en
+    // vez de una lectura a Firestore por cada mail individual.
+    try {
+      const overrides = await obtenerOverridesPlantillas();
+      const sinVars = () => ({});
+      await Promise.all([
+        mandarEnLote(trialsVencidos.docs, 'modoLectura', sinVars, overrides),
+        mandarEnLote(ciclosVencidos.docs, 'modoLectura', sinVars, overrides),
+        mandarEnLote(lecturaVencida.docs, 'cuentaBloqueada', sinVars, overrides),
+        mandarEnLote(trialsPorVencerAAvisar, 'avisoVencimiento', (doc) => ({ fecha: formatearFecha(doc.data().trialFin) }), overrides),
+        mandarEnLote(ciclosPorVencerAAvisar, 'avisoVencimiento', (doc) => ({ fecha: formatearFecha(doc.data().cicloFin) }), overrides),
+        mandarEnLote(bloqueo10dAAvisar, 'avisoBloqueo', () => ({ diasRestantes: '10' }), overrides),
+        mandarEnLote(bloqueo5dAAvisar, 'avisoBloqueo', () => ({ diasRestantes: '5' }), overrides),
+      ]);
+    } catch (e) {
+      logger.error('Error al leer overrides de plantillas de mail:', e);
+    }
 
     logger.info(
       `transicionSuscripciones: ${trialsVencidos.size} trial->lectura, ${ciclosVencidos.size} activa->lectura, ` +

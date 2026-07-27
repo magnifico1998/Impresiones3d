@@ -5,6 +5,7 @@ import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy
 import { httpsCallable } from 'firebase/functions';
 import ModalPlan from './modals/ModalPlan';
 import ModalDatosSuscriptor from './modals/ModalDatosSuscriptor';
+import ModalPlantillaEmail from './modals/ModalPlantillaEmail';
 
 // Panel de administración: sólo lo ven los emails presentes en la
 // colección Firestore "admins" (ver App.jsx -> guard de isAdmin y
@@ -56,6 +57,34 @@ export default function AdminPage() {
   // Cuenta cuyos datos de contacto se están viendo/editando desde el botón
   // "Consultar datos" de cada fila (ver más abajo).
   const [cuentaDatosAbierta, setCuentaDatosAbierta] = useState(null);
+
+  // Plantillas de mail transaccional (ver functions/emailTemplates.js y
+  // functions/http/plantillasEmail.js): no viven en una colección propia
+  // con onSnapshot como el resto del panel, se piden por callable porque
+  // hace falta combinar el default hardcodeado en las Cloud Functions con
+  // el override guardado en Firestore, y esa combinación la arma el server.
+  const [plantillasEmail, setPlantillasEmail] = useState([]);
+  const [loadingPlantillasEmail, setLoadingPlantillasEmail] = useState(true);
+  const [listaPlantillasAbierta, setListaPlantillasAbierta] = useState(false);
+  const [plantillaEditando, setPlantillaEditando] = useState(null);
+
+  const cargarPlantillasEmail = async () => {
+    setLoadingPlantillasEmail(true);
+    try {
+      const listar = httpsCallable(functions, 'listarPlantillasEmail');
+      const { data } = await listar();
+      setPlantillasEmail(data.plantillas || []);
+    } catch (e) {
+      console.error('Error al listar plantillas de mail:', e);
+      showToast('No se pudieron cargar las plantillas de mail.', 'error');
+    } finally {
+      setLoadingPlantillasEmail(false);
+    }
+  };
+
+  useEffect(() => {
+    if (listaPlantillasAbierta && plantillasEmail.length === 0) cargarPlantillasEmail();
+  }, [listaPlantillasAbierta]);
 
   const toggleGrupo = (key) => {
     setGruposAbiertos(prev => {
@@ -690,6 +719,53 @@ export default function AdminPage() {
         })}
       </div>
 
+      {/* ---- Plantillas de mail ---- */}
+      <div className="card">
+        <div
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaPlantillasAbierta ? '14px' : 0, cursor: 'pointer' }}
+          onClick={() => setListaPlantillasAbierta(v => !v)}
+        >
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            {listaPlantillasAbierta ? '▾' : '▸'} Plantillas de mail
+          </div>
+        </div>
+
+        {listaPlantillasAbierta && (
+          <>
+            {loadingPlantillasEmail && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+
+            {!loadingPlantillasEmail && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {plantillasEmail.map((p) => (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
+                      padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius2)', background: 'var(--bg)'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                        {p.label}
+                        {p.personalizado && <span className="badge badge-progress" style={{ marginLeft: '8px' }}>personalizada</span>}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '4px' }}>{p.subject}</div>
+                    </div>
+                    <button
+                      className="btn"
+                      style={{ fontSize: '11px', padding: '5px 10px' }}
+                      onClick={() => setPlantillaEditando(p)}
+                    >
+                      Editar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* ---- Administradores actuales ---- */}
       <div className="card">
         <div className="card-title">Administradores actuales</div>
@@ -731,6 +807,13 @@ export default function AdminPage() {
         uid={cuentaDatosAbierta?.uid}
         emailCuenta={cuentaDatosAbierta?.email}
         solicitudInicial={cuentaDatosAbierta?.solicitudInicial}
+      />
+
+      <ModalPlantillaEmail
+        isOpen={!!plantillaEditando}
+        onClose={() => setPlantillaEditando(null)}
+        plantilla={plantillaEditando}
+        onGuardado={cargarPlantillasEmail}
       />
     </div>
   );

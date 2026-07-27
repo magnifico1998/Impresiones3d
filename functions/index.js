@@ -11,6 +11,7 @@ const { agregarMiembro, quitarMiembro } = require('./http/gestionarMiembros');
 const { borrarCuenta } = require('./http/borrarCuenta');
 const { transicionSuscripciones } = require('./scheduled/transicionSuscripciones');
 const { onNuevaSolicitudContacto } = require('./triggers/onNuevaSolicitudContacto');
+const { listarPlantillasEmail, guardarPlantillaEmail, restablecerPlantillaEmail } = require('./http/plantillasEmail');
 
 module.exports = {
   onNuevoUsuario,
@@ -22,5 +23,8 @@ module.exports = {
   quitarMiembro,
   borrarCuenta,
   transicionSuscripciones,
-  onNuevaSolicitudContacto
+  onNuevaSolicitudContacto,
+  listarPlantillasEmail,
+  guardarPlantillaEmail,
+  restablecerPlantillaEmail
 };
