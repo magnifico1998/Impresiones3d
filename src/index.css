@@ -93,8 +93,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 select option{background:var(--bg3)}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);font-family:var(--sans);transition:all .15s;white-space:nowrap}
 .btn:hover{color:var(--text);background:var(--bg2)}
-.btn-primary{background:var(--accent);color:#0a1a12;border-color:var(--accent);font-weight:600}
-.btn-primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a1a12;border-color:var(--accent);font-weight:600}
+.btn-primary:hover{background:linear-gradient(135deg,var(--accent2),var(--accent));border-color:var(--accent2)}
 .btn-ghost{background:none;border-color:transparent;color:var(--text2)}
 .btn-ghost:hover{background:var(--bg3);border-color:var(--border)}
 .btn-danger{color:var(--danger);border-color:transparent;background:none}
@@ -139,6 +139,9 @@ select option{background:var(--bg3)}
 .insumo-qty{width:56px!important;padding:4px 6px!important;font-size:12px!important}
 .cfg-row{display:grid;grid-template-columns:1fr 110px auto;gap:8px;align-items:center;margin-bottom:8px}
 .cfg-row input{font-size:13px}
+.input-money{position:relative}
+.input-money input{padding-left:20px!important}
+.input-money-prefix{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:100;align-items:flex-start;justify-content:center;padding-top:60px;overflow-y:auto}
 .modal-overlay.open{display:flex}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius2);padding:24px;width:100%;max-width:520px;box-shadow:var(--shadow);animation:slideDown .2s ease;margin-bottom:40px}

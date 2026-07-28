@@ -2,12 +2,15 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getAuth } = require('firebase-admin/auth');
 const { db } = require('../admin');
 
-// Purga total de una cuenta que nunca se reactivó tras quedar
-// "suspendida" (30 días de modo lectura vencidos, ver
-// transicionSuscripciones.js). A propósito sólo opera sobre cuentas en ese
-// estado exacto -- es la única forma de asegurarse, del lado del servidor,
-// de que nunca se borre por error una cuenta con datos vivos (trial,
-// activa o incluso en modo lectura todavía). No hay vuelta atrás: no queda
+// Purga total de una cuenta. Pensada originalmente para cuentas que nunca
+// se reactivaron tras quedar "suspendida" (30 días de modo lectura
+// vencidos, ver transicionSuscripciones.js), pero un admin puede forzarla
+// sobre CUALQUIER estado (activa, trial, lectura) sin esperar esos 30 días
+// -- para eso, en vez de exigir un estado puntual, se exige confirmar a
+// mano el email EXACTO de la cuenta (confirmarEmail), que acá se revalida
+// contra el email real (el de la suscripción, o si no está cacheado ahí,
+// el de Firebase Auth) -- así nunca se puede borrar la cuenta equivocada
+// por un clic de más, esté o no bloqueada. No hay vuelta atrás: no queda
 // ningún registro de esta cuenta en Firestore ni en Firebase Auth.
 exports.borrarCuenta = onCall(async (request) => {
   const emailSolicitante = request.auth?.token?.email?.toLowerCase();
@@ -20,14 +23,25 @@ exports.borrarCuenta = onCall(async (request) => {
     throw new HttpsError('permission-denied', 'No tenés permisos de administrador.');
   }
 
-  const { uid } = request.data || {};
+  const { uid, confirmarEmail } = request.data || {};
   if (!uid || typeof uid !== 'string') {
     throw new HttpsError('invalid-argument', 'Falta el uid de la cuenta a borrar.');
   }
+  if (!confirmarEmail || typeof confirmarEmail !== 'string') {
+    throw new HttpsError('invalid-argument', 'Falta confirmar el email de la cuenta a borrar.');
+  }
 
   const subSnap = await db.doc(`users/${uid}/suscripcion/actual`).get();
-  if (!subSnap.exists || subSnap.data().estado !== 'suspendida') {
-    throw new HttpsError('failed-precondition', 'Sólo se pueden borrar cuentas que estén en estado "suspendida".');
+  let emailReal = subSnap.exists ? (subSnap.data().email || null) : null;
+  if (!emailReal) {
+    try {
+      emailReal = (await getAuth().getUser(uid)).email || null;
+    } catch (e) {
+      // Sigue null -- se maneja como "no coincide" más abajo.
+    }
+  }
+  if (!emailReal || emailReal.toLowerCase() !== confirmarEmail.trim().toLowerCase()) {
+    throw new HttpsError('failed-precondition', 'El email no coincide con el de la cuenta. No se borró nada.');
   }
 
   // Datos privados (users/{uid} y todas sus subcolecciones: meta,

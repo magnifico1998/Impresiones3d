@@ -1,10 +1,47 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { db, functions } from '../firebase';
-import { collection, doc, getDoc, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, validarTelefono, formatearMoneda } from '../utils/paises';
 
 const newLocalId = () => Date.now() + Math.random();
+
+// Los campos de redes sociales se cargan en "Mi emprendimiento" como texto
+// libre (ej. "facebook.com/mitienda" o "@mitienda"), no como URL completa
+// -- estas funciones arman el link clickeable a partir de eso, aceptando
+// tanto el formato sugerido como que alguien ya haya pegado la URL entera.
+function urlFacebook(valor) {
+  const v = (valor || '').trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  return `https://${v.replace(/^@/, '')}`;
+}
+
+function urlInstagram(valor) {
+  const v = (valor || '').trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  return `https://instagram.com/${v.replace(/^@/, '')}`;
+}
+
+// La paleta del catálogo (elegida en CatalogoAdminPage, independiente de la
+// paleta de la app) se guarda como 5 colores en catalogoConfig.paletaCatalogo.
+// Como React sí deja poner variables CSS custom en un style inline, alcanza
+// con setearlas en el div raíz de la página -- todo lo demás ya usa
+// var(--bg)/var(--accent)/etc, así que las toman solas por herencia. Si
+// todavía no se eligió ninguna, no se pisa nada y quedan los defaults de
+// :root en index.css.
+function estiloPaleta(config) {
+  const p = config?.paletaCatalogo;
+  if (!p) return {};
+  const estilo = {};
+  if (p.bg) { estilo['--bg'] = p.bg; estilo['--bg2'] = p.bg; }
+  if (p.bg3) estilo['--bg3'] = p.bg3;
+  if (p.accent) estilo['--accent'] = p.accent;
+  if (p.accent2) estilo['--accent2'] = p.accent2;
+  if (p.text) estilo['--text'] = p.text;
+  return estilo;
+}
 
 // Mobile-first por defecto (así se comparte por WhatsApp y se abre en el
 // celular la mayoría de las veces), con un breakpoint de escritorio: el
@@ -64,12 +101,18 @@ export default function CatalogoPublico() {
   const [detalleAbierto, setDetalleAbierto] = useState(null); // prodId o null
   const [draftVersiones, setDraftVersiones] = useState([]);
 
-  // Config pública (colores, nombre, activo/inactivo) de esta tienda
+  // Config pública (colores, nombre, activo/inactivo) de esta tienda -- en
+  // vivo (no getDoc de una sola vez), así un cambio de paleta/nombre/logo
+  // que haga el dueño se ve solo, sin que el visitante tenga que recargar
+  // la página que ya tiene abierta.
   useEffect(() => {
     if (!uidTienda) { setConfig(null); return; }
-    getDoc(doc(db, 'catalogoTiendas', uidTienda))
-      .then(snap => setConfig(snap.exists() ? snap.data() : null))
-      .catch(() => setConfig(null));
+    const unsub = onSnapshot(
+      doc(db, 'catalogoTiendas', uidTienda),
+      (snap) => setConfig(snap.exists() ? snap.data() : null),
+      () => setConfig(null)
+    );
+    return () => unsub();
   }, [uidTienda]);
 
   // Cuenta esta visita para el límite de "aperturas de catálogo" del plan
@@ -268,7 +311,7 @@ export default function CatalogoPublico() {
 
   if (!config || !config.activo) {
     return (
-      <EstadoCentrado>
+      <EstadoCentrado paleta={estiloPaleta(config)}>
         Este catálogo no está disponible en este momento.
         <br />Volvé a intentar más tarde.
       </EstadoCentrado>
@@ -283,7 +326,7 @@ export default function CatalogoPublico() {
       : null;
 
     return (
-      <EstadoCentrado>
+      <EstadoCentrado paleta={estiloPaleta(config)}>
         <div style={{ fontSize: '40px', marginBottom: '8px' }}>✓</div>
         <div style={{ fontWeight: 600, fontSize: '16px', marginBottom: '4px' }}>¡Pedido enviado!</div>
         <div style={{ color: 'var(--text3)', fontSize: '13px', marginBottom: '18px' }}>
@@ -300,7 +343,7 @@ export default function CatalogoPublico() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: carrito.length ? '76px' : '0' }}>
+    <div style={{ ...estiloPaleta(config), minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', paddingBottom: carrito.length ? '76px' : '0' }}>
       <style>{ESTILOS_RESPONSIVE}</style>
 
       <header style={{
@@ -315,6 +358,26 @@ export default function CatalogoPublico() {
           <div style={{ fontWeight: 700, fontSize: '15px' }}>{config.empresaNombre || 'Catálogo'}</div>
           <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Elegí tus productos y armá tu pedido</div>
         </div>
+        {(urlFacebook(config.facebook) || urlInstagram(config.instagram)) && (
+          <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
+            {urlFacebook(config.facebook) && (
+              <a href={urlFacebook(config.facebook)} target="_blank" rel="noreferrer" aria-label="Facebook" style={{ color: 'var(--text3)', display: 'flex' }}>
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '20px', height: '20px' }}>
+                  <path d="M12.5 6h-1.25A1.75 1.75 0 0 0 9.5 7.75V10H12l-.35 2.5H9.5V18h-2.5v-5.5H5V10h2v-2A3.5 3.5 0 0 1 10.5 4.5H12.5V6z" strokeLinejoin="round" />
+                </svg>
+              </a>
+            )}
+            {urlInstagram(config.instagram) && (
+              <a href={urlInstagram(config.instagram)} target="_blank" rel="noreferrer" aria-label="Instagram" style={{ color: 'var(--text3)', display: 'flex' }}>
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '20px', height: '20px' }}>
+                  <rect x="2.5" y="2.5" width="15" height="15" rx="4" />
+                  <circle cx="10" cy="10" r="3.3" />
+                  <circle cx="14.2" cy="5.8" r="0.7" fill="currentColor" stroke="none" />
+                </svg>
+              </a>
+            )}
+          </div>
+        )}
       </header>
 
       <div className="catalogo-content" style={{ maxWidth: '640px', margin: '0 auto', padding: '12px' }}>
@@ -534,9 +597,9 @@ export default function CatalogoPublico() {
   );
 }
 
-function EstadoCentrado({ children }) {
+function EstadoCentrado({ children, paleta }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', color: 'var(--text2)' }}>
+    <div style={{ ...paleta, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', color: 'var(--text2)', background: 'var(--bg)' }}>
       <div>{children}</div>
     </div>
   );

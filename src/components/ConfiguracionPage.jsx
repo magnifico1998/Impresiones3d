@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { paletas, paletasList } from '../utils/paletas';
 
 export default function ConfiguracionPage() {
-  const { cfg, setCfg, showToast, setActivePage } = useApp();
+  const { cfg, setCfg } = useApp();
 
   const handleUpdateField = (section, idx, field, value) => {
     setCfg(prev => {
@@ -45,13 +45,32 @@ export default function ConfiguracionPage() {
     setCfg(prev => ({ ...prev, impresoraDefault: val }));
   };
 
+  // Los 5 colores que se pueden retocar a mano en la tarjeta "Paleta
+  // personalizada" (los mismos que se ven en la vista previa de cada
+  // paleta de acá arriba). Se guardan aparte en cfg.paletaCustom y se
+  // aplican por encima de la paleta base (ver AppContext.jsx) -- así no
+  // hace falta duplicar los otros 13 roles (border, warn, danger, etc.)
+  // para poder tocar sólo estos 5.
+  const ROLES_PERSONALIZABLES = ['bg', 'accent', 'accent2', 'text', 'bg3'];
+
   const handlePaletteSelect = (paletteId) => {
-    setCfg(prev => ({ ...prev, palette: paletteId }));
+    const base = paletas[paletteId];
+    setCfg(prev => ({
+      ...prev,
+      palette: paletteId,
+      // Al elegir una paleta nueva, la personalizada arranca de cero desde
+      // los valores de ESA paleta (pisa cualquier retoque anterior) -- es
+      // el punto de partida que se puede volver a editar después.
+      paletaCustom: Object.fromEntries(ROLES_PERSONALIZABLES.map(k => [k, base[k]]))
+    }));
   };
 
-  const handleApplyDefaultsToCalc = () => {
-    showToast('Defaults aplicados a la calculadora');
-    setActivePage('calc');
+  const handleCustomColorChange = (role, hex) => {
+    setCfg(prev => {
+      const base = paletas[prev.palette] || paletas.lagoon;
+      const actual = prev.paletaCustom || Object.fromEntries(ROLES_PERSONALIZABLES.map(k => [k, base[k]]));
+      return { ...prev, paletaCustom: { ...actual, [role]: hex } };
+    });
   };
 
   return (
@@ -64,19 +83,32 @@ export default function ConfiguracionPage() {
           {/* Filaments Config Card */}
           <div className="card">
             <div className="card-title">Filamentos</div>
+            <div className="cfg-row" style={{ marginBottom: '0px', fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+              <span>Filamento</span>
+              <span style={{ textAlign: 'center' }}>Monto</span>
+              {/* Botón invisible idéntico al de abajo: la columna "auto" de
+                  cada .cfg-row mide según SU PROPIO contenido (cada fila es
+                  su propia grilla), así que si acá va vacío esa columna da
+                  ~0px y corre todo lo demás -- con el mismo botón (oculto)
+                  la columna mide exactamente igual que en las filas reales. */}
+              <button className="btn btn-danger btn-sm" style={{ visibility: 'hidden' }} tabIndex={-1} aria-hidden="true">✕</button>
+            </div>
             <div id="cfg-filamentos">
               {(cfg.filamentos || []).map((f, i) => (
                 <div key={i} className="cfg-row">
-                  <input 
+                  <input
                     type="text"
-                    value={f.nombre} 
-                    onChange={(e) => handleUpdateField('filamentos', i, 'nombre', e.target.value)} 
+                    value={f.nombre}
+                    onChange={(e) => handleUpdateField('filamentos', i, 'nombre', e.target.value)}
                   />
-                  <input 
-                    type="number" 
-                    value={f.precio} 
-                    onChange={(e) => handleUpdateField('filamentos', i, 'precio', parseFloat(e.target.value) || 0)} 
-                  />
+                  <div className="input-money">
+                    <span className="input-money-prefix">$</span>
+                    <input
+                      type="number"
+                      value={f.precio}
+                      onChange={(e) => handleUpdateField('filamentos', i, 'precio', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
                   <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('filamentos', i)}>✕</button>
                 </div>
               ))}
@@ -93,34 +125,39 @@ export default function ConfiguracionPage() {
           {/* Printers Config Card */}
           <div className="card">
             <div className="card-title">Impresoras</div>
-            <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px', fontFamily: 'var(--mono)' }}>
-              Nombre · W · Mant $/h
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px auto', gap: '6px', marginBottom: '0px', fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+              <span>Impresora</span>
+              <span style={{ textAlign: 'center' }}>Consumo</span>
+              <span style={{ textAlign: 'center' }}>Amortización</span>
+              <button className="btn btn-danger btn-sm" style={{ visibility: 'hidden' }} tabIndex={-1} aria-hidden="true">✕</button>
             </div>
             <div id="cfg-impresoras">
               {(cfg.impresoras || []).map((imp, i) => (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 64px 74px auto', gap: '6px', alignItems: 'center', marginBottom: '8px' }}>
-                  <input 
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px auto', gap: '6px', alignItems: 'center', marginBottom: '8px' }}>
+                  <input
                     type="text"
-                    value={imp.nombre} 
+                    value={imp.nombre}
                     placeholder="Nombre"
-                    onChange={(e) => handleUpdateField('impresoras', i, 'nombre', e.target.value)} 
+                    onChange={(e) => handleUpdateField('impresoras', i, 'nombre', e.target.value)}
                   />
-                  <input 
-                    type="number" 
-                    value={imp.watts} 
-                    placeholder="W" 
-                    title="Watts" 
-                    style={{ fontSize: '12px' }}
-                    onChange={(e) => handleUpdateField('impresoras', i, 'watts', parseFloat(e.target.value) || 0)} 
+                  <input
+                    type="number"
+                    value={imp.watts}
+                    placeholder="W"
+                    title="Watts"
+                    style={{ fontSize: '12px', textAlign: 'center' }}
+                    onChange={(e) => handleUpdateField('impresoras', i, 'watts', parseFloat(e.target.value) || 0)}
                   />
-                  <input 
-                    type="number" 
-                    value={imp.mant || 0} 
-                    placeholder="$/h" 
-                    title="Mant $/hora" 
-                    style={{ fontSize: '12px' }}
-                    onChange={(e) => handleUpdateField('impresoras', i, 'mant', parseFloat(e.target.value) || 0)} 
-                  />
+                  <div className="input-money">
+                    <span className="input-money-prefix">$</span>
+                    <input
+                      type="number"
+                      value={imp.mant || 0}
+                      title="Amortización $/hora"
+                      style={{ fontSize: '12px' }}
+                      onChange={(e) => handleUpdateField('impresoras', i, 'mant', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
                   <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('impresoras', i)}>✕</button>
                 </div>
               ))}
@@ -210,19 +247,27 @@ export default function ConfiguracionPage() {
           {/* Consumables (Insumos) card */}
           <div className="card">
             <div className="card-title">Insumos y accesorios</div>
+            <div className="cfg-row" style={{ marginBottom: '0px', fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+              <span>Insumo</span>
+              <span style={{ textAlign: 'center' }}>Monto</span>
+              <button className="btn btn-danger btn-sm" style={{ visibility: 'hidden' }} tabIndex={-1} aria-hidden="true">✕</button>
+            </div>
             <div id="cfg-insumos">
               {(cfg.insumos || []).map((ins, i) => (
                 <div key={i} className="cfg-row">
-                  <input 
+                  <input
                     type="text"
-                    value={ins.nombre} 
-                    onChange={(e) => handleUpdateField('insumos', i, 'nombre', e.target.value)} 
+                    value={ins.nombre}
+                    onChange={(e) => handleUpdateField('insumos', i, 'nombre', e.target.value)}
                   />
-                  <input 
-                    type="number" 
-                    value={ins.precio} 
-                    onChange={(e) => handleUpdateField('insumos', i, 'precio', parseFloat(e.target.value) || 0)} 
-                  />
+                  <div className="input-money">
+                    <span className="input-money-prefix">$</span>
+                    <input
+                      type="number"
+                      value={ins.precio}
+                      onChange={(e) => handleUpdateField('insumos', i, 'precio', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
                   <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('insumos', i)}>✕</button>
                 </div>
               ))}
@@ -253,7 +298,7 @@ export default function ConfiguracionPage() {
             
             <div className="sep"></div>
             
-            <label className="fl">Electricidad ($/kWh)</label>
+            <label className="fl">Precio Electricidad ($/kWh)</label>
             <input 
               type="number" 
               value={cfg.kwh} 
@@ -261,7 +306,7 @@ export default function ConfiguracionPage() {
               onChange={(e) => handleDefaultValueChange('kwh', e.target.value)} 
             />
             
-            <label className="fl">Mano de obra ($/hora)</label>
+            <label className="fl">Costo Mano de obra ($/hora)</label>
             <input 
               type="number" 
               value={cfg.mo} 
@@ -277,13 +322,6 @@ export default function ConfiguracionPage() {
               onChange={(e) => handleDefaultValueChange('desperdicio', e.target.value)} 
             />
             
-            <div className="sep"></div>
-            <button 
-              className="btn btn-primary btn-sm" 
-              onClick={handleApplyDefaultsToCalc}
-            >
-              Aplicar a la calculadora
-            </button>
           </div>
 
           <div className="card">
@@ -319,6 +357,57 @@ export default function ConfiguracionPage() {
                       {paleta.label}
                     </span>
                   </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Paleta personalizada: arranca con los 5 colores de la paleta
+              elegida arriba y se puede retocar color por color. Cada
+              cuadrito es un <input type="color"> nativo escondido detrás
+              del swatch -- clickearlo abre el selector de color del
+              sistema operativo/navegador ("despliega una paleta"). */}
+          <div className="card">
+            <div className="card-title">Paleta personalizada</div>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
+              Toca los colores de la paleta elegida arriba. Al elegir otra paleta, se reinicia con sus colores.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px' }}>
+              {[
+                { key: 'bg', label: 'Fondo' },
+                { key: 'bg3', label: 'Tarjetas' },
+                { key: 'accent', label: 'Acento 1' },
+                { key: 'accent2', label: 'Acento 2' },
+                { key: 'text', label: 'Texto' }
+              ].map(({ key, label }) => {
+                const base = paletas[cfg.palette] || paletas.lagoon;
+                const valor = cfg.paletaCustom?.[key] ?? base[key];
+                return (
+                  <label
+                    key={key}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                    title={`Editar ${label.toLowerCase()}`}
+                  >
+                    <span
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        maxHeight: '38px',
+                        aspectRatio: '1',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)',
+                        background: valor
+                      }}
+                    />
+                    <input
+                      type="color"
+                      value={valor}
+                      onChange={(e) => handleCustomColorChange(key, e.target.value)}
+                      style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                      tabIndex={-1}
+                    />
+                    <span style={{ fontSize: '11px', color: 'var(--text2)', textAlign: 'center' }}>{label}</span>
+                  </label>
                 );
               })}
             </div>

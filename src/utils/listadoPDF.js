@@ -35,7 +35,7 @@ const darken = (rgb, factor) => rgb.map((c) => Math.round(c * factor));
  * categoría) y una versión clara mezclada con blanco (fondo de pill/badges).
  */
 function construirPaletaPDF(paletaId) {
-  const paleta = paletas[paletaId] || paletas.mint;
+  const paleta = paletas[paletaId] || paletas.lagoon;
   const accent = hexToRgb(paleta.accent);
   return {
     ...NEUTRAL,
@@ -52,7 +52,7 @@ function construirPaletaPDF(paletaId) {
  * @param {Array} biblioteca
  * @param {Object} empresa
  * @param {string} [paletaId] id de la paleta elegida en Configuración
- *   (cfg.palette). Si no se pasa, usa 'mint' por defecto.
+ *   (cfg.palette). Si no se pasa, usa 'lagoon' por defecto.
  * @param {string[]} [categoriaOrden] orden manual de categorías
  *   (cfg.categoriaOrden), definido arrastrando en Biblioteca. Si no se pasa
  *   o está vacío, las categorías se listan alfabéticamente (comportamiento

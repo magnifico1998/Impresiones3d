@@ -271,7 +271,17 @@ exports.generarCierreRevendedor = onCall(async (request) => {
     cerradoPor: emailSolicitante
   }, { merge: true });
 
-  return { ok: true, codigo, anioMes, ...datos };
+  // Las llamadas onCall serializan la respuesta como JSON plano: un
+  // Timestamp de Firestore (item.fecha) no le sobrevive a esa vuelta con
+  // .toDate() todavía andando del otro lado -- por eso el PDF (que arma el
+  // cliente con estos datos) mostraba la fecha vacía. Se convierte acá a
+  // string ISO, así llega como algo que el cliente puede parsear siempre.
+  const itemsSerializables = (datos.items || []).map((item) => ({
+    ...item,
+    fecha: item.fecha && typeof item.fecha.toDate === 'function' ? item.fecha.toDate().toISOString() : item.fecha
+  }));
+
+  return { ok: true, codigo, anioMes, ...datos, items: itemsSerializables };
 });
 
 // Valida un código de revendedor en vivo desde el formulario de contacto

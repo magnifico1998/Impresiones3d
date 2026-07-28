@@ -1,6 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ordenarCategorias } from '../utils/categoriaOrden';
+import { paletas, paletasList } from '../utils/paletas';
+
+// Los mismos 5 roles editables que "Paleta personalizada" en Configuración
+// (ver ConfiguracionPage.jsx), pero acá para el catálogo web público -- se
+// guardan aparte (catalogoConfig.paletaCatalogo) porque el catálogo NO
+// tiene por qué compartir la paleta de la app: son públicos que ni
+// siquiera tienen cuenta acá, el criterio de marca puede ser otro.
+const ROLES_PALETA_CATALOGO = ['bg', 'accent', 'accent2', 'text', 'bg3'];
 
 const CATALOGO_PATH = '/catalogo';
 
@@ -8,7 +16,6 @@ export default function CatalogoAdminPage() {
   const {
     biblioteca,
     cfg,
-    empresa,
     cuentaId,
     catalogoConfig,
     guardarCatalogoConfig,
@@ -89,14 +96,21 @@ export default function CatalogoAdminPage() {
     guardarCatalogoConfig({ activo: !activo });
   };
 
-  const handleUsarDatosEmpresa = () => {
+  // Paleta del catálogo: arranca (si nunca se tocó) desde 'lagoon', el
+  // mismo default de la app -- pero es completamente independiente de la
+  // paleta que use el dueño en su propia app.
+  const paletaCatalogoActual = (key) => catalogoConfig?.paletaCatalogo?.[key] ?? paletas.lagoon[key];
+
+  const handleElegirPaletaCatalogo = (paletteId) => {
+    const base = paletas[paletteId];
     guardarCatalogoConfig({
-      empresaNombre: empresa?.nombre || '',
-      telefono: empresa?.telefono || '',
-      logo: empresa?.logo || '',
-      colores: cfg?.colores || []
+      paletaCatalogo: Object.fromEntries(ROLES_PALETA_CATALOGO.map(k => [k, base[k]]))
     });
-    showToast('✓ Datos copiados a la configuración del catálogo.');
+  };
+
+  const handleColorCatalogoChange = (role, hex) => {
+    const actual = Object.fromEntries(ROLES_PALETA_CATALOGO.map(k => [k, paletaCatalogoActual(k)]));
+    guardarCatalogoConfig({ paletaCatalogo: { ...actual, [role]: hex } });
   };
 
   // El catálogo es por cuenta: la URL lleva el uid del dueño (cuentaId,
@@ -223,15 +237,77 @@ export default function CatalogoAdminPage() {
 
         <div className="sep"></div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
-          <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
-            Nombre: <strong style={{ color: 'var(--text)' }}>{catalogoConfig?.empresaNombre || '(sin definir)'}</strong>
-            {' · '}Tel: <strong style={{ color: 'var(--text)' }}>{catalogoConfig?.telefono || '(sin definir)'}</strong>
-            {' · '}Colores publicados: <strong style={{ color: 'var(--text)' }}>{(catalogoConfig?.colores || []).length}</strong>
-          </div>
-          <button className="btn btn-sm" onClick={handleUsarDatosEmpresa}>
-            Usar datos de "Mi emprendimiento" y colores actuales
-          </button>
+        <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--text3)' }}>
+          Nombre: <strong style={{ color: 'var(--text)' }}>{catalogoConfig?.empresaNombre || '(sin definir)'}</strong>
+          {' · '}Tel: <strong style={{ color: 'var(--text)' }}>{catalogoConfig?.telefono || '(sin definir)'}</strong>
+          {' · '}Colores publicados: <strong style={{ color: 'var(--text)' }}>{(catalogoConfig?.colores || []).length}</strong>
+          <div style={{ marginTop: '4px' }}>Se toma siempre en vivo de "Mi emprendimiento" — no hace falta actualizarlo a mano.</div>
+        </div>
+      </div>
+
+      {/* Paleta de colores del catálogo — independiente de la de la app */}
+      <div className="card">
+        <div className="card-title">Paleta del catálogo</div>
+        <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>
+          El color de tu catálogo web no tiene por qué ser el mismo que usás en la app. Elegí un punto de partida y después retocá cada color a mano.
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '8px', marginBottom: '16px' }}>
+          {paletasList.map((paleta) => {
+            const paletaColores = paletas[paleta.id];
+            const previewColors = [paletaColores.bg, paletaColores.accent, paletaColores.accent2, paletaColores.text, paletaColores.bg3];
+            return (
+              <button
+                key={paleta.id}
+                type="button"
+                onClick={() => handleElegirPaletaCatalogo(paleta.id)}
+                style={{
+                  border: '1px solid var(--border)', borderRadius: '12px', padding: '8px',
+                  background: 'var(--bg3)', display: 'grid', gridTemplateColumns: '1fr 1fr',
+                  gap: '5px', minHeight: '64px', cursor: 'pointer'
+                }}
+                title={`Empezar desde ${paleta.label}`}
+              >
+                {previewColors.map((color, i) => (
+                  <div key={i} style={{ background: color, borderRadius: '999px', minHeight: '11px' }} />
+                ))}
+                <span style={{ gridColumn: '1 / -1', fontSize: '10px', fontWeight: 600, color: 'var(--text2)', marginTop: '2px', textAlign: 'center' }}>
+                  {paleta.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px' }}>
+          {[
+            { key: 'bg', label: 'Fondo' },
+            { key: 'bg3', label: 'Tarjetas' },
+            { key: 'accent', label: 'Acento 1' },
+            { key: 'accent2', label: 'Acento 2' },
+            { key: 'text', label: 'Texto' }
+          ].map(({ key, label }) => (
+            <label
+              key={key}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+              title={`Editar ${label.toLowerCase()}`}
+            >
+              <span
+                style={{
+                  display: 'block', width: '100%', maxHeight: '38px', aspectRatio: '1', borderRadius: '10px',
+                  border: '1px solid var(--border)', background: paletaCatalogoActual(key)
+                }}
+              />
+              <input
+                type="color"
+                value={paletaCatalogoActual(key)}
+                onChange={(e) => handleColorCatalogoChange(key, e.target.value)}
+                style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                tabIndex={-1}
+              />
+              <span style={{ fontSize: '11px', color: 'var(--text2)', textAlign: 'center' }}>{label}</span>
+            </label>
+          ))}
         </div>
       </div>
 

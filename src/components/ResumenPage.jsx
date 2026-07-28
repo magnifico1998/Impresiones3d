@@ -79,7 +79,7 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
 }
 
 export default function ResumenPage() {
-  const { pedidos, compras, suscripcion, planContratado, fmt } = useApp();
+  const { pedidos, compras, suscripcion, planContratado, fmt, cfg } = useApp();
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
 
   const [diasPeriodo, setDiasPeriodo] = useState(7);
@@ -121,7 +121,25 @@ export default function ResumenPage() {
       desde = new Date(fechaDesde + 'T00:00:00');
     } else {
       if (diasPeriodo === 0) {
-        desde = new Date(0);
+        // "Todo el período": antes arrancaba en new Date(0) (1/1/1970), lo
+        // que corría toda la escala del gráfico décadas para atrás sin
+        // datos reales ahí. Usa la fecha más vieja entre PEDIDOS y COMPRAS
+        // -- no sólo pedidos: si "todo" dejara afuera compras viejas, la
+        // rentabilidad/gastos del período quedarían mal (gastos reales que
+        // no se están contando).
+        const fechasVentas = pedidos
+          .map(getFechaVenta)
+          .filter(Boolean)
+          .map(f => new Date(f + 'T00:00:00'))
+          .filter(d => !isNaN(d));
+        const fechasCompras = compras
+          .map(c => c.fecha)
+          .filter(Boolean)
+          .map(f => new Date(f + 'T00:00:00'))
+          .filter(d => !isNaN(d));
+        const todasLasFechas = [...fechasVentas, ...fechasCompras];
+        desde = todasLasFechas.length ? new Date(Math.min(...todasLasFechas.map(d => d.getTime()))) : new Date(hasta);
+        desde.setHours(0, 0, 0, 0);
       } else {
         desde = new Date(hasta);
         desde.setDate(desde.getDate() - diasPeriodo);
@@ -129,7 +147,7 @@ export default function ResumenPage() {
       }
     }
     return { desde, hasta };
-  }, [diasPeriodo, fechaDesde, fechaHasta]);
+  }, [diasPeriodo, fechaDesde, fechaHasta, pedidos, compras]);
 
   // Filter orders and expenses by period
   const { filteredPedidos, completados, comprasPeriodo, totalVentas, totalCostos, gastos, ganancia, rentab, totalPendienteGlobal } = useMemo(() => {
@@ -283,37 +301,51 @@ export default function ResumenPage() {
 
     ctx.clearRect(0, 0, W, H);
 
+    // Colores en vivo de la paleta actual (incluye retoques de "Paleta
+    // personalizada"): este canvas no puede usar var(--x) directo como el
+    // resto del DOM, así que hay que leer el valor ya calculado de cada
+    // variable CSS en el momento de dibujar -- por eso el efecto también
+    // depende de cfg.palette/cfg.paletaCustom más abajo, para redibujar
+    // apenas cambian.
+    const raiz = getComputedStyle(document.documentElement);
+    const leer = (nombre, fallback) => (raiz.getPropertyValue(nombre) || '').trim() || fallback;
+    const cAccent = leer('--accent', '#6ee7b7');
+    const cBorder = leer('--border', '#2a2f3e');
+    const cText3 = leer('--text3', '#555d74');
+
     // Draw horizontal grid lines
-    ctx.strokeStyle = '#2a2f3e'; 
+    ctx.strokeStyle = cBorder;
     ctx.lineWidth = 0.5;
     for (let i = 0; i <= 4; i++) {
       const y = PAD.top + gH - (gH / 4) * i;
-      ctx.beginPath(); 
-      ctx.moveTo(PAD.left, y); 
-      ctx.lineTo(PAD.left + gW, y); 
+      ctx.beginPath();
+      ctx.moveTo(PAD.left, y);
+      ctx.lineTo(PAD.left + gW, y);
       ctx.stroke();
 
-      ctx.fillStyle = '#555d74'; 
-      ctx.font = '10px DM Mono,monospace'; 
+      ctx.fillStyle = cText3;
+      ctx.font = '10px DM Mono,monospace';
       ctx.textAlign = 'right';
       const val = Math.round(maxAcum / 4 * i);
       ctx.fillText(val >= 1000 ? '$' + (val / 1000).toFixed(0) + 'k' : '$' + val, PAD.left - 6, y + 3);
     }
 
     // Draw daily bars
+    ctx.globalAlpha = 0.2;
     dataBars.forEach((v, i) => {
       const x = PAD.left + (gW / n) * (i + 0.5) - barW / 2;
       const bH = (v / maxAcum) * gH;
       const y = PAD.top + gH - bH;
-      ctx.fillStyle = 'rgba(110,231,183,0.2)';
-      ctx.beginPath(); 
-      ctx.roundRect(x, y, barW, bH, 2); 
+      ctx.fillStyle = cAccent;
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, bH, 2);
       ctx.fill();
     });
+    ctx.globalAlpha = 1;
 
     // Draw cumulative line chart
-    ctx.strokeStyle = '#6ee7b7'; 
-    ctx.lineWidth = 2; 
+    ctx.strokeStyle = cAccent;
+    ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.beginPath();
     dataAcum.forEach((v, i) => {
@@ -328,15 +360,15 @@ export default function ResumenPage() {
     dataAcum.forEach((v, i) => {
       const x = PAD.left + (gW / n) * (i + 0.5);
       const y = PAD.top + gH - (v / maxAcum) * gH;
-      ctx.fillStyle = '#6ee7b7'; 
-      ctx.beginPath(); 
-      ctx.arc(x, y, 3, 0, Math.PI * 2); 
+      ctx.fillStyle = cAccent;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
     });
 
     // Draw labels
-    ctx.fillStyle = '#555d74'; 
-    ctx.font = '10px DM Mono,monospace'; 
+    ctx.fillStyle = cText3;
+    ctx.font = '10px DM Mono,monospace';
     ctx.textAlign = 'center';
     labels.forEach((lbl, i) => {
       if (n <= 12 || i % Math.ceil(n / 12) === 0) {
@@ -346,15 +378,15 @@ export default function ResumenPage() {
     });
 
     // Draw vertical title
-    ctx.save(); 
-    ctx.translate(12, PAD.top + gH / 2); 
+    ctx.save();
+    ctx.translate(12, PAD.top + gH / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillStyle = '#555d74'; 
-    ctx.font = '10px DM Mono,monospace'; 
+    ctx.fillStyle = cText3;
+    ctx.font = '10px DM Mono,monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Acumulado', 0, 0); 
+    ctx.fillText('Acumulado', 0, 0);
     ctx.restore();
-  }, [completados, periodDates]);
+  }, [completados, periodDates, cfg?.palette, cfg?.paletaCustom]);
 
   // Printer utilization logic
   const printerHours = useMemo(() => {
@@ -485,7 +517,7 @@ export default function ResumenPage() {
           </div>
         </div>
         <div className="metric">
-          <div className="metric-label">Pendiente (Global)</div>
+          <div className="metric-label">Pendiente</div>
           <div className="metric-value" style={{ color: 'var(--warn)' }}>{fmt(totalPendienteGlobal)}</div>
         </div>
       </div>

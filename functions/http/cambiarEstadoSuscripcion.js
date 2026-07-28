@@ -54,36 +54,45 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
     return solicitudSnap;
   };
 
+  // Código del revendedor "dueño" de este suscriptor, si lo tiene: ya
+  // vinculado (revendedorUid) o pendiente vía un código válido en su
+  // solicitud de contacto (primera alta todavía sin vincular). Si esta
+  // cuenta es territorio de un revendedor y la acción es una de las del
+  // día a día (ACCIONES_REVENDEDOR), el admin general YA NO puede
+  // tocarla -- sólo ESE revendedor. Esto evita que el admin renueve o
+  // suspenda sin aplicar el % de descuento acordado, generando diferencias
+  // a la hora de facturar el cierre del mes. El admin conserva vincular/
+  // desvincular (vincularRevendedor) y borrar la cuenta (borrarCuenta),
+  // que son funciones aparte y no pasan por acá.
+  let codigoDelDuenio = null;
+  if (subSnap.exists && subSnap.data().revendedorUid) {
+    codigoDelDuenio = subSnap.data().revendedorCodigo || null;
+  } else {
+    const solicitud = await getSolicitudSnap();
+    const codigoSolicitud = solicitud.exists ? (solicitud.data().codigoRevendedor || null) : null;
+    if (codigoSolicitud) {
+      const revSnapDuenio = await db.doc(`revendedores/${codigoSolicitud}`).get();
+      if (revSnapDuenio.exists && revSnapDuenio.data().activo) codigoDelDuenio = codigoSolicitud;
+    }
+  }
+
   let miCodigoRevendedor = null;
   let esRevendedorReq = false;
 
-  if (!esAdminReq) {
-    if (!ACCIONES_REVENDEDOR.includes(accion)) {
-      throw new HttpsError('permission-denied', 'No tenés permisos para esta acción.');
+  if (ACCIONES_REVENDEDOR.includes(accion) && codigoDelDuenio) {
+    // Territorio de un revendedor: sólo él puede operar acá, ni siquiera
+    // el admin general.
+    if (esAdminReq) {
+      throw new HttpsError('permission-denied', 'Esta cuenta pertenece a un revendedor -- sólo él puede activar, renovar, extender el trial o suspenderla. El admin sólo puede vincular/desvincular o borrar la cuenta.');
     }
-
     const miSubSnap = await db.doc(`users/${uidSolicitante}/suscripcion/actual`).get();
     miCodigoRevendedor = miSubSnap.exists ? (miSubSnap.data().codigoRevendedor || null) : null;
-    if (!miCodigoRevendedor) {
-      throw new HttpsError('permission-denied', 'No tenés permisos de administrador.');
-    }
-
-    let autorizado;
-    if (subSnap.exists && subSnap.data().revendedorUid) {
-      // Ya es un suscriptor mío vinculado de una venta anterior.
-      autorizado = subSnap.data().revendedorUid === uidSolicitante;
-    } else {
-      // Cuenta nueva o todavía sin revendedor vinculado: sólo autoriza si
-      // SU solicitud de contacto trae justo mi código (primer alta de un
-      // lead propio, sin que el admin tenga que intervenir).
-      const solicitud = await getSolicitudSnap();
-      autorizado = solicitud.exists && solicitud.data().codigoRevendedor === miCodigoRevendedor;
-    }
-
-    if (!autorizado) {
+    if (!miCodigoRevendedor || miCodigoRevendedor !== codigoDelDuenio) {
       throw new HttpsError('permission-denied', 'Esa cuenta no es uno de tus suscriptores.');
     }
     esRevendedorReq = true;
+  } else if (!esAdminReq) {
+    throw new HttpsError('permission-denied', 'No tenés permisos de administrador.');
   }
 
   // Cuentas que se registraron ANTES de que existiera onNuevoUsuario (o
@@ -101,14 +110,20 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
 
   // Si el doc no existía, de paso le guardamos el email (buscándolo en
   // Firebase Auth por uid) para que la tabla del panel no muestre el uid
-  // pelado la primera vez que se activa una cuenta legacy.
+  // pelado la primera vez que se activa una cuenta legacy. Si el uid ni
+  // siquiera corresponde a una cuenta real de Firebase Auth, hay que
+  // frenar acá y no seguir: si no, se crea una suscripción "fantasma" en
+  // users/{uid}/suscripcion/actual que nadie va a poder usar nunca (nadie
+  // puede loguearse con ese uid) pero que sí aparece como un suscriptor
+  // más en el panel -- justo el bug que pasó cuando se tipeó un email en
+  // vez de un uid en algún lado.
   let emailCuenta = datosPrevios.email || null;
   if (!subSnap.exists) {
     try {
       const registro = await getAuth().getUser(uid);
       emailCuenta = registro.email || null;
     } catch (e) {
-      // No es crítico: si falla, seguimos sin email y listo.
+      throw new HttpsError('not-found', `No existe ninguna cuenta de Firebase con uid "${uid}". Revisá que sea el uid y no el email.`);
     }
   }
 
@@ -272,6 +287,23 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
     update.revendedorContacto = revendedorContacto;
   }
 
+  // % de descuento a facturar: si se pasó uno puntual para ESTA venta
+  // (el input de la fila en el panel), gana ese -- si no, se usa el
+  // default que el admin configuró para este plan en la ficha del
+  // revendedor (revendedores/{codigo}.descuentosPorPlan). Antes, cuando el
+  // input quedaba vacío se facturaba 0% siempre, ignorando por completo
+  // ese default -- este es justamente el fix.
+  let pctDescuento = 0;
+  if (revendedorInfo && revendedorInfo.codigo) {
+    if (descuentoPct != null) {
+      pctDescuento = Math.max(0, Math.min(100, Number(descuentoPct)));
+    } else {
+      const revSnapPct = await db.doc(`revendedores/${revendedorInfo.codigo}`).get();
+      const defaultPlan = revSnapPct.exists ? revSnapPct.data().descuentosPorPlan?.[update.planId] : null;
+      pctDescuento = Math.max(0, Math.min(100, Number(defaultPlan) || 0));
+    }
+  }
+
   await subRef.set(update, { merge: true });
   await subRef.collection('eventos').add({
     tipo: accion,
@@ -280,7 +312,7 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
     detalle: {
       planId: planId || null,
       revendedorUid: revendedorInfo?.uid || null,
-      descuentoPct: revendedorInfo ? (descuentoPct || 0) : null
+      descuentoPct: revendedorInfo ? pctDescuento : null
     }
   });
 
@@ -289,7 +321,7 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
   // ítem en CADA "activar" atribuido a un revendedor -- primera venta o
   // renovación, todas cuentan para el mes en curso.
   if (revendedorInfo && revendedorInfo.codigo) {
-    const pct = Math.max(0, Math.min(100, Number(descuentoPct) || 0));
+    const pct = pctDescuento;
     let montoPlan = 0;
     if (update.planId) {
       const planSnap = await db.doc(`planes/${update.planId}`).get();

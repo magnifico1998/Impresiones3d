@@ -285,25 +285,36 @@ export default function AdminPage({ modoRevendedor = false }) {
   };
 
   // Purga total de una cuenta suspendida que nunca se reactivó -- sin
-  // vuelta atrás, ver functions/http/borrarCuenta.js (ahí también se
-  // revalida server-side que esté "suspendida", por si acá se coló algo).
+  // vuelta atrás. Ya no exige esperar a que la cuenta llegue sola a
+  // "suspendida" (30 días de gracia) -- se puede forzar sobre cualquier
+  // estado, incluso una cuenta activa, pero para eso mismo la validación
+  // es más estricta: hay que escribir a mano el EMAIL exacto de la cuenta
+  // (no alcanza con confirmar un diálogo), y se revalida ese mismo email
+  // server-side en functions/http/borrarCuenta.js -- por si acá se coló
+  // algo o alguien intenta llamar la función directo sin pasar por esta UI.
   const [borrandoUid, setBorrandoUid] = useState(null);
 
-  const borrarCuentaDefinitivamente = async (uid, emailCuenta) => {
-    const etiqueta = emailCuenta || uid;
+  const borrarCuentaDefinitivamente = async (uid, emailCuenta, estado) => {
+    if (!emailCuenta) {
+      showToast('Esta cuenta no tiene email registrado, no se puede confirmar el borrado de forma segura.', 'error');
+      return;
+    }
+    const avisoEstadoActivo = estado !== 'suspendida'
+      ? `⚠ ATENCIÓN: esta cuenta está ${estado === 'activa' ? 'ACTIVA' : estado === 'trial' ? 'en TRIAL' : 'en modo lectura'}, no bloqueada. La vas a borrar de todos modos, sin esperar los 30 días de gracia.\n\n`
+      : '';
     const confirmacion = window.prompt(
-      `Esto borra TODO lo de "${etiqueta}" (pedidos, biblioteca, clientes, catálogo web, la cuenta de Google) sin posibilidad de recuperarlo.\n\nPara confirmar, escribí "${etiqueta}":`
+      `${avisoEstadoActivo}Esto borra TODO lo de "${emailCuenta}" (pedidos, biblioteca, clientes, catálogo web, la cuenta de Google) sin posibilidad de recuperarlo.\n\nPara confirmar, escribí el email exacto de la cuenta:`
     );
     if (confirmacion === null) return;
-    if (confirmacion.trim().toLowerCase() !== etiqueta.toLowerCase()) {
-      showToast('No coincide, no se borró nada.', 'error');
+    if (confirmacion.trim().toLowerCase() !== emailCuenta.toLowerCase()) {
+      showToast('El email no coincide, no se borró nada.', 'error');
       return;
     }
 
     setBorrandoUid(uid);
     try {
       const borrar = httpsCallable(functions, 'borrarCuenta');
-      await borrar({ uid });
+      await borrar({ uid, confirmarEmail: confirmacion.trim() });
       showToast('Cuenta borrada por completo.');
     } catch (e) {
       console.error('Error al borrar la cuenta:', e);
@@ -437,10 +448,17 @@ export default function AdminPage({ modoRevendedor = false }) {
     }
   };
 
-  const guardarDescuentosRevendedor = async (uid, codigo) => {
+  const guardarDescuentosRevendedor = async (uid, codigo, descuentosGuardados) => {
     try {
       const actualizar = httpsCallable(functions, 'actualizarDescuentosRevendedor');
-      await actualizar({ uid, descuentosPorPlan: descuentosPorPlanEditando[codigo] || {} });
+      // Siempre parte de lo que YA está guardado en Firestore y le encima
+      // sólo los cambios locales de esta sesión -- si se manda nada más
+      // que descuentosPorPlanEditando[codigo] (que puede estar vacío si no
+      // se tocó ningún campo, o incompleto si sólo se tocó uno), el
+      // set({merge:true}) del lado del servidor reemplaza el mapa ENTERO y
+      // borra los planes que no se volvieron a tocar en esta sesión.
+      const combinado = { ...(descuentosGuardados || {}), ...(descuentosPorPlanEditando[codigo] || {}) };
+      await actualizar({ uid, descuentosPorPlan: combinado });
       showToast('Descuentos por plan guardados.');
     } catch (e) {
       console.error('Error al guardar descuentos del revendedor:', e);
@@ -504,7 +522,12 @@ export default function AdminPage({ modoRevendedor = false }) {
     (datos.items || []).forEach((item, i) => {
       if (y > 270) { doc2.addPage(); y = 20; }
       if (i % 2 === 0) { doc2.setFillColor(...lightGray); doc2.rect(marginX, y, contentW, 6, 'F'); }
-      const fecha = item.fecha?.toDate ? item.fecha.toDate().toLocaleDateString('es-AR') : '—';
+      // item.fecha llega como string ISO (lo serializa así el server, ver
+      // gestionarRevendedores.js) -- se soporta igual un Timestamp real
+      // por si en algún momento se llama con datos que no pasaron por la
+      // callable (ej. un futuro uso directo desde Firestore).
+      const fechaDate = item.fecha?.toDate ? item.fecha.toDate() : (item.fecha ? new Date(item.fecha) : null);
+      const fecha = fechaDate && !isNaN(fechaDate) ? fechaDate.toLocaleDateString('es-AR') : '—';
       doc2.text(fecha, xFecha + 2, y + 4.2);
       doc2.text(String(item.email || item.uid || ''), xEmail + 2, y + 4.2, { maxWidth: colEmail - 4 });
       doc2.text(planNombrePorId[item.planId] || '—', xPlan + 2, y + 4.2, { maxWidth: colPlan - 4 });
@@ -673,6 +696,20 @@ export default function AdminPage({ modoRevendedor = false }) {
 
   const fmtFecha = (ts) => ts?.toDate ? ts.toDate().toLocaleDateString('es-AR') : '—';
 
+  // Cuántos meses calendario faltan hasta cicloFin -- para que quede claro
+  // de un vistazo si a una cuenta se le renovó por más de un período de
+  // una sola vez (ej: el revendedor le cobró 3 meses adelantados con 3
+  // clics seguidos en "Renovar suscripción"), en vez de tener que restar
+  // fechas a mano para notar la diferencia.
+  const periodosPorDelante = (cicloFin) => {
+    if (!cicloFin?.toDate) return 0;
+    const fin = cicloFin.toDate();
+    const hoy = new Date();
+    let meses = (fin.getFullYear() - hoy.getFullYear()) * 12 + (fin.getMonth() - hoy.getMonth());
+    if (fin.getDate() < hoy.getDate()) meses -= 1;
+    return Math.max(0, meses);
+  };
+
   return (
     <div className="page active">
       <div className="page-title">{modoRevendedor ? 'Mis suscriptores' : 'Administrador'}</div>
@@ -743,29 +780,45 @@ export default function AdminPage({ modoRevendedor = false }) {
                           <option key={p.id} value={p.id}>{p.nombre}</option>
                         ))}
                       </select>
-                      {s.codigoRevendedor && (
-                        <>
-                          <span className="badge badge-progress" title="Código de revendedor de esta solicitud">
-                            {s.codigoRevendedor}
-                          </span>
-                          <input
-                            type="number" min="0" max="100"
-                            value={descuentoPorSolicitud[s.uid] ?? ''}
-                            onChange={(e) => setDescuentoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
-                            placeholder="% dto."
-                            title="Descuento (ganancia del revendedor) para esta venta"
-                            style={{ fontSize: '12px', width: '70px' }}
-                          />
-                        </>
+                      {s.codigoRevendedor && (() => {
+                        const revFila = revendedores.find(r => r.codigo === s.codigoRevendedor);
+                        const defaultPct = revFila?.descuentosPorPlan?.[planSeleccionadoPorSolicitud[s.uid]];
+                        return (
+                          <>
+                            <span className="badge badge-progress" title="Código de revendedor de esta solicitud">
+                              {s.codigoRevendedor}
+                            </span>
+                            <input
+                              type="number" min="0" max="100"
+                              value={descuentoPorSolicitud[s.uid] ?? ''}
+                              onChange={(e) => setDescuentoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
+                              placeholder={defaultPct != null ? `${defaultPct}%` : '% dto.'}
+                              title={defaultPct != null
+                                ? `Si lo dejás vacío, se factura el default de este plan para ${s.codigoRevendedor}: ${defaultPct}%`
+                                : 'Descuento (ganancia del revendedor) para esta venta'}
+                              style={{ fontSize: '12px', width: '70px' }}
+                            />
+                          </>
+                        );
+                      })()}
+                      {/* Si trae código de revendedor, sólo ÉL puede activarla -- el admin
+                          general ya no puede, para que el % de descuento acordado se
+                          aplique siempre y no haya diferencias a la hora de facturar. */}
+                      {(modoRevendedor || !s.codigoRevendedor) && (
+                        <button
+                          className="btn btn-primary"
+                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                          disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
+                          onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid], descuentoPorSolicitud[s.uid] === '' || descuentoPorSolicitud[s.uid] == null ? null : Number(descuentoPorSolicitud[s.uid]))}
+                        >
+                          {accionEnCurso === `${s.uid}:activar` ? 'Activando...' : 'Activar suscripción'}
+                        </button>
                       )}
-                      <button
-                        className="btn btn-primary"
-                        style={{ fontSize: '11px', padding: '4px 8px' }}
-                        disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
-                        onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid], Number(descuentoPorSolicitud[s.uid]) || 0)}
-                      >
-                        {accionEnCurso === `${s.uid}:activar` ? 'Activando...' : 'Activar suscripción'}
-                      </button>
+                      {!modoRevendedor && s.codigoRevendedor && (
+                        <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                          Sólo {s.codigoRevendedor} puede activar esta cuenta.
+                        </span>
+                      )}
                       {!modoRevendedor && !s.codigoRevendedor && (
                         <>
                           <input
@@ -954,11 +1007,23 @@ export default function AdminPage({ modoRevendedor = false }) {
                         const planDeLaCuenta = planes.find(p => p.id === c.planId);
                         const contador = contadoresPorUid[c.uid];
                         const solicitud = solicitudPorUid[c.uid];
+                        const periodos = c.estado === 'activa' ? periodosPorDelante(c.cicloFin) : 0;
                         return (
                           <tr key={c.uid}>
                             <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
                             <td>{badgeEstado(c.estado)}</td>
-                            <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{vence}</td>
+                            <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>
+                              {vence}
+                              {periodos > 1 && (
+                                <span
+                                  className="badge badge-done"
+                                  style={{ marginLeft: '6px' }}
+                                  title={`Tiene ${periodos} períodos por delante (renovaciones ya pagadas de más).`}
+                                >
+                                  +{periodos}
+                                </span>
+                              )}
+                            </td>
                             <td>
                               <select
                                 value={planElegido}
@@ -1000,21 +1065,28 @@ export default function AdminPage({ modoRevendedor = false }) {
                               )}
                             </td>
                             <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                              {(c.revendedorCodigo || solicitud?.codigoRevendedor) && (
-                                <>
-                                  <span className="badge badge-progress" title="Código de revendedor de esta cuenta">
-                                    {c.revendedorCodigo || solicitud.codigoRevendedor}
-                                  </span>
-                                  <input
-                                    type="number" min="0" max="100"
-                                    value={descuentoPorCuenta[c.uid] ?? ''}
-                                    onChange={(e) => setDescuentoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
-                                    placeholder="% dto."
-                                    title="Descuento (ganancia del revendedor) para esta renovación"
-                                    style={{ fontSize: '12px', width: '60px' }}
-                                  />
-                                </>
-                              )}
+                              {(c.revendedorCodigo || solicitud?.codigoRevendedor) && (() => {
+                                const codigoFila = c.revendedorCodigo || solicitud.codigoRevendedor;
+                                const revFila = revendedores.find(r => r.codigo === codigoFila);
+                                const defaultPct = revFila?.descuentosPorPlan?.[planElegido];
+                                return (
+                                  <>
+                                    <span className="badge badge-progress" title="Código de revendedor de esta cuenta">
+                                      {codigoFila}
+                                    </span>
+                                    <input
+                                      type="number" min="0" max="100"
+                                      value={descuentoPorCuenta[c.uid] ?? ''}
+                                      onChange={(e) => setDescuentoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
+                                      placeholder={defaultPct != null ? `${defaultPct}%` : '% dto.'}
+                                      title={defaultPct != null
+                                        ? `Si lo dejás vacío, se factura el default de este plan para ${codigoFila}: ${defaultPct}%`
+                                        : 'Descuento (ganancia del revendedor) para esta renovación'}
+                                      style={{ fontSize: '12px', width: '60px' }}
+                                    />
+                                  </>
+                                );
+                              })()}
                               {/* Vincular a mano una cuenta ya existente a un revendedor --
                                   para suscriptores que el revendedor ya traía de antes de
                                   este sistema de códigos (nunca van a pasar por una
@@ -1033,23 +1105,61 @@ export default function AdminPage({ modoRevendedor = false }) {
                                   ))}
                                 </select>
                               )}
-                              <button
-                                className="btn"
-                                style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                disabled={accionEnCurso === `${c.uid}:activar`}
-                                onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null, Number(descuentoPorCuenta[c.uid]) || 0)}
-                                title="Si la cuenta ya venció (lectura/suspendida), la reactiva desde hoy. Si todavía está vigente, prorroga un ciclo desde el vencimiento actual."
-                              >
-                                Renovar suscripción
-                              </button>
-                              <button
-                                className="btn"
-                                style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                disabled={accionEnCurso === `${c.uid}:extenderTrial`}
-                                onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
-                              >
-                                +7 días trial
-                              </button>
+                              {/* Cuenta de un revendedor vista desde el admin general: el día a
+                                  día (renovar, trial, modo lectura, marcar contactado) queda
+                                  100% en manos del revendedor, para que el % de descuento
+                                  acordado se aplique siempre y no haya diferencias al facturar.
+                                  El admin conserva vincular/desvincular (arriba) y borrar cuenta
+                                  (abajo). */}
+                              {(modoRevendedor || !c.revendedorCodigo) ? (
+                                <>
+                                  <button
+                                    className="btn"
+                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                    disabled={accionEnCurso === `${c.uid}:activar`}
+                                    onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null, descuentoPorCuenta[c.uid] === '' || descuentoPorCuenta[c.uid] == null ? null : Number(descuentoPorCuenta[c.uid]))}
+                                    title="Si la cuenta ya venció (lectura/suspendida), la reactiva desde hoy. Si todavía está vigente, prorroga un ciclo desde el vencimiento actual."
+                                  >
+                                    Renovar suscripción
+                                  </button>
+                                  <button
+                                    className="btn"
+                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                    disabled={accionEnCurso === `${c.uid}:extenderTrial`}
+                                    onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
+                                  >
+                                    +7 días trial
+                                  </button>
+                                  <button
+                                    className="btn"
+                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                    disabled={accionEnCurso === `${c.uid}:suspender`}
+                                    onClick={() => ejecutarAccion(c.uid, 'suspender')}
+                                    title="Pasa la cuenta a modo lectura por 30 días. Recién si no se reactiva en ese plazo queda bloqueada del todo (automático)."
+                                  >
+                                    Modo Lectura (30 ds)
+                                  </button>
+                                  {c.estado === 'suspendida' && (
+                                    <button
+                                      className="btn"
+                                      style={{
+                                        fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box',
+                                        color: c.contactadoPostBloqueo ? 'var(--accent)' : undefined,
+                                        borderColor: c.contactadoPostBloqueo ? 'var(--accent)' : undefined
+                                      }}
+                                      disabled={accionEnCurso === `${c.uid}:toggleContactadoPostBloqueo`}
+                                      onClick={() => ejecutarAccion(c.uid, 'toggleContactadoPostBloqueo')}
+                                      title={c.contactadoPostBloqueoFecha ? `Marcado el ${fmtFecha(c.contactadoPostBloqueoFecha)}` : 'Todavía no se marcó'}
+                                    >
+                                      {c.contactadoPostBloqueo ? '✓ Contactado' : 'Marcar contactado'}
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                                  Sólo {c.revendedorCodigo} puede operar esta cuenta.
+                                </span>
+                              )}
                               <button
                                 className="btn"
                                 style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
@@ -1057,42 +1167,16 @@ export default function AdminPage({ modoRevendedor = false }) {
                               >
                                 Consultar datos
                               </button>
-                              <button
-                                className="btn"
-                                style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                disabled={accionEnCurso === `${c.uid}:suspender`}
-                                onClick={() => ejecutarAccion(c.uid, 'suspender')}
-                                title="Pasa la cuenta a modo lectura por 30 días. Recién si no se reactiva en ese plazo queda bloqueada del todo (automático)."
-                              >
-                                Modo Lectura (30 ds)
-                              </button>
-
-                              {c.estado === 'suspendida' && (
-                                <>
-                                  <button
-                                    className="btn"
-                                    style={{
-                                      fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box',
-                                      color: c.contactadoPostBloqueo ? 'var(--accent)' : undefined,
-                                      borderColor: c.contactadoPostBloqueo ? 'var(--accent)' : undefined
-                                    }}
-                                    disabled={accionEnCurso === `${c.uid}:toggleContactadoPostBloqueo`}
-                                    onClick={() => ejecutarAccion(c.uid, 'toggleContactadoPostBloqueo')}
-                                    title={c.contactadoPostBloqueoFecha ? `Marcado el ${fmtFecha(c.contactadoPostBloqueoFecha)}` : 'Todavía no se marcó'}
-                                  >
-                                    {c.contactadoPostBloqueo ? '✓ Contactado' : 'Marcar contactado'}
-                                  </button>
-                                  {!modoRevendedor && (
-                                    <button
-                                      className="btn btn-danger"
-                                      style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                      disabled={borrandoUid === c.uid}
-                                      onClick={() => borrarCuentaDefinitivamente(c.uid, c.email)}
-                                    >
-                                      {borrandoUid === c.uid ? 'Borrando...' : '✕ Borrar cuenta'}
-                                    </button>
-                                  )}
-                                </>
+                              {!modoRevendedor && (
+                                <button
+                                  className="btn btn-danger"
+                                  style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                  disabled={borrandoUid === c.uid}
+                                  onClick={() => borrarCuentaDefinitivamente(c.uid, c.email, c.estado)}
+                                  title={c.estado !== 'suspendida' ? 'Esta cuenta todavía no está bloqueada -- se puede borrar igual, pero pide confirmar el email a mano.' : undefined}
+                                >
+                                  {borrandoUid === c.uid ? 'Borrando...' : '✕ Borrar cuenta'}
+                                </button>
                               )}
                             </td>
                           </tr>
@@ -1251,7 +1335,7 @@ export default function AdminPage({ modoRevendedor = false }) {
                         <button
                           className="btn"
                           style={{ fontSize: '11px', padding: '4px 8px' }}
-                          onClick={() => guardarDescuentosRevendedor(rev.uid, rev.codigo)}
+                          onClick={() => guardarDescuentosRevendedor(rev.uid, rev.codigo, rev.descuentosPorPlan)}
                         >
                           Guardar % default
                         </button>

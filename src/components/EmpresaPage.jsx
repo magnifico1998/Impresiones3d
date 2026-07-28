@@ -347,7 +347,7 @@ export default function EmpresaPage() {
       {/* ---- Contacto del revendedor (si esta cuenta fue activada por uno) ---- */}
       {suscripcion?.revendedorContacto && (
         <div className="card">
-          <div className="card-title">Tu revendedor</div>
+          <div className="card-title">Tu ejecutivo</div>
           <div style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.6 }}>
             {(suscripcion.revendedorContacto.nombre || suscripcion.revendedorContacto.apellido) && (
               <div>

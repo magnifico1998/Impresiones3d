@@ -9,7 +9,7 @@ import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
 const AppContext = createContext();
 
 const defaultCfg = {
-  palette: 'mint',
+  palette: 'lagoon',
   filamentos: [
     { nombre: 'PLA Blanco', precio: 17000 },
     { nombre: 'PLA Negro', precio: 18000 },
@@ -746,12 +746,23 @@ export const AppProvider = ({ children }) => {
 
   useEffect(() => {
     if (cfg?.palette) {
-      const palette = paletas[cfg.palette] || paletas.mint;
+      const base = paletas[cfg.palette] || paletas.lagoon;
+      // paletaCustom pisa sólo los 5 roles editables desde "Paleta
+      // personalizada" (Configuración) -- el resto de los roles (border,
+      // warn, danger, etc.) siempre vienen de la paleta base elegida.
+      const custom = cfg.paletaCustom || {};
+      const palette = { ...base, ...custom };
+      // "Fondo" en el editor representa el fondo general de la app: eso es
+      // --bg2 en la práctica (header, sidebar, cards, modales), no sólo el
+      // --bg del body. Si no la reflejamos también en --bg2, el retoque de
+      // "Fondo" no se nota en el sidebar/header/cards, que es justo lo que
+      // más se ve -- por eso se copia el mismo valor a los dos roles.
+      if (custom.bg) palette.bg2 = custom.bg;
       Object.entries(palette).forEach(([key, value]) => {
         document.documentElement.style.setProperty(`--${key}`, value);
       });
     }
-  }, [cfg?.palette]);
+  }, [cfg?.palette, cfg?.paletaCustom]);
 
   // Auto-save de config + empresa + counter a su documento propio
   // (users/{uid}/meta/config). Mismo patrón de debounce + reintentos que el
@@ -1029,6 +1040,26 @@ export const AppProvider = ({ children }) => {
 
     return () => unsubscribe();
   }, [cuentaId, datosCargadosOk]);
+
+  // Los datos de contacto/marca del catálogo público (nombre, teléfono,
+  // logo, colores) siempre se toman en vivo de "Mi emprendimiento" -- antes
+  // había un botón "Usar datos de mi emprendimiento" que los copiaba una
+  // sola vez a mano, y quedaban desactualizados si después se cambiaba el
+  // teléfono o el logo sin volver a tocar ese botón. Ahora se resincronizan
+  // solos cada vez que cambia alguno, sin que el dueño tenga que acordarse
+  // de nada ni entrar a la pestaña Catálogo.
+  useEffect(() => {
+    if (!cuentaId || !datosCargadosOk) return;
+    guardarCatalogoConfig({
+      empresaNombre: empresa?.nombre || '',
+      telefono: empresa?.telefono || '',
+      logo: empresa?.logo || '',
+      facebook: empresa?.facebook || '',
+      instagram: empresa?.instagram || '',
+      colores: cfg?.colores || []
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cuentaId, datosCargadosOk, empresa?.nombre, empresa?.telefono, empresa?.logo, empresa?.facebook, empresa?.instagram, cfg?.colores]);
 
   // Listener de la config pública del catálogo web de ESTA tienda (colores,
   // nombre, si está activo). Sólo se suscribe con sesión iniciada porque es
