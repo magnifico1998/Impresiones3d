@@ -36,6 +36,7 @@ function App() {
   const {
     user,
     isAdmin,
+    esRevendedor,
     loading,
     loginWithGoogle,
     loginWithEmailLink,
@@ -525,7 +526,15 @@ function App() {
         // chequear isAdmin acá antes de renderizar. Los datos reales detrás
         // de esta pantalla ya están protegidos aparte por firestore.rules.
         return isAdmin ? <AdminPage /> : <ResumenPage />;
-      
+
+      case 'revendedor':
+        // Misma defensa en profundidad que 'admin' de arriba: el Sidebar
+        // ya oculta este ítem a quien no es revendedor, pero volvemos a
+        // chequearlo acá. SIEMPRE con modoRevendedor=true (acotado a su
+        // propia cartera) -- si la cuenta también es admin, para la vista
+        // completa ya está la pestaña "Administrador" aparte.
+        return esRevendedor ? <AdminPage modoRevendedor /> : <ResumenPage />;
+
       default:
         return <ResumenPage />;
     }

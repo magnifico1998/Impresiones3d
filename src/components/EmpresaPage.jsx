@@ -344,6 +344,24 @@ export default function EmpresaPage() {
         )}
       </div>
 
+      {/* ---- Contacto del revendedor (si esta cuenta fue activada por uno) ---- */}
+      {suscripcion?.revendedorContacto && (
+        <div className="card">
+          <div className="card-title">Tu revendedor</div>
+          <div style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.6 }}>
+            {(suscripcion.revendedorContacto.nombre || suscripcion.revendedorContacto.apellido) && (
+              <div>
+                <strong style={{ color: 'var(--text)' }}>
+                  {[suscripcion.revendedorContacto.nombre, suscripcion.revendedorContacto.apellido].filter(Boolean).join(' ')}
+                </strong>
+              </div>
+            )}
+            {suscripcion.revendedorContacto.email && <div>{suscripcion.revendedorContacto.email}</div>}
+            {suscripcion.revendedorContacto.telefono && <div>{suscripcion.revendedorContacto.telefono}</div>}
+          </div>
+        </div>
+      )}
+
       {/* ---- Usuarios con acceso a la cuenta ---- */}
       <div className="card">
         <div className="card-title">Usuarios con acceso</div>

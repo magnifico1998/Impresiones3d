@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { jsPDF } from 'jspdf';
 import { useApp } from '../context/AppContext';
 import { db, functions } from '../firebase';
 import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
@@ -10,8 +11,20 @@ import ModalPlantillaEmail from './modals/ModalPlantillaEmail';
 // Panel de administración: sólo lo ven los emails presentes en la
 // colección Firestore "admins" (ver App.jsx -> guard de isAdmin y
 // firestore.rules -> match /admins/{email}).
-export default function AdminPage() {
-  const { user, showToast } = useApp();
+//
+// Con modoRevendedor=true (ver App.jsx, ruta 'revendedor') este mismo
+// componente se reusa para el panel acotado de un suscriptor habilitado
+// como revendedor: mismas acciones (ejecutarAccion / cambiarEstadoSuscripcion,
+// que ya valida server-side que sólo pueda tocar SUS suscriptores), pero
+// sólo ve su propia cartera y no las secciones de gestión general (Planes,
+// Revendedores, Plantillas, Administradores, Borrar cuenta).
+export default function AdminPage({ modoRevendedor = false }) {
+  const { user, showToast, suscripcion } = useApp();
+  // Código propio si esta cuenta es un revendedor (independientemente de
+  // si además es admin) -- lo usamos para filtrar "mi cartera" en modo
+  // revendedor y para prellenar el formulario de habilitar/editar en el
+  // panel admin.
+  const miCodigoRevendedor = suscripcion?.codigoRevendedor || null;
   const [admins, setAdmins] = useState([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [errorAdmins, setErrorAdmins] = useState(false);
@@ -31,12 +44,37 @@ export default function AdminPage() {
   // suscripcion/actual, nunca iba a pasar antes de este fix).
   const [planSeleccionadoPorSolicitud, setPlanSeleccionadoPorSolicitud] = useState({});
 
+  // % de descuento (ganancia del revendedor) para la próxima activación de
+  // cada solicitud/cuenta -- sólo importa cuando esa venta se atribuye a un
+  // revendedor (ver cambiarEstadoSuscripcion.js). Se prellena con el
+  // default del revendedor para ese plan (revendedores/{codigo}.descuentosPorPlan)
+  // apenas se conoce, pero queda editable por venta.
+  const [descuentoPorSolicitud, setDescuentoPorSolicitud] = useState({});
+  const [descuentoPorCuenta, setDescuentoPorCuenta] = useState({});
+  // Código de revendedor cargado a mano por el admin en una solicitud que
+  // no lo trajo del formulario de contacto.
+  const [codigoManualPorSolicitud, setCodigoManualPorSolicitud] = useState({});
+  const [guardandoCodigoUid, setGuardandoCodigoUid] = useState(null);
+
   const [planes, setPlanes] = useState([]);
   const [loadingPlanes, setLoadingPlanes] = useState(true);
   const [modalPlanAbierto, setModalPlanAbierto] = useState(false);
   const [planEditando, setPlanEditando] = useState(null); // null = nuevo
   const [listaPlanesAbierta, setListaPlanesAbierta] = useState(false);
   const [listaSolicitudesAbierta, setListaSolicitudesAbierta] = useState(false);
+
+  // ---- Revendedores (sólo admin principal, ver más abajo) ----
+  const [revendedores, setRevendedores] = useState([]);
+  const [loadingRevendedores, setLoadingRevendedores] = useState(true);
+  const [listaRevendedoresAbierta, setListaRevendedoresAbierta] = useState(false);
+  const [uidNuevoRevendedor, setUidNuevoRevendedor] = useState('');
+  const [codigoNuevoRevendedor, setCodigoNuevoRevendedor] = useState('');
+  const [habilitandoRevendedor, setHabilitandoRevendedor] = useState(false);
+  const [descuentosPorPlanEditando, setDescuentosPorPlanEditando] = useState({}); // { [codigo]: { [planId]: pct } }
+  const [ventasDelMesPorCodigo, setVentasDelMesPorCodigo] = useState({});
+  const [mesSeleccionadoPorCodigo, setMesSeleccionadoPorCodigo] = useState({}); // { [codigo]: 'YYYY-MM' }
+  const [cargandoVentasCodigo, setCargandoVentasCodigo] = useState(null);
+  const [generandoCierreCodigo, setGenerandoCierreCodigo] = useState(null);
 
   // Plan elegido en el <select> de cada fila de la tabla de cuentas, para
   // pasárselo a la acción "Activar". Empieza vacío; se inicializa con el
@@ -134,6 +172,32 @@ export default function AdminPage() {
     return unsub;
   }, []);
 
+  // planSeleccionadoPorCuenta (el <select> de plan de cada fila) guarda una
+  // elección LOCAL para poder elegir un plan distinto antes de tocar
+  // "Renovar suscripción" -- pero si el planId real de la cuenta cambia por
+  // otra vía (el revendedor la renovó con otro plan, otra pestaña del
+  // mismo admin, etc.) esa elección local queda vieja y el <select> sigue
+  // mostrando el plan de antes en vez del real. Acá comparamos el planId
+  // que trae cada snapshot contra el último que vimos: si cambió y había
+  // una elección local pendiente para esa cuenta, la descartamos para que
+  // el <select> vuelva a reflejar el dato real.
+  const planIdVistoPorCuenta = useRef({});
+  useEffect(() => {
+    setPlanSeleccionadoPorCuenta(prev => {
+      let huboCambios = false;
+      const siguiente = { ...prev };
+      cuentas.forEach(c => {
+        const planIdVisto = planIdVistoPorCuenta.current[c.uid];
+        if (planIdVisto !== undefined && planIdVisto !== c.planId && siguiente[c.uid] !== undefined) {
+          delete siguiente[c.uid];
+          huboCambios = true;
+        }
+        planIdVistoPorCuenta.current[c.uid] = c.planId;
+      });
+      return huboCambios ? siguiente : prev;
+    });
+  }, [cuentas]);
+
   // Trae el contador de consumo de UNA cuenta puntual, sólo cuando el admin
   // lo pide con el botón "Ver consumo" -- pedirlos todos de una para toda
   // la tabla de golpe (como hacíamos antes) ralentiza el panel a medida
@@ -171,6 +235,25 @@ export default function AdminPage() {
     return unsubscribe;
   }, []);
 
+  // Listado de revendedores -- sólo el admin principal puede leer esta
+  // colección entera (ver firestore.rules), así que directamente no la
+  // pedimos en modoRevendedor (evita un error de permisos en consola).
+  useEffect(() => {
+    if (modoRevendedor) { setLoadingRevendedores(false); return; }
+    const unsubscribe = onSnapshot(
+      collection(db, 'revendedores'),
+      (snap) => {
+        setRevendedores(snap.docs.map(d => ({ codigo: d.id, ...d.data() })));
+        setLoadingRevendedores(false);
+      },
+      (err) => {
+        console.error('Error al listar revendedores:', err);
+        setLoadingRevendedores(false);
+      }
+    );
+    return unsubscribe;
+  }, [modoRevendedor]);
+
   useEffect(() => {
     const q = query(collection(db, 'planes'), orderBy('orden'));
     const unsubscribe = onSnapshot(
@@ -187,11 +270,11 @@ export default function AdminPage() {
     return unsubscribe;
   }, []);
 
-  const ejecutarAccion = async (uid, accion, planId) => {
+  const ejecutarAccion = async (uid, accion, planId, descuentoPct) => {
     setAccionEnCurso(`${uid}:${accion}`);
     try {
       const cambiarEstado = httpsCallable(functions, 'cambiarEstadoSuscripcion');
-      await cambiarEstado({ uid, accion, planId });
+      await cambiarEstado({ uid, accion, planId, descuentoPct: descuentoPct ?? null });
       showToast('Listo, se actualizó la suscripción.');
     } catch (e) {
       console.error('Error al cambiar el estado de la suscripción:', e);
@@ -240,28 +323,259 @@ export default function AdminPage() {
     }
   };
 
+  // Completa a mano el código de revendedor de una solicitud que no lo
+  // trajo del formulario de contacto -- permitido por firestore.rules sólo
+  // para el campo "codigoRevendedor" (nunca los datos de contacto, esos
+  // van por datosSuscriptor). No valida contra revendedores/{codigo} acá:
+  // si el código no existe, cambiarEstadoSuscripcion simplemente no atribuye
+  // la venta a nadie al activar.
+  const guardarCodigoRevendedorManual = async (uid) => {
+    const codigo = (codigoManualPorSolicitud[uid] || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{4,12}$/.test(codigo)) {
+      showToast('El código debe tener entre 4 y 12 letras/números.', 'error');
+      return;
+    }
+    setGuardandoCodigoUid(uid);
+    try {
+      await updateDoc(doc(db, 'solicitudesContacto', uid), { codigoRevendedor: codigo });
+      showToast('Código de revendedor guardado.');
+    } catch (e) {
+      console.error('Error al guardar el código de revendedor:', e);
+      showToast('No se pudo guardar el código.', 'error');
+    } finally {
+      setGuardandoCodigoUid(null);
+    }
+  };
+
+  // ---- Gestión de revendedores (admin principal) ----
+  const habilitarRevendedor = async () => {
+    if (!uidNuevoRevendedor.trim() || !codigoNuevoRevendedor.trim()) {
+      showToast('Elegí la cuenta y el código.', 'error');
+      return;
+    }
+    setHabilitandoRevendedor(true);
+    try {
+      const habilitar = httpsCallable(functions, 'habilitarRevendedor');
+      await habilitar({ uid: uidNuevoRevendedor.trim(), codigo: codigoNuevoRevendedor.trim() });
+      showToast('Revendedor habilitado.');
+      setUidNuevoRevendedor('');
+      setCodigoNuevoRevendedor('');
+    } catch (e) {
+      console.error('Error al habilitar revendedor:', e);
+      showToast(e?.message || 'No se pudo habilitar el revendedor.', 'error');
+    } finally {
+      setHabilitandoRevendedor(false);
+    }
+  };
+
+  const deshabilitarRevendedor = async (uid) => {
+    if (!window.confirm('¿Deshabilitar a este revendedor? Deja de poder operar sus suscriptores, pero no se toca nada de lo ya vendido.')) return;
+    try {
+      const deshabilitar = httpsCallable(functions, 'deshabilitarRevendedor');
+      await deshabilitar({ uid });
+      showToast('Revendedor deshabilitado.');
+    } catch (e) {
+      console.error('Error al deshabilitar revendedor:', e);
+      showToast(e?.message || 'No se pudo deshabilitar.', 'error');
+    }
+  };
+
+  // Reactivar es simplemente volver a habilitar con el mismo uid+código:
+  // habilitarRevendedor ya es idempotente para ese caso (si el código
+  // sigue apuntando a la misma cuenta, lo marca activo:true de nuevo y le
+  // vuelve a poner codigoRevendedor). No hace falta una función aparte.
+  const reactivarRevendedor = async (rev) => {
+    try {
+      const habilitar = httpsCallable(functions, 'habilitarRevendedor');
+      await habilitar({ uid: rev.uid, codigo: rev.codigo });
+      showToast('Revendedor reactivado.');
+    } catch (e) {
+      console.error('Error al reactivar revendedor:', e);
+      showToast(e?.message || 'No se pudo reactivar.', 'error');
+    }
+  };
+
+  const [borrandoRevendedorCodigo, setBorrandoRevendedorCodigo] = useState(null);
+
+  const borrarRevendedor = async (rev) => {
+    if (!window.confirm(`¿Borrar definitivamente el código ${rev.codigo}? Esto no se puede deshacer. Si todavía tiene suscriptores con suscripción vigente, se va a rechazar.`)) return;
+    setBorrandoRevendedorCodigo(rev.codigo);
+    try {
+      const borrar = httpsCallable(functions, 'borrarRevendedor');
+      await borrar({ codigo: rev.codigo });
+      showToast('Revendedor borrado.');
+    } catch (e) {
+      console.error('Error al borrar revendedor:', e);
+      showToast(e?.message || 'No se pudo borrar el revendedor.', 'error');
+    } finally {
+      setBorrandoRevendedorCodigo(null);
+    }
+  };
+
+  // Vincula (o desvincula, con codigo='') una cuenta EXISTENTE a un
+  // revendedor -- para suscriptores que el revendedor ya traía de antes de
+  // que existiera este sistema de códigos (nunca van a tener una solicitud
+  // de contacto con el código cargado, así que activar/renovar nunca los
+  // habría vinculado solo).
+  const vincularRevendedorACuenta = async (uid, codigo) => {
+    try {
+      const vincular = httpsCallable(functions, 'vincularRevendedor');
+      await vincular({ uid, codigo: codigo || null });
+      // Al desvincular, además limpiamos el código en la solicitud de
+      // contacto original (si la tiene) -- si no se hace esto, la próxima
+      // renovación vuelve a atribuírsela sola al mismo revendedor (activar
+      // resuelve el código desde la solicitud cuando la cuenta todavía no
+      // tiene revendedorUid), y el "Sin revendedor" de acá arriba parecería
+      // no haber servido de nada.
+      if (!codigo && solicitudPorUid[uid]?.codigoRevendedor) {
+        await updateDoc(doc(db, 'solicitudesContacto', uid), { codigoRevendedor: null });
+      }
+      showToast(codigo ? 'Cuenta vinculada al revendedor.' : 'Cuenta desvinculada.');
+    } catch (e) {
+      console.error('Error al vincular la cuenta a un revendedor:', e);
+      showToast(e?.message || 'No se pudo vincular la cuenta.', 'error');
+    }
+  };
+
+  const guardarDescuentosRevendedor = async (uid, codigo) => {
+    try {
+      const actualizar = httpsCallable(functions, 'actualizarDescuentosRevendedor');
+      await actualizar({ uid, descuentosPorPlan: descuentosPorPlanEditando[codigo] || {} });
+      showToast('Descuentos por plan guardados.');
+    } catch (e) {
+      console.error('Error al guardar descuentos del revendedor:', e);
+      showToast(e?.message || 'No se pudieron guardar los descuentos.', 'error');
+    }
+  };
+
+  const mesActual = () => new Date().toISOString().slice(0, 7);
+
+  const verVentasDelMes = async (uid, codigo, anioMes) => {
+    setCargandoVentasCodigo(codigo);
+    try {
+      const snap = await getDoc(doc(db, 'revendedores', codigo, 'ventas', anioMes));
+      const base = { items: [], totalPlan: 0, totalDescuento: 0, totalFacturable: 0 };
+      setVentasDelMesPorCodigo(prev => ({
+        ...prev,
+        [`${codigo}:${anioMes}`]: snap.exists() ? { ...base, ...snap.data() } : base
+      }));
+    } catch (e) {
+      console.error(`Error al leer las ventas de ${codigo}:`, e);
+      showToast('No se pudieron leer las ventas de este revendedor.', 'error');
+    } finally {
+      setCargandoVentasCodigo(null);
+    }
+  };
+
+  // Arma el PDF de cierre client-side con jsPDF, mismo criterio visual que
+  // el PDF de pedido (ver ModalPedidoDetalle.jsx): header simple + tabla +
+  // total, sin depender de nada que exija ida y vuelta al servidor más
+  // allá de la llamada que marca el mes como cerrado.
+  const generarPdfCierre = (rev, anioMes, datos) => {
+    const doc2 = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageW = 210, marginX = 15, contentW = pageW - marginX * 2;
+    const navy = [40, 48, 61], lightGray = [235, 237, 240];
+    let y = 18;
+
+    doc2.setFont('helvetica', 'bold'); doc2.setFontSize(20); doc2.setTextColor(30, 33, 40);
+    doc2.text('CIERRE DE REVENDEDOR', marginX, y);
+    y += 8;
+    doc2.setFontSize(10); doc2.setFont('helvetica', 'normal');
+    doc2.text(`Revendedor: ${rev.email || rev.uid}  ·  Código: ${rev.codigo}`, marginX, y);
+    y += 5;
+    doc2.text(`Período: ${anioMes}`, marginX, y);
+    y += 10;
+
+    const colFecha = 24, colEmail = 62, colPlan = 30, colMonto = 24, colDto = 18, colFact = 24;
+    const xFecha = marginX, xEmail = xFecha + colFecha, xPlan = xEmail + colEmail, xMonto = xPlan + colPlan, xDto = xMonto + colMonto, xFact = xDto + colDto;
+    doc2.setFillColor(...navy);
+    doc2.rect(marginX, y, contentW, 7, 'F');
+    doc2.setTextColor(255, 255, 255); doc2.setFont('helvetica', 'bold'); doc2.setFontSize(8.5);
+    doc2.text('FECHA', xFecha + 2, y + 5);
+    doc2.text('SUSCRIPTOR', xEmail + 2, y + 5);
+    doc2.text('PLAN', xPlan + 2, y + 5);
+    doc2.text('LISTA', xMonto + colMonto - 2, y + 5, { align: 'right' });
+    doc2.text('DTO %', xDto + colDto - 2, y + 5, { align: 'right' });
+    doc2.text('A FACTURAR', xFact + colFact - 2, y + 5, { align: 'right' });
+    y += 7;
+
+    doc2.setTextColor(40, 40, 40); doc2.setFont('helvetica', 'normal'); doc2.setFontSize(8.2);
+    const planNombrePorId = Object.fromEntries(planes.map(p => [p.id, p.nombre]));
+    (datos.items || []).forEach((item, i) => {
+      if (y > 270) { doc2.addPage(); y = 20; }
+      if (i % 2 === 0) { doc2.setFillColor(...lightGray); doc2.rect(marginX, y, contentW, 6, 'F'); }
+      const fecha = item.fecha?.toDate ? item.fecha.toDate().toLocaleDateString('es-AR') : '—';
+      doc2.text(fecha, xFecha + 2, y + 4.2);
+      doc2.text(String(item.email || item.uid || ''), xEmail + 2, y + 4.2, { maxWidth: colEmail - 4 });
+      doc2.text(planNombrePorId[item.planId] || '—', xPlan + 2, y + 4.2, { maxWidth: colPlan - 4 });
+      doc2.text(`$${Number(item.montoPlan || 0).toLocaleString('es-AR')}`, xMonto + colMonto - 2, y + 4.2, { align: 'right' });
+      doc2.text(`${item.descuentoPct || 0}%`, xDto + colDto - 2, y + 4.2, { align: 'right' });
+      doc2.text(`$${Number(item.montoFacturable || 0).toLocaleString('es-AR')}`, xFact + colFact - 2, y + 4.2, { align: 'right' });
+      y += 6;
+    });
+
+    y += 4;
+    doc2.setDrawColor(210); doc2.line(marginX, y, pageW - marginX, y);
+    y += 7;
+    doc2.setFont('helvetica', 'bold'); doc2.setFontSize(11);
+    doc2.text(`Total a facturar: $${Number(datos.totalFacturable || 0).toLocaleString('es-AR')}`, pageW - marginX, y, { align: 'right' });
+
+    doc2.save(`cierre-${rev.codigo}-${anioMes}.pdf`);
+  };
+
+  const generarCierre = async (rev, anioMes) => {
+    setGenerandoCierreCodigo(rev.codigo);
+    try {
+      const generar = httpsCallable(functions, 'generarCierreRevendedor');
+      const { data } = await generar({ uid: rev.uid, anioMes });
+      generarPdfCierre(rev, anioMes, data);
+      showToast('Cierre generado.');
+    } catch (e) {
+      console.error('Error al generar el cierre del revendedor:', e);
+      showToast(e?.message || 'No se pudo generar el cierre.', 'error');
+    } finally {
+      setGenerandoCierreCodigo(null);
+    }
+  };
+
+  // En modo revendedor, acotamos todo a "mi cartera": cuentas que ya
+  // activé/renové yo (revendedorUid == mi uid) y leads que todavía no se
+  // activaron pero ya traen mi propio código cargado en el formulario de
+  // contacto. Las reglas de Firestore ya podan estos listados del lado del
+  // servidor (ver firestore.rules), esto es sólo un filtro extra explícito
+  // para que el componente no dependa de ese detalle para comportarse bien.
+  const cuentasVisibles = useMemo(() => {
+    if (!modoRevendedor) return cuentas;
+    return cuentas.filter(c => c.revendedorUid === user?.uid);
+  }, [cuentas, modoRevendedor, user?.uid]);
+
+  const solicitudesVisibles = useMemo(() => {
+    if (!modoRevendedor) return solicitudes;
+    return solicitudes.filter(s => miCodigoRevendedor && s.codigoRevendedor === miCodigoRevendedor);
+  }, [solicitudes, modoRevendedor, miCodigoRevendedor]);
+
   // Lookup rápido para saber si el uid de una solicitud ya tiene una
   // suscripción activa (osea, ya se convirtió en cliente pago).
-  const cuentaPorUid = Object.fromEntries(cuentas.map(c => [c.uid, c]));
+  const cuentaPorUid = Object.fromEntries(cuentasVisibles.map(c => [c.uid, c]));
 
   // Sólo las solicitudes que TODAVÍA no se convirtieron en suscripción
   // activa se muestran en la lista y se incluyen en la exportación — una
   // vez que se activa, esa persona ya vive en la tabla de Suscripciones de
   // arriba, no tiene sentido seguir viéndola acá como "contacto pendiente".
-  const solicitudesPendientes = solicitudes.filter(s => cuentaPorUid[s.uid]?.estado !== 'activa');
+  const solicitudesPendientes = solicitudesVisibles.filter(s => cuentaPorUid[s.uid]?.estado !== 'activa');
 
   // Datos personales del formulario de contacto, indexados por uid, para
   // mostrarlos junto a cada suscriptor (no sólo mientras está "pendiente"
   // de activar) — es la única fuente de nombre/teléfono/localidad real que
   // existe hoy, la cuenta en sí sólo tiene el email de Google.
   const solicitudPorUid = useMemo(
-    () => Object.fromEntries(solicitudes.map(s => [s.uid, s])),
-    [solicitudes]
+    () => Object.fromEntries(solicitudesVisibles.map(s => [s.uid, s])),
+    [solicitudesVisibles]
   );
 
   const cuentasFiltradas = useMemo(() => {
     const q = busquedaSuscriptores.trim().toLowerCase();
-    return cuentas.filter(c => {
+    return cuentasVisibles.filter(c => {
       if (filtroEstadoSuscriptores !== 'todos' && c.estado !== filtroEstadoSuscriptores) return false;
       if (!q) return true;
       const s = solicitudPorUid[c.uid];
@@ -269,7 +583,7 @@ export default function AdminPage() {
         .filter(Boolean).join(' ').toLowerCase();
       return campos.includes(q);
     });
-  }, [cuentas, busquedaSuscriptores, filtroEstadoSuscriptores, solicitudPorUid]);
+  }, [cuentasVisibles, busquedaSuscriptores, filtroEstadoSuscriptores, solicitudPorUid]);
 
   // Agrupa por plan, respetando el orden de "planes" (ya viene ordenado por
   // el campo "orden") y dejando las cuentas sin plan asignado al final.
@@ -361,8 +675,12 @@ export default function AdminPage() {
 
   return (
     <div className="page active">
-      <div className="page-title">Administrador</div>
-      <div className="page-sub">Panel visible sólo para administradores.</div>
+      <div className="page-title">{modoRevendedor ? 'Mis suscriptores' : 'Administrador'}</div>
+      <div className="page-sub">
+        {modoRevendedor
+          ? `Panel de revendedor · código ${miCodigoRevendedor || '—'}.`
+          : 'Panel visible sólo para administradores.'}
+      </div>
 
       {/* ---- Solicitudes de contacto ---- */}
       <div className="card">
@@ -414,7 +732,7 @@ export default function AdminPage() {
                         su "uid" es el mismo ID de este documento, así no hace
                         falta ir a buscarlo a la tabla de Suscriptores (y si es
                         una cuenta vieja sin suscripcion/actual, esto se la crea). */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
                       <select
                         value={planSeleccionadoPorSolicitud[s.uid] || ''}
                         onChange={(e) => setPlanSeleccionadoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
@@ -425,14 +743,48 @@ export default function AdminPage() {
                           <option key={p.id} value={p.id}>{p.nombre}</option>
                         ))}
                       </select>
+                      {s.codigoRevendedor && (
+                        <>
+                          <span className="badge badge-progress" title="Código de revendedor de esta solicitud">
+                            {s.codigoRevendedor}
+                          </span>
+                          <input
+                            type="number" min="0" max="100"
+                            value={descuentoPorSolicitud[s.uid] ?? ''}
+                            onChange={(e) => setDescuentoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
+                            placeholder="% dto."
+                            title="Descuento (ganancia del revendedor) para esta venta"
+                            style={{ fontSize: '12px', width: '70px' }}
+                          />
+                        </>
+                      )}
                       <button
                         className="btn btn-primary"
                         style={{ fontSize: '11px', padding: '4px 8px' }}
                         disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
-                        onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid])}
+                        onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid], Number(descuentoPorSolicitud[s.uid]) || 0)}
                       >
                         {accionEnCurso === `${s.uid}:activar` ? 'Activando...' : 'Activar suscripción'}
                       </button>
+                      {!modoRevendedor && !s.codigoRevendedor && (
+                        <>
+                          <input
+                            type="text"
+                            value={codigoManualPorSolicitud[s.uid] || ''}
+                            onChange={(e) => setCodigoManualPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value.toUpperCase() }))}
+                            placeholder="Código revendedor…"
+                            style={{ fontSize: '12px', width: '130px' }}
+                          />
+                          <button
+                            className="btn"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            disabled={!codigoManualPorSolicitud[s.uid] || guardandoCodigoUid === s.uid}
+                            onClick={() => guardarCodigoRevendedorManual(s.uid)}
+                          >
+                            {guardandoCodigoUid === s.uid ? 'Guardando...' : 'Guardar código'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -442,8 +794,8 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* ---- Planes ---- */}
-      <div className="card">
+      {/* ---- Planes (sólo admin principal: un revendedor no gestiona planes) ---- */}
+      {!modoRevendedor && <div className="card">
         <div
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaPlanesAbierta ? '14px' : 0, cursor: 'pointer' }}
           onClick={() => setListaPlanesAbierta(v => !v)}
@@ -508,7 +860,7 @@ export default function AdminPage() {
             )}
           </>
         )}
-      </div>
+      </div>}
 
       {/* ---- Suscriptores (agrupados por plan, colapsados por defecto) ---- */}
       <div className="card">
@@ -647,12 +999,45 @@ export default function AdminPage() {
                                 </div>
                               )}
                             </td>
-                            <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                              {(c.revendedorCodigo || solicitud?.codigoRevendedor) && (
+                                <>
+                                  <span className="badge badge-progress" title="Código de revendedor de esta cuenta">
+                                    {c.revendedorCodigo || solicitud.codigoRevendedor}
+                                  </span>
+                                  <input
+                                    type="number" min="0" max="100"
+                                    value={descuentoPorCuenta[c.uid] ?? ''}
+                                    onChange={(e) => setDescuentoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
+                                    placeholder="% dto."
+                                    title="Descuento (ganancia del revendedor) para esta renovación"
+                                    style={{ fontSize: '12px', width: '60px' }}
+                                  />
+                                </>
+                              )}
+                              {/* Vincular a mano una cuenta ya existente a un revendedor --
+                                  para suscriptores que el revendedor ya traía de antes de
+                                  este sistema de códigos (nunca van a pasar por una
+                                  solicitud de contacto con el código cargado). Sólo
+                                  admin: un revendedor no puede reasignarse suscriptores. */}
+                              {!modoRevendedor && (
+                                <select
+                                  value={c.revendedorCodigo || ''}
+                                  onChange={(e) => vincularRevendedorACuenta(c.uid, e.target.value)}
+                                  title="Vincular esta cuenta a un revendedor (o desvincularla)"
+                                  style={{ fontSize: '12px', width: '130px', boxSizing: 'border-box' }}
+                                >
+                                  <option value="">— Sin revendedor —</option>
+                                  {revendedores.map(rev => (
+                                    <option key={rev.codigo} value={rev.codigo}>{rev.codigo}</option>
+                                  ))}
+                                </select>
+                              )}
                               <button
                                 className="btn"
                                 style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
                                 disabled={accionEnCurso === `${c.uid}:activar`}
-                                onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null)}
+                                onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null, Number(descuentoPorCuenta[c.uid]) || 0)}
                                 title="Si la cuenta ya venció (lectura/suspendida), la reactiva desde hoy. Si todavía está vigente, prorroga un ciclo desde el vencimiento actual."
                               >
                                 Renovar suscripción
@@ -697,14 +1082,16 @@ export default function AdminPage() {
                                   >
                                     {c.contactadoPostBloqueo ? '✓ Contactado' : 'Marcar contactado'}
                                   </button>
-                                  <button
-                                    className="btn btn-danger"
-                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                    disabled={borrandoUid === c.uid}
-                                    onClick={() => borrarCuentaDefinitivamente(c.uid, c.email)}
-                                  >
-                                    {borrandoUid === c.uid ? 'Borrando...' : '✕ Borrar cuenta'}
-                                  </button>
+                                  {!modoRevendedor && (
+                                    <button
+                                      className="btn btn-danger"
+                                      style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                      disabled={borrandoUid === c.uid}
+                                      onClick={() => borrarCuentaDefinitivamente(c.uid, c.email)}
+                                    >
+                                      {borrandoUid === c.uid ? 'Borrando...' : '✕ Borrar cuenta'}
+                                    </button>
+                                  )}
                                 </>
                               )}
                             </td>
@@ -720,8 +1107,166 @@ export default function AdminPage() {
         })}
       </div>
 
-      {/* ---- Plantillas de mail ---- */}
-      <div className="card">
+      {/* ---- Revendedores (sólo admin principal) ---- */}
+      {!modoRevendedor && <div className="card">
+        <div
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaRevendedoresAbierta ? '14px' : 0, cursor: 'pointer' }}
+          onClick={() => setListaRevendedoresAbierta(v => !v)}
+        >
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            {listaRevendedoresAbierta ? '▾' : '▸'} Revendedores {!loadingRevendedores && `(${revendedores.length})`}
+          </div>
+        </div>
+
+        {listaRevendedoresAbierta && (
+          <>
+            {/* Habilitar un suscriptor existente como revendedor: se elige
+                por uid (copiado de la fila de Suscriptores de arriba) y se
+                le asigna un código propio. */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px', padding: '10px 12px', border: '1px dashed var(--border)', borderRadius: 'var(--radius2)' }}>
+              <input
+                type="text"
+                value={uidNuevoRevendedor}
+                onChange={(e) => setUidNuevoRevendedor(e.target.value)}
+                placeholder="uid o email de la cuenta a habilitar…"
+                style={{ fontSize: '12px', flex: 1, minWidth: '200px' }}
+              />
+              <input
+                type="text"
+                value={codigoNuevoRevendedor}
+                onChange={(e) => setCodigoNuevoRevendedor(e.target.value.toUpperCase())}
+                placeholder="Código (ej JUAN20)"
+                style={{ fontSize: '12px', width: '150px' }}
+              />
+              <button
+                className="btn btn-primary"
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+                disabled={habilitandoRevendedor}
+                onClick={habilitarRevendedor}
+              >
+                {habilitandoRevendedor ? 'Habilitando...' : 'Habilitar revendedor'}
+              </button>
+            </div>
+
+            {loadingRevendedores && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+            {!loadingRevendedores && revendedores.length === 0 && (
+              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no hay ningún revendedor habilitado.</div>
+            )}
+
+            {!loadingRevendedores && revendedores.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {revendedores.map((rev) => {
+                  const anioMes = mesSeleccionadoPorCodigo[rev.codigo] || mesActual();
+                  const ventas = ventasDelMesPorCodigo[`${rev.codigo}:${anioMes}`];
+                  return (
+                    <div key={rev.codigo} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                            {rev.codigo} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>— {rev.email || rev.uid}</span>
+                            {!rev.activo && <span className="badge badge-cancelled" style={{ marginLeft: '8px' }}>inactivo</span>}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <input
+                            type="month"
+                            value={anioMes}
+                            onChange={(e) => setMesSeleccionadoPorCodigo(prev => ({ ...prev, [rev.codigo]: e.target.value }))}
+                            style={{ fontSize: '12px', padding: '3px 4px' }}
+                            title="Mes a consultar/cerrar"
+                          />
+                          <button
+                            className="btn"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            disabled={cargandoVentasCodigo === rev.codigo}
+                            onClick={() => verVentasDelMes(rev.uid, rev.codigo, anioMes)}
+                          >
+                            {cargandoVentasCodigo === rev.codigo ? 'Cargando...' : 'Ver ventas'}
+                          </button>
+                          <button
+                            className="btn"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            disabled={generandoCierreCodigo === rev.codigo}
+                            onClick={() => generarCierre(rev, anioMes)}
+                            title="Marca el mes elegido como cerrado y descarga el PDF con el detalle y el total a facturar"
+                          >
+                            {generandoCierreCodigo === rev.codigo ? 'Generando...' : '📄 Generar cierre del mes'}
+                          </button>
+                          {rev.activo ? (
+                            <button
+                              className="btn"
+                              style={{ fontSize: '11px', padding: '4px 8px' }}
+                              onClick={() => deshabilitarRevendedor(rev.uid)}
+                            >
+                              Deshabilitar
+                            </button>
+                          ) : (
+                            <button
+                              className="btn"
+                              style={{ fontSize: '11px', padding: '4px 8px' }}
+                              onClick={() => reactivarRevendedor(rev)}
+                            >
+                              Reactivar
+                            </button>
+                          )}
+                          <button
+                            className="btn btn-danger"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            disabled={borrandoRevendedorCodigo === rev.codigo}
+                            onClick={() => borrarRevendedor(rev)}
+                            title="Borra el código definitivamente. Se rechaza si todavía tiene suscriptores con suscripción vigente (trial o activa)."
+                          >
+                            {borrandoRevendedorCodigo === rev.codigo ? 'Borrando...' : '✕ Borrar'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {ventas && (
+                        <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', marginTop: '8px' }}>
+                          {ventas.items.length} venta(s) en {anioMes} · lista ${Number(ventas.totalPlan || 0).toLocaleString('es-AR')} ·
+                          {' '}descuento ${Number(ventas.totalDescuento || 0).toLocaleString('es-AR')} ·
+                          {' '}a facturar ${Number(ventas.totalFacturable || 0).toLocaleString('es-AR')}
+                          {ventas.cerrado && <span className="badge badge-done" style={{ marginLeft: '8px' }}>cerrado</span>}
+                        </div>
+                      )}
+
+                      {/* Default de descuento por plan -- se prellena con lo que ya
+                          esté guardado y se guarda entero al tocar "Guardar". */}
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                        {planes.map(p => (
+                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text2)' }}>{p.nombre}</span>
+                            <input
+                              type="number" min="0" max="100"
+                              defaultValue={rev.descuentosPorPlan?.[p.id] ?? ''}
+                              onChange={(e) => setDescuentosPorPlanEditando(prev => ({
+                                ...prev,
+                                [rev.codigo]: { ...(prev[rev.codigo] || rev.descuentosPorPlan || {}), [p.id]: Number(e.target.value) || 0 }
+                              }))}
+                              placeholder="%"
+                              style={{ fontSize: '11px', width: '55px' }}
+                            />
+                          </div>
+                        ))}
+                        <button
+                          className="btn"
+                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                          onClick={() => guardarDescuentosRevendedor(rev.uid, rev.codigo)}
+                        >
+                          Guardar % default
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>}
+
+      {/* ---- Plantillas de mail (sólo admin principal) ---- */}
+      {!modoRevendedor && <div className="card">
         <div
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaPlantillasAbierta ? '14px' : 0, cursor: 'pointer' }}
           onClick={() => setListaPlantillasAbierta(v => !v)}
@@ -765,10 +1310,10 @@ export default function AdminPage() {
             )}
           </>
         )}
-      </div>
+      </div>}
 
-      {/* ---- Administradores actuales ---- */}
-      <div className="card">
+      {/* ---- Administradores actuales (sólo admin principal) ---- */}
+      {!modoRevendedor && <div className="card">
         <div className="card-title">Administradores actuales</div>
 
         {loadingAdmins && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
@@ -794,13 +1339,13 @@ export default function AdminPage() {
         <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '14px', lineHeight: 1.5 }}>
           Agregar o quitar administradores se gestiona desde Firebase Console → Firestore → colección <code>admins</code> (documento con ID = email en minúsculas).
         </p>
-      </div>
+      </div>}
 
-      <ModalPlan
+      {!modoRevendedor && <ModalPlan
         isOpen={modalPlanAbierto}
         onClose={() => setModalPlanAbierto(false)}
         plan={planEditando}
-      />
+      />}
 
       <ModalDatosSuscriptor
         isOpen={!!cuentaDatosAbierta}

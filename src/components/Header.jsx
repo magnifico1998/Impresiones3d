@@ -54,7 +54,7 @@ export default function Header({ onToggleMenu }) {
         </svg>
       </div>
       <span className="header-title">Manager3D</span>
-      <span className="header-version" style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px' }}>v3.0</span>
+      <span className="header-version" style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px' }}>v3.1</span>
       
       {(empresa.nombre || empresa.logo) && (
         <div id="header-empresa" style={{

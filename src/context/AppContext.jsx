@@ -1465,6 +1465,7 @@ export const AppProvider = ({ children }) => {
     agregarMiembro,
     quitarMiembro,
     isAdmin,
+    esRevendedor: !!suscripcion?.codigoRevendedor,
     suscripcion,
     planContratado,
     consumoActual,

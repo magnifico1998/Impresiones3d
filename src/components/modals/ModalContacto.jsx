@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db } from '../../firebase';
+import { db, functions } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { validarTelefono } from '../../utils/paises';
 
 // Formulario de "contactate con el admin". Se guarda en
@@ -13,11 +14,45 @@ export default function ModalContacto({ isOpen, onClose }) {
 
   const [form, setForm] = useState({
     nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '', condicionImpositiva: '',
-    localidad: '', telefono: '', email: '', resena: ''
+    localidad: '', telefono: '', email: '', resena: '', codigoRevendedor: ''
   });
   const [yaEnviado, setYaEnviado] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  // Validación en vivo del código de revendedor: 'idle' | 'validando' |
+  // 'valido' | 'invalido'. Se dispara con debounce para no llamar a la
+  // función en cada tecla, y muestra nombre/apellido/email de quien es
+  // dueño del código para que el interesado confirme que lo tipeó bien.
+  const [estadoCodigo, setEstadoCodigo] = useState('idle');
+  const [contactoRevendedor, setContactoRevendedor] = useState(null);
+
+  useEffect(() => {
+    const codigo = form.codigoRevendedor.trim();
+    if (!codigo || !/^[A-Z0-9]{4,12}$/.test(codigo)) {
+      setEstadoCodigo('idle');
+      setContactoRevendedor(null);
+      return;
+    }
+    setEstadoCodigo('validando');
+    const idTimeout = setTimeout(async () => {
+      try {
+        const validar = httpsCallable(functions, 'validarCodigoRevendedor');
+        const { data } = await validar({ codigo });
+        if (data.valido) {
+          setEstadoCodigo('valido');
+          setContactoRevendedor(data);
+        } else {
+          setEstadoCodigo('invalido');
+          setContactoRevendedor(null);
+        }
+      } catch (e) {
+        console.error('Error al validar el código de revendedor:', e);
+        setEstadoCodigo('invalido');
+        setContactoRevendedor(null);
+      }
+    }, 500);
+    return () => clearTimeout(idTimeout);
+  }, [form.codigoRevendedor]);
 
   useEffect(() => {
     if (!isOpen || !cuentaId) return;
@@ -35,7 +70,8 @@ export default function ModalContacto({ isOpen, onClose }) {
             localidad: d.localidad || '',
             telefono: d.telefono || '',
             email: d.email || user.email || '',
-            resena: d.resena || ''
+            resena: d.resena || '',
+            codigoRevendedor: d.codigoRevendedor || ''
           });
           setYaEnviado(true);
         } else {
@@ -54,6 +90,10 @@ export default function ModalContacto({ isOpen, onClose }) {
       setForm(prev => ({ ...prev, telefono: value.replace(/\D/g, '').slice(0, paisActual.longitudTelefono) }));
       return;
     }
+    if (id === 'codigoRevendedor') {
+      setForm(prev => ({ ...prev, codigoRevendedor: value.toUpperCase().slice(0, 12) }));
+      return;
+    }
     setForm(prev => ({ ...prev, [id]: value }));
   };
 
@@ -63,6 +103,9 @@ export default function ModalContacto({ isOpen, onClose }) {
     if (!form.localidad.trim()) return 'Falta la localidad.';
     if (!validarTelefono(form.telefono, paisActual.id)) return paisActual.mensajeTelefono;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) return 'El email no es válido.';
+    if (form.codigoRevendedor && !/^[A-Z0-9]{4,12}$/.test(form.codigoRevendedor)) {
+      return 'El código de revendedor debe tener entre 4 y 12 letras/números.';
+    }
     return null;
   };
 
@@ -74,6 +117,7 @@ export default function ModalContacto({ isOpen, onClose }) {
     try {
       await setDoc(doc(db, 'solicitudesContacto', cuentaId), {
         ...form,
+        codigoRevendedor: form.codigoRevendedor.trim() || null,
         estado: 'pendiente',
         actualizadoEl: serverTimestamp(),
         ...(yaEnviado ? {} : { creadoEl: serverTimestamp() })
@@ -142,6 +186,28 @@ export default function ModalContacto({ isOpen, onClose }) {
             <div>
               <label className="fl">Correo electrónico</label>
               <input type="email" id="email" value={form.email} onChange={handleChange} />
+            </div>
+            <div>
+              <label className="fl">Código de revendedor (opcional)</label>
+              <input
+                type="text"
+                id="codigoRevendedor"
+                placeholder="Si te lo pasó un revendedor…"
+                value={form.codigoRevendedor}
+                onChange={handleChange}
+              />
+              {estadoCodigo === 'validando' && (
+                <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '4px' }}>Comprobando código…</p>
+              )}
+              {estadoCodigo === 'valido' && contactoRevendedor && (
+                <p style={{ fontSize: '12px', color: 'var(--success, #2a9d5c)', marginTop: '4px' }}>
+                  ✓ Revendedor: {[contactoRevendedor.nombre, contactoRevendedor.apellido].filter(Boolean).join(' ') || contactoRevendedor.email}
+                  {contactoRevendedor.email ? ` (${contactoRevendedor.email})` : ''}
+                </p>
+              )}
+              {estadoCodigo === 'invalido' && (
+                <p style={{ fontSize: '12px', color: 'var(--danger)', marginTop: '4px' }}>No encontramos ningún revendedor con ese código.</p>
+              )}
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="fl">¿Qué harías con la aplicación?</label>

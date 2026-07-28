@@ -29,4 +29,24 @@ function formatearFecha(timestamp) {
   return timestamp.toDate().toISOString().slice(0, 10); // "YYYY-MM-DD"
 }
 
-module.exports = { db, Timestamp, FieldValue, DIA_MS, DURACION_TRIAL_DIAS, DURACION_LECTURA_DIAS, sumarMesCalendario, formatearFecha };
+// Copia liviana de los datos de contacto de un revendedor (nombre,
+// apellido, teléfono, email), para denormalizar sobre la suscripción de
+// cada referido -- el referido no tiene permiso para leer la cuenta del
+// revendedor directamente, así que esto es lo único que le llega. Prioriza
+// datosSuscriptor (lo carga el admin desde "Consultar datos") y, si no
+// existe o le falta el email, completa con el de Firebase Auth.
+async function obtenerContactoRevendedor(uid) {
+  const [datosSnap, subSnap] = await Promise.all([
+    db.doc(`datosSuscriptor/${uid}`).get(),
+    db.doc(`users/${uid}/suscripcion/actual`).get()
+  ]);
+  const datos = datosSnap.exists ? datosSnap.data() : {};
+  return {
+    nombre: datos.nombre || null,
+    apellido: datos.apellido || null,
+    telefono: datos.telefono || null,
+    email: datos.email || (subSnap.exists ? subSnap.data().email : null) || null
+  };
+}
+
+module.exports = { db, Timestamp, FieldValue, DIA_MS, DURACION_TRIAL_DIAS, DURACION_LECTURA_DIAS, sumarMesCalendario, formatearFecha, obtenerContactoRevendedor };

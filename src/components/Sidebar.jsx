@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { activePage, setActivePage, isAdmin } = useApp();
+  const { activePage, setActivePage, isAdmin, esRevendedor } = useApp();
 
   const handleNavigate = (id) => {
     setActivePage(id);
@@ -138,6 +138,27 @@ export default function Sidebar({ isOpen, onClose }) {
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 2l6 3v5c0 4-2.5 6.5-6 8-3.5-1.5-6-4-6-8V5l6-3z" />
               <path d="M7.5 10l1.8 1.8L13 8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )
+        }
+      ]
+    }] : []),
+    // Un suscriptor habilitado como revendedor ve esta pestaña aparte, con
+    // una versión acotada del panel de admin (sólo SUS propios
+    // suscriptores) -- ver AdminPage con modoRevendedor. Se muestra aunque
+    // la cuenta TAMBIÉN sea admin: "Administrador" gestiona todo el
+    // sistema, "Revendedor" es la cartera propia acotada, son vistas
+    // distintas y un admin que además revende necesita las dos.
+    ...(esRevendedor ? [{
+      label: 'Reventa',
+      links: [
+        {
+          id: 'revendedor',
+          name: 'Revendedor',
+          icon: (
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 8v4h3l5 3V5L5 8H2z" strokeLinejoin="round" />
+              <path d="M13 7a3 3 0 010 6" strokeLinecap="round" />
             </svg>
           )
         }

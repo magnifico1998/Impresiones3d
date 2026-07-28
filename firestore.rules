@@ -81,6 +81,26 @@ service cloud.firestore {
              get(suscripcionRef(uid)).data.estado != 'suspendida';
     }
 
+    // ---- Reventa de suscripciones ----
+    // Un suscriptor puede ser habilitado como revendedor (ver
+    // gestionarRevendedores.js): a partir de ahí su propia
+    // suscripcion/actual lleva codigoRevendedor (su código propio), y las
+    // cuentas que activó/renovó él llevan revendedorUid apuntando a su uid.
+    // esRevendedorDe(uid) responde "¿la cuenta `uid` es una de las mías?".
+    // miCodigoRevendedor() responde "¿cuál es MI código?" (o null si no soy
+    // revendedor), para poder matchear leads (solicitudesContacto) que
+    // todavía no tienen una suscripcion/actual vinculada.
+    function esRevendedorDe(uid) {
+      return request.auth != null && exists(suscripcionRef(uid)) &&
+        get(suscripcionRef(uid)).data.get('revendedorUid', null) == request.auth.uid;
+    }
+
+    function miCodigoRevendedor() {
+      return request.auth != null && exists(suscripcionRef(request.auth.uid))
+        ? get(suscripcionRef(request.auth.uid)).data.get('codigoRevendedor', null)
+        : null;
+    }
+
     function dentroDelLimiteDePedidos(uid) {
       return !exists(suscripcionRef(uid)) ||
         get(suscripcionRef(uid)).data.cicloId == null ||
@@ -149,15 +169,15 @@ service cloud.firestore {
     // riesgo de que alguien —dueño o admin comprometido— se autoactive la
     // cuenta editando Firestore directo.
     match /users/{uid}/suscripcion/{docId} {
-      allow read: if tieneAcceso(uid) || esAdmin();
+      allow read: if tieneAcceso(uid) || esAdmin() || esRevendedorDe(uid);
       allow write: if false;
 
       match /eventos/{eventoId} {
-        allow read: if tieneAcceso(uid) || esAdmin();
+        allow read: if tieneAcceso(uid) || esAdmin() || esRevendedorDe(uid);
         allow write: if false;
       }
       match /contadores/{cicloId} {
-        allow read: if tieneAcceso(uid) || esAdmin();
+        allow read: if tieneAcceso(uid) || esAdmin() || esRevendedorDe(uid);
         allow write: if false;
       }
     }
@@ -171,9 +191,13 @@ service cloud.firestore {
     // extrayendo el uid del wildcard (evitamos indexar un `path`, que sin
     // poder probarlo contra el emulador real es fuente fácil de bugs) --
     // el dueño ya tiene su acceso cubierto por la regla de arriba vía
-    // getDoc/onSnapshot normal, así que esta sólo necesita cubrir admins.
+    // getDoc/onSnapshot normal, así que esta sólo necesita cubrir admins y
+    // revendedores (acá sí podemos usar resource.data directo porque el
+    // propio doc que matchea YA es el suscripcion/actual que se está
+    // leyendo, sin necesidad de un get() extra).
     match /{pathPrefix=**}/suscripcion/{docId} {
-      allow read: if esAdmin();
+      allow read: if esAdmin() ||
+        (docId == 'actual' && resource.data.get('revendedorUid', null) == request.auth.uid);
     }
 
     // ---- Catálogo de planes (configurable desde el panel admin) ----
@@ -215,7 +239,12 @@ service cloud.firestore {
     // para leads entrantes, cada corrección resucitaba la cuenta como si
     // fuera una solicitud de contacto nueva.
     match /solicitudesContacto/{uid} {
-      allow read: if tieneAcceso(uid) || esAdmin();
+      // Además del dueño/admin, un revendedor puede ver sus propios leads:
+      // los que ya tiene vinculados (esRevendedorDe) y los que todavía no
+      // se activaron pero ya traen SU código cargado en el formulario de
+      // contacto (para poder activarlos él mismo sin pasar por el admin).
+      allow read: if tieneAcceso(uid) || esAdmin() || esRevendedorDe(uid) ||
+        (miCodigoRevendedor() != null && resource.data.get('codigoRevendedor', null) == miCodigoRevendedor());
 
       allow create: if tieneAcceso(uid) &&
         request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
@@ -224,15 +253,27 @@ service cloud.firestore {
         request.resource.data.localidad is string && request.resource.data.localidad.size() > 0 && request.resource.data.localidad.size() < 100 &&
         request.resource.data.telefono is string && request.resource.data.telefono.matches('^[0-9]{10}$') &&
         request.resource.data.email is string && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
-        request.resource.data.resena is string && request.resource.data.resena.size() < 600;
+        request.resource.data.resena is string && request.resource.data.resena.size() < 600 &&
+        (!('codigoRevendedor' in request.resource.data) ||
+          request.resource.data.codigoRevendedor == null ||
+          (request.resource.data.codigoRevendedor is string && request.resource.data.codigoRevendedor.matches('^[A-Z0-9]{4,12}$')));
 
       allow update: if
         (tieneAcceso(uid) &&
           request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
           request.resource.data.telefono.matches('^[0-9]{10}$') &&
-          request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')) ||
+          request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
+          (!('codigoRevendedor' in request.resource.data) ||
+            request.resource.data.codigoRevendedor == null ||
+            (request.resource.data.codigoRevendedor is string && request.resource.data.codigoRevendedor.matches('^[A-Z0-9]{4,12}$')))) ||
+        // El admin sólo puede tocar "estado" (marcar contactado) o
+        // "codigoRevendedor" (completarlo a mano si el cliente no lo hizo)
+        // -- nunca los datos de contacto, eso vive en datosSuscriptor.
         (esAdmin() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']));
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'codigoRevendedor']) &&
+          (!('codigoRevendedor' in request.resource.data) ||
+            request.resource.data.codigoRevendedor == null ||
+            (request.resource.data.codigoRevendedor is string && request.resource.data.codigoRevendedor.matches('^[A-Z0-9]{4,12}$'))));
 
       allow delete: if false;
     }
@@ -244,8 +285,31 @@ service cloud.firestore {
     // dueño de la cuenta no tiene hoy ninguna pantalla que lo muestre, pero
     // puede leer el suyo por si el día de mañana se expone.
     match /datosSuscriptor/{uid} {
-      allow read: if tieneAcceso(uid) || esAdmin();
-      allow write: if esAdmin();
+      allow read: if tieneAcceso(uid) || esAdmin() || esRevendedorDe(uid);
+      allow write: if esAdmin() || esRevendedorDe(uid);
+    }
+
+    // ---- Revendedores ----
+    // Doc ID = código (ej "JUAN20"). Mapeo inverso código -> uid, para que
+    // el admin (o la Cloud Function cambiarEstadoSuscripcion) pueda
+    // resolver un código cargado en una solicitud sin conocer de antemano
+    // a quién pertenece. Sólo lo escriben Cloud Functions (ver
+    // gestionarRevendedores.js) -- nunca el cliente directo, ni siquiera
+    // un admin, para que el alta/baja quede siempre auditada.
+    match /revendedores/{codigo} {
+      allow read: if esAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow write: if false;
+
+      // Ventas atribuidas a este revendedor, agrupadas por mes (YYYY-MM):
+      // ledger incremental que arma cambiarEstadoSuscripcion en cada
+      // activación/renovación atribuida, para poder cerrar el mes con una
+      // sola lectura (sin collectionGroup ni índice compuesto sobre
+      // eventos). Sólo lo ve el admin principal -- es información de
+      // facturación, no algo que el propio revendedor necesite auditar.
+      match /ventas/{anioMes} {
+        allow read: if esAdmin();
+        allow write: if false;
+      }
     }
 
     // ---- Catálogo web público, uno por tienda (uid del dueño) ----
