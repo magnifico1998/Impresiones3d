@@ -1227,9 +1227,8 @@ export const AppProvider = ({ children }) => {
 
   const guardarCatalogoConfig = async (parcial) => {
     try {
-      const actual = catalogoConfig || {};
-      const nuevo = { ...actual, ...parcial, actualizado: new Date().toISOString() };
-      await setDoc(doc(db, "catalogoTiendas", cuentaId), nuevo);
+      const nuevo = { ...parcial, actualizado: new Date().toISOString() };
+      await setDoc(doc(db, "catalogoTiendas", cuentaId), nuevo, { merge: true });
     } catch (e) {
       console.error("Error al guardar la configuración del catálogo:", e);
       showToast('⚠ No se pudo guardar la configuración del catálogo.', 'error');

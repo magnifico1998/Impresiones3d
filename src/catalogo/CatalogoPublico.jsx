@@ -358,8 +358,22 @@ export default function CatalogoPublico() {
           <div style={{ fontWeight: 700, fontSize: '15px' }}>{config.empresaNombre || 'Catálogo'}</div>
           <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Elegí tus productos y armá tu pedido</div>
         </div>
-        {(urlFacebook(config.facebook) || urlInstagram(config.instagram)) && (
+        {(urlFacebook(config.facebook) || urlInstagram(config.instagram) || config.telefono) && (
           <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
+            {config.telefono && (
+              <a
+                href={`https://wa.me/${config.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Te escribo desde el catálogo de ${config.empresaNombre || 'tu tienda'}.`)}`}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="WhatsApp"
+                style={{ color: 'var(--text3)', display: 'flex' }}
+              >
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '20px', height: '20px' }}>
+                  <path d="M10 2.5a7.5 7.5 0 0 0-6.4 11.4L2.5 17.5l3.75-1.05A7.5 7.5 0 1 0 10 2.5z" strokeLinejoin="round" />
+                  <path d="M7.2 6.8c.15-.35.3-.35.45-.35h.35c.15 0 .3 0 .45.35.2.45.6 1.5.65 1.6.05.1.1.25 0 .4-.1.15-.15.25-.3.4l-.35.4c-.1.1-.2.2-.1.4.15.3.6 1 1.3 1.6.9.8 1.6 1.05 1.85 1.15.2.1.3.05.4-.05l.5-.55c.15-.15.3-.2.5-.1.2.05 1.25.6 1.45.7.2.1.35.15.4.25.05.15.05.6-.15 1.15-.2.55-1.15 1.05-1.6 1.1-.45.05-.9.25-2.95-.65-2.5-1.1-4.05-3.7-4.15-3.9-.1-.15-.85-1.15-.85-2.15 0-1.05.55-1.5.75-1.7z" fill="currentColor" stroke="none" />
+                </svg>
+              </a>
+            )}
             {urlFacebook(config.facebook) && (
               <a href={urlFacebook(config.facebook)} target="_blank" rel="noreferrer" aria-label="Facebook" style={{ color: 'var(--text3)', display: 'flex' }}>
                 <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '20px', height: '20px' }}>
