@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import ModalContacto from './modals/ModalContacto';
 import ModalCodigoPromocional from './modals/ModalCodigoPromocional';
+import { fechaLocalHoy } from '../utils/fechaCompletado';
 
 // Cuántos días faltan hasta un Timestamp de Firestore, redondeado para
 // arriba (así "faltan 0 días" nunca se muestra como "ya venció" de
@@ -122,7 +123,13 @@ export default function ResumenPage() {
 
   // Calculate Date Boundaries
   const periodDates = useMemo(() => {
-    const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59') : new Date();
+    // "Hasta" cuando no hay fecha explícita tiene que ser el fin del día de
+    // HOY (23:59:59), no el instante exacto actual: los pedidos/compras se
+    // comparan anclados al mediodía (T12:00:00, ver getIsOrderInPeriod más
+    // abajo), así que antes de mediodía "ahora" quedaba antes que ese
+    // mediodía de hoy y todo lo cargado esa misma mañana se caía del
+    // período por estar "en el futuro".
+    const hasta = fechaHasta ? new Date(fechaHasta + 'T23:59:59') : new Date(fechaLocalHoy() + 'T23:59:59');
     let desde;
     if (fechaDesde) {
       desde = new Date(fechaDesde + 'T00:00:00');
