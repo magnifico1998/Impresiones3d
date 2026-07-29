@@ -139,7 +139,6 @@ export default function EmpresaPage() {
   return (
     <div className="page active">
       <div className="page-title">Mi emprendimiento</div>
-      <div className="page-sub">Estos datos son visuales por ahora — se muestran en la parte superior del aplicativo.</div>
 
       <div className="grid2" style={{ alignItems: 'flex-start' }}>
         <div>
