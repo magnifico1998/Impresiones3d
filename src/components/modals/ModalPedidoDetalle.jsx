@@ -383,6 +383,10 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     });
 
     lineas.push('');
+    if (descuentoTotal > 0) {
+      const descuentoLabel = descuentoNombre.trim() || `Descuento${descuentoPct > 0 ? ` (${descuentoPct}%)` : ''}`;
+      lineas.push(`${descuentoLabel}: -${fmt(descuentoTotal)}`);
+    }
     lineas.push(`Total: ${fmt(precioVentaNeto)} (no incluye envío)`);
 
     const texto = lineas.join('\n');
