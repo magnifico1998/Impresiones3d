@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { calcularFechaCompletado } from '../../utils/fechaCompletado';
+import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
 
 export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
   const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast } = useApp();
@@ -33,7 +33,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
           cliente: '',
           desc: '',
           estado: 'pendiente',
-          fechaPedido: new Date().toISOString().split('T')[0],
+          fechaPedido: fechaLocalHoy(),
           fechaEntrega: '',
           notaGeneral: ''
         });

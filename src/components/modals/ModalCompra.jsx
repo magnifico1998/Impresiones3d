@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { fechaLocalHoy } from '../../utils/fechaCompletado';
 
 export default function ModalCompra({ isOpen, onClose, editId }) {
   const { compras, addCompra, updateCompra, getNewId, showToast } = useApp();
@@ -36,7 +37,7 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
           precio: '',
           qty: 1,
           proveedor: '',
-          fecha: new Date().toISOString().split('T')[0],
+          fecha: fechaLocalHoy(),
           notas: ''
         });
       }

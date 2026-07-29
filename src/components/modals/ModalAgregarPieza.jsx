@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { fechaLocalHoy } from '../../utils/fechaCompletado';
 
 // Igual que ModalArmarPedido.jsx (el que arma pedidos desde Biblioteca):
 // el pedido destino puede ser uno existente o "+ Crear pedido nuevo", y la
@@ -27,7 +28,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
       setDestino(defaultPedidoId ? defaultPedidoId.toString() : 'nuevo');
       setCliente('');
       setDesc('');
-      setFechaPedido(new Date().toISOString().split('T')[0]);
+      setFechaPedido(fechaLocalHoy());
       setFechaEntrega('');
       const cantidad = presupuestoActual.cantidad || 1;
       setVersiones([{ id: Date.now() + Math.random(), cantidad, color: '', comentario: '' }]);
@@ -117,7 +118,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
         cliente: clienteTrim,
         desc: desc.trim(),
         estado: 'pendiente',
-        fechaPedido: fechaPedido || new Date().toISOString().slice(0, 10),
+        fechaPedido: fechaPedido || fechaLocalHoy(),
         fechaEntrega: fechaEntrega || '',
         notaGeneral: '',
         piezas: [nuevaPieza],

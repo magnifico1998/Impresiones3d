@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { fechaLocalHoy } from '../../utils/fechaCompletado';
 
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder }) {
   const { 
@@ -46,7 +47,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
       setDestino(fixedOrderId ? fixedOrderId.toString() : 'nuevo');
       setCliente('');
       setDesc('');
-      setFechaPedido(new Date().toISOString().split('T')[0]);
+      setFechaPedido(fechaLocalHoy());
       setFechaEntrega('');
       setEnvio('');
       setMontoFinalTocado(false);
@@ -230,7 +231,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         cliente: cName,
         desc: orderDesc,
         estado: 'pendiente',
-        fechaPedido: fechaPedido || new Date().toISOString().slice(0, 10),
+        fechaPedido: fechaPedido || fechaLocalHoy(),
         fechaEntrega: fechaEntrega || '',
         notaGeneral: '',
         piezas: nuevasPiezas,

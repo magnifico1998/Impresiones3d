@@ -8,6 +8,7 @@ import ModalPlan from './modals/ModalPlan';
 import ModalDatosSuscriptor from './modals/ModalDatosSuscriptor';
 import ModalPlantillaEmail from './modals/ModalPlantillaEmail';
 import SeccionCodigosPromocionales from './admin/SeccionCodigosPromocionales';
+import { fechaLocalHoy } from '../utils/fechaCompletado';
 
 // Panel de administración: sólo lo ven los emails presentes en la
 // colección Firestore "admins" (ver App.jsx -> guard de isAdmin y
@@ -649,7 +650,7 @@ export default function AdminPage({ modoRevendedor = false }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `contactos-sin-suscripcion-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `contactos-sin-suscripcion-${fechaLocalHoy()}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -678,7 +679,7 @@ export default function AdminPage({ modoRevendedor = false }) {
     const a = document.createElement('a');
     a.href = url;
     const sufijoEstado = filtroEstadoSuscriptores !== 'todos' ? `-${filtroEstadoSuscriptores}` : '';
-    a.download = `suscriptores${sufijoEstado}-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `suscriptores${sufijoEstado}-${fechaLocalHoy()}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();

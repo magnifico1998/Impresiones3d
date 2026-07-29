@@ -3,6 +3,7 @@ import { paletas } from './paletas';
 import { ordenarCategorias } from './categoriaOrden';
 import { loadImageAsBase64 } from './loadImageAsBase64';
 import { formatearMoneda } from './paises';
+import { fechaLocalHoy } from './fechaCompletado';
 
 // Colores "neutros" que no dependen de la paleta: el precio se mantiene
 // siempre en verde (significado semántico) y los grises de texto/bordes
@@ -305,7 +306,7 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, 
     );
   }
 
-  const nombreArchivo = `Listado-Productos-${empresa?.nombre || 'empresa'}-${new Date().toISOString().split('T')[0]}.pdf`;
+  const nombreArchivo = `Listado-Productos-${empresa?.nombre || 'empresa'}-${fechaLocalHoy()}.pdf`;
   pdf.save(nombreArchivo);
 }
 

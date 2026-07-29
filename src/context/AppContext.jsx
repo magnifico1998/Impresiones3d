@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeB
 import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
 import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
+import { fechaLocalHoy } from '../utils/fechaCompletado';
 
 const AppContext = createContext();
 
@@ -1382,7 +1383,7 @@ export const AppProvider = ({ children }) => {
           cliente: nombreParaPedido,
           desc: solicitud.comentarioGeneral || 'Pedido desde catálogo web',
           estado: 'en_verificacion',
-          fechaPedido: new Date().toISOString().slice(0, 10),
+          fechaPedido: fechaLocalHoy(),
           fechaEntrega: '',
           notaGeneral: solicitud.telefono ? `Tel: ${solicitud.telefono}` : '',
           piezas: nuevasPiezas,
