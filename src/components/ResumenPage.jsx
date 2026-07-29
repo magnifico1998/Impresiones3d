@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import ModalContacto from './modals/ModalContacto';
+import ModalCodigoPromocional from './modals/ModalCodigoPromocional';
 
 // Cuántos días faltan hasta un Timestamp de Firestore, redondeado para
 // arriba (así "faltan 0 días" nunca se muestra como "ya venció" de
@@ -11,7 +12,7 @@ const diasHasta = (timestamp) => {
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 };
 
-function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
+function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbrirPromo }) {
   if (!suscripcion) return null;
 
   if (suscripcion.estado === 'activa') {
@@ -35,9 +36,14 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
           <div style={{ fontSize: '13px', color: 'var(--text)' }}>
             🕐 Estás en una <strong>versión de prueba</strong>{dias !== null ? ` — te quedan ${dias} día${dias === 1 ? '' : 's'}` : ''}. Contactate con el área comercial para ver las opciones de contratación.
           </div>
-          <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
-            Contactar
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirPromo}>
+              🎟️ Activar código promocional
+            </button>
+            <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
+              Contactar
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -81,6 +87,7 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto }) {
 export default function ResumenPage() {
   const { pedidos, compras, suscripcion, planContratado, fmt, cfg } = useApp();
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
+  const [modalPromoOpen, setModalPromoOpen] = useState(false);
 
   const [diasPeriodo, setDiasPeriodo] = useState(7);
   const [fechaDesde, setFechaDesde] = useState('');
@@ -224,7 +231,7 @@ export default function ResumenPage() {
       const f = getFechaVenta(p);
       if (f && map[f] !== undefined) map[f] += precioNetoFor(p);
     });
-    return Object.entries(map).map(([k, val]) => ({ label: k.slice(5), ventas: val }));
+    return Object.entries(map).map(([k, val]) => ({ label: k.slice(8, 10) + '-' + k.slice(5, 7), ventas: val }));
   };
 
   const agruparPorSemana = (pedidosList, desde, hasta) => {
@@ -233,7 +240,8 @@ export default function ResumenPage() {
     while (cur <= hasta) {
       const fin = new Date(cur);
       fin.setDate(fin.getDate() + 6);
-      semanas.push({ label: cur.toISOString().slice(5, 10), desde: new Date(cur), hasta: fin <= hasta ? fin : hasta, ventas: 0 });
+      const k = cur.toISOString();
+      semanas.push({ label: k.slice(8, 10) + '-' + k.slice(5, 7), desde: new Date(cur), hasta: fin <= hasta ? fin : hasta, ventas: 0 });
       cur.setDate(cur.getDate() + 7);
     }
     pedidosList.forEach(p => {
@@ -435,7 +443,7 @@ export default function ResumenPage() {
 
   return (
     <div className="page active">
-      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} />
+      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} />
       <div className="page-title">Resumen</div>
       <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
       
@@ -641,6 +649,7 @@ export default function ResumenPage() {
       </div>
 
       <ModalContacto isOpen={modalContactoOpen} onClose={() => setModalContactoOpen(false)} />
+      <ModalCodigoPromocional isOpen={modalPromoOpen} onClose={() => setModalPromoOpen(false)} />
     </div>
   );
 }

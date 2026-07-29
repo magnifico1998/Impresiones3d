@@ -1,6 +1,6 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { logger } = require('firebase-functions');
-const { db, Timestamp, DIA_MS, DURACION_LECTURA_DIAS, formatearFecha } = require('../admin');
+const { db, Timestamp, FieldValue, DIA_MS, DURACION_LECTURA_DIAS, formatearFecha, sumarMesCalendario } = require('../admin');
 const { enviarEmail, gmailAppPassword } = require('../mailer');
 const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
 
@@ -61,12 +61,37 @@ exports.transicionSuscripciones = onSchedule(
     //    (si Mercado Pago hubiera avisado el pago a tiempo, el webhook ya
     //    habría corrido cambiarEstadoSuscripcion y movido cicloFin a futuro,
     //    así que estos docs no entrarían acá).
+    //    EXCEPCIÓN: cuentas con un beneficio de código promocional todavía
+    //    vigente (promoCiclosRestantes > 0, ver codigosPromocionales.js) no
+    //    pagan, así que nada más las va a renovar -- acá mismo se les
+    //    prorroga el ciclo un mes más gratis y se descuenta un ciclo del
+    //    beneficio. Recién cuando se agota (promoCiclosRestantes llega a 0)
+    //    caen al mismo camino de modo lectura que cualquier otra cuenta.
     const ciclosVencidos = await db.collectionGroup('suscripcion')
       .where('estado', '==', 'activa')
       .where('cicloFin', '<=', ahora)
       .get();
 
+    const ciclosVencidosSinPromo = [];
     ciclosVencidos.forEach((doc) => {
+      const data = doc.data();
+      if (data.promoCiclosRestantes > 0) {
+        const cicloAnteriorFin = data.cicloFin || ahora;
+        const nuevoCicloFin = sumarMesCalendario(cicloAnteriorFin);
+        batch.update(doc.ref, {
+          cicloInicio: cicloAnteriorFin,
+          cicloId: formatearFecha(cicloAnteriorFin),
+          cicloFin: nuevoCicloFin,
+          promoCiclosRestantes: FieldValue.increment(-1)
+        });
+        batch.set(doc.ref.collection('eventos').doc(), { tipo: 'promo_renovada', fecha: ahora });
+        cambios++;
+        return;
+      }
+      ciclosVencidosSinPromo.push(doc);
+    });
+
+    ciclosVencidosSinPromo.forEach((doc) => {
       const fechaLimiteLectura = Timestamp.fromMillis(ahora.toMillis() + DURACION_LECTURA_DIAS * DIA_MS);
       batch.update(doc.ref, { estado: 'lectura', fechaLimiteLectura });
       batch.set(doc.ref.collection('eventos').doc(), { tipo: 'ciclo_vencido_a_lectura', fecha: ahora });
@@ -172,7 +197,7 @@ exports.transicionSuscripciones = onSchedule(
       const sinVars = () => ({});
       await Promise.all([
         mandarEnLote(trialsVencidos.docs, 'modoLectura', sinVars, overrides),
-        mandarEnLote(ciclosVencidos.docs, 'modoLectura', sinVars, overrides),
+        mandarEnLote(ciclosVencidosSinPromo, 'modoLectura', sinVars, overrides),
         mandarEnLote(lecturaVencida.docs, 'cuentaBloqueada', sinVars, overrides),
         mandarEnLote(trialsPorVencerAAvisar, 'avisoVencimiento', (doc) => ({ fecha: formatearFecha(doc.data().trialFin) }), overrides),
         mandarEnLote(ciclosPorVencerAAvisar, 'avisoVencimiento', (doc) => ({ fecha: formatearFecha(doc.data().cicloFin) }), overrides),
@@ -184,7 +209,7 @@ exports.transicionSuscripciones = onSchedule(
     }
 
     logger.info(
-      `transicionSuscripciones: ${trialsVencidos.size} trial->lectura, ${ciclosVencidos.size} activa->lectura, ` +
+      `transicionSuscripciones: ${trialsVencidos.size} trial->lectura, ${ciclosVencidosSinPromo.length} activa->lectura, ${ciclosVencidos.size - ciclosVencidosSinPromo.length} promo renovada, ` +
       `${lecturaVencida.size} lectura->suspendida, ${trialsPorVencerAAvisar.length + ciclosPorVencerAAvisar.length} avisos de vencimiento, ` +
       `${bloqueo10dAAvisar.length} avisos de bloqueo (10d), ${bloqueo5dAAvisar.length} avisos de bloqueo (5d)`
     );

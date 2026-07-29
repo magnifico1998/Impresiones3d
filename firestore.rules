@@ -312,6 +312,28 @@ service cloud.firestore {
       }
     }
 
+    // ---- Códigos promocionales de comercios ----
+    // Doc ID = código. A diferencia de revendedores (% de descuento sobre
+    // el precio real), estos códigos otorgan un plan a costo $0 durante N
+    // ciclos (ver functions/http/codigosPromocionales.js). El cliente NUNCA
+    // lee esta colección directo (ni siquiera para "validar en vivo" como
+    // el de revendedor) -- activarCodigoPromocional hace la validación y la
+    // aplica en un único paso, así no se puede enumerar códigos ajenos
+    // desde el cliente.
+    match /codigosPromocionales/{codigo} {
+      allow read: if esAdmin();
+      allow write: if false;
+
+      // Activaciones agrupadas por mes (YYYY-MM), sólo informativo para el
+      // comercio/admin -- no se usa para el cupo (eso lo controla
+      // activacionesTotal en el doc padre, actualizado en la misma
+      // transacción que la activación).
+      match /activaciones/{anioMes} {
+        allow read: if esAdmin();
+        allow write: if false;
+      }
+    }
+
     // ---- Catálogo web público, uno por tienda (uid del dueño) ----
     // Lo navega gente SIN login desde /catalogo/{uid}. Sólo exponemos acá
     // lo que cada dueño decidió publicar explícitamente (ver

@@ -13,6 +13,7 @@ const { transicionSuscripciones } = require('./scheduled/transicionSuscripciones
 const { onNuevaSolicitudContacto } = require('./triggers/onNuevaSolicitudContacto');
 const { listarPlantillasEmail, guardarPlantillaEmail, restablecerPlantillaEmail } = require('./http/plantillasEmail');
 const { habilitarRevendedor, deshabilitarRevendedor, borrarRevendedor, actualizarDescuentosRevendedor, generarCierreRevendedor, vincularRevendedor, validarCodigoRevendedor } = require('./http/gestionarRevendedores');
+const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
 module.exports = {
   onNuevoUsuario,
@@ -34,5 +35,9 @@ module.exports = {
   generarCierreRevendedor,
   vincularRevendedor,
   validarCodigoRevendedor,
-  borrarRevendedor
+  borrarRevendedor,
+  activarCodigoPromocional,
+  crearCodigoPromocional,
+  actualizarCodigoPromocional,
+  desactivarCodigoPromocional
 };

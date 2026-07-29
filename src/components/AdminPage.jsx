@@ -7,6 +7,7 @@ import { httpsCallable } from 'firebase/functions';
 import ModalPlan from './modals/ModalPlan';
 import ModalDatosSuscriptor from './modals/ModalDatosSuscriptor';
 import ModalPlantillaEmail from './modals/ModalPlantillaEmail';
+import SeccionCodigosPromocionales from './admin/SeccionCodigosPromocionales';
 
 // Panel de administración: sólo lo ven los emails presentes en la
 // colección Firestore "admins" (ver App.jsx -> guard de isAdmin y
@@ -1348,6 +1349,8 @@ export default function AdminPage({ modoRevendedor = false }) {
           </>
         )}
       </div>}
+
+      {!modoRevendedor && <SeccionCodigosPromocionales planes={planes} showToast={showToast} />}
 
       {/* ---- Plantillas de mail (sólo admin principal) ---- */}
       {!modoRevendedor && <div className="card">
