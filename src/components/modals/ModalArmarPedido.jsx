@@ -3,16 +3,18 @@ import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder }) {
-  const { 
-    pedidos, 
-    addPedido, 
-    updatePedido, 
-    biblioteca, 
-    cfg, 
-    getNewId, 
+  const {
+    pedidos,
+    addPedido,
+    updatePedido,
+    biblioteca,
+    cfg,
+    getNewId,
     showToast,
     setActivePage,
-    fmt
+    fmt,
+    clientes,
+    addCliente
   } = useApp();
 
   const [armarPedidoItems, setArmarPedidoItems] = useState([]);
@@ -222,10 +224,11 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
     let pedidoDestinoId = null;
 
     if (destino === 'nuevo') {
-      const cName = cliente.trim() || 'Sin nombre';
+      const clienteTrim = cliente.trim();
+      const cName = clienteTrim || 'Sin nombre';
       const orderDesc = desc.trim();
       const newIdVal = getNewId();
-      
+
       const nuevo = {
         id: newIdVal,
         cliente: cName,
@@ -241,9 +244,29 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         creado: new Date().toLocaleDateString('es-AR'),
         creadoTs: Date.now()
       };
-      
+
       addPedido(nuevo);
       pedidoDestinoId = newIdVal;
+
+      // Mismo criterio que ModalPedido.jsx / ModalAgregarPieza.jsx: si el
+      // cliente no existe todavía, se da de alta automáticamente (datos de
+      // contacto vacíos, para completar después desde Clientes).
+      const existeCliente = clienteTrim && clientes.some(c => c.nombre.trim().toLowerCase() === clienteTrim.toLowerCase());
+      if (clienteTrim && !existeCliente) {
+        addCliente({
+          id: getNewId(),
+          nombre: clienteTrim,
+          calle: '',
+          altura: '',
+          loc: '',
+          cp: '',
+          tel: '',
+          email: '',
+          fechaAlta: new Date().toLocaleDateString('es-AR'),
+          fechaAltaTs: Date.now()
+        });
+        showToast('Cliente nuevo creado automáticamente. Completá sus datos en la sección Clientes.', 'info');
+      }
     } else {
       const targetId = parseInt(destino, 10);
       updatePedido(targetId, (p) => ({
