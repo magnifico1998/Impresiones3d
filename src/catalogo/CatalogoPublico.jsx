@@ -428,7 +428,11 @@ export default function CatalogoPublico() {
                             <img
                               src={p.imagen}
                               alt={p.nombre}
-                              onClick={() => setImagenAmpliada({ src: p.imagen, nombre: p.nombre })}
+                              onClick={() => setImagenAmpliada({
+                                imagenes: p.imagenes?.length ? p.imagenes : [p.imagen],
+                                nombre: p.nombre,
+                                index: 0
+                              })}
                               style={{ width: '56px', height: '56px', objectFit: 'contain', background: 'var(--bg3)', borderRadius: '8px', flexShrink: 0, cursor: 'zoom-in' }}
                             />
                           ) : (
@@ -597,12 +601,47 @@ export default function CatalogoPublico() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', cursor: 'zoom-out'
           }}
         >
-          <div style={{ textAlign: 'center' }}>
-            <img
-              src={imagenAmpliada.src}
-              alt={imagenAmpliada.nombre}
-              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', background: 'var(--bg2)' }}
-            />
+          <div style={{ textAlign: 'center', maxWidth: '100%' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
+              <img
+                src={imagenAmpliada.imagenes[imagenAmpliada.index]}
+                alt={imagenAmpliada.nombre}
+                onClick={() => setImagenAmpliada(null)}
+                style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', background: 'var(--bg2)', cursor: 'zoom-out' }}
+              />
+              {imagenAmpliada.imagenes.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setImagenAmpliada(a => ({ ...a, index: (a.index - 1 + a.imagenes.length) % a.imagenes.length }))}
+                    style={{ position: 'absolute', top: '50%', left: '8px', transform: 'translateY(-50%)', width: '32px', height: '32px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '16px', cursor: 'pointer' }}
+                    aria-label="Anterior"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() => setImagenAmpliada(a => ({ ...a, index: (a.index + 1) % a.imagenes.length }))}
+                    style={{ position: 'absolute', top: '50%', right: '8px', transform: 'translateY(-50%)', width: '32px', height: '32px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '16px', cursor: 'pointer' }}
+                    aria-label="Siguiente"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
+            </div>
+            {imagenAmpliada.imagenes.length > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', marginTop: '10px' }}>
+                {imagenAmpliada.imagenes.map((_, i) => (
+                  <span
+                    key={i}
+                    onClick={() => setImagenAmpliada(a => ({ ...a, index: i }))}
+                    style={{
+                      width: '7px', height: '7px', borderRadius: '50%', cursor: 'pointer',
+                      background: i === imagenAmpliada.index ? 'var(--accent)' : 'rgba(255,255,255,.4)'
+                    }}
+                  />
+                ))}
+              </div>
+            )}
             <div style={{ color: 'var(--text2)', fontSize: '13px', marginTop: '10px' }}>{imagenAmpliada.nombre}</div>
           </div>
         </div>

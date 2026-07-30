@@ -393,10 +393,11 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const handleDelete = async (id, name) => {
     if (window.confirm(`¿Eliminar "${name}" de la biblioteca?`)) {
       const prod = biblioteca.find(p => p.id === id);
-      if (prod?.imagen) {
-        await borrarImagenDeFirebase(prod.imagen);
+      const imagenesABorrar = prod?.imagenes?.length ? prod.imagenes : [prod?.imagen].filter(Boolean);
+      for (const url of imagenesABorrar) {
+        await borrarImagenDeFirebase(url);
       }
-      
+
       removeProducto(id);
       setSelectedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
       showToast('Producto eliminado de biblioteca.', 'info');

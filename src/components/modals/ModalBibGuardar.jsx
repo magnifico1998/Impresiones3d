@@ -7,8 +7,9 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState('');
-  const [imagen, setImagen] = useState('');
-  const [imagenPreview, setImagenPreview] = useState('');
+  const [imagenes, setImagenes] = useState([]);
+
+  const MAX_IMAGENES = 6;
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean)));
 
@@ -20,36 +21,48 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       setNombre(nombreSug);
       setDesc('');
       setCat('');
-      setImagen('');
-      setImagenPreview('');
+      setImagenes([]);
     }
   }, [isOpen, presupuestoActual]);
 
   const [subiendoImagen, setSubiendoImagen] = useState(false);
 
   const handleImageChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
+    const disponibles = MAX_IMAGENES - imagenes.length;
+    if (disponibles <= 0) {
+      showToast(`Máximo ${MAX_IMAGENES} imágenes por producto.`, 'error');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    const aSubir = files.slice(0, disponibles);
     setSubiendoImagen(true);
     try {
-      const { dataUrl } = await comprimirImagen(file, {
-        maxWidth: 640,
-        maxHeight: 640,
-        maxBytes: 90 * 1024
-      });
-      const url = await subirImagenAFirebase(dataUrl, {
-        userId: cuentaId,
-        fileName: file.name
-      });
-      setImagen(url);
-      setImagenPreview(url);
+      for (const file of aSubir) {
+        const { dataUrl } = await comprimirImagen(file, {
+          maxWidth: 640,
+          maxHeight: 640,
+          maxBytes: 90 * 1024
+        });
+        const url = await subirImagenAFirebase(dataUrl, {
+          userId: cuentaId,
+          fileName: file.name
+        });
+        setImagenes(prev => [...prev, url]);
+      }
     } catch (err) {
       showToast(err.message || 'No se pudo procesar la imagen.', 'error');
     } finally {
       setSubiendoImagen(false);
       if (e.target) e.target.value = '';
     }
+  };
+
+  const handleRemoveImagen = (idx) => {
+    setImagenes(prev => prev.filter((_, i) => i !== idx));
   };
 
   if (!isOpen || !presupuestoActual) return null;
@@ -63,19 +76,6 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
     }
 
     const p = presupuestoActual;
-    let imagenFinal = imagen || null;
-
-    if (imagenFinal && imagenFinal.startsWith('data:')) {
-      try {
-        imagenFinal = await subirImagenAFirebase(imagenFinal, {
-          userId: cuentaId,
-          fileName: `${nameTrimmed}.jpg`
-        });
-      } catch (err) {
-        showToast(err.message || 'No se pudo subir la imagen.', 'error');
-        return;
-      }
-    }
 
     const snap = {
       id: getNewId(),
@@ -107,7 +107,8 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       materiales: p.materiales || null,
       multiMat: p.multiMat || false,
       matData: p.matData || null,
-      imagen: imagenFinal || null
+      imagenes: imagenes,
+      imagen: imagenes[0] || null
     };
 
     const existente = biblioteca.find(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());
@@ -168,17 +169,39 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
           ))}
         </datalist>
 
-        <label className="fl">Imagen del producto</label>
-        <input type="file" accept="image/*" onChange={handleImageChange} disabled={subiendoImagen} />
+        <label className="fl">Imágenes del producto (la primera es la principal)</label>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageChange}
+          disabled={subiendoImagen || imagenes.length >= MAX_IMAGENES}
+        />
         {subiendoImagen && (
           <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
             Optimizando imagen...
           </div>
         )}
-        {imagenPreview && !subiendoImagen && (
-          <div style={{ marginTop: '8px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
-            <div style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text2)' }}>Imagen lista para guardar</div>
+        {imagenes.length > 0 && (
+          <div style={{ marginTop: '8px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px' }}>
+            {imagenes.map((url, idx) => (
+              <div key={idx} style={{ position: 'relative', border: idx === 0 ? '2px solid var(--accent)' : '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg2)' }}>
+                <img src={url} alt={`Imagen ${idx + 1}`} style={{ display: 'block', width: '100%', height: '90px', objectFit: 'contain', objectPosition: 'center' }} />
+                {idx === 0 && (
+                  <span style={{ position: 'absolute', top: '2px', left: '2px', fontSize: '9px', background: 'var(--accent)', color: '#0a1a12', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
+                    Principal
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImagen(idx)}
+                  style={{ position: 'absolute', top: '2px', right: '2px', width: '18px', height: '18px', lineHeight: '18px', textAlign: 'center', padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}
+                  title="Quitar imagen"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         )}
 

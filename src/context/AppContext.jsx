@@ -1265,6 +1265,7 @@ export const AppProvider = ({ children }) => {
             cat: p.cat || 'Sin categoría',
             desc: p.desc || '',
             imagen: p.imagen || '',
+            imagenes: p.imagenes?.length ? p.imagenes : (p.imagen ? [p.imagen] : []),
             precio: p.precioSugUnitario || p.costoUnitario || 0,
             actualizado: new Date().toISOString()
           });

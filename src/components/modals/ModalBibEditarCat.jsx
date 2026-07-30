@@ -7,9 +7,10 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [categoria, setCategoria] = useState('');
   const [productName, setProductName] = useState('');
   const [precio, setPrecio] = useState('');
-  const [imagen, setImagen] = useState('');
-  const [imagenPreview, setImagenPreview] = useState('');
+  const [imagenes, setImagenes] = useState([]);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
+
+  const MAX_IMAGENES = 6;
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
 
@@ -20,8 +21,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setProductName(prod.nombre);
         setCategoria(prod.cat || '');
         setPrecio(prod.precioSugUnitario !== undefined ? String(prod.precioSugUnitario) : '');
-        setImagen(prod.imagen || '');
-        setImagenPreview(prod.imagen || '');
+        setImagenes(prod.imagenes?.length ? prod.imagenes : (prod.imagen ? [prod.imagen] : []));
       }
     }
     // Sólo se reinicializa cuando el modal se abre o cambia el producto a
@@ -37,22 +37,31 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   if (!isOpen || editId === null) return null;
 
   const handleImageChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
+    const disponibles = MAX_IMAGENES - imagenes.length;
+    if (disponibles <= 0) {
+      showToast(`Máximo ${MAX_IMAGENES} imágenes por producto.`, 'error');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    const aSubir = files.slice(0, disponibles);
     setSubiendoImagen(true);
     try {
-      const { dataUrl } = await comprimirImagen(file, {
-        maxWidth: 640,
-        maxHeight: 640,
-        maxBytes: 90 * 1024
-      });
-      const url = await subirImagenAFirebase(dataUrl, {
-        userId: cuentaId,
-        fileName: file.name
-      });
-      setImagen(url);
-      setImagenPreview(url);
+      for (const file of aSubir) {
+        const { dataUrl } = await comprimirImagen(file, {
+          maxWidth: 640,
+          maxHeight: 640,
+          maxBytes: 90 * 1024
+        });
+        const url = await subirImagenAFirebase(dataUrl, {
+          userId: cuentaId,
+          fileName: file.name
+        });
+        setImagenes(prev => [...prev, url]);
+      }
     } catch (err) {
       showToast(err.message || 'No se pudo procesar la imagen.', 'error');
     } finally {
@@ -61,29 +70,25 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     }
   };
 
+  const handleRemoveImagen = async (idx) => {
+    if (!window.confirm('¿Borrar esta imagen?')) return;
+    const url = imagenes[idx];
+    await borrarImagenDeFirebase(url);
+    setImagenes(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const handleSave = async () => {
     const cleanCat = categoria.trim() || 'General';
     const cleanName = productName.trim() || 'Sin nombre';
     const cleanPrecio = parseFloat(precio) || 0;
 
     const prodAnterior = biblioteca.find(p => p.id === editId);
-    const imagenAnterior = prodAnterior?.imagen;
+    const imagenesAnteriores = prodAnterior?.imagenes?.length ? prodAnterior.imagenes : (prodAnterior?.imagen ? [prodAnterior.imagen] : []);
 
-    let imagenFinal = imagen || '';
-    
-    if (imagenAnterior && imagenAnterior !== imagenFinal && imagenAnterior.includes('firebasestorage')) {
-      await borrarImagenDeFirebase(imagenAnterior);
-    }
-
-    if (imagenFinal && imagenFinal.startsWith('data:')) {
-      try {
-        imagenFinal = await subirImagenAFirebase(imagenFinal, {
-          userId: cuentaId,
-          fileName: `${cleanName}.jpg`
-        });
-      } catch (err) {
-        showToast(err.message || 'No se pudo subir la imagen.', 'error');
-        return;
+    const imagenesQuitadas = imagenesAnteriores.filter(url => !imagenes.includes(url));
+    for (const url of imagenesQuitadas) {
+      if (url && url.includes('firebasestorage')) {
+        await borrarImagenDeFirebase(url);
       }
     }
 
@@ -96,7 +101,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     // valor válido para Firestore y además borra correctamente el campo si
     // el usuario sacó la imagen.
     try {
-      await updateProducto(editId, { cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagen: imagenFinal });
+      await updateProducto(editId, { cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagenes, imagen: imagenes[0] || '' });
       showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? fmt(cleanPrecio) : 'sin precio'}`);
       onClose();
     } catch (err) {
@@ -142,29 +147,39 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           list="bib-edit-cats-list-modal"
         />
 
-        <label className="fl">Imagen del producto</label>
-        <input type="file" accept="image/*" onChange={handleImageChange} disabled={subiendoImagen} />
+        <label className="fl">Imágenes del producto (la primera es la principal)</label>
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageChange}
+          disabled={subiendoImagen || imagenes.length >= MAX_IMAGENES}
+        />
         {subiendoImagen && (
           <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
             Optimizando imagen...
           </div>
         )}
-        {imagenPreview && !subiendoImagen && (
-          <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <img src={imagenPreview} alt="Vista previa" style={{ display: 'block', width: '100%', maxHeight: '180px', objectFit: 'contain', objectPosition: 'center' }} />
-            <button
-              className="btn btn-danger btn-sm"
-              style={{ marginTop: '8px', marginBottom: '8px', fontSize: '11px' }}
-              onClick={async () => {
-                if (window.confirm('¿Borrar esta imagen?')) {
-                  await borrarImagenDeFirebase(imagen);
-                  setImagen('');
-                  setImagenPreview('');
-                }
-              }}
-            >
-              Borrar imagen
-            </button>
+        {imagenes.length > 0 && (
+          <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px' }}>
+            {imagenes.map((url, idx) => (
+              <div key={idx} style={{ position: 'relative', border: idx === 0 ? '2px solid var(--accent)' : '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)' }}>
+                <img src={url} alt={`Imagen ${idx + 1}`} style={{ display: 'block', width: '100%', height: '90px', objectFit: 'contain', objectPosition: 'center' }} />
+                {idx === 0 && (
+                  <span style={{ position: 'absolute', top: '2px', left: '2px', fontSize: '9px', background: 'var(--accent)', color: '#0a1a12', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
+                    Principal
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImagen(idx)}
+                  style={{ position: 'absolute', top: '2px', right: '2px', width: '18px', height: '18px', lineHeight: '18px', textAlign: 'center', padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}
+                  title="Quitar imagen"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
         )}
         <datalist id="bib-edit-cats-list-modal">
