@@ -6,7 +6,9 @@ const { db, Timestamp, FieldValue, DIA_MS, DURACION_LECTURA_DIAS, sumarMesCalend
 // sobre cuentas que son "suyas" (ver resolverAutorizacion más abajo) --
 // todo lo que ve el panel de Suscriptores salvo gestión de planes/
 // revendedores y borrado de cuentas, que siguen siendo admin-only.
-const ACCIONES_REVENDEDOR = ['activar', 'extenderTrial', 'suspender', 'toggleContactadoPostBloqueo'];
+// "extenderTrial" queda afuera a propósito: un revendedor sólo vende
+// planes comerciales, no puede regalar días de trial a sus suscriptores.
+const ACCIONES_REVENDEDOR = ['activar', 'suspender', 'toggleContactadoPostBloqueo'];
 
 // Único punto de entrada para que un admin (o un revendedor, sobre sus
 // propios suscriptores) cambie el estado de la suscripción de una cuenta.

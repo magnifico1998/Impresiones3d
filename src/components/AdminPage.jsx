@@ -1207,14 +1207,16 @@ export default function AdminPage({ modoRevendedor = false }) {
                                   >
                                     Renovar suscripción
                                   </button>
-                                  <button
-                                    className="btn"
-                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                    disabled={accionEnCurso === `${c.uid}:extenderTrial`}
-                                    onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
-                                  >
-                                    +7 días trial
-                                  </button>
+                                  {!modoRevendedor && (
+                                    <button
+                                      className="btn"
+                                      style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                      disabled={accionEnCurso === `${c.uid}:extenderTrial`}
+                                      onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
+                                    >
+                                      +7 días trial
+                                    </button>
+                                  )}
                                   <button
                                     className="btn"
                                     style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
