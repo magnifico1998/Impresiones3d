@@ -30,10 +30,20 @@ import { fechaLocalHoy } from '../utils/fechaCompletado';
 const fmtUltimoAcceso = (ts) => {
   if (!ts?.toDate) return 'sin datos';
   const fecha = ts.toDate();
+  const dd = String(fecha.getDate()).padStart(2, '0');
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}`;
+};
+
+// Título (tooltip) con el detalle completo -- día, hora y "hace cuánto" --
+// para no perder esa info al mostrar sólo DD/mm en la celda.
+const tituloUltimoAcceso = (ts) => {
+  if (!ts?.toDate) return 'Sin datos de último acceso';
+  const fecha = ts.toDate();
   const dias = Math.floor((Date.now() - fecha.getTime()) / (24 * 60 * 60 * 1000));
   const fechaStr = `${fecha.toLocaleDateString('es-AR')} ${fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
   const relativo = dias <= 0 ? 'hoy' : dias === 1 ? 'ayer' : `hace ${dias}d`;
-  return `${relativo} (${fechaStr})`;
+  return `Último acceso: ${relativo} (${fechaStr})`;
 };
 
 export default function AdminPage({ modoRevendedor = false }) {
@@ -109,6 +119,9 @@ export default function AdminPage({ modoRevendedor = false }) {
   const [busquedaSuscriptores, setBusquedaSuscriptores] = useState('');
   const [filtroEstadoSuscriptores, setFiltroEstadoSuscriptores] = useState('todos');
   const [gruposAbiertos, setGruposAbiertos] = useState(() => new Set());
+  // Orden dentro de cada grupo (que sigue agrupado por plan): por vencimiento
+  // o por último acceso, asc/desc. null = orden natural (el que llega de Firestore).
+  const [ordenSuscriptores, setOrdenSuscriptores] = useState({ campo: null, dir: 'asc' });
 
   // Cuenta cuyos datos de contacto se están viendo/editando desde el botón
   // "Consultar datos" de cada fila (ver más abajo).
@@ -626,10 +639,45 @@ export default function AdminPage({ modoRevendedor = false }) {
     });
   }, [cuentasVisibles, busquedaSuscriptores, filtroEstadoSuscriptores, solicitudPorUid]);
 
+  // Fecha de vencimiento "actual" de una cuenta según su estado (mismo
+  // criterio que se usa para mostrar la columna "Vence"), como epoch ms
+  // para poder ordenar.
+  const getVencimientoMs = (c) => {
+    const ts = c.estado === 'trial' ? c.trialFin
+      : c.estado === 'activa' ? c.cicloFin
+      : (c.estado === 'lectura' || c.estado === 'suspendida') ? c.fechaLimiteLectura
+      : null;
+    return ts?.toDate ? ts.toDate().getTime() : null;
+  };
+  const getUltimoAccesoMs = (c) => c.ultimoAcceso?.toDate ? c.ultimoAcceso.toDate().getTime() : null;
+
+  const toggleOrden = (campo) => {
+    setOrdenSuscriptores(prev => prev.campo === campo
+      ? { campo, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { campo, dir: 'asc' });
+  };
+
+  const flechaOrden = (campo) => ordenSuscriptores.campo === campo
+    ? (ordenSuscriptores.dir === 'asc' ? ' ▲' : ' ▼')
+    : '';
+
   // Agrupa por plan, respetando el orden de "planes" (ya viene ordenado por
   // el campo "orden") y dejando las cuentas sin plan asignado al final.
   const gruposDeSuscriptores = useMemo(() => {
     const SIN_PLAN = '__sin_plan__';
+    const { campo, dir } = ordenSuscriptores;
+    const getMs = campo === 'vencimiento' ? getVencimientoMs : campo === 'ultimoAcceso' ? getUltimoAccesoMs : null;
+    const signo = dir === 'asc' ? 1 : -1;
+    const ordenarCuentas = (lista) => {
+      if (!getMs) return lista;
+      return [...lista].sort((a, b) => {
+        const ma = getMs(a), mb = getMs(b);
+        if (ma == null && mb == null) return 0;
+        if (ma == null) return 1; // sin fecha siempre al final
+        if (mb == null) return -1;
+        return (ma - mb) * signo;
+      });
+    };
     const map = new Map();
     cuentasFiltradas.forEach(c => {
       const key = c.planId || SIN_PLAN;
@@ -639,15 +687,15 @@ export default function AdminPage({ modoRevendedor = false }) {
     const ordenados = [];
     planes.forEach(p => {
       if (map.has(p.id)) {
-        ordenados.push({ key: p.id, nombre: p.nombre, cuentas: map.get(p.id) });
+        ordenados.push({ key: p.id, nombre: p.nombre, cuentas: ordenarCuentas(map.get(p.id)) });
         map.delete(p.id);
       }
     });
     if (map.has(SIN_PLAN)) {
-      ordenados.push({ key: SIN_PLAN, nombre: 'Sin plan', cuentas: map.get(SIN_PLAN) });
+      ordenados.push({ key: SIN_PLAN, nombre: 'Sin plan', cuentas: ordenarCuentas(map.get(SIN_PLAN)) });
     }
     return ordenados;
-  }, [cuentasFiltradas, planes]);
+  }, [cuentasFiltradas, planes, ordenSuscriptores]);
 
   const hayBusquedaActiva = busquedaSuscriptores.trim() !== '' || filtroEstadoSuscriptores !== 'todos';
 
@@ -1008,9 +1056,20 @@ export default function AdminPage({ modoRevendedor = false }) {
                       <tr>
                         <th>Cuenta</th>
                         <th>Estado</th>
-                        <th>Vence</th>
-                        <th>Plan</th>
-                        <th>Último acceso</th>
+                        <th
+                          onClick={() => toggleOrden('vencimiento')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          title="Ordenar por fecha de vencimiento"
+                        >
+                          Vence{flechaOrden('vencimiento')}
+                        </th>
+                        <th
+                          onClick={() => toggleOrden('ultimoAcceso')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          title="Ordenar por último acceso"
+                        >
+                          PLAN / Ult. Conexión{flechaOrden('ultimoAcceso')}
+                        </th>
                         <th>Consumo del ciclo</th>
                         <th>Acciones</th>
                       </tr>
@@ -1043,9 +1102,6 @@ export default function AdminPage({ modoRevendedor = false }) {
                                 </span>
                               )}
                             </td>
-                            <td style={{ fontFamily: 'var(--mono)', fontSize: '11px', whiteSpace: 'nowrap', color: 'var(--text2)' }}>
-                              {fmtUltimoAcceso(c.ultimoAcceso)}
-                            </td>
                             <td>
                               <select
                                 value={planElegido}
@@ -1057,6 +1113,12 @@ export default function AdminPage({ modoRevendedor = false }) {
                                   <option key={p.id} value={p.id}>{p.nombre}</option>
                                 ))}
                               </select>
+                              <div
+                                style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--text2)', marginTop: '3px', textAlign: 'center' }}
+                                title={tituloUltimoAcceso(c.ultimoAcceso)}
+                              >
+                                {fmtUltimoAcceso(c.ultimoAcceso)}
+                              </div>
                             </td>
                             <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap', width: '160px' }}>
                               <div>biblioteca: {c.bibliotecaCount || 0}{planDeLaCuenta?.limites?.productosBiblioteca != null ? `/${planDeLaCuenta.limites.productosBiblioteca}` : ''}</div>
