@@ -4,6 +4,7 @@
 
 const { onNuevoUsuario } = require('./triggers/onNuevoUsuario');
 const { onPedidoCreado } = require('./triggers/onPedidoCreado');
+const { onBibliotecaCambio } = require('./triggers/onBibliotecaCambio');
 const { registrarAperturaCatalogo } = require('./http/registrarAperturaCatalogo');
 const { cambiarEstadoSuscripcion } = require('./http/cambiarEstadoSuscripcion');
 const { webhookMercadoPago } = require('./http/webhookMercadoPago');
@@ -18,6 +19,7 @@ const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromoc
 module.exports = {
   onNuevoUsuario,
   onPedidoCreado,
+  onBibliotecaCambio,
   registrarAperturaCatalogo,
   cambiarEstadoSuscripcion,
   webhookMercadoPago,

@@ -1039,6 +1039,7 @@ export default function AdminPage({ modoRevendedor = false }) {
                               </select>
                             </td>
                             <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap', width: '160px' }}>
+                              <div>biblioteca: {c.bibliotecaCount || 0}{planDeLaCuenta?.limites?.productosBiblioteca != null ? `/${planDeLaCuenta.limites.productosBiblioteca}` : ''}</div>
                               {!c.cicloId && <span>—</span>}
                               {c.cicloId && !contador && (
                                 <button
