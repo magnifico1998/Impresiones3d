@@ -6,6 +6,7 @@ const { onNuevoUsuario } = require('./triggers/onNuevoUsuario');
 const { onPedidoCreado } = require('./triggers/onPedidoCreado');
 const { onBibliotecaCambio } = require('./triggers/onBibliotecaCambio');
 const { registrarAperturaCatalogo } = require('./http/registrarAperturaCatalogo');
+const { registrarUltimoAcceso } = require('./http/registrarUltimoAcceso');
 const { cambiarEstadoSuscripcion } = require('./http/cambiarEstadoSuscripcion');
 const { webhookMercadoPago } = require('./http/webhookMercadoPago');
 const { agregarMiembro, quitarMiembro } = require('./http/gestionarMiembros');
@@ -21,6 +22,7 @@ module.exports = {
   onPedidoCreado,
   onBibliotecaCambio,
   registrarAperturaCatalogo,
+  registrarUltimoAcceso,
   cambiarEstadoSuscripcion,
   webhookMercadoPago,
   agregarMiembro,

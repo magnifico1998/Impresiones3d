@@ -626,6 +626,14 @@ export const AppProvider = ({ children }) => {
         const { idEfectivo, miembro } = await resolverCuentaId(currentUser);
         setCuentaId(idEfectivo);
         setEsMiembro(miembro);
+        // Una vez por sesión, para que el admin/revendedor pueda ver "hace
+        // cuánto no entra" en su panel de consumo (ver
+        // registrarUltimoAcceso.js -- no puede ser un write directo acá
+        // porque suscripcion/actual tiene escritura cerrada para el
+        // cliente). No bloquea el login si falla.
+        httpsCallable(functions, 'registrarUltimoAcceso')().catch((e) => {
+          console.error('Error al registrar el último acceso:', e);
+        });
         await cargarDatosDeFirestore(idEfectivo);
       } else {
         setCuentaId(null);

@@ -20,6 +20,22 @@ import { fechaLocalHoy } from '../utils/fechaCompletado';
 // que ya valida server-side que sólo pueda tocar SUS suscriptores), pero
 // sólo ve su propia cartera y no las secciones de gestión general (Planes,
 // Revendedores, Plantillas, Administradores, Borrar cuenta).
+
+// Función de módulo (no adentro del componente) porque llama a Date.now():
+// el React Compiler la marca como "impura" si vive en el cuerpo de un
+// componente que intenta memoizar (mismo criterio que diasHasta() en
+// ResumenPage.jsx). Da "hace cuánto" además de la fecha/hora exacta, para
+// detectar de un vistazo cuentas que dejaron de entrar a la app (no sólo
+// que no consumen del plan, sino que directamente no la abren más).
+const fmtUltimoAcceso = (ts) => {
+  if (!ts?.toDate) return 'sin datos';
+  const fecha = ts.toDate();
+  const dias = Math.floor((Date.now() - fecha.getTime()) / (24 * 60 * 60 * 1000));
+  const fechaStr = `${fecha.toLocaleDateString('es-AR')} ${fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`;
+  const relativo = dias <= 0 ? 'hoy' : dias === 1 ? 'ayer' : `hace ${dias}d`;
+  return `${relativo} (${fechaStr})`;
+};
+
 export default function AdminPage({ modoRevendedor = false }) {
   const { user, showToast, suscripcion } = useApp();
   // Código propio si esta cuenta es un revendedor (independientemente de
@@ -994,6 +1010,7 @@ export default function AdminPage({ modoRevendedor = false }) {
                         <th>Estado</th>
                         <th>Vence</th>
                         <th>Plan</th>
+                        <th>Último acceso</th>
                         <th>Consumo del ciclo</th>
                         <th>Acciones</th>
                       </tr>
@@ -1025,6 +1042,9 @@ export default function AdminPage({ modoRevendedor = false }) {
                                   +{periodos}
                                 </span>
                               )}
+                            </td>
+                            <td style={{ fontFamily: 'var(--mono)', fontSize: '11px', whiteSpace: 'nowrap', color: 'var(--text2)' }}>
+                              {fmtUltimoAcceso(c.ultimoAcceso)}
                             </td>
                             <td>
                               <select
