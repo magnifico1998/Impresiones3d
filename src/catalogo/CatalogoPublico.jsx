@@ -465,7 +465,7 @@ export default function CatalogoPublico() {
                             </div>
                           )}
                           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ fontSize: '16px', fontWeight: 700 }}>{p.nombre}</div>
+                            <div style={{ fontSize: '18px', fontWeight: 700 }}>{p.nombre}</div>
                             {p.desc && <div style={{ fontSize: '11.5px', color: 'var(--text3)', marginTop: '2px' }}>{p.desc}</div>}
                             <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)', marginTop: 'auto', paddingTop: '6px', fontFamily: 'var(--mono)' }}>{fmt(p.precio)}</div>
                           </div>
