@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 
@@ -9,6 +9,8 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [precio, setPrecio] = useState('');
   const [imagenes, setImagenes] = useState([]);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const dragIndex = useRef(null);
+  const [overIndex, setOverIndex] = useState(null);
 
   const MAX_IMAGENES = 6;
 
@@ -75,6 +77,40 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     const url = imagenes[idx];
     await borrarImagenDeFirebase(url);
     setImagenes(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const moverImagen = (from, to) => {
+    if (to < 0 || to >= imagenes.length || from === to) return;
+    setImagenes(prev => {
+      const copia = [...prev];
+      const [elegida] = copia.splice(from, 1);
+      copia.splice(to, 0, elegida);
+      return copia;
+    });
+  };
+
+  const handleHacerPrincipal = (idx) => moverImagen(idx, 0);
+
+  const handleDragStart = (idx) => (e) => {
+    dragIndex.current = idx;
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (idx) => (e) => {
+    e.preventDefault();
+    if (overIndex !== idx) setOverIndex(idx);
+  };
+
+  const handleDrop = (idx) => (e) => {
+    e.preventDefault();
+    if (dragIndex.current !== null) moverImagen(dragIndex.current, idx);
+    dragIndex.current = null;
+    setOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragIndex.current = null;
+    setOverIndex(null);
   };
 
   const handleSave = async () => {
@@ -147,7 +183,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           list="bib-edit-cats-list-modal"
         />
 
-        <label className="fl">Imágenes del producto (la primera es la principal)</label>
+        <label className="fl">Imágenes del producto (la primera es la principal — arrastrá para reordenar)</label>
         <input
           type="file"
           accept="image/*"
@@ -163,12 +199,54 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         {imagenes.length > 0 && (
           <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px' }}>
             {imagenes.map((url, idx) => (
-              <div key={idx} style={{ position: 'relative', border: idx === 0 ? '2px solid var(--accent)' : '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg3)' }}>
+              <div
+                key={idx}
+                draggable
+                onDragStart={handleDragStart(idx)}
+                onDragOver={handleDragOver(idx)}
+                onDrop={handleDrop(idx)}
+                onDragEnd={handleDragEnd}
+                style={{
+                  position: 'relative', borderRadius: '8px', overflow: 'hidden', cursor: 'grab',
+                  background: overIndex === idx ? 'var(--bg2)' : 'var(--bg3)',
+                  border: idx === 0 ? '2px solid var(--accent)' : (overIndex === idx ? '1px dashed var(--accent2)' : '1px solid var(--border)')
+                }}
+              >
                 <img src={url} alt={`Imagen ${idx + 1}`} style={{ display: 'block', width: '100%', height: '90px', objectFit: 'contain', objectPosition: 'center' }} />
                 {idx === 0 && (
                   <span style={{ position: 'absolute', top: '2px', left: '2px', fontSize: '9px', background: 'var(--accent)', color: '#0a1a12', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
                     Principal
                   </span>
+                )}
+                <div style={{ position: 'absolute', bottom: '2px', left: '2px', display: 'flex', gap: '2px' }}>
+                  <button
+                    type="button"
+                    onClick={() => moverImagen(idx, idx - 1)}
+                    disabled={idx === 0}
+                    style={{ width: '18px', height: '18px', lineHeight: '18px', textAlign: 'center', padding: 0, borderRadius: '4px', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '10px', cursor: idx === 0 ? 'default' : 'pointer', opacity: idx === 0 ? .35 : 1 }}
+                    title="Mover a la izquierda"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moverImagen(idx, idx + 1)}
+                    disabled={idx === imagenes.length - 1}
+                    style={{ width: '18px', height: '18px', lineHeight: '18px', textAlign: 'center', padding: 0, borderRadius: '4px', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '10px', cursor: idx === imagenes.length - 1 ? 'default' : 'pointer', opacity: idx === imagenes.length - 1 ? .35 : 1 }}
+                    title="Mover a la derecha"
+                  >
+                    ▶
+                  </button>
+                </div>
+                {idx !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleHacerPrincipal(idx)}
+                    style={{ position: 'absolute', top: '2px', right: '22px', width: '18px', height: '18px', lineHeight: '18px', textAlign: 'center', padding: 0, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '11px', cursor: 'pointer' }}
+                    title="Marcar como principal"
+                  >
+                    ⭐
+                  </button>
                 )}
                 <button
                   type="button"
