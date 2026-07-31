@@ -18,20 +18,21 @@ function recalcularProducto(prod, cfg) {
   const horasTrab = prod.horasTrab || 0;
   const extras = prod.extras || 0;
   const margen = prod.margen ?? 30;
-  const watts = prod.watts || 0;
+
+  // Watts y mantenimiento con cfg.impresoras[x] actualizado
+  let watts = prod.watts || 0;
+  let costeMant = 0;
+  if (prod.impresoraNombre && cfg.impresoras) {
+    const imp = cfg.impresoras.find(i => i.nombre === prod.impresoraNombre);
+    if (imp) {
+      if (imp.watts) watts = imp.watts;
+      if (imp.mant) costeMant = imp.mant * horas;
+    }
+  }
 
   // Electricidad con cfg.kwh actualizado
   const kwh = cfg.kwh || 0;
   const costeElec = (watts / 1000) * horas * kwh;
-
-  // Mantenimiento impresora con cfg.impresoras[x].mant actualizado
-  let costeMant = 0;
-  if (prod.impresoraNombre && cfg.impresoras) {
-    const imp = cfg.impresoras.find(i => i.nombre === prod.impresoraNombre);
-    if (imp && imp.mant) {
-      costeMant = imp.mant * horas;
-    }
-  }
   // Si no hay impresora o no está en cfg, usa el valor guardado
   if (costeMant === 0 && prod.costeMant) {
     costeMant = prod.costeMant / (prod.horas || 1) * horas;
@@ -112,6 +113,7 @@ function recalcularProducto(prod, cfg) {
     margenNuevo: margenEfectivo, // Margen calculado con nuevo costo
     // Datos que se actualizan
     precioKwh: kwh,
+    watts,
     moHora: cfg.mo || 0,
     matData: matDataActualizado,
     precioRollo: matDataActualizado ? prod.precioRollo : precioRolloActualizado,
@@ -436,6 +438,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
         costoUnitario: n.costoUnitario,
         precioSugUnitario: n.precioSugUnitario,
         precioKwh: n.precioKwh,
+        watts: n.watts,
         moHora: n.moHora,
         costeFil: desglose.costeFil,
         costeElec: desglose.costeElec,

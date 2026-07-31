@@ -71,7 +71,9 @@ export default function CalculadoraPage({
     const currentIndex = Number(selImpresora);
     const hasValidSelection = selImpresora !== 'manual' && Number.isInteger(currentIndex) && cfg.impresoras[currentIndex];
 
-    if (!hasValidSelection) {
+    if (hasValidSelection) {
+      setWatts(cfg.impresoras[currentIndex].watts || 0);
+    } else {
       setSelImpresora('0');
       setWatts(cfg.impresoras[0].watts || 0);
     }
