@@ -1244,6 +1244,23 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Espeja cfg.categoriaOrden (el orden manual armado arrastrando en
+  // Biblioteca) a catalogoTiendas/{uid} para que el catálogo público lo
+  // respete también, en vez de mostrar siempre orden alfabético. Sólo se
+  // escribe si el catálogo ya existe (evita crear el doc para cuentas que
+  // nunca activaron el catálogo web).
+  const catOrdenSyncRef = useRef(null);
+  const catalogoExiste = !!catalogoConfig;
+  useEffect(() => {
+    if (loading || !cuentaId || !datosCargadosOk || !catalogoExiste) return;
+    if (catOrdenSyncRef.current) clearTimeout(catOrdenSyncRef.current);
+    catOrdenSyncRef.current = setTimeout(() => {
+      setDoc(doc(db, "catalogoTiendas", cuentaId), { categoriaOrden: cfg.categoriaOrden || [] }, { merge: true })
+        .catch((e) => console.warn("No se pudo sincronizar el orden de categorías del catálogo:", e));
+    }, 1200);
+    return () => clearTimeout(catOrdenSyncRef.current);
+  }, [cfg.categoriaOrden, cuentaId, loading, datosCargadosOk, catalogoExiste]);
+
   // ids: Set o array de ids de biblioteca que deben quedar PUBLICADOS en
   // /catalogo. Sólo se copian campos "públicos" (nombre, cat, desc, imagen,
   // precio de venta) a catalogoProductos — nunca costoUnitario, filDetalle,

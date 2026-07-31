@@ -3,6 +3,7 @@ import { db, functions } from '../firebase';
 import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, validarTelefono, formatearMoneda } from '../utils/paises';
+import { ordenarCategorias } from '../utils/categoriaOrden';
 
 const newLocalId = () => Date.now() + Math.random();
 
@@ -51,13 +52,24 @@ function estiloPaleta(config) {
 // Uso !important en los overrides porque los elementos ya tienen estilos
 // inline (que si no, ganan siempre por especificidad sobre esta hoja).
 const ESTILOS_RESPONSIVE = `
+  .catalogo-producto-item img { transition: transform .15s ease; }
+  .catalogo-producto-item img:hover { transform: scale(1.03); }
+  .catalogo-agregar-btn:hover { filter: brightness(1.05); }
+  .catalogo-cat-header:hover { opacity: .7; }
+
+  .catalogo-producto-item { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .catalogo-productos-grid > .catalogo-producto-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+  @media (min-width: 480px) {
+    .catalogo-productos-grid { display: grid !important; grid-template-columns: 1fr 1fr; column-gap: 16px; row-gap: 22px; }
+    .catalogo-producto-item { margin-bottom: 0 !important; padding-bottom: 0 !important; border-bottom: none !important; }
+  }
+
   @media (min-width: 860px) {
-    .catalogo-header-inner { max-width: 900px !important; margin: 0 auto !important; padding: 18px 24px !important; }
-    .catalogo-content { max-width: 900px !important; padding: 20px 24px !important; }
-    .catalogo-productos-grid { display: grid !important; grid-template-columns: 1fr 1fr; column-gap: 20px; }
-    .catalogo-producto-item { border-top: none !important; border-bottom: 1px solid var(--border); padding: 14px 4px !important; }
-    .catalogo-producto-item:nth-last-child(-n+2) { border-bottom: none; }
-    .catalogo-cart-bar { max-width: 900px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); border-radius: 12px 12px 0 0; bottom: 0 !important; }
+    .catalogo-header-inner { max-width: 960px !important; margin: 0 auto !important; padding: 20px 28px !important; }
+    .catalogo-content { max-width: 960px !important; padding: 24px 28px !important; }
+    .catalogo-productos-grid { column-gap: 24px; }
+    .catalogo-cart-bar { max-width: 960px !important; left: 50% !important; right: auto !important; transform: translateX(-50%); border-radius: 14px 14px 0 0; bottom: 0 !important; }
     .catalogo-cart-overlay { align-items: stretch !important; justify-content: flex-end !important; }
     .catalogo-cart-panel { max-width: 420px !important; width: 420px !important; height: 100vh !important; max-height: 100vh !important; border-radius: 0 !important; }
   }
@@ -155,16 +167,9 @@ export default function CatalogoPublico() {
 
   const categorias = useMemo(() => {
     const set = new Set(productos.map(p => p.cat || 'Otros'));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
-  }, [productos]);
+    return ordenarCategorias(Array.from(set), config?.categoriaOrden);
+  }, [productos, config?.categoriaOrden]);
 
-  // Abre la primera categoría automáticamente la primera vez que llegan
-  // los productos, para que el cliente no tenga que tocar nada para ver algo.
-  useEffect(() => {
-    if (catAbierta === null && categorias.length > 0) {
-      setCatAbierta(categorias[0]);
-    }
-  }, [categorias, catAbierta]);
 
   const colores = config?.colores || [];
 
@@ -348,18 +353,25 @@ export default function CatalogoPublico() {
 
       <header style={{
         position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg)',
-        borderBottom: '1px solid var(--border)', padding: '14px 16px',
-        display: 'flex', alignItems: 'center', gap: '10px'
+        borderBottom: '1px solid var(--border)', padding: '16px 18px',
+        display: 'flex', alignItems: 'center', gap: '12px'
       }} className="catalogo-header-inner">
-        {config.logo && (
-          <img src={config.logo} alt="" style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '6px' }} />
+        {config.logo ? (
+          <img src={config.logo} alt="" style={{ width: '40px', height: '40px', objectFit: 'contain', borderRadius: '10px', flexShrink: 0 }} />
+        ) : (
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0, background: 'var(--text)', color: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '16px'
+          }}>
+            {(config.empresaNombre || 'C')[0].toUpperCase()}
+          </div>
         )}
-        <div>
-          <div style={{ fontWeight: 700, fontSize: '15px' }}>{config.empresaNombre || 'Catálogo'}</div>
-          <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Elegí tus productos y armá tu pedido</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: '17px', letterSpacing: '-.2px' }}>{config.empresaNombre || 'Catálogo'}</div>
+          <div style={{ fontSize: '10.5px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, marginTop: '1px' }}>Elegí tus productos y armá tu pedido</div>
         </div>
         {(urlFacebook(config.facebook) || urlInstagram(config.instagram) || config.telefono) && (
-          <div style={{ display: 'flex', gap: '10px', marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', gap: '14px', marginLeft: 'auto', flexShrink: 0 }}>
             {config.telefono && (
               <a
                 href={`https://wa.me/${config.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola! Te escribo desde el catálogo de ${config.empresaNombre || 'tu tienda'}.`)}`}
@@ -394,36 +406,45 @@ export default function CatalogoPublico() {
         )}
       </header>
 
-      <div className="catalogo-content" style={{ maxWidth: '640px', margin: '0 auto', padding: '12px' }}>
+      <div className="catalogo-content" style={{ maxWidth: '640px', margin: '0 auto', padding: '8px 16px 16px' }}>
         {!productos.length && (
           <div className="empty" style={{ marginTop: '20px' }}>Todavía no hay productos publicados.</div>
         )}
 
         {categorias.map(cat => {
           const items = productos.filter(p => (p.cat || 'Otros') === cat);
+          const abierta = catAbierta === cat;
           return (
-            <div key={cat} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div key={cat}>
               <button
-                onClick={() => setCatAbierta(catAbierta === cat ? null : cat)}
+                className="catalogo-cat-header"
+                onClick={() => setCatAbierta(abierta ? null : cat)}
                 style={{
                   width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
-                  padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  color: 'var(--text)', fontSize: '13px', fontWeight: 600
+                  padding: '18px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  color: 'var(--text)', fontSize: '13.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.4px',
+                  borderBottom: abierta ? 'none' : '1px solid var(--border)', transition: 'opacity .15s'
                 }}
               >
-                {cat} <span style={{ color: 'var(--text3)', fontWeight: 400 }}>{items.length} · {catAbierta === cat ? '−' : '+'}</span>
+                {cat}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text3)', fontWeight: 500, textTransform: 'none', letterSpacing: 0, fontSize: '12px' }}>
+                  {items.length}
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '13px', height: '13px', transform: abierta ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+                    <path d="M5 7.5l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
               </button>
 
-              {catAbierta === cat && (
-                <div className="catalogo-productos-grid" style={{ padding: '0 12px 12px' }}>
+              {abierta && (
+                <div className="catalogo-productos-grid" style={{ padding: '4px 0 22px', borderBottom: '1px solid var(--border)', rowGap: '22px' }}>
                   {items.map(p => {
                     const enCarrito = carrito.find(it => it.prodId === p.id);
                     const cantEnCarrito = enCarrito ? enCarrito.versiones.reduce((s, v) => s + (v.cantidad || 0), 0) : 0;
                     const detalleEstaAbierto = detalleAbierto === p.id;
 
                     return (
-                      <div key={p.id} className="catalogo-producto-item" style={{ padding: '10px 4px', borderTop: '1px solid var(--border)' }}>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                      <div key={p.id} className="catalogo-producto-item">
+                        <div style={{ display: 'flex', gap: '14px' }}>
                           {p.imagen ? (
                             <img
                               src={p.imagen}
@@ -433,29 +454,34 @@ export default function CatalogoPublico() {
                                 nombre: p.nombre,
                                 index: 0
                               })}
-                              style={{ width: '56px', height: '56px', objectFit: 'contain', background: 'var(--bg3)', borderRadius: '8px', flexShrink: 0, cursor: 'zoom-in' }}
+                              style={{ width: '84px', height: '84px', objectFit: 'contain', background: 'var(--bg3)', borderRadius: '14px', flexShrink: 0, cursor: 'zoom-in' }}
                             />
                           ) : (
-                            <div style={{ width: '56px', height: '56px', background: 'var(--bg3)', borderRadius: '8px', flexShrink: 0 }} />
+                            <div style={{
+                              width: '84px', height: '84px', background: 'var(--bg3)', borderRadius: '14px', flexShrink: 0,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '22px', fontWeight: 700
+                            }}>
+                              {p.nombre?.[0]?.toUpperCase() || '·'}
+                            </div>
                           )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: '13px', fontWeight: 500 }}>{p.nombre}</div>
-                            {p.desc && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>{p.desc}</div>}
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent)', marginTop: '4px', fontFamily: 'var(--mono)' }}>{fmt(p.precio)}</div>
+                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ fontSize: '16px', fontWeight: 700 }}>{p.nombre}</div>
+                            {p.desc && <div style={{ fontSize: '11.5px', color: 'var(--text3)', marginTop: '2px' }}>{p.desc}</div>}
+                            <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)', marginTop: 'auto', paddingTop: '6px', fontFamily: 'var(--mono)' }}>{fmt(p.precio)}</div>
                           </div>
-                          <div style={{ flexShrink: 0, alignSelf: 'center' }}>
+                          <div style={{ flexShrink: 0, alignSelf: 'flex-end' }}>
                             {detalleEstaAbierto ? (
-                              <button className="btn btn-sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={cerrarDetalle}>Cerrar</button>
+                              <button className="btn btn-sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', borderRadius: '999px', padding: '8px 16px' }} onClick={cerrarDetalle}>Cerrar</button>
                             ) : enCarrito ? (
-                              <button className="btn btn-sm" onClick={() => abrirDetalle(p)}>Editar ({cantEnCarrito})</button>
+                              <button className="btn btn-sm" style={{ borderRadius: '999px', padding: '8px 16px' }} onClick={() => abrirDetalle(p)}>Editar ({cantEnCarrito})</button>
                             ) : (
-                              <button className="btn btn-primary btn-sm" onClick={() => abrirDetalle(p)}>Agregar</button>
+                              <button className="btn btn-primary btn-sm catalogo-agregar-btn" style={{ borderRadius: '999px', padding: '8px 18px' }} onClick={() => abrirDetalle(p)}>Agregar</button>
                             )}
                           </div>
                         </div>
 
                         {detalleEstaAbierto && (
-                          <div style={{ background: 'rgba(255,255,255,.03)', border: '1px dashed var(--border2)', borderRadius: '8px', padding: '10px', marginTop: '10px' }}>
+                          <div style={{ background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: '12px', padding: '12px', marginTop: '12px' }}>
                             {draftVersiones.map(v => (
                               <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
                                 <input
@@ -524,8 +550,8 @@ export default function CatalogoPublico() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div style={{ fontWeight: 700, fontSize: '15px' }}>Tu pedido</div>
-              <button className="btn btn-sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={() => setCarritoAbierto(false)}>✕</button>
+              <div style={{ fontWeight: 700, fontSize: '16px' }}>Tu pedido</div>
+              <button className="btn btn-sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', borderRadius: '999px', width: '30px', height: '30px', padding: 0, justifyContent: 'center' }} onClick={() => setCarritoAbierto(false)}>✕</button>
             </div>
 
             {!carrito.length ? (
