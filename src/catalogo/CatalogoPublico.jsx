@@ -25,6 +25,26 @@ function urlInstagram(valor) {
   return `https://instagram.com/${v.replace(/^@/, '')}`;
 }
 
+// Detecta URLs sueltas dentro de un texto libre (ej. la descripción extendida
+// de un producto) y las convierte en <a> clickeables, dejando el resto del
+// texto tal cual. No cambia lo que el dueño escribió, sólo envuelve las
+// partes que matchean con un link.
+const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+)/gi;
+const ES_URL_REGEX = /^(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+)$/i;
+function linkificar(texto) {
+  if (!texto) return texto;
+  const partes = texto.split(URL_REGEX);
+  return partes.map((parte, i) => {
+    if (!ES_URL_REGEX.test(parte)) return parte;
+    const href = /^https?:\/\//i.test(parte) ? parte : `https://${parte}`;
+    return (
+      <a key={i} href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
+        {parte}
+      </a>
+    );
+  });
+}
+
 // La paleta del catálogo (elegida en CatalogoAdminPage, independiente de la
 // paleta de la app) se guarda como 5 colores en catalogoConfig.paletaCatalogo.
 // Como React sí deja poner variables CSS custom en un style inline, alcanza
@@ -529,7 +549,7 @@ export default function CatalogoPublico() {
                               fontSize: '12px', color: 'var(--text2)', lineHeight: '1.45', whiteSpace: 'pre-wrap',
                               ...(descAbierta ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' })
                             }}>
-                              {p.descLarga}
+                              {linkificar(p.descLarga)}
                             </div>
                             <button
                               onClick={() => toggleDescExpandida(p.id)}
