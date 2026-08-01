@@ -350,8 +350,9 @@ service cloud.firestore {
       allow write: if tieneAcceso(uid);
 
       // Productos publicados de ESTA tienda (mirror sanitizado de su
-      // biblioteca: nombre, cat, desc, imagen, precio — nunca costos
-      // internos). Lectura pública, escritura sólo del dueño o un miembro.
+      // biblioteca: nombre, cat, subcat, desc, descLarga, imagen, precio —
+      // nunca costos internos). Lectura pública, escritura sólo del dueño
+      // o un miembro.
       match /productos/{prodId} {
         allow read: if true;
         allow write: if tieneAcceso(uid);

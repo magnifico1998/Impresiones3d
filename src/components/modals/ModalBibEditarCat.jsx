@@ -5,7 +5,10 @@ import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '.
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const { biblioteca, updateProducto, showToast, cuentaId, fmt } = useApp();
   const [categoria, setCategoria] = useState('');
+  const [subcategoria, setSubcategoria] = useState('');
   const [productName, setProductName] = useState('');
+  const [desc, setDesc] = useState('');
+  const [descLarga, setDescLarga] = useState('');
   const [precio, setPrecio] = useState('');
   const [imagenes, setImagenes] = useState([]);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
@@ -15,6 +18,9 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const MAX_IMAGENES = 6;
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
+  const uniqueSubcats = Array.from(new Set(
+    biblioteca.filter(b => b.cat === categoria).map(b => b.subcat).filter(Boolean)
+  )).sort();
 
   useEffect(() => {
     if (isOpen && editId !== null) {
@@ -22,6 +28,9 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
       if (prod) {
         setProductName(prod.nombre);
         setCategoria(prod.cat || '');
+        setSubcategoria(prod.subcat || '');
+        setDesc(prod.desc || '');
+        setDescLarga(prod.descLarga || '');
         setPrecio(prod.precioSugUnitario !== undefined ? String(prod.precioSugUnitario) : '');
         setImagenes(prod.imagenes?.length ? prod.imagenes : (prod.imagen ? [prod.imagen] : []));
       }
@@ -115,7 +124,10 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
 
   const handleSave = async () => {
     const cleanCat = categoria.trim() || 'General';
+    const cleanSubcat = subcategoria.trim();
     const cleanName = productName.trim() || 'Sin nombre';
+    const cleanDesc = desc.trim();
+    const cleanDescLarga = descLarga.trim();
     const cleanPrecio = parseFloat(precio) || 0;
 
     const prodAnterior = biblioteca.find(p => p.id === editId);
@@ -137,7 +149,16 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     // valor válido para Firestore y además borra correctamente el campo si
     // el usuario sacó la imagen.
     try {
-      await updateProducto(editId, { cat: cleanCat, nombre: cleanName, precioSugUnitario: cleanPrecio, imagenes, imagen: imagenes[0] || '' });
+      await updateProducto(editId, {
+        cat: cleanCat,
+        subcat: cleanSubcat,
+        nombre: cleanName,
+        desc: cleanDesc,
+        descLarga: cleanDescLarga,
+        precioSugUnitario: cleanPrecio,
+        imagenes,
+        imagen: imagenes[0] || ''
+      });
       showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? fmt(cleanPrecio) : 'sin precio'}`);
       onClose();
     } catch (err) {
@@ -174,14 +195,44 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           step="0.01"
         />
 
+        <label className="fl">Descripción / notas</label>
+        <input
+          type="text"
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          placeholder="Ej: PLA negro, 2h impresión"
+        />
+
+        <label className="fl">Descripción extendida (se muestra en el catálogo)</label>
+        <textarea
+          value={descLarga}
+          onChange={(e) => setDescLarga(e.target.value)}
+          placeholder="Detalle más largo del producto: materiales, medidas, usos..."
+          rows={3}
+        />
+
         <label className="fl">Categoría del producto</label>
-        <input 
-          type="text" 
-          value={categoria} 
-          onChange={(e) => setCategoria(e.target.value)} 
-          placeholder="Ej: Soportes, Decoración, Funcional..." 
+        <input
+          type="text"
+          value={categoria}
+          onChange={(e) => setCategoria(e.target.value)}
+          placeholder="Ej: Soportes, Decoración, Funcional..."
           list="bib-edit-cats-list-modal"
         />
+
+        <label className="fl">Subcategoría (opcional)</label>
+        <input
+          type="text"
+          value={subcategoria}
+          onChange={(e) => setSubcategoria(e.target.value)}
+          placeholder="Ej: Chico, Grande, Con base..."
+          list="bib-edit-subcats-list-modal"
+        />
+        <datalist id="bib-edit-subcats-list-modal">
+          {uniqueSubcats.map((s, idx) => (
+            <option key={idx} value={s} />
+          ))}
+        </datalist>
 
         <label className="fl">Imágenes del producto (la primera es la principal — arrastrá para reordenar)</label>
         <input

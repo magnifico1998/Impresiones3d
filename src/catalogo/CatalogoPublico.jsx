@@ -95,6 +95,17 @@ export default function CatalogoPublico() {
   const [productos, setProductos] = useState([]);
   const [cargandoProductos, setCargandoProductos] = useState(true);
   const [catAbierta, setCatAbierta] = useState(null);
+  // Subcategorías abiertas dentro de la categoría desplegada, clave
+  // "cat::subcat" (puede repetirse el nombre de subcategoría entre
+  // categorías distintas). Igual que catAbierta pero de a varias a la vez.
+  const [subcatsAbiertas, setSubcatsAbiertas] = useState(() => new Set());
+  const toggleSubcatAbierta = (key) => {
+    setSubcatsAbiertas(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
   const [carrito, setCarrito] = useState([]); // { localId, prodId, nombre, precio, versiones:[{localId,cantidad,color,comentario}] }
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -111,6 +122,17 @@ export default function CatalogoPublico() {
   // recién agrega/actualiza el carrito cuando el cliente toca "Confirmar".
   // Tocar Agregar ya NO suma nada solo; hasta ahí es sólo un borrador.
   const [detalleAbierto, setDetalleAbierto] = useState(null); // prodId o null
+  // Descripciones extendidas colapsadas por defecto (pueden ser largas y
+  // rompen el diseño de la tarjeta si se muestran enteras) -- se expanden
+  // a demanda con "Ver descripción".
+  const [descsExpandidas, setDescsExpandidas] = useState(() => new Set());
+  const toggleDescExpandida = (id) => {
+    setDescsExpandidas(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
   const [draftVersiones, setDraftVersiones] = useState([]);
 
   // Config pública (colores, nombre, activo/inactivo) de esta tienda -- en
@@ -435,86 +457,159 @@ export default function CatalogoPublico() {
                 </span>
               </button>
 
-              {abierta && (
-                <div className="catalogo-productos-grid" style={{ padding: '4px 0 22px', borderBottom: '1px solid var(--border)', rowGap: '22px' }}>
-                  {items.map(p => {
-                    const enCarrito = carrito.find(it => it.prodId === p.id);
-                    const cantEnCarrito = enCarrito ? enCarrito.versiones.reduce((s, v) => s + (v.cantidad || 0), 0) : 0;
-                    const detalleEstaAbierto = detalleAbierto === p.id;
+              {abierta && (() => {
+                // Sub-agrupa por subcategoría dentro de esta categoría; los
+                // productos sin subcategoría van sueltos y sólo se muestra
+                // el subheader cuando hay variedad (mismo criterio que en
+                // la Biblioteca del admin). Todo va en UNA sola grilla (con
+                // los headers ocupando el ancho completo vía gridColumn)
+                // en vez de una grilla por subgrupo — así un subgrupo de
+                // un solo producto no deja una columna vacía al lado.
+                const bySubcat = new Map();
+                items.forEach(p => {
+                  const sc = p.subcat || '';
+                  if (!bySubcat.has(sc)) bySubcat.set(sc, []);
+                  bySubcat.get(sc).push(p);
+                });
+                const subcatKeys = Array.from(bySubcat.keys()).sort((a, b) => {
+                  if (!a) return -1;
+                  if (!b) return 1;
+                  return a.localeCompare(b, 'es', { sensitivity: 'base' });
+                });
+                const hayVariedad = bySubcat.size > 1;
 
-                    return (
-                      <div key={p.id} className="catalogo-producto-item">
-                        <div style={{ display: 'flex', gap: '14px' }}>
-                          {p.imagen ? (
-                            <img
-                              src={p.imagen}
-                              alt={p.nombre}
-                              onClick={() => setImagenAmpliada({
-                                imagenes: p.imagenes?.length ? p.imagenes : [p.imagen],
-                                nombre: p.nombre,
-                                index: 0
-                              })}
-                              style={{ width: '84px', height: '84px', objectFit: 'contain', background: 'var(--bg3)', borderRadius: '14px', flexShrink: 0, cursor: 'zoom-in' }}
-                            />
-                          ) : (
-                            <div style={{
-                              width: '84px', height: '84px', background: 'var(--bg3)', borderRadius: '14px', flexShrink: 0,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '22px', fontWeight: 700
-                            }}>
-                              {p.nombre?.[0]?.toUpperCase() || '·'}
-                            </div>
-                          )}
-                          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ fontSize: '18px', fontWeight: 700 }}>{p.nombre}</div>
-                            {p.desc && <div style={{ fontSize: '11.5px', color: 'var(--text3)', marginTop: '2px' }}>{p.desc}</div>}
-                            <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)', marginTop: 'auto', paddingTop: '6px', fontFamily: 'var(--mono)' }}>{fmt(p.precio)}</div>
-                          </div>
-                          <div style={{ flexShrink: 0, alignSelf: 'flex-end' }}>
-                            {detalleEstaAbierto ? (
-                              <button className="btn btn-sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', borderRadius: '999px', padding: '8px 16px' }} onClick={cerrarDetalle}>Cerrar</button>
-                            ) : enCarrito ? (
-                              <button className="btn btn-sm" style={{ borderRadius: '999px', padding: '8px 16px' }} onClick={() => abrirDetalle(p)}>Editar ({cantEnCarrito})</button>
-                            ) : (
-                              <button className="btn btn-primary btn-sm catalogo-agregar-btn" style={{ borderRadius: '999px', padding: '8px 18px' }} onClick={() => abrirDetalle(p)}>Agregar</button>
-                            )}
-                          </div>
-                        </div>
+                const renderProducto = (p) => {
+                  const enCarrito = carrito.find(it => it.prodId === p.id);
+                  const cantEnCarrito = enCarrito ? enCarrito.versiones.reduce((s, v) => s + (v.cantidad || 0), 0) : 0;
+                  const detalleEstaAbierto = detalleAbierto === p.id;
 
-                        {detalleEstaAbierto && (
-                          <div style={{ background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: '12px', padding: '12px', marginTop: '12px' }}>
-                            {draftVersiones.map(v => (
-                              <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                                <input
-                                  type="number" min="0" value={v.cantidad}
-                                  onChange={(e) => actualizarDraftVersion(v.localId, 'cantidad', e.target.value)}
-                                />
-                                <select value={v.color} onChange={(e) => actualizarDraftVersion(v.localId, 'color', e.target.value)}>
-                                  <option value="">Sin color</option>
-                                  {colores.map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
-                                </select>
-                                <input
-                                  type="text" placeholder="Comentario (ej: talle, versión)"
-                                  value={v.comentario}
-                                  onChange={(e) => actualizarDraftVersion(v.localId, 'comentario', e.target.value)}
-                                />
-                                {draftVersiones.length > 1 && (
-                                  <button className="btn btn-danger btn-sm" onClick={() => quitarDraftVersion(v.localId)}>✕</button>
-                                )}
-                              </div>
-                            ))}
-                            <button className="btn btn-sm" style={{ width: '100%', marginTop: '2px' }} onClick={agregarDraftVersion}>
-                              + Otra variante (otro color / comentario)
-                            </button>
-                            <button className="btn btn-primary btn-sm" style={{ width: '100%', marginTop: '8px' }} onClick={() => confirmarAgregado(p)}>
-                              Confirmar
-                            </button>
+                  return (
+                    <div key={p.id} className="catalogo-producto-item">
+                      <div style={{ display: 'flex', gap: '14px' }}>
+                        {p.imagen ? (
+                          <img
+                            src={p.imagen}
+                            alt={p.nombre}
+                            onClick={() => setImagenAmpliada({
+                              imagenes: p.imagenes?.length ? p.imagenes : [p.imagen],
+                              nombre: p.nombre,
+                              index: 0
+                            })}
+                            style={{ width: '84px', height: '84px', objectFit: 'contain', background: 'var(--bg3)', borderRadius: '14px', flexShrink: 0, cursor: 'zoom-in' }}
+                          />
+                        ) : (
+                          <div style={{
+                            width: '84px', height: '84px', background: 'var(--bg3)', borderRadius: '14px', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '22px', fontWeight: 700
+                          }}>
+                            {p.nombre?.[0]?.toUpperCase() || '·'}
                           </div>
                         )}
+                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ fontSize: '18px', fontWeight: 700 }}>{p.nombre}</div>
+                          {p.desc && <div style={{ fontSize: '11.5px', color: 'var(--text3)', marginTop: '2px' }}>{p.desc}</div>}
+                          <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--accent)', marginTop: 'auto', paddingTop: '6px', fontFamily: 'var(--mono)' }}>{fmt(p.precio)}</div>
+                        </div>
+                        <div style={{ flexShrink: 0, alignSelf: 'flex-end' }}>
+                          {detalleEstaAbierto ? (
+                            <button className="btn btn-sm" style={{ color: 'var(--danger)', borderColor: 'var(--danger)', borderRadius: '999px', padding: '8px 16px' }} onClick={cerrarDetalle}>Cerrar</button>
+                          ) : enCarrito ? (
+                            <button className="btn btn-sm" style={{ borderRadius: '999px', padding: '8px 16px' }} onClick={() => abrirDetalle(p)}>Editar ({cantEnCarrito})</button>
+                          ) : (
+                            <button className="btn btn-primary btn-sm catalogo-agregar-btn" style={{ borderRadius: '999px', padding: '8px 18px' }} onClick={() => abrirDetalle(p)}>Agregar</button>
+                          )}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+
+                      {p.descLarga && (() => {
+                        const descAbierta = descsExpandidas.has(p.id);
+                        return (
+                          <div style={{ marginTop: '10px' }}>
+                            <div style={{
+                              fontSize: '12px', color: 'var(--text2)', lineHeight: '1.45', whiteSpace: 'pre-wrap',
+                              ...(descAbierta ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' })
+                            }}>
+                              {p.descLarga}
+                            </div>
+                            <button
+                              onClick={() => toggleDescExpandida(p.id)}
+                              style={{ background: 'none', border: 'none', padding: 0, marginTop: '4px', fontSize: '11px', fontWeight: 700, color: 'var(--accent)', cursor: 'pointer' }}
+                            >
+                              {descAbierta ? 'Ver menos' : 'Ver descripción'}
+                            </button>
+                          </div>
+                        );
+                      })()}
+
+                      {detalleEstaAbierto && (
+                        <div style={{ background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: '12px', padding: '12px', marginTop: '12px' }}>
+                          {draftVersiones.map(v => (
+                            <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                              <input
+                                type="number" min="0" value={v.cantidad}
+                                onChange={(e) => actualizarDraftVersion(v.localId, 'cantidad', e.target.value)}
+                              />
+                              <select value={v.color} onChange={(e) => actualizarDraftVersion(v.localId, 'color', e.target.value)}>
+                                <option value="">Sin color</option>
+                                {colores.map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
+                              </select>
+                              <input
+                                type="text" placeholder="Comentario (ej: talle, versión)"
+                                value={v.comentario}
+                                onChange={(e) => actualizarDraftVersion(v.localId, 'comentario', e.target.value)}
+                              />
+                              {draftVersiones.length > 1 && (
+                                <button className="btn btn-danger btn-sm" onClick={() => quitarDraftVersion(v.localId)}>✕</button>
+                              )}
+                            </div>
+                          ))}
+                          <button className="btn btn-sm" style={{ width: '100%', marginTop: '2px' }} onClick={agregarDraftVersion}>
+                            + Otra variante (otro color / comentario)
+                          </button>
+                          <button className="btn btn-primary btn-sm" style={{ width: '100%', marginTop: '8px' }} onClick={() => confirmarAgregado(p)}>
+                            Confirmar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="catalogo-productos-grid" style={{ padding: '4px 0 22px', borderBottom: '1px solid var(--border)', rowGap: '22px' }}>
+                    {subcatKeys.flatMap(sc => {
+                      if (sc === '' || !hayVariedad) {
+                        return bySubcat.get(sc).map(renderProducto);
+                      }
+                      const key = `${cat}::${sc}`;
+                      const subAbierta = subcatsAbiertas.has(key);
+                      const subItems = bySubcat.get(sc);
+                      return [
+                        <button
+                          key={`h-${sc}`}
+                          onClick={() => toggleSubcatAbierta(key)}
+                          style={{
+                            gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                            padding: '10px 4px', borderBottom: subAbierta ? 'none' : '1px solid var(--border)'
+                          }}
+                        >
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {sc}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {subItems.length}
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '11px', height: '11px', transform: subAbierta ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}>
+                              <path d="M5 7.5l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </span>
+                        </button>,
+                        ...(subAbierta ? subItems.map(renderProducto) : [])
+                      ];
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}

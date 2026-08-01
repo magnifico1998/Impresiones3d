@@ -6,7 +6,9 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado, fmt } = useApp();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
+  const [descLarga, setDescLarga] = useState('');
   const [cat, setCat] = useState('');
+  const [subcat, setSubcat] = useState('');
   const [imagenes, setImagenes] = useState([]);
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
@@ -14,6 +16,9 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   const MAX_IMAGENES = 6;
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean)));
+  const uniqueSubcats = Array.from(new Set(
+    biblioteca.filter(b => b.cat === cat).map(b => b.subcat).filter(Boolean)
+  ));
 
   useEffect(() => {
     if (isOpen && presupuestoActual) {
@@ -22,7 +27,9 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
         : 'Producto';
       setNombre(nombreSug);
       setDesc('');
+      setDescLarga('');
       setCat('');
+      setSubcat('');
       setImagenes([]);
     }
   }, [isOpen, presupuestoActual]);
@@ -117,7 +124,9 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       id: getNewId(),
       nombre: nameTrimmed,
       desc: desc.trim(),
+      descLarga: descLarga.trim(),
       cat: cat.trim() || 'General',
+      subcat: subcat.trim(),
       fechaGuardado: new Date().toLocaleDateString('es-AR'),
       costoUnitario: p.total,
       precioSugUnitario: p.precio,
@@ -184,24 +193,46 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
         />
 
         <label className="fl">Descripción / notas</label>
-        <input 
-          type="text" 
-          value={desc} 
-          onChange={(e) => setDesc(e.target.value)} 
-          placeholder="Ej: PLA negro, 2h impresión" 
+        <input
+          type="text"
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          placeholder="Ej: PLA negro, 2h impresión"
+        />
+
+        <label className="fl">Descripción extendida (se muestra en el catálogo)</label>
+        <textarea
+          value={descLarga}
+          onChange={(e) => setDescLarga(e.target.value)}
+          placeholder="Detalle más largo del producto: materiales, medidas, usos..."
+          rows={3}
         />
 
         <label className="fl">Categoría del producto</label>
-        <input 
-          type="text" 
-          value={cat} 
-          onChange={(e) => setCat(e.target.value)} 
-          placeholder="Ej: Soportes, Decoración, Funcional..." 
+        <input
+          type="text"
+          value={cat}
+          onChange={(e) => setCat(e.target.value)}
+          placeholder="Ej: Soportes, Decoración, Funcional..."
           list="bib-cats-list-modal"
         />
         <datalist id="bib-cats-list-modal">
           {uniqueCats.map((category, idx) => (
             <option key={idx} value={category} />
+          ))}
+        </datalist>
+
+        <label className="fl">Subcategoría (opcional)</label>
+        <input
+          type="text"
+          value={subcat}
+          onChange={(e) => setSubcat(e.target.value)}
+          placeholder="Ej: Chico, Grande, Con base..."
+          list="bib-subcats-list-modal"
+        />
+        <datalist id="bib-subcats-list-modal">
+          {uniqueSubcats.map((s, idx) => (
+            <option key={idx} value={s} />
           ))}
         </datalist>
 

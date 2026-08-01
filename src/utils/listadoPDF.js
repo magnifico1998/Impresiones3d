@@ -65,11 +65,19 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, 
     return;
   }
 
-  // Ordenar por categoría y luego por nombre
+  // Ordenar por categoría, luego por subcategoría (sin subcategoría primero,
+  // así quedan sueltas arriba de cualquier subgrupo) y por último por nombre.
   const productosOrdenados = [...biblioteca].sort((a, b) => {
     const catA = (a.cat || 'Sin categoría').toLowerCase();
     const catB = (b.cat || 'Sin categoría').toLowerCase();
     if (catA !== catB) return catA.localeCompare(catB);
+    const subA = (a.subcat || '').toLowerCase();
+    const subB = (b.subcat || '').toLowerCase();
+    if (subA !== subB) {
+      if (!subA) return -1;
+      if (!subB) return 1;
+      return subA.localeCompare(subB);
+    }
     return (a.nombre || '').toLowerCase().localeCompare((b.nombre || '').toLowerCase());
   });
 
@@ -177,6 +185,26 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, 
     currentY += pillHeight + categoriaGapDespues;
   };
 
+  // Subtítulo liviano de subcategoría: a diferencia de dibujarCategoria, NO
+  // arranca hoja nueva ni usa la pill de color — es sólo un rótulo de texto
+  // con una línea fina, para no romper el flujo de tarjetas dentro de la
+  // misma categoría.
+  const subcategoriaLabelHeight = 6;
+  const subcategoriaGapDespues = 3;
+
+  const dibujarSubcategoria = (subcategoria) => {
+    pdf.setFontSize(8.5);
+    pdf.setFont(undefined, 'bold');
+    setText(COLOR.accentDark);
+    const texto = subcategoria.toUpperCase();
+    pdf.text(texto, margin + 1, currentY + 4);
+    setDraw(COLOR.border);
+    pdf.setLineWidth(0.2);
+    pdf.line(margin + 1 + pdf.getTextWidth(texto) + 3, currentY + 3.3, pageWidth - margin, currentY + 3.3);
+    pdf.setTextColor(0, 0, 0);
+    currentY += subcategoriaLabelHeight + subcategoriaGapDespues;
+  };
+
   const categories = ordenarCategorias(Object.keys(productosPorCategoria), categoriaOrden);
   let primeraCategoria = true;
 
@@ -197,8 +225,34 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, 
 
     dibujarCategoria(categoria, productos.length);
 
+    // Sólo tiene sentido mostrar subtítulos de subcategoría si hay más de
+    // una dentro de esta categoría — si todos comparten subcategoría (o
+    // ninguno la usa), un único subtítulo sería redundante.
+    const hayVariedadSubcat = new Set(productos.map(p => p.subcat || '')).size > 1;
+    let subcatActual = null;
+
     for (let i = 0; i < productos.length; i++) {
       const prod = productos[i];
+      const subcatProd = prod.subcat || '';
+
+      if (hayVariedadSubcat && subcatProd !== '' && subcatProd !== subcatActual) {
+        // Cierra la fila a mitad antes del subtítulo, para que no quede un
+        // hueco de tarjetas vacías al lado.
+        if (colCount !== 0) {
+          colCount = 0;
+          currentY += cardHeight + gap;
+        }
+        // Salto de página sólo si ni el subtítulo ni una fila de tarjetas
+        // entran más abajo — evita un subtítulo huérfano al pie de página.
+        if (currentY + subcategoriaLabelHeight + cardHeight > usableBottom) {
+          pdf.addPage();
+          await dibujarHeader();
+          currentY = headerBandHeight + 10;
+          colCount = 0;
+        }
+        dibujarSubcategoria(subcatProd);
+      }
+      subcatActual = subcatProd;
 
       if (colCount === colsPerRow) {
         colCount = 0;

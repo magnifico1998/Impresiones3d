@@ -238,7 +238,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                     <td style={{ padding: '8px', fontWeight: 500, maxWidth: '200px' }}>
                       <div>{prod.nombre}</div>
                       <div style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
-                        {prod.cat || 'General'} · {prod.horas?.toFixed(1)}h
+                        {prod.cat || 'General'}{prod.subcat ? ` / ${prod.subcat}` : ''} · {prod.horas?.toFixed(1)}h
                       </div>
                     </td>
                     <td style={{ padding: '8px', fontFamily: 'var(--mono)', textAlign: 'right', color: 'var(--text2)' }}>
@@ -314,6 +314,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
   const [q, setQ] = useState('');
   const [filterCat, setFilterCat] = useState('');
+  const [filterSubcat, setFilterSubcat] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [viewMode, setViewMode] = useState('grid');
   const [sortMode, setSortMode] = useState('nombreAsc');
@@ -324,6 +325,9 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   // Categorías colapsadas por defecto: con muchos productos, agrupar y
   // colapsar por categoría ordena la vista. Se abren a demanda.
   const [catsExpandidas, setCatsExpandidas] = useState(() => new Set());
+  // Mismo criterio para subcategorías, pero clave "cat::subcat" porque el
+  // mismo nombre de subcategoría puede repetirse en categorías distintas.
+  const [subcatsExpandidas, setSubcatsExpandidas] = useState(() => new Set());
 
   const uniqueCats = useMemo(
     () => ordenarCategorias(
@@ -331,6 +335,16 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
       cfg?.categoriaOrden
     ),
     [biblioteca, cfg?.categoriaOrden]
+  );
+
+  // Subcategorías disponibles para filtrar: sólo las de la categoría
+  // elegida en el filtro (sin categoría elegida, el filtro de subcategoría
+  // no tiene sentido — se deshabilita).
+  const uniqueSubcatsDeFilterCat = useMemo(
+    () => filterCat
+      ? Array.from(new Set(biblioteca.filter(b => b.cat === filterCat).map(b => b.subcat).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+      : [],
+    [biblioteca, filterCat]
   );
 
   const toggleCategoriaExpandida = (cat) => {
@@ -341,14 +355,23 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
     });
   };
 
+  const toggleSubcatExpandida = (key) => {
+    setSubcatsExpandidas(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
   const filteredList = useMemo(() => {
     const query = q.toLowerCase().trim();
     return biblioteca.filter(p => {
       const matchQ = !query || p.nombre.toLowerCase().includes(query) || (p.cat && p.cat.toLowerCase().includes(query)) || (p.desc && p.desc.toLowerCase().includes(query));
       const matchCat = !filterCat || p.cat === filterCat;
-      return matchQ && matchCat;
+      const matchSubcat = !filterSubcat || p.subcat === filterSubcat;
+      return matchQ && matchCat && matchSubcat;
     });
-  }, [biblioteca, q, filterCat]);
+  }, [biblioteca, q, filterCat, filterSubcat]);
 
   const sortedList = useMemo(() => {
     const rows = [...filteredList];
@@ -380,7 +403,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
   // Buscando o filtrando por una categoría puntual, se expande todo para
   // no obligar a un clic extra sobre resultados que el usuario ya pidió ver.
-  const forzarExpandidas = q.trim() !== '' || filterCat !== '';
+  const forzarExpandidas = q.trim() !== '' || filterCat !== '' || filterSubcat !== '';
 
   const handleSelectToggle = (id) => {
     setSelectedIds(prev => {
@@ -484,9 +507,22 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
               style={{ fontSize: '13px' }}
             />
           </div>
-          <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)} style={{ width: '160px', fontSize: '13px' }}>
+          <select
+            value={filterCat}
+            onChange={(e) => { setFilterCat(e.target.value); setFilterSubcat(''); }}
+            style={{ width: '160px', fontSize: '13px' }}
+          >
             <option value="">Categorías</option>
             {uniqueCats.map((c, i) => <option key={i} value={c}>{c}</option>)}
+          </select>
+          <select
+            value={filterSubcat}
+            onChange={(e) => setFilterSubcat(e.target.value)}
+            disabled={!filterCat || uniqueSubcatsDeFilterCat.length === 0}
+            style={{ width: '160px', fontSize: '13px' }}
+          >
+            <option value="">Subcategorías</option>
+            {uniqueSubcatsDeFilterCat.map((s, i) => <option key={i} value={s}>{s}</option>)}
           </select>
           {uniqueCats.length > 1 && (
             <button
@@ -604,16 +640,26 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                 </span>
               </div>
 
-              {expandida && (
-                <div
-                  style={{
-                    padding: '0 14px 14px',
-                    ...(viewMode === 'grid'
-                      ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }
-                      : { display: 'flex', flexDirection: 'column', gap: '12px' })
-                  }}
-                >
-                  {items.map(p => {
+              {expandida && (() => {
+                // Sub-agrupa por subcategoría dentro de esta categoría. Los
+                // productos sin subcategoría van sueltos, sin subheader; el
+                // subheader sólo se muestra si hay variedad (evita mostrar
+                // un único subgrupo redundante cuando todos comparten la
+                // misma subcategoría o ninguno la usa).
+                const bySubcat = new Map();
+                items.forEach(p => {
+                  const sc = p.subcat || '';
+                  if (!bySubcat.has(sc)) bySubcat.set(sc, []);
+                  bySubcat.get(sc).push(p);
+                });
+                const subcatKeys = Array.from(bySubcat.keys()).sort((a, b) => {
+                  if (!a) return -1;
+                  if (!b) return 1;
+                  return a.localeCompare(b, 'es', { sensitivity: 'base' });
+                });
+                const hayVariedad = bySubcat.size > 1;
+
+                const renderProducto = (p) => {
                     const isChecked = selectedIds.has(p.id);
                     return (
                       <div
@@ -661,6 +707,11 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                           <span style={{ fontSize: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }}>
                             {p.cat || 'General'}
                           </span>
+                          {p.subcat && (
+                            <span style={{ fontSize: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }}>
+                              {p.subcat}
+                            </span>
+                          )}
                           <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
                             ⏱ {p.horas ? p.horas.toFixed(1) + 'h' : '—'}
                           </span>
@@ -721,9 +772,48 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              )}
+                };
+
+                return (
+                  <div
+                    style={{
+                      padding: '0 14px 14px',
+                      ...(viewMode === 'grid'
+                        ? { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }
+                        : { display: 'flex', flexDirection: 'column', gap: '12px' })
+                    }}
+                  >
+                    {subcatKeys.flatMap(sc => {
+                      if (sc === '' || !hayVariedad) {
+                        return bySubcat.get(sc).map(renderProducto);
+                      }
+                      const key = `${cat}::${sc}`;
+                      const subExpandida = forzarExpandidas || subcatsExpandidas.has(key);
+                      const subItems = bySubcat.get(sc);
+                      return [
+                        <button
+                          key={`h-${sc}`}
+                          onClick={() => toggleSubcatExpandida(key)}
+                          style={{
+                            gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                            padding: '6px 2px', marginTop: '4px'
+                          }}
+                        >
+                          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.3px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontFamily: 'var(--mono)' }}>{subExpandida ? '−' : '+'}</span>
+                            {sc}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+                            {subItems.length} producto{subItems.length !== 1 ? 's' : ''}
+                          </span>
+                        </button>,
+                        ...(subExpandida ? subItems.map(renderProducto) : [])
+                      ];
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           );
         })
