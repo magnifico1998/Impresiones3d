@@ -8,11 +8,13 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
     nombre: '',
     tel: '',
     email: '',
+    documento: '',
     prov: '',
     loc: '',
     cp: '',
     calle: '',
-    altura: ''
+    altura: '',
+    notas: ''
   });
 
   useEffect(() => {
@@ -24,11 +26,13 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
             nombre: c.nombre || '',
             tel: c.tel || '',
             email: c.email || '',
+            documento: c.documento || '',
             prov: c.prov || '',
             loc: c.loc || '',
             cp: c.cp || '',
             calle: c.calle || '',
-            altura: c.altura || ''
+            altura: c.altura || '',
+            notas: c.notas || ''
           });
         }
       } else {
@@ -36,11 +40,13 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           nombre: '',
           tel: '',
           email: '',
+          documento: '',
           prov: '',
           loc: '',
           cp: '',
           calle: '',
-          altura: ''
+          altura: '',
+          notas: ''
         });
       }
     }
@@ -67,11 +73,13 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
       nombre: nombreTrimmed,
       tel: form.tel,
       email: form.email,
+      documento: form.documento,
       prov: form.prov,
       loc: form.loc,
       cp: form.cp,
       calle: form.calle,
-      altura: form.altura
+      altura: form.altura,
+      notas: form.notas
     };
 
     if (editId !== null) {
@@ -129,6 +137,10 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
             <input type="text" id="email" value={form.email} onChange={handleChange} />
           </div>
           <div>
+            <label className="fl">N° de documento</label>
+            <input type="text" id="documento" value={form.documento} onChange={handleChange} />
+          </div>
+          <div>
             <label className="fl">Provincia</label>
             <input type="text" id="prov" value={form.prov} onChange={handleChange} />
           </div>
@@ -148,6 +160,10 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
             <label className="fl">Altura</label>
             <input type="text" id="altura" value={form.altura} onChange={handleChange} />
           </div>
+        </div>
+        <div>
+          <label className="fl">Notas (ej: entre calles, portón rojo, etc.)</label>
+          <textarea id="notas" rows={3} value={form.notas} onChange={handleChange} style={{ width: '100%', resize: 'vertical' }} />
         </div>
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancelar</button>

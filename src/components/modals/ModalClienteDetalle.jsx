@@ -14,7 +14,8 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
   let info = [];
   if (c.tel) info.push(`📞 ${c.tel}`);
   if (c.email) info.push(`✉️ ${c.email}`);
-  
+  if (c.documento) info.push(`🪪 ${c.documento}`);
+
   const addressParts = [c.calle, c.altura].filter(Boolean).join(' ');
   const locationParts = [addressParts, c.loc, c.prov].filter(Boolean).join(', ');
   if (locationParts) info.push(`📍 ${locationParts} ${c.cp ? `(CP: ${c.cp})` : ''}`);
@@ -81,6 +82,21 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
             <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
           </div>
         </div>
+
+        {c.notas && (
+          <div style={{
+            background: 'var(--bg2)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            padding: '10px 12px',
+            marginBottom: '16px',
+            fontSize: '12px',
+            color: 'var(--text2)',
+            whiteSpace: 'pre-wrap'
+          }}>
+            <strong style={{ color: 'var(--text1)' }}>Notas: </strong>{c.notas}
+          </div>
+        )}
 
         <div style={{
           fontSize: '10px',
