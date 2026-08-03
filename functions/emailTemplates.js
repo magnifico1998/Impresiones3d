@@ -84,6 +84,18 @@ const DEFAULTS = {
     `.trim(),
     variables: {},
   },
+  reactivacion: {
+    label: 'Reactivación de suscriptores inactivos',
+    subject: 'Te extrañamos en Manager3D 👋',
+    bodyHtml: `
+      <h2 style="${TITULO}">¿Cómo podemos mejorar?</h2>
+      <p>Hace un tiempo que no te vemos por Manager3D y queríamos preguntarte directamente: ¿qué te frenó, o qué le falta a la app para que la sigas usando?</p>
+      <p>Nos importa mucho tu opinión. Contanos qué se puede mejorar o qué funcionalidad te gustaría que agreguemos, respondiendo este mismo mail.</p>
+      <p>¡Gracias por tu tiempo, esperamos verte de nuevo pronto!</p>
+      ${BOTON}
+    `.trim(),
+    variables: {},
+  },
   nuevoSuscriptor: {
     label: 'Aviso interno: nuevo registro (a admin)',
     subject: 'Nuevo registro en Manager3D',
