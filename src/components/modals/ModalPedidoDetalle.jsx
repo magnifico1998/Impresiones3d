@@ -72,6 +72,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   const precioVentaNeto = Math.max(0, (draft.precioVenta || 0) - descuentoTotal);
   const ganancia = precioVentaNeto ? precioVentaNeto - costoTotal : 0;
   const totalAbonar = precioVentaNeto + (parseFloat(draft.envio) || 0);
+  const montoAbonado = parseFloat(draft.montoAbonado) || 0;
+  const saldoPendiente = totalAbonar - montoAbonado;
 
   // Totals of pieces progress bar
   const totalUnidades = draft.piezas.reduce((s, pz) => s + pz.cantidad, 0);
@@ -84,7 +86,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     // lo normalizamos a número acá para no volver a guardar texto en
     // Firestore — así se ataca la causa del bug de la suma del PDF, no
     // sólo el síntoma.
-    updatePedido(draft.id, { ...draft, envio: parseFloat(draft.envio) || 0 });
+    updatePedido(draft.id, { ...draft, envio: parseFloat(draft.envio) || 0, montoAbonado: parseFloat(draft.montoAbonado) || 0 });
     showToast('Cambios guardados con éxito');
     onClose();
   };
@@ -595,6 +597,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       : ((p.precioVenta || 0) * (descuentoPctPdf / 100));
     const precioVentaNetoPdf = Math.max(0, (p.precioVenta || 0) - descuentoTotalPdf);
     const descuentoLabelPdf = descuentoNombrePdf ? `${descuentoNombrePdf}${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}` : `Descuento${descuentoPctPdf > 0 ? ` (${descuentoPctPdf}%)` : ''}`;
+    const totalAbonarPdf = precioVentaNetoPdf + (parseFloat(p.envio) || 0);
+    const montoAbonadoPdf = parseFloat(p.montoAbonado) || 0;
+    const saldoPendientePdf = totalAbonarPdf - montoAbonadoPdf;
 
     // define totals columns anchored to right margin. El ancho de la columna
     // de etiqueta (SUBTOTAL / Descuento / TOTAL, etc.) es dinámico: se calcula
@@ -609,7 +614,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     const anchosCandidatos = [
       medirAncho('SUBTOTAL', true, 9.5),
       medirAncho('SUBTOTAL neto', true, 9.5),
-      medirAncho('TOTAL', true, 10.5)
+      medirAncho('TOTAL', true, 10.5),
+      medirAncho('MONTO ABONADO', false, 9),
+      medirAncho('SALDO PENDIENTE', true, 10.5)
     ];
     if (descuentoTotalPdf > 0) anchosCandidatos.push(medirAncho(descuentoLabelPdf, false, 9));
     if (p.envio > 0) anchosCandidatos.push(medirAncho('ENVÍO', false, 9));
@@ -673,7 +680,27 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.setDrawColor(180); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
     doc.text('TOTAL', xPUR + 2, y + 5.5);
-    doc.text(fmt(precioVentaNetoPdf + (parseFloat(p.envio) || 0)), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
+    doc.text(fmt(totalAbonarPdf), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
+    y += rowH;
+
+    // Monto abonado / Saldo pendiente -- para que el cliente vea de un
+    // vistazo cuánto ya pagó y cuánto le falta, igual que en el modal.
+    rowH = 7;
+    checkPageBreak(rowH);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
+    doc.text('MONTO ABONADO', xPUR + 2, y + 5);
+    doc.text(fmt(montoAbonadoPdf), xTotR + totalColTot - 2, y + 5, { align: 'right' });
+    y += rowH;
+
+    rowH = 8;
+    checkPageBreak(rowH + 10);
+    doc.setFillColor(...lightGray);
+    doc.rect(xPUR, y, totalColPU, rowH, 'F'); doc.rect(xTotR, y, totalColTot, rowH, 'F');
+    doc.setDrawColor(180); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+    doc.text('SALDO PENDIENTE', xPUR + 2, y + 5.5);
+    doc.text(fmt(saldoPendientePdf), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
     y += rowH + 10;
 
     // Shipping info
@@ -1134,16 +1161,26 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'center', marginTop: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'start', marginTop: '10px' }}>
             <div>
               <label className="fl" style={{ marginTop: 0 }}>
                 Envío ($) <span style={{ color: 'var(--text3)', textTransform: 'none' }}>opcional, no se cuenta como venta</span>
               </label>
-              <input 
-                type="number" 
-                value={draft.envio || ''} 
-                placeholder="0" 
-                onChange={(e) => handleFieldChange('envio', e.target.value)} 
+              <input
+                type="number"
+                value={draft.envio || ''}
+                placeholder="0"
+                onChange={(e) => handleFieldChange('envio', e.target.value)}
+              />
+
+              <label className="fl">Monto abonado ($)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={draft.montoAbonado || ''}
+                placeholder="0"
+                onChange={(e) => handleFieldChange('montoAbonado', e.target.value)}
               />
             </div>
             <div style={{ textAlign: 'right', paddingTop: '10px' }}>
@@ -1152,6 +1189,12 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
               </div>
               <div style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'var(--mono)', color: 'var(--text)' }}>
                 {fmt(totalAbonar)}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '.5px', marginTop: '6px' }}>
+                Saldo pendiente de abonar
+              </div>
+              <div style={{ fontSize: '28px', fontWeight: 700, fontFamily: 'var(--mono)', color: saldoPendiente > 0 ? 'var(--danger)' : 'var(--accent)' }}>
+                {fmt(saldoPendiente)}
               </div>
             </div>
           </div>

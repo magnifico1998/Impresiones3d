@@ -6,8 +6,8 @@ import { calcularFechaCompletado } from '../utils/fechaCompletado';
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, updatePedido, showToast, fmt } = useApp();
 
-  // Los completados quedan colapsados por defecto: con el tiempo se
-  // acumulan y ocupan espacio sin aportar nada al vistazo diario.
+  // Los completados y cancelados quedan colapsados juntos por defecto: con
+  // el tiempo se acumulan y ocupan espacio sin aportar nada al vistazo diario.
   const [completadosExpandido, setCompletadosExpandido] = useState(false);
 
 
@@ -59,11 +59,11 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   }, [pedidos]);
 
   const pedidosActivos = useMemo(
-    () => sortedPedidos.filter(p => p.estado !== 'completado'),
+    () => sortedPedidos.filter(p => p.estado !== 'completado' && p.estado !== 'cancelado'),
     [sortedPedidos]
   );
   const pedidosCompletados = useMemo(
-    () => sortedPedidos.filter(p => p.estado === 'completado'),
+    () => sortedPedidos.filter(p => p.estado === 'completado' || p.estado === 'cancelado'),
     [sortedPedidos]
   );
 
@@ -273,7 +273,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                 >
                   <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{completadosExpandido ? '−' : '+'}</span>
-                    Completados
+                    Completados y cancelados
                   </div>
                   <span style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
                     {pedidosCompletados.length} pedido{pedidosCompletados.length !== 1 ? 's' : ''}
