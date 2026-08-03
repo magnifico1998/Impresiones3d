@@ -459,6 +459,7 @@ export default function ResumenPage() {
       Insumos: 'badge-pending',
       Equipos: 'badge-progress',
       Accesorios: 'badge-listo',
+      Impuestos: 'badge-done',
       Otros: 'badge-cancelled'
     }[cat] || '');
 

@@ -103,6 +103,7 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
           <option value="Insumos">Insumos</option>
           <option value="Equipos">Equipos</option>
           <option value="Accesorios">Accesorios</option>
+          <option value="Impuestos">Impuestos</option>
           <option value="Otros">Otros</option>
         </select>
         

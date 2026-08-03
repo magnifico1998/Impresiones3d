@@ -12,6 +12,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
     let insumos = 0;
     let equipos = 0;
     let accesorios = 0;
+    let impuestos = 0;
 
     compras.forEach(c => {
       const sum = c.total || (c.precio * c.qty) || 0;
@@ -19,9 +20,10 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
       if (c.cat === 'Insumos') insumos += sum;
       else if (c.cat === 'Equipos') equipos += sum;
       else if (c.cat === 'Accesorios') accesorios += sum;
+      else if (c.cat === 'Impuestos') impuestos += sum;
     });
 
-    return { total, insumos, equipos, accesorios };
+    return { total, insumos, equipos, accesorios, impuestos };
   }, [compras]);
 
   // Filter list by category
@@ -43,6 +45,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
       Insumos: 'badge-pending',
       Equipos: 'badge-progress',
       Accesorios: 'badge-listo',
+      Impuestos: 'badge-done',
       Otros: 'badge-cancelled'
     }[cat] || '');
 
@@ -51,7 +54,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div className="page-title">Compras</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>Registrá gastos en insumos, equipos y accesorios.</div>
+          <div className="page-sub" style={{ marginBottom: 0 }}>Registrá gastos en insumos, equipos, accesorios e impuestos.</div>
         </div>
         <button className="btn btn-primary" onClick={onOpenNewCompra}>
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -79,6 +82,10 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
           <div className="metric-label">Accesorios</div>
           <div className="metric-value">{fmt(stats.accesorios)}</div>
         </div>
+        <div className="metric">
+          <div className="metric-label">Impuestos</div>
+          <div className="metric-value">{fmt(stats.impuestos)}</div>
+        </div>
       </div>
 
       {/* Category selector filters */}
@@ -93,6 +100,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
               { id: 'Insumos', name: 'Insumos' },
               { id: 'Equipos', name: 'Equipos' },
               { id: 'Accesorios', name: 'Accesorios' },
+              { id: 'Impuestos', name: 'Impuestos' },
               { id: 'Otros', name: 'Otros' }
             ].map(cat => (
               <button 
