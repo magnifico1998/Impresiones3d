@@ -51,6 +51,11 @@ const defaultCfg = {
   mo: 500,
   margen: 100,
   desperdicio: 5,
+  // Si está activo, "Gastos" en Resumen suma todos los ítems de costo del
+  // producto (filamento, insumos, mantenimiento, electricidad, MO) y la
+  // fórmula de rentabilidad deja de restar "Gastos compras" (para no
+  // duplicar filamento/insumos que ya se compraron y cargaron ahí).
+  costoCompletoActivo: false,
   // Orden manual de categorías (arrastrar para reordenar en Biblioteca).
   // Lista de nombres de categoría; las que no aparecen acá se agregan al
   // final ordenadas alfabéticamente. Se persiste igual que el resto de cfg.

@@ -191,9 +191,23 @@ export default function ResumenPage() {
 
     const v = comp.reduce((s, p) => s + precioNetoFor(p), 0);
     
-    // Cost calculation (electricity + labor)
+    // Cost calculation: por defecto solo electricidad + mano de obra (el
+    // resto -filamento, insumos, mantenimiento- se asume cubierto por
+    // "Gastos compras" más abajo). Con cfg.costoCompletoActivo, "Gastos"
+    // suma el costo unitario completo del producto (pz.costoUnitario/total,
+    // ya calculado en Calculadora/Biblioteca) y las compras dejan de
+    // restarse en la rentabilidad (ver más abajo) para no duplicar.
+    // OJO: no re-sumar pz.costeFil/costeMant/costeIns sueltos acá -- piezas
+    // creadas desde Biblioteca o desde una solicitud web (construirPiezaDesdeBibParaPedido/
+    // construirPiezaDesdeSolicitud) nunca setean esos campos individuales,
+    // solo costoUnitario/total, así que sumarlos por separado subestima el costo.
     const c = comp.reduce((s, p) => {
-      const cp = p.piezas.reduce((a, pz) => a + (((pz.costeElec || 0) + (pz.costeMO || 0)) * pz.cantidad), 0);
+      const cp = p.piezas.reduce((a, pz) => {
+        const costeUnitario = cfg.costoCompletoActivo
+          ? (pz.costoUnitario || pz.total || 0)
+          : (pz.costeElec || 0) + (pz.costeMO || 0);
+        return a + costeUnitario * pz.cantidad;
+      }, 0);
       return s + cp;
     }, 0);
 
@@ -203,10 +217,10 @@ export default function ResumenPage() {
       const d = new Date(c.fecha + 'T12:00:00');
       return d >= desde && d <= hasta;
     });
-    
+
     const g = compPer.reduce((s, c) => s + (c.total || c.precio || 0), 0);
 
-    const gan = v - c - g;
+    const gan = cfg.costoCompletoActivo ? v - c : v - c - g;
     const rent = v > 0 ? (gan / v * 100) : 0;
 
     const pendientesGlobal = pedidos.filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && (p.precioVenta || 0) > 0);
@@ -223,7 +237,7 @@ export default function ResumenPage() {
       rentab: rent,
       totalPendienteGlobal: totalPend
     };
-  }, [pedidos, compras, periodDates]);
+  }, [pedidos, compras, periodDates, cfg.costoCompletoActivo]);
 
   // Aggregate helpers for graph
   const agruparPorDia = (pedidosList, desde, hasta) => {

@@ -315,13 +315,34 @@ export default function ConfiguracionPage() {
             />
             
             <label className="fl">Desperdicio (%)</label>
-            <input 
-              type="number" 
-              value={cfg.desperdicio} 
-              step="1" 
-              onChange={(e) => handleDefaultValueChange('desperdicio', e.target.value)} 
+            <input
+              type="number"
+              value={cfg.desperdicio}
+              step="1"
+              onChange={(e) => handleDefaultValueChange('desperdicio', e.target.value)}
             />
-            
+
+            <div className="sep"></div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <input
+                type="checkbox"
+                id="costoCompletoActivo"
+                checked={!!cfg.costoCompletoActivo}
+                onChange={(e) => setCfg(prev => ({ ...prev, costoCompletoActivo: e.target.checked }))}
+              />
+              <label htmlFor="costoCompletoActivo" style={{ fontSize: '13px' }}>
+                Calcular gastos con el costo completo del producto
+              </label>
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
+              Por defecto, "Gastos" en Resumen solo suma electricidad y mano de obra, y las compras
+              de materiales/insumos se restan aparte en "Gastos compras". Si activás esta opción,
+              "Gastos" pasa a sumar todos los ítems de costo del producto (filamento, insumos,
+              mantenimiento, electricidad y mano de obra) y la rentabilidad deja de restar
+              "Gastos compras", para no contar el mismo gasto dos veces.
+            </p>
+
           </div>
 
           <div className="card">
