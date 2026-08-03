@@ -45,10 +45,20 @@ exports.activarCodigoPromocional = onCall(async (request) => {
   const codigo = validarCodigo(request.data?.codigo);
   const codigoRef = db.doc(`codigosPromocionales/${codigo}`);
   const subRef = db.doc(`users/${uid}/suscripcion/actual`);
+  const solicitudRef = db.doc(`solicitudesContacto/${uid}`);
   const ahora = Timestamp.now();
 
   const resultado = await db.runTransaction(async (tx) => {
-    const [codigoSnap, subSnap] = await Promise.all([tx.get(codigoRef), tx.get(subRef)]);
+    const [codigoSnap, subSnap, solicitudSnap] = await Promise.all([tx.get(codigoRef), tx.get(subRef), tx.get(solicitudRef)]);
+
+    // Antes de regalar un plan, nos aseguramos de tener al menos los datos
+    // de contacto de quien lo activa (mismo formulario que ya llena
+    // cualquier trial para pedir ayuda comercial, ver ModalContacto.jsx) --
+    // si no, un código filtrado se podría activar desde una cuenta anónima
+    // sin ningún dato para hacerle seguimiento después.
+    if (!solicitudSnap.exists) {
+      throw new HttpsError('failed-precondition', 'Antes de activar un código promocional tenés que enviar el formulario de contacto.');
+    }
 
     if (!codigoSnap.exists || !codigoSnap.data().activo) {
       throw new HttpsError('not-found', 'Ese código no existe o ya no está activo.');

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import ModalContacto from './modals/ModalContacto';
 import ModalCodigoPromocional from './modals/ModalCodigoPromocional';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
@@ -13,7 +15,7 @@ const diasHasta = (timestamp) => {
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 };
 
-function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbrirPromo }) {
+function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbrirPromo, contactoEnviado }) {
   if (!suscripcion) return null;
 
   if (suscripcion.estado === 'activa') {
@@ -38,7 +40,13 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
             🕐 Estás en una <strong>versión de prueba</strong>{dias !== null ? ` — te quedan ${dias} día${dias === 1 ? '' : 's'}` : ''}. Contactate con el área comercial para ver las opciones de contratación.
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirPromo}>
+            <button
+              className="btn"
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+              onClick={onAbrirPromo}
+              disabled={contactoEnviado === false}
+              title={contactoEnviado === false ? 'Enviá primero el formulario de contacto para poder activar un código promocional.' : undefined}
+            >
               🎟️ Activar código promocional
             </button>
             <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
@@ -46,6 +54,11 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
             </button>
           </div>
         </div>
+        {contactoEnviado === false && (
+          <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '8px' }}>
+            Para activar un código promocional primero tenés que enviar el formulario de contacto.
+          </div>
+        )}
       </div>
     );
   }
@@ -86,9 +99,23 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
 }
 
 export default function ResumenPage() {
-  const { pedidos, compras, suscripcion, planContratado, fmt, cfg } = useApp();
+  const { pedidos, compras, suscripcion, planContratado, fmt, cfg, cuentaId } = useApp();
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
   const [modalPromoOpen, setModalPromoOpen] = useState(false);
+
+  // Para poder activar un código promocional durante el trial, primero hay
+  // que haber enviado el formulario de contacto (ver
+  // functions/http/codigosPromocionales.js, que es quien realmente lo
+  // exige) -- acá sólo se consulta una vez si ya existe, para deshabilitar
+  // el botón con una explicación en vez de dejar que el usuario se entere
+  // recién al tocar "Activar" y recibir el error de la función.
+  const [contactoEnviado, setContactoEnviado] = useState(null);
+  useEffect(() => {
+    if (!cuentaId || suscripcion?.estado !== 'trial') return;
+    getDoc(doc(db, 'solicitudesContacto', cuentaId))
+      .then((snap) => setContactoEnviado(snap.exists()))
+      .catch((e) => console.error('Error al verificar el formulario de contacto:', e));
+  }, [cuentaId, suscripcion?.estado]);
 
   const [diasPeriodo, setDiasPeriodo] = useState(7);
   const [fechaDesde, setFechaDesde] = useState('');
@@ -465,7 +492,7 @@ export default function ResumenPage() {
 
   return (
     <div className="page active">
-      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} />
+      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} contactoEnviado={contactoEnviado} />
       <div className="page-title">Resumen</div>
       <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
       
@@ -670,7 +697,17 @@ export default function ResumenPage() {
         )}
       </div>
 
-      <ModalContacto isOpen={modalContactoOpen} onClose={() => setModalContactoOpen(false)} />
+      <ModalContacto
+        isOpen={modalContactoOpen}
+        onClose={() => {
+          setModalContactoOpen(false);
+          if (cuentaId && suscripcion?.estado === 'trial') {
+            getDoc(doc(db, 'solicitudesContacto', cuentaId))
+              .then((snap) => setContactoEnviado(snap.exists()))
+              .catch((e) => console.error('Error al verificar el formulario de contacto:', e));
+          }
+        }}
+      />
       <ModalCodigoPromocional isOpen={modalPromoOpen} onClose={() => setModalPromoOpen(false)} />
     </div>
   );
