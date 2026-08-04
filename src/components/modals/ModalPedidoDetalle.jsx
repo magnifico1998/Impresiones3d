@@ -572,7 +572,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       doc.setFontSize(8.8); doc.setTextColor(40, 40, 40);
       doc.text(nameLines, xDesc + 2, topTextY);
       if (extraLines.length) {
-        doc.setFontSize(7.2); doc.setTextColor(120, 120, 120);
+        doc.setFontSize(7.2); doc.setTextColor(80, 80, 80);
         doc.text(extraLines, xDesc + 2, topTextY + nameLines.length * lineH - 0.6);
       }
 

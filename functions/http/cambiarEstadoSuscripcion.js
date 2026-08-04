@@ -295,9 +295,14 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
   // revendedor (revendedores/{codigo}.descuentosPorPlan). Antes, cuando el
   // input quedaba vacío se facturaba 0% siempre, ignorando por completo
   // ese default -- este es justamente el fix.
+  // El override puntual sólo lo puede fijar un admin -- si quien llama es
+  // el propio revendedor (esRevendedorReq), un descuentoPct que venga en
+  // el request se ignora a propósito: ese % es su ganancia/comisión, así
+  // que dejarlo tocarlo le permitiría facturarse a sí mismo lo que
+  // quisiera en cada venta.
   let pctDescuento = 0;
   if (revendedorInfo && revendedorInfo.codigo) {
-    if (descuentoPct != null) {
+    if (descuentoPct != null && esAdminReq) {
       pctDescuento = Math.max(0, Math.min(100, Number(descuentoPct)));
     } else {
       const revSnapPct = await db.doc(`revendedores/${revendedorInfo.codigo}`).get();

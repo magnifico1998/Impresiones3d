@@ -906,10 +906,13 @@ export default function AdminPage({ modoRevendedor = false }) {
                               type="number" min="0" max="100"
                               value={descuentoPorSolicitud[s.uid] ?? ''}
                               onChange={(e) => setDescuentoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
+                              disabled={modoRevendedor}
                               placeholder={defaultPct != null ? `${defaultPct}%` : '% dto.'}
-                              title={defaultPct != null
-                                ? `Si lo dejás vacío, se factura el default de este plan para ${s.codigoRevendedor}: ${defaultPct}%`
-                                : 'Descuento (ganancia del revendedor) para esta venta'}
+                              title={modoRevendedor
+                                ? 'El % de descuento lo fija el administrador, no se puede editar desde acá.'
+                                : (defaultPct != null
+                                  ? `Si lo dejás vacío, se factura el default de este plan para ${s.codigoRevendedor}: ${defaultPct}%`
+                                  : 'Descuento (ganancia del revendedor) para esta venta')}
                               style={{ fontSize: '12px', width: '70px' }}
                             />
                           </>
@@ -1245,10 +1248,13 @@ export default function AdminPage({ modoRevendedor = false }) {
                                       type="number" min="0" max="100"
                                       value={descuentoPorCuenta[c.uid] ?? ''}
                                       onChange={(e) => setDescuentoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
+                                      disabled={modoRevendedor}
                                       placeholder={defaultPct != null ? `${defaultPct}%` : '% dto.'}
-                                      title={defaultPct != null
-                                        ? `Si lo dejás vacío, se factura el default de este plan para ${codigoFila}: ${defaultPct}%`
-                                        : 'Descuento (ganancia del revendedor) para esta renovación'}
+                                      title={modoRevendedor
+                                        ? 'El % de descuento lo fija el administrador, no se puede editar desde acá.'
+                                        : (defaultPct != null
+                                          ? `Si lo dejás vacío, se factura el default de este plan para ${codigoFila}: ${defaultPct}%`
+                                          : 'Descuento (ganancia del revendedor) para esta renovación')}
                                       style={{ fontSize: '12px', width: '60px' }}
                                     />
                                   </>
