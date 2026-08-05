@@ -89,7 +89,13 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
     const qty = Math.max(1, parseInt(value) || 1);
     setArmarPedidoItems(prev => prev.map((item, i) => {
       if (i === idx) {
-        const versiones = qty > 0 ? [{ id: Date.now() + Math.random(), cantidad: qty, color: '', comentario: '' }] : [];
+        // Si hay una sola versión, actualizamos su cantidad conservando color/comentario.
+        // Si ya hay varias versiones con colores asignados, no las pisamos: el chequeo
+        // de "versiones incompletas" en handleConfirm avisará si dejan de sumar el total.
+        let versiones = item.versiones || [];
+        if (versiones.length <= 1) {
+          versiones = [{ ...(versiones[0] || { id: Date.now() + Math.random(), color: '', comentario: '' }), cantidad: qty }];
+        }
         return { ...item, cantidad: qty, versiones };
       }
       return item;
