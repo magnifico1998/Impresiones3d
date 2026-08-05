@@ -81,12 +81,15 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   const pct = totalUnidades > 0 ? Math.round((totalElaboradas / totalUnidades) * 100) : 0;
 
   // Actions
-  const handleSave = () => {
-    // draft.envio viene del input como string (así lo entrega el DOM);
-    // lo normalizamos a número acá para no volver a guardar texto en
-    // Firestore — así se ataca la causa del bug de la suma del PDF, no
-    // sólo el síntoma.
+  // draft.envio viene del input como string (así lo entrega el DOM); lo
+  // normalizamos a número acá para no volver a guardar texto en Firestore
+  // -- así se ataca la causa del bug de la suma del PDF, no sólo el síntoma.
+  const persistDraft = () => {
     updatePedido(draft.id, { ...draft, envio: parseFloat(draft.envio) || 0, montoAbonado: parseFloat(draft.montoAbonado) || 0 });
+  };
+
+  const handleSave = () => {
+    persistDraft();
     showToast('Cambios guardados con éxito');
     onClose();
   };
@@ -761,7 +764,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-            <button className="btn btn-sm" onClick={() => { onClose(); onEditOrder(draft.id); }}>Editar</button>
+            <button className="btn btn-sm" onClick={() => { persistDraft(); onClose(); onEditOrder(draft.id); }}>Editar</button>
             <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
           </div>
         </div>
@@ -771,7 +774,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
             Piezas / G-codes
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => { onClose(); onAddProduct(draft.id); }}>
+          <button className="btn btn-primary btn-sm" onClick={() => { persistDraft(); onClose(); onAddProduct(draft.id); }}>
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 4v12M4 10h12" />
             </svg>
