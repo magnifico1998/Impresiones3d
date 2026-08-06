@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { jsPDF } from 'jspdf';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
-import { calcularFechaCompletado } from '../../utils/fechaCompletado';
+import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
   const {
@@ -122,6 +122,23 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
   const handleFieldChange = (field, val) => {
     setDraft(prev => ({ ...prev, [field]: val }));
+  };
+
+  // Al cargar el primer monto abonado (pasa de 0 a >0 y todavía no tiene
+  // fecha), se propone hoy como fecha de abono -- es lo más común y evita
+  // que se cuente en Ventas/Pendiente sin fecha por olvido. Se puede
+  // corregir a mano si el pago fue otro día.
+  const handleMontoAbonadoChange = (value) => {
+    setDraft(prev => {
+      const prevMonto = parseFloat(prev.montoAbonado) || 0;
+      const nuevoMonto = parseFloat(value) || 0;
+      const necesitaFecha = nuevoMonto > 0 && prevMonto === 0 && !prev.fechaAbonado;
+      return {
+        ...prev,
+        montoAbonado: value,
+        fechaAbonado: necesitaFecha ? fechaLocalHoy() : prev.fechaAbonado
+      };
+    });
   };
 
   const handleDescuentoMontoChange = (value) => {
@@ -628,6 +645,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     const totalAbonarPdf = precioVentaNetoPdf + (parseFloat(p.envio) || 0);
     const montoAbonadoPdf = parseFloat(p.montoAbonado) || 0;
     const saldoPendientePdf = totalAbonarPdf - montoAbonadoPdf;
+    const fechaAbonadoPdf = p.fechaAbonado
+      ? ` (${p.fechaAbonado.slice(8, 10)}/${p.fechaAbonado.slice(5, 7)}/${p.fechaAbonado.slice(0, 4)})`
+      : '';
 
     // define totals columns anchored to right margin. El ancho de la columna
     // de etiqueta (SUBTOTAL / Descuento / TOTAL, etc.) es dinámico: se calcula
@@ -643,7 +663,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       medirAncho('SUBTOTAL', true, 9.5),
       medirAncho('SUBTOTAL neto', true, 9.5),
       medirAncho('TOTAL', true, 10.5),
-      medirAncho('MONTO ABONADO', false, 9),
+      medirAncho(`MONTO ABONADO${fechaAbonadoPdf}`, false, 9),
       medirAncho('SALDO PENDIENTE', true, 10.5)
     ];
     if (descuentoTotalPdf > 0) anchosCandidatos.push(medirAncho(descuentoLabelPdf, false, 9));
@@ -717,7 +737,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     checkPageBreak(rowH);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     doc.setDrawColor(225); doc.rect(xPUR, y, totalColPU, rowH); doc.rect(xTotR, y, totalColTot, rowH);
-    doc.text('MONTO ABONADO', xPUR + 2, y + 5);
+    doc.text(`MONTO ABONADO${fechaAbonadoPdf}`, xPUR + 2, y + 5);
     doc.text(fmt(montoAbonadoPdf), xTotR + totalColTot - 2, y + 5, { align: 'right' });
     y += rowH;
 
@@ -1214,15 +1234,27 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                 onChange={(e) => handleFieldChange('envio', e.target.value)}
               />
 
-              <label className="fl">Monto abonado ($)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={draft.montoAbonado || ''}
-                placeholder="0"
-                onChange={(e) => handleFieldChange('montoAbonado', e.target.value)}
-              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label className="fl">Monto abonado ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={draft.montoAbonado || ''}
+                    placeholder="0"
+                    onChange={(e) => handleMontoAbonadoChange(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="fl">Fecha de abono</label>
+                  <input
+                    type="date"
+                    value={draft.fechaAbonado || ''}
+                    onChange={(e) => handleFieldChange('fechaAbonado', e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
             <div style={{ textAlign: 'right', paddingTop: '10px' }}>
               <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', textTransform: 'uppercase', letterSpacing: '.5px' }}>

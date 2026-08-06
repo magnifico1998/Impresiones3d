@@ -5,6 +5,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import ModalContacto from './modals/ModalContacto';
 import ModalCodigoPromocional from './modals/ModalCodigoPromocional';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
+import { movimientosVenta, pendienteDePedido } from '../utils/finanzasPedido';
 
 // Cuántos días faltan hasta un Timestamp de Firestore, redondeado para
 // arriba (así "faltan 0 días" nunca se muestra como "ya venció" de
@@ -191,8 +192,17 @@ export default function ResumenPage() {
   }, [diasPeriodo, fechaDesde, fechaHasta, pedidos, compras]);
 
   // Filter orders and expenses by period
-  const { filteredPedidos, completados, comprasPeriodo, totalVentas, totalCostos, gastos, ganancia, rentab, totalPendienteGlobal } = useMemo(() => {
+  const { filteredPedidos, completados, comprasPeriodo, totalVentas, totalCostos, gastos, ganancia, rentab, totalPendienteGlobal, movimientosVentaPeriodo } = useMemo(() => {
     const { desde, hasta } = periodDates;
+
+    // Las fechas de movimiento (fechaAbonado / fechaCompletado) siempre se
+    // guardan en formato YYYY-MM-DD (fechaLocalHoy o el <input type="date">),
+    // a diferencia de fechaRef más abajo que también puede venir en dd/mm/aaaa.
+    const fechaMovimientoEnRango = (fechaStr) => {
+      if (!fechaStr) return false;
+      const d = new Date(fechaStr + 'T12:00:00');
+      return d >= desde && d <= hasta;
+    };
 
     const getIsOrderInPeriod = (p) => {
       const fechaRef = (p.state === 'completado' || p.estado === 'completado' || p.estado === 'enviado') && p.fechaCompletado
@@ -213,11 +223,23 @@ export default function ResumenPage() {
 
     const fp = pedidos.filter(getIsOrderInPeriod);
 
-    // Completados with sales price (neto: descuento aplicado)
+    // Completados with sales price (neto: descuento aplicado). Esta lista
+    // sigue usándose tal cual para Costos/Ganancia/Rentabilidad y para la
+    // tabla de abajo -- no se tocó esa parte del cálculo.
     const comp = fp.filter(p => (p.estado === 'completado' || p.estado === 'listo' || p.estado === 'enviado') && (p.precioVenta || 0) > 0);
 
-    const v = comp.reduce((s, p) => s + precioNetoFor(p), 0);
-    
+    // "Ventas" sale de los MOVIMIENTOS de cada pedido (ver
+    // utils/finanzasPedido.js) en vez de una única fecha por pedido: lo
+    // abonado cuenta en su fecha de abono, y el saldo de un pedido
+    // enviado/completado cuenta en su fecha de completado. Por eso se
+    // recorren TODOS los pedidos (no sólo `fp`, que filtra por la fecha de
+    // REFERENCIA del pedido) y se filtra cada movimiento por su propia fecha
+    // -- una seña cobrada este mes en un pedido que recién se completa el
+    // mes que viene tiene que contar en el mes en que se cobró.
+    const movimientos = pedidos.flatMap(movimientosVenta);
+    const movPeriodo = movimientos.filter(m => fechaMovimientoEnRango(m.fecha));
+    const v = movPeriodo.reduce((s, m) => s + m.monto, 0);
+
     // Cost calculation: por defecto solo electricidad + mano de obra (el
     // resto -filamento, insumos, mantenimiento- se asume cubierto por
     // "Gastos compras" más abajo). Con cfg.costoCompletoActivo, "Gastos"
@@ -250,8 +272,7 @@ export default function ResumenPage() {
     const gan = cfg.costoCompletoActivo ? v - c : v - c - g;
     const rent = v > 0 ? (gan / v * 100) : 0;
 
-    const pendientesGlobal = pedidos.filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && (p.precioVenta || 0) > 0);
-    const totalPend = pendientesGlobal.reduce((s, p) => s + precioNetoFor(p), 0);
+    const totalPend = pedidos.reduce((s, p) => s + pendienteDePedido(p), 0);
 
     return {
       filteredPedidos: fp,
@@ -262,12 +283,15 @@ export default function ResumenPage() {
       gastos: g,
       ganancia: gan,
       rentab: rent,
-      totalPendienteGlobal: totalPend
+      totalPendienteGlobal: totalPend,
+      movimientosVentaPeriodo: movPeriodo
     };
   }, [pedidos, compras, periodDates, cfg.costoCompletoActivo]);
 
-  // Aggregate helpers for graph
-  const agruparPorDia = (pedidosList, desde, hasta) => {
+  // Aggregate helpers for graph -- reciben la lista de MOVIMIENTOS de venta
+  // del período ({ monto, fecha }, ver utils/finanzasPedido.js), no pedidos:
+  // un mismo pedido puede aportar a dos fechas distintas (abono + saldo).
+  const agruparPorDia = (movs, desde, hasta) => {
     const map = {};
     const cur = new Date(desde);
     while (cur <= hasta) {
@@ -275,14 +299,13 @@ export default function ResumenPage() {
       map[k] = 0;
       cur.setDate(cur.getDate() + 1);
     }
-    pedidosList.forEach(p => {
-      const f = getFechaVenta(p);
-      if (f && map[f] !== undefined) map[f] += precioNetoFor(p);
+    movs.forEach(m => {
+      if (m.fecha && map[m.fecha] !== undefined) map[m.fecha] += m.monto;
     });
     return Object.entries(map).map(([k, val]) => ({ label: k.slice(8, 10) + '-' + k.slice(5, 7), ventas: val }));
   };
 
-  const agruparPorSemana = (pedidosList, desde, hasta) => {
+  const agruparPorSemana = (movs, desde, hasta) => {
     const semanas = [];
     const cur = new Date(desde);
     while (cur <= hasta) {
@@ -292,17 +315,16 @@ export default function ResumenPage() {
       semanas.push({ label: k.slice(8, 10) + '-' + k.slice(5, 7), desde: new Date(cur), hasta: fin <= hasta ? fin : hasta, ventas: 0 });
       cur.setDate(cur.getDate() + 7);
     }
-    pedidosList.forEach(p => {
-      const fStr = getFechaVenta(p);
-      const f = fStr ? new Date(fStr + 'T12:00:00') : null;
+    movs.forEach(m => {
+      const f = m.fecha ? new Date(m.fecha + 'T12:00:00') : null;
       if (!f) return;
       const sem = semanas.find(s => f >= s.desde && f <= s.hasta);
-      if (sem) sem.ventas += precioNetoFor(p);
+      if (sem) sem.ventas += m.monto;
     });
     return semanas;
   };
 
-  const agruparPorMes = (pedidosList, desde, hasta) => {
+  const agruparPorMes = (movs, desde, hasta) => {
     const map = {};
     const cur = new Date(desde.getFullYear(), desde.getMonth(), 1);
     while (cur <= hasta) {
@@ -310,10 +332,9 @@ export default function ResumenPage() {
       map[k] = 0;
       cur.setMonth(cur.getMonth() + 1);
     }
-    pedidosList.forEach(p => {
-      const f = getFechaVenta(p);
-      const mes = f ? f.slice(0, 7) : null;
-      if (mes && map[mes] !== undefined) map[mes] += precioNetoFor(p);
+    movs.forEach(m => {
+      const mes = m.fecha ? m.fecha.slice(0, 7) : null;
+      if (mes && map[mes] !== undefined) map[mes] += m.monto;
     });
     return Object.entries(map).map(([k, val]) => ({ label: k.slice(5) + '/' + k.slice(2, 4), ventas: val }));
   };
@@ -323,15 +344,15 @@ export default function ResumenPage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    if (!completados.length) {
+    if (!movimientosVentaPeriodo.length) {
       return;
     }
 
     const { desde, hasta } = periodDates;
     const diffDias = (hasta - desde) / (1000 * 60 * 60 * 24);
-    const puntos = diffDias <= 31 ? agruparPorDia(completados, desde, hasta)
-                 : diffDias <= 180 ? agruparPorSemana(completados, desde, hasta)
-                 : agruparPorMes(completados, desde, hasta);
+    const puntos = diffDias <= 31 ? agruparPorDia(movimientosVentaPeriodo, desde, hasta)
+                 : diffDias <= 180 ? agruparPorSemana(movimientosVentaPeriodo, desde, hasta)
+                 : agruparPorMes(movimientosVentaPeriodo, desde, hasta);
 
     let acum = 0;
     const labels = puntos.map(p => p.label);
@@ -442,7 +463,7 @@ export default function ResumenPage() {
     ctx.textAlign = 'center';
     ctx.fillText('Acumulado', 0, 0);
     ctx.restore();
-  }, [completados, periodDates, cfg?.palette, cfg?.paletaCustom]);
+  }, [movimientosVentaPeriodo, periodDates, cfg?.palette, cfg?.paletaCustom]);
 
   // Printer utilization logic
   const printerHours = useMemo(() => {
@@ -583,7 +604,7 @@ export default function ResumenPage() {
       <div className="grid2">
         <div className="card">
           <div className="card-title">Ventas acumuladas</div>
-          {!completados.length ? (
+          {!movimientosVentaPeriodo.length ? (
             <div style={{ textAlignment: 'center', padding: '40px', color: 'var(--text3)', fontSize: '13px', fontFamily: 'var(--mono)', textAlign: 'center' }}>
               Sin datos en el período
             </div>

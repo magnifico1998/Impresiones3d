@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { precioNeto } from '../utils/precioNeto';
+import { ventasDePedido, pendienteDePedido } from '../utils/finanzasPedido';
 import { calcularFechaCompletado } from '../utils/fechaCompletado';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
@@ -43,13 +44,13 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     const prog = pedidos.filter(p => p.estado === 'progreso' || p.estado === 'listo').length;
     const done = pedidos.filter(p => p.estado === 'completado').length;
 
-    const fact = pedidos
-      .filter(p => (p.estado === 'completado' || p.estado === 'listo' || p.estado === 'enviado') && (p.precioVenta || 0) > 0)
-      .reduce((s, p) => s + precioNeto(p), 0);
-
-    const pendGlobal = pedidos
-      .filter(p => p.estado !== 'completado' && p.estado !== 'cancelado' && (p.precioVenta || 0) > 0)
-      .reduce((s, p) => s + precioNeto(p), 0);
+    // "Facturado" y "Pendiente" siguen las reglas de finanzasPedido.js: lo
+    // abonado cuenta como venta desde su fecha de abono (y sale de
+    // pendiente), en_verificacion no aporta a ninguno de los dos, y un
+    // pedido enviado/completado ya reconoce todo su precio neto como venta
+    // (nada le queda pendiente).
+    const fact = pedidos.reduce((s, p) => s + ventasDePedido(p), 0);
+    const pendGlobal = pedidos.reduce((s, p) => s + pendienteDePedido(p), 0);
 
     return { total, prog, done, fact, pendGlobal };
   }, [pedidos]);
