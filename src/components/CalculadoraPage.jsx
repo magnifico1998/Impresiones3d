@@ -2,6 +2,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import JSZip from 'jszip';
 
+// Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
+// al índice correspondiente de cfg.impresoras, o null si no hay ninguna
+// elegida o ya no existe. Se guarda por NOMBRE (robusto ante reordenar o
+// borrar impresoras); se acepta también el índice numérico que guardaban
+// versiones anteriores del selector. Antes este valor de Configuración no
+// lo leía nadie: la Calculadora arrancaba siempre con la primera impresora
+// de la lista, hiciera lo que hiciera el usuario en "Valores por defecto".
+function indiceImpresoraDefault(cfg) {
+  const def = cfg?.impresoraDefault;
+  if (def === '' || def == null || !cfg?.impresoras?.length) return null;
+  const porNombre = cfg.impresoras.findIndex(imp => imp.nombre === def);
+  if (porNombre >= 0) return porNombre;
+  const idx = Number(def);
+  return Number.isInteger(idx) && cfg.impresoras[idx] ? idx : null;
+}
+
 export default function CalculadoraPage({
   onOpenBibUsar,
   onOpenBibGuardar,
@@ -22,7 +38,11 @@ export default function CalculadoraPage({
   const [gramos, setGramos] = useState(50);
   const [cantidad, setCantidad] = useState(1);
   const [selFilamento, setSelFilamento] = useState('manual');
-  const [selImpresora, setSelImpresora] = useState(() => cfg.impresoras?.length ? '0' : 'manual');
+  const [selImpresora, setSelImpresora] = useState(() => {
+    const def = indiceImpresoraDefault(cfg);
+    if (def !== null) return String(def);
+    return cfg.impresoras?.length ? '0' : 'manual';
+  });
   
   // Consumables checked state: { [name]: { checked: boolean, qty: number, price: number } }
   const [insumosState, setInsumosState] = useState({});
@@ -54,13 +74,17 @@ export default function CalculadoraPage({
     return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
   };
 
-  // Sync config defaults on load
+  // Re-sincroniza estos campos cuando cambian SUS defaults en
+  // Configuración. Antes dependía de `cfg` entero: cualquier cambio de
+  // config sin relación (agregar un color, editar un insumo, incluso el
+  // eco de "actualizado desde otra sesión") pisaba los valores que el
+  // usuario estaba ajustando a mano en la calculadora.
   useEffect(() => {
     setPrecioKwh(cfg.kwh);
     setManoObra(cfg.mo);
     setMargen(cfg.margen);
     setDesperdicio(cfg.desperdicio);
-  }, [cfg]);
+  }, [cfg.kwh, cfg.mo, cfg.margen, cfg.desperdicio]);
 
   useEffect(() => {
     if (!cfg.impresoras?.length) {
@@ -74,10 +98,15 @@ export default function CalculadoraPage({
     if (hasValidSelection) {
       setWatts(cfg.impresoras[currentIndex].watts || 0);
     } else {
-      setSelImpresora('0');
-      setWatts(cfg.impresoras[0].watts || 0);
+      // Selección inválida (ej. se borró esa impresora de Configuración):
+      // se cae a la impresora por defecto elegida en Configuración, y si
+      // no hay ninguna, a la primera de la lista como antes.
+      const def = indiceImpresoraDefault(cfg);
+      const idx = def !== null ? def : 0;
+      setSelImpresora(String(idx));
+      setWatts(cfg.impresoras[idx].watts || 0);
     }
-  }, [cfg.impresoras, selImpresora]);
+  }, [cfg, selImpresora]);
 
   // Adjust inputs based on selections
   const handleFilamentoSelectChange = (val) => {
@@ -648,18 +677,26 @@ export default function CalculadoraPage({
       setIsGcodeApplied(true);
     }
 
+    // Sin impresora en el producto (o ya no existe en Configuración): se
+    // cae a la impresora por defecto, y si no hay, a la primera de la lista.
+    const aplicarImpresoraFallback = () => {
+      if (!cfg.impresoras.length) return;
+      const def = indiceImpresoraDefault(cfg);
+      const idx = def !== null ? def : 0;
+      setSelImpresora(String(idx));
+      setWatts(cfg.impresoras[idx].watts || 0);
+    };
+
     if (prod.impresoraNombre) {
       const idx = cfg.impresoras.findIndex(imp => imp.nombre === prod.impresoraNombre);
       if (idx >= 0) {
         setSelImpresora(String(idx));
         setWatts(cfg.impresoras[idx].watts);
-      } else if (cfg.impresoras.length) {
-        setSelImpresora('0');
-        setWatts(cfg.impresoras[0].watts || 0);
+      } else {
+        aplicarImpresoraFallback();
       }
-    } else if (cfg.impresoras.length) {
-      setSelImpresora('0');
-      setWatts(cfg.impresoras[0].watts || 0);
+    } else {
+      aplicarImpresoraFallback();
     }
 
     setPrecioVentaTocado(false);

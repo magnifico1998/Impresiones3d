@@ -144,6 +144,11 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       moHora: p.moHora || 0,
       horasTrab: p.horasTrab || 0,
       extras: p.extras || 0,
+      // Insumos tildados en la calculadora: ya vienen sumados dentro de
+      // p.total (el costo unitario), pero se guarda el monto aparte para
+      // que "Actualizar precios" en Biblioteca pueda reconstruir el costo
+      // completo — antes el recálculo los perdía y el costo bajaba solo.
+      costeIns: p.costeIns || 0,
       desperdicio: p.desperdicio || 0,
       
       // G-code data
@@ -157,13 +162,36 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
     };
 
     const existente = biblioteca.find(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());
-    
+
     if (existente) {
-      if (window.confirm(`Ya existe "${nameTrimmed}" en la biblioteca. ¿Reemplazarlo con los valores actuales?`)) {
-        updateProducto(existente.id, { ...snap, id: existente.id });
-        showToast('Producto actualizado en biblioteca.');
-        onClose();
-        onGuardado?.();
+      if (window.confirm(`Ya existe "${nameTrimmed}" en la biblioteca. ¿Reemplazarlo con los valores actuales? Se actualizan costos y datos de impresión; las imágenes y descripciones ya guardadas se conservan salvo que hayas cargado nuevas.`)) {
+        // Reemplazar actualiza el CÁLCULO (costos, horas, materiales, G-code),
+        // pero lo que este modal dejó vacío no debe pisar lo ya guardado:
+        // este formulario siempre arranca en blanco, así que sin este merge
+        // el producto perdía sus imágenes, descripciones y categoría cada
+        // vez que se lo reemplazaba desde la calculadora.
+        const imagenesFinales = imagenes.length
+          ? imagenes
+          : (existente.imagenes?.length ? existente.imagenes : (existente.imagen ? [existente.imagen] : []));
+        try {
+          await updateProducto(existente.id, {
+            ...snap,
+            id: existente.id,
+            desc: snap.desc || existente.desc || '',
+            descLarga: snap.descLarga || existente.descLarga || '',
+            cat: cat.trim() || existente.cat || 'General',
+            subcat: snap.subcat || existente.subcat || '',
+            imagenes: imagenesFinales,
+            imagen: imagenesFinales[0] || ''
+          });
+          showToast('Producto actualizado en biblioteca.');
+          onClose();
+          onGuardado?.();
+        } catch (err) {
+          // updateProducto ya mostró su toast de error; no cerramos el
+          // modal para que el usuario no pierda lo cargado sin darse cuenta.
+          console.error('Error al reemplazar el producto en biblioteca:', err);
+        }
       }
     } else {
       const limite = planContratado?.limites?.productosBiblioteca;

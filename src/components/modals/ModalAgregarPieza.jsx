@@ -63,7 +63,9 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
   const handleVersionFieldChange = (verId, field, value) => {
     setVersiones(prev => prev.map(v => {
       if (v.id !== verId) return v;
-      const val = field === 'cantidad' ? (parseInt(value) || 0) : value;
+      // El min=1 del input no impide tipear 0 o borrar el campo: se clampa
+      // acá para que ninguna versión quede en 0 unidades.
+      const val = field === 'cantidad' ? Math.max(1, parseInt(value) || 1) : value;
       return { ...v, [field]: val };
     }));
   };
@@ -74,7 +76,9 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
       return;
     }
 
-    if (cantidadTotal > 1 && asignado !== cantidadTotal) {
+    // Sin el filtro por cantidad > 1 que había antes: una pieza de 1
+    // unidad con versiones que suman 0 o 2 está igual de desbalanceada.
+    if (asignado !== cantidadTotal) {
       if (!window.confirm('Hay versiones sin asignar completamente (color/comentario). ¿Querés agregar la pieza igual?')) {
         return;
       }

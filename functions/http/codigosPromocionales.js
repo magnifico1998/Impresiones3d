@@ -11,6 +11,20 @@ const { db, Timestamp, FieldValue, sumarMesCalendario, formatearFecha } = requir
 
 const CODIGO_RE = /^[A-Z0-9]{4,12}$/;
 
+// Las fechas de vigencia llegan como 'YYYY-MM-DD' (input type="date" del
+// panel admin). `new Date('YYYY-MM-DD')` las interpreta como medianoche
+// UTC: en Argentina (UTC-3) el código arrancaba 3 horas antes de lo
+// esperado y — peor — dejaba de funcionar a las 21:00 del día ANTERIOR al
+// fin de vigencia. Se anclan acá a la zona horaria de Argentina: el inicio
+// a las 00:00 del primer día y el fin a las 23:59:59 del último día (la
+// vigencia es inclusiva). Si llegara otro formato, se cae al parseo de
+// siempre.
+const FECHA_SIMPLE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const inicioDeDiaArgentinaMs = (fecha) =>
+  FECHA_SIMPLE_RE.test(String(fecha)) ? Number(new Date(`${fecha}T00:00:00-03:00`)) : Number(new Date(fecha));
+const finDeDiaArgentinaMs = (fecha) =>
+  FECHA_SIMPLE_RE.test(String(fecha)) ? Number(new Date(`${fecha}T23:59:59.999-03:00`)) : Number(new Date(fecha));
+
 function validarCodigo(codigo) {
   const c = String(codigo || '').trim().toUpperCase();
   if (!CODIGO_RE.test(c)) {
@@ -132,8 +146,8 @@ exports.crearCodigoPromocional = onCall(async (request) => {
   if (!Number.isInteger(ciclosNum) || ciclosNum <= 0) {
     throw new HttpsError('invalid-argument', 'La cantidad de ciclos debe ser un entero mayor a 0.');
   }
-  const inicioMs = Number(new Date(vigenciaInicio));
-  const finMs = Number(new Date(vigenciaFin));
+  const inicioMs = inicioDeDiaArgentinaMs(vigenciaInicio);
+  const finMs = finDeDiaArgentinaMs(vigenciaFin);
   if (!Number.isFinite(inicioMs) || !Number.isFinite(finMs) || finMs <= inicioMs) {
     throw new HttpsError('invalid-argument', 'La vigencia debe tener una fecha de inicio anterior a la de fin.');
   }
@@ -202,12 +216,12 @@ exports.actualizarCodigoPromocional = onCall(async (request) => {
     update.ciclos = ciclosNum;
   }
   if (vigenciaInicio !== undefined) {
-    const inicioMs = Number(new Date(vigenciaInicio));
+    const inicioMs = inicioDeDiaArgentinaMs(vigenciaInicio);
     if (!Number.isFinite(inicioMs)) throw new HttpsError('invalid-argument', 'Fecha de inicio de vigencia inválida.');
     update.vigenciaInicio = Timestamp.fromMillis(inicioMs);
   }
   if (vigenciaFin !== undefined) {
-    const finMs = Number(new Date(vigenciaFin));
+    const finMs = finDeDiaArgentinaMs(vigenciaFin);
     if (!Number.isFinite(finMs)) throw new HttpsError('invalid-argument', 'Fecha de fin de vigencia inválida.');
     update.vigenciaFin = Timestamp.fromMillis(finMs);
   }

@@ -3,9 +3,14 @@ import { db, functions } from '../../firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
+// La fecha se muestra en horario argentino: los Timestamps de vigencia se
+// anclan a UTC-3 en el server (ver functions/http/codigosPromocionales.js),
+// y con toISOString() (UTC) el fin de vigencia — guardado como 23:59:59 de
+// Argentina — aparecía corrido al día siguiente. 'en-CA' formatea como
+// YYYY-MM-DD, el formato que espera el input type="date".
 const formValueFecha = (timestamp) => {
   if (!timestamp?.toDate) return '';
-  return timestamp.toDate().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(timestamp.toDate());
 };
 
 const formVacio = { codigo: '', comercioNombre: '', comercioContacto: '', planId: '', ciclos: '1', vigenciaInicio: '', vigenciaFin: '', cupoMaximo: '' };

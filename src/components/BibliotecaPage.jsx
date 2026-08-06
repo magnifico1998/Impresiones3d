@@ -17,6 +17,13 @@ function recalcularProducto(prod, cfg) {
   const horas = prod.horas || 0;
   const horasTrab = prod.horasTrab || 0;
   const extras = prod.extras || 0;
+  // Insumos que se tildaron al calcular el producto (guardados como monto
+  // por ModalBibGuardar). Se arrastran tal cual, como los extras: no hay
+  // forma de re-matchearlos contra cfg.insumos porque no se guarda cuáles
+  // eran, sólo el total. Sin este término el recálculo "abarataba" el
+  // producto al perder los insumos del costo. Productos guardados antes de
+  // este campo no lo tienen: quedan en 0, igual que siempre.
+  const costeIns = prod.costeIns || 0;
   const margen = prod.margen ?? 30;
 
   // Watts y mantenimiento con cfg.impresoras[x] actualizado
@@ -97,7 +104,7 @@ function recalcularProducto(prod, cfg) {
     });
   }
 
-  const costePorUnidad = costeFil + costeElec + costeMant + costeMO + extras;
+  const costePorUnidad = costeFil + costeElec + costeMant + costeMO + costeIns + extras;
   const costoUnitario = costePorUnidad;
   const precioSugUnitario = costePorUnidad * (1 + margen / 100);
 
@@ -123,6 +130,7 @@ function recalcularProducto(prod, cfg) {
       costeElec,
       costeMant,
       costeMO,
+      costeIns,
       extras,
       filInfo,
       allMatched: filInfo.every(f => f.matched),

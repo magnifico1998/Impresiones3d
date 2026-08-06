@@ -14,6 +14,11 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
+  // URLs subidas a Storage durante ESTA edición. Si alguna se quita antes
+  // de guardar, hay que borrarla de Storage al Guardar igual que las
+  // preexistentes (no figura en el producto guardado, así que el cálculo
+  // de "quitadas" contra el producto anterior no la vería).
+  const subidasSesionRef = useRef([]);
 
   const MAX_IMAGENES = 6;
 
@@ -33,6 +38,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setDescLarga(prod.descLarga || '');
         setPrecio(prod.precioSugUnitario !== undefined ? String(prod.precioSugUnitario) : '');
         setImagenes(prod.imagenes?.length ? prod.imagenes : (prod.imagen ? [prod.imagen] : []));
+        subidasSesionRef.current = [];
       }
     }
     // Sólo se reinicializa cuando el modal se abre o cambia el producto a
@@ -71,6 +77,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           userId: cuentaId,
           fileName: file.name
         });
+        subidasSesionRef.current.push(url);
         setImagenes(prev => [...prev, url]);
       }
     } catch (err) {
@@ -81,10 +88,12 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     }
   };
 
-  const handleRemoveImagen = async (idx) => {
-    if (!window.confirm('¿Borrar esta imagen?')) return;
-    const url = imagenes[idx];
-    await borrarImagenDeFirebase(url);
+  // Sólo saca la imagen de la lista local: el archivo de Storage se borra
+  // recién al Guardar (ver handleSave). Antes se borraba acá mismo, y si el
+  // usuario después tocaba "Cancelar", el producto — y su copia en el
+  // catálogo público — quedaban apuntando a una URL ya inexistente.
+  const handleRemoveImagen = (idx) => {
+    if (!window.confirm('¿Quitar esta imagen? Se borra definitivamente al guardar los cambios.')) return;
     setImagenes(prev => prev.filter((_, i) => i !== idx));
   };
 
@@ -133,12 +142,13 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     const prodAnterior = biblioteca.find(p => p.id === editId);
     const imagenesAnteriores = prodAnterior?.imagenes?.length ? prodAnterior.imagenes : (prodAnterior?.imagen ? [prodAnterior.imagen] : []);
 
-    const imagenesQuitadas = imagenesAnteriores.filter(url => !imagenes.includes(url));
-    for (const url of imagenesQuitadas) {
-      if (url && url.includes('firebasestorage')) {
-        await borrarImagenDeFirebase(url);
-      }
-    }
+    // Quedan sin referencia: las imágenes que el producto tenía y se
+    // quitaron acá, más las subidas en esta sesión que después se
+    // descartaron. Se borran de Storage recién DESPUÉS de que el guardado
+    // en Firestore salga bien — si falla, el producto sigue apuntando a
+    // esas URLs y no hay que tocarlas.
+    const imagenesQuitadas = [...new Set([...imagenesAnteriores, ...subidasSesionRef.current])]
+      .filter(url => url && !imagenes.includes(url));
 
     // BUG encontrado: Firestore rechaza la escritura ENTERA si algún campo
     // llega en `undefined` (no tiene `ignoreUndefinedProperties` habilitado
@@ -159,6 +169,11 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         imagenes,
         imagen: imagenes[0] || ''
       });
+      for (const url of imagenesQuitadas) {
+        if (url.includes('firebasestorage')) {
+          await borrarImagenDeFirebase(url);
+        }
+      }
       showToast(`✓ Producto actualizado: ${cleanName} · ${cleanCat} · ${cleanPrecio ? fmt(cleanPrecio) : 'sin precio'}`);
       onClose();
     } catch (err) {

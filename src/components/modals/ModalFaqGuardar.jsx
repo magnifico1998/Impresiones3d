@@ -12,6 +12,13 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
   const [subiendoIdx, setSubiendoIdx] = useState(null);
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
+  // Igual que en ModalBibEditarCat: los archivos de Storage se borran
+  // recién al Guardar, nunca al quitar un bloque/imagen de la lista local
+  // (si el usuario cancela, la pregunta guardada debe seguir con sus
+  // imágenes intactas). Para eso se registran las URLs que tenía la
+  // pregunta al abrir y las subidas durante esta edición.
+  const imagenesInicialesRef = useRef([]);
+  const subidasSesionRef = useRef([]);
 
   const uniqueCats = Array.from(new Set(faq.map(f => f.categoria).filter(Boolean))).sort();
   const uniqueSubcats = Array.from(new Set(
@@ -26,13 +33,20 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
         setPregunta(item.pregunta || '');
         setCategoria(item.categoria || '');
         setSubcategoria(item.subcategoria || '');
-        setBloques(obtenerBloques(item));
+        const bloquesIniciales = obtenerBloques(item);
+        setBloques(bloquesIniciales);
+        imagenesInicialesRef.current = bloquesIniciales
+          .filter(b => b.tipo === 'imagen' && b.url)
+          .map(b => b.url);
+        subidasSesionRef.current = [];
       }
     } else {
       setPregunta('');
       setCategoria('');
       setSubcategoria('');
       setBloques([]);
+      imagenesInicialesRef.current = [];
+      subidasSesionRef.current = [];
     }
     // Sólo se reinicializa al abrir o cambiar de pregunta -- ver el mismo
     // comentario en ModalBibEditarCat.jsx sobre por qué no depende de `faq`.
@@ -78,11 +92,9 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
     setBloques(prev => [...prev, tipo === 'texto' ? { tipo, texto: '' } : { tipo, url: '' }]);
   };
 
-  const quitarBloque = async (idx) => {
-    const bloque = bloques[idx];
-    if (bloque.tipo === 'imagen' && bloque.url) {
-      await borrarImagenDeFirebase(bloque.url);
-    }
+  // Sólo saca el bloque de la lista local: si tenía imagen, el archivo de
+  // Storage se borra recién al Guardar (ver handleSave).
+  const quitarBloque = (idx) => {
     setBloques(prev => prev.filter((_, i) => i !== idx));
   };
 
@@ -98,6 +110,7 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
         fileName: file.name,
         folder: 'faq'
       });
+      subidasSesionRef.current.push(url);
       actualizarBloque(idx, { url });
     } catch (err) {
       showToast(err.message || 'No se pudo procesar la imagen.', 'error');
@@ -107,9 +120,7 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
     }
   };
 
-  const handleQuitarImagen = async (idx) => {
-    const bloque = bloques[idx];
-    if (bloque.url) await borrarImagenDeFirebase(bloque.url);
+  const handleQuitarImagen = (idx) => {
     actualizarBloque(idx, { url: '' });
   };
 
@@ -149,6 +160,21 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
         });
         showToast('✓ Pregunta agregada.');
       }
+
+      // Con el guardado ya confirmado, se limpian de Storage las imágenes
+      // que quedaron sin referencia (las que tenía la pregunta y se
+      // quitaron, y las subidas en esta sesión que se descartaron). Si el
+      // guardado hubiera fallado, no se toca nada: la pregunta guardada
+      // sigue apuntando a sus imágenes originales.
+      const referenciadas = new Set(
+        cleanBloques.filter(b => b.tipo === 'imagen' && b.url).map(b => b.url)
+      );
+      const sinReferencia = [...new Set([...imagenesInicialesRef.current, ...subidasSesionRef.current])]
+        .filter(url => url && !referenciadas.has(url));
+      for (const url of sinReferencia) {
+        await borrarImagenDeFirebase(url);
+      }
+
       onClose();
     } catch (err) {
       console.error('Error al guardar pregunta frecuente:', err);

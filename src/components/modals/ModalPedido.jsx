@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
 
-export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
+export default function ModalPedido({ isOpen, onClose, editId, onSaved, datosIniciales }) {
   const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast } = useApp();
 
   const [form, setForm] = useState({
@@ -17,7 +17,14 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
   useEffect(() => {
     if (isOpen) {
       if (editId !== null) {
-        const p = pedidos.find(x => x.id === editId);
+        // datosIniciales llega cuando se entra desde "Editar" en el detalle
+        // del pedido: es el borrador que ese modal acaba de persistir, más
+        // fresco que `pedidos` (el listener de Firestore puede no haber
+        // hecho eco todavía). Sin él, el formulario se armaba con los datos
+        // viejos y al guardar los pisaba.
+        const p = (datosIniciales && datosIniciales.id === editId)
+          ? datosIniciales
+          : pedidos.find(x => x.id === editId);
         if (p) {
           setForm({
             cliente: p.cliente || '',
@@ -41,9 +48,10 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved }) {
     }
     // A propósito sin `pedidos` en las dependencias: ver misma nota que en
     // ModalCliente.jsx — evita pisar el formulario (incluida la nota general,
-    // que puede ser un texto largo) a mitad de edición.
+    // que puede ser un texto largo) a mitad de edición. `datosIniciales` sí
+    // está: sólo cambia al abrir/cerrar, nunca a mitad de edición.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, editId]);
+  }, [isOpen, editId, datosIniciales]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;

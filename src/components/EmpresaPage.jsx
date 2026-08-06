@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../utils/imageCompress';
+import { comprimirImagen, subirImagenAFirebase } from '../utils/imageCompress';
 import { paisesList, PAIS_DEFAULT } from '../utils/paises';
 
 // Nota: esto es el precio del PLAN de Manager3D (lo que le pagás a
@@ -122,10 +122,14 @@ export default function EmpresaPage() {
     }
   };
 
-  const handleRemoveLogo = async () => {
-    if (empresa.logo) {
-      await borrarImagenDeFirebase(empresa.logo);
-    }
+  // A propósito NO se borra el archivo de Storage acá: empresa.logo se
+  // persiste por autosave con debounce (y se espeja al catálogo público),
+  // así que si borráramos el archivo ya mismo y ese guardado fallara o no
+  // llegara a correr, el perfil y el catálogo quedarían apuntando a una
+  // imagen inexistente. El archivo huérfano queda en Storage, igual que
+  // ya pasa al REEMPLAZAR el logo por uno nuevo (el anterior nunca se
+  // borró) — son archivos de ~80KB, no vale el riesgo.
+  const handleRemoveLogo = () => {
     setEmpresa(prev => ({
       ...prev,
       logo: ''
@@ -156,7 +160,7 @@ export default function EmpresaPage() {
                   border: '1px solid var(--border)',
                   display: 'flex',
                   alignItems: 'center',
-                  justify: 'center',
+                  justifyContent: 'center',
                   overflow: 'hidden',
                   flexShrink: 0
                 }}

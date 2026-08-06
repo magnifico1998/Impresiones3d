@@ -89,6 +89,20 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   };
 
   const handleSave = () => {
+    // Mismo aviso que al armar el pedido: si las versiones de alguna pieza
+    // no suman su cantidad total, se pregunta antes de guardar (se puede
+    // guardar igual — a veces se reparte el resto más tarde).
+    const desbalanceadas = draft.piezas.filter(pz =>
+      (pz.versiones || []).length &&
+      pz.versiones.reduce((s, v) => s + (v.cantidad || 0), 0) !== pz.cantidad
+    );
+    if (desbalanceadas.length) {
+      const nombres = desbalanceadas.map(pz => pz.nombre).join(', ');
+      if (!window.confirm(`Las versiones de "${nombres}" no suman la cantidad total de la pieza. ¿Guardar igual?`)) {
+        return;
+      }
+    }
+
     persistDraft();
     showToast('Cambios guardados con éxito');
     onClose();
@@ -271,8 +285,19 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         if (pz.id === piezaId) {
           const versiones = pz.versiones.map(v => {
             if (v.id === verId) {
-              const val = field === 'cantidad' || field === 'realizados' ? (parseInt(value) || 0) : value;
-              return { ...v, [field]: val };
+              // Los atributos min/max de los inputs no impiden tipear
+              // valores fuera de rango — se clampa acá: cantidad nunca
+              // menor a 1 (y recorta realizados si quedaban por encima),
+              // realizados siempre entre 0 y la cantidad de la versión.
+              if (field === 'cantidad') {
+                const cant = Math.max(1, parseInt(value) || 1);
+                return { ...v, cantidad: cant, realizados: Math.min(v.realizados || 0, cant) };
+              }
+              if (field === 'realizados') {
+                const hechos = Math.max(0, Math.min(parseInt(value) || 0, v.cantidad || 0));
+                return { ...v, realizados: hechos };
+              }
+              return { ...v, [field]: value };
             }
             return v;
           });
@@ -764,7 +789,12 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-            <button className="btn btn-sm" onClick={() => { persistDraft(); onClose(); onEditOrder(draft.id); }}>Editar</button>
+            {/* Se pasa el borrador junto con el id: ModalPedido inicializa su
+                formulario con estos datos en vez de leer `pedidos` del
+                contexto, que puede no haber recibido todavía el eco del
+                persistDraft() de recién (misma familia de race que el fix
+                de "Evita perder cambios sin guardar al usar Editar"). */}
+            <button className="btn btn-sm" onClick={() => { persistDraft(); onClose(); onEditOrder(draft.id, draft); }}>Editar</button>
             <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
           </div>
         </div>
@@ -839,7 +869,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                             🖨 {pz.impresoraNombre}
                           </div>
                         )}
-                        {pz.precioEstimado && (
+                        {pz.precioEstimado > 0 && (
                           <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text3)', marginTop: '2px' }}>
                             Precio est. {fmt(pz.precioEstimado)}/u
                           </div>
@@ -971,12 +1001,20 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                                       {hex && (
                                         <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: hex, border: '1px solid var(--border)', flexShrink: 0, marginRight: '3px' }}></span>
                                       )}
-                                      <select 
+                                      <select
                                         value={v.color || ''}
                                         style={{ flex: 1, fontSize: '11px', padding: '3px 4px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)' }}
                                         onChange={(e) => handleUpdateVersion(pz.id, v.id, 'color', e.target.value)}
                                       >
                                         <option value="">Sin color</option>
+                                        {/* El color guardado en la versión puede ya no existir en
+                                            cfg.colores (se renombró o borró en Configuración). Sin
+                                            esta opción extra el select mostraba "Sin color" aunque
+                                            el dato seguía guardado — parecía que el pedido había
+                                            perdido sus colores. */}
+                                        {v.color && !(cfg.colores || []).some(col => col.nombre === v.color) && (
+                                          <option value={v.color}>{v.color} (ya no está en Configuración)</option>
+                                        )}
                                         {(cfg.colores || []).map((col, ci) => (
                                           <option key={ci} value={col.nombre}>{col.nombre}</option>
                                         ))}

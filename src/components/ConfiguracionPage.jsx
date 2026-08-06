@@ -286,13 +286,18 @@ export default function ConfiguracionPage() {
             <div className="card-title">Valores por defecto</div>
             
             <label className="fl">Impresora por defecto</label>
-            <select 
-              value={cfg.impresoraDefault || ''} 
+            {/* Se guarda el NOMBRE de la impresora (no el índice): si se
+                reordena o borra una de la lista, el default no pasa a
+                apuntar a otra impresora por accidente. La Calculadora
+                acepta también el índice numérico que guardaba la versión
+                anterior de este selector. */}
+            <select
+              value={cfg.impresoraDefault || ''}
               onChange={(e) => handleDefaultPrinterChange(e.target.value)}
             >
               <option value="">— Ninguna —</option>
               {(cfg.impresoras || []).map((imp, i) => (
-                <option key={i} value={i}>{imp.nombre}</option>
+                <option key={i} value={imp.nombre}>{imp.nombre}</option>
               ))}
             </select>
             

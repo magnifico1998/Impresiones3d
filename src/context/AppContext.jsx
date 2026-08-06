@@ -75,6 +75,27 @@ const defaultEmpresa = {
   pais: PAIS_DEFAULT
 };
 
+// Campos "públicos" de un producto de biblioteca que se espejan a
+// catalogoTiendas/{uid}/productos — nombre, categoría, descripciones,
+// imágenes y precio de venta; nunca costoUnitario, filDetalle ni ningún
+// costo interno. Única fuente de esa proyección: la usan tanto la
+// publicación inicial (publicarProductosEnCatalogo) como la
+// re-sincronización automática al editar un producto ya publicado
+// (updateProducto / updateProductosBulk), para que el catálogo público
+// nunca quede mostrando un precio o una imagen viejos.
+const proyeccionCatalogoProducto = (p) => ({
+  id: p.id,
+  nombre: p.nombre,
+  cat: p.cat || 'Sin categoría',
+  subcat: p.subcat || '',
+  desc: p.desc || '',
+  descLarga: p.descLarga || '',
+  imagen: p.imagen || '',
+  imagenes: p.imagenes?.length ? p.imagenes : (p.imagen ? [p.imagen] : []),
+  precio: p.precioSugUnitario || p.costoUnitario || 0,
+  actualizado: new Date().toISOString()
+});
+
 export const AppProvider = ({ children }) => {
   const [pedidos, setPedidos] = useState([]);
   const [compras, setCompras] = useState([]);
@@ -305,7 +326,19 @@ export const AppProvider = ({ children }) => {
       const actual = biblioteca.find(p => p.id === id);
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      await setDoc(productoDocRef(id), nuevo);
+      if (nuevo.pub) {
+        // Producto publicado: la copia pública de catalogoTiendas se
+        // actualiza en el mismo batch. Antes sólo se actualizaba al volver
+        // a "Guardar cambios" en la pestaña Catálogo, y hasta entonces el
+        // catálogo público seguía mostrando (y vendiendo a) precio,
+        // nombre e imágenes viejos.
+        const batch = writeBatch(db);
+        batch.set(productoDocRef(id), nuevo);
+        batch.set(catalogoProductoDocRef(id), proyeccionCatalogoProducto(nuevo));
+        await batch.commit();
+      } else {
+        await setDoc(productoDocRef(id), nuevo);
+      }
     } catch (e) {
       console.error("Error al actualizar producto:", e);
       showToast('⚠ No se pudo actualizar el producto en la nube.', 'error');
@@ -321,7 +354,16 @@ export const AppProvider = ({ children }) => {
 
   const removeProducto = async (id) => {
     try {
-      await deleteDoc(productoDocRef(id));
+      // Si el producto estaba publicado, su copia en catalogoTiendas/{uid}/
+      // productos tiene que caer junto con él — si no, queda un "fantasma"
+      // visible y pedible en /catalogo, encima con las imágenes rotas
+      // (BibliotecaPage las borra de Storage antes de llamar acá). Se borra
+      // la copia SIEMPRE, sin mirar el flag pub: borrar un doc inexistente
+      // no falla en Firestore y el flag local puede estar desactualizado.
+      const batch = writeBatch(db);
+      batch.delete(productoDocRef(id));
+      batch.delete(catalogoProductoDocRef(id));
+      await batch.commit();
     } catch (e) {
       console.error("Error al eliminar producto:", e);
       showToast('⚠ No se pudo eliminar el producto en la nube.', 'error');
@@ -387,12 +429,31 @@ export const AppProvider = ({ children }) => {
       const afectados = biblioteca.filter(p => idSet.has(p.id));
       if (!afectados.length) return;
 
-      const batch = writeBatch(db);
+      // Igual que en updateProducto: los publicados re-sincronizan su copia
+      // pública de catalogoTiendas en la misma pasada. Eso puede duplicar
+      // las operaciones por producto, y los batch de Firestore admiten 500
+      // como máximo — por eso se trocea en tandas y se commitean todas.
+      const batches = [];
+      let batch = writeBatch(db);
+      let ops = 0;
+      const agregarOp = (ref, data) => {
+        batch.set(ref, data);
+        ops++;
+        if (ops >= 400) {
+          batches.push(batch);
+          batch = writeBatch(db);
+          ops = 0;
+        }
+      };
       afectados.forEach(p => {
         const nuevo = updater(p);
-        batch.set(productoDocRef(p.id), nuevo);
+        agregarOp(productoDocRef(p.id), nuevo);
+        if (nuevo.pub) {
+          agregarOp(catalogoProductoDocRef(p.id), proyeccionCatalogoProducto(nuevo));
+        }
       });
-      await batch.commit();
+      batches.push(batch);
+      await Promise.all(batches.map(b => b.commit()));
     } catch (e) {
       console.error("Error al actualizar productos en lote:", e);
       showToast('⚠ No se pudo aplicar la actualización masiva en la nube.', 'error');
@@ -1281,18 +1342,7 @@ export const AppProvider = ({ children }) => {
         const estabaPublicado = !!p.pub;
 
         if (debePublicarse) {
-          batch.set(catalogoProductoDocRef(p.id), {
-            id: p.id,
-            nombre: p.nombre,
-            cat: p.cat || 'Sin categoría',
-            subcat: p.subcat || '',
-            desc: p.desc || '',
-            descLarga: p.descLarga || '',
-            imagen: p.imagen || '',
-            imagenes: p.imagenes?.length ? p.imagenes : (p.imagen ? [p.imagen] : []),
-            precio: p.precioSugUnitario || p.costoUnitario || 0,
-            actualizado: new Date().toISOString()
-          });
+          batch.set(catalogoProductoDocRef(p.id), proyeccionCatalogoProducto(p));
           if (!estabaPublicado) {
             batch.set(productoDocRef(p.id), { ...p, pub: true });
           }
@@ -1304,9 +1354,11 @@ export const AppProvider = ({ children }) => {
 
       await batch.commit();
       showToast('✓ Catálogo publicado.');
+      return true;
     } catch (e) {
       console.error("Error al publicar el catálogo:", e);
       showToast('⚠ No se pudo publicar el catálogo.', 'error');
+      return false;
     }
   };
 

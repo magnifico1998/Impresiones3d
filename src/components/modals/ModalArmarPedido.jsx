@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 
@@ -29,9 +29,24 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
 
   const activePedidos = pedidos.filter(p => p.estado !== 'cancelado' && p.estado !== 'completado');
 
-  // Initialize form and selected items
+  // El formulario se arma UNA sola vez, cuando el modal pasa de cerrado a
+  // abierto — nunca mientras sigue abierto. `selectedProdIds` cambia de
+  // referencia cada vez que se quita un producto de la lista (la ✕ de cada
+  // card avisa al padre con onClearSelection), y si este efecto corriera de
+  // nuevo en ese momento pisaría los colores/versiones, cantidades y
+  // precios ya ajustados en los productos restantes, más el cliente,
+  // descripción y fechas tipeados. Por eso se detecta la transición con un
+  // ref en vez de reaccionar a cada cambio del Set. (App.jsx cierra el
+  // modal cuando la selección queda vacía, así la próxima apertura vuelve
+  // a pasar por acá con isOpen false -> true.)
+  const wasOpenRef = useRef(false);
+
   useEffect(() => {
-    if (isOpen && selectedProdIds && selectedProdIds.size > 0) {
+    const recienAbierto = isOpen && !wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+    if (!recienAbierto) return;
+
+    if (selectedProdIds && selectedProdIds.size > 0) {
       const items = Array.from(selectedProdIds).map(id => {
         const prod = biblioteca.find(p => p.id === id);
         if (!prod) return null;
@@ -54,11 +69,9 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
       setEnvio('');
       setMontoFinalTocado(false);
     }
-    // A propósito sin `biblioteca` en las dependencias: reinicializar acá
-    // significa pisar cantidades/precios/versiones que el usuario ya haya
-    // ajustado a mano en este modal, además del cliente/descripción/fechas
-    // ya tipeados. Sólo debe volver a armarse cuando el modal se abre o
-    // cambia qué productos están seleccionados.
+    // A propósito sin `biblioteca` ni `selectedProdIds` como disparadores
+    // reales (el guard de arriba ignora todo salvo la apertura del modal),
+    // por el mismo motivo del comentario de arriba.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, selectedProdIds, fixedOrderId]);
 
@@ -105,7 +118,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
   // Change unit price estimation
   const handlePriceChange = (idx, value) => {
     const val = parseFloat(value) || 0;
-    setArmarPedidoItems(prev => prev.map((item, i) => i === idx ? { ...item, precioEstimated: val, precioEstimado: val } : item));
+    setArmarPedidoItems(prev => prev.map((item, i) => i === idx ? { ...item, precioEstimado: val } : item));
   };
 
   // Delete item from order compiler list
@@ -152,7 +165,9 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
       if (i === idx) {
         const versiones = item.versiones.map(v => {
           if (v.id === verId) {
-            const val = field === 'cantidad' ? (parseInt(value) || 0) : value;
+            // El min=1 del input no impide tipear 0 o borrar el campo: se
+            // clampa acá para que ninguna versión quede en 0 unidades.
+            const val = field === 'cantidad' ? Math.max(1, parseInt(value) || 1) : value;
             return { ...v, [field]: val };
           }
           return v;
@@ -213,8 +228,10 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
       return;
     }
 
-    const incompletas = armarPedidoItems.filter(it => 
-      it.cantidad > 1 && it.versiones.reduce((s, v) => s + v.cantidad, 0) !== it.cantidad
+    // Sin el filtro por cantidad > 1 que había antes: un producto de 1
+    // unidad con versiones que suman 0 o 2 está igual de desbalanceado.
+    const incompletas = armarPedidoItems.filter(it =>
+      it.versiones.reduce((s, v) => s + v.cantidad, 0) !== it.cantidad
     );
     
     if (incompletas.length) {

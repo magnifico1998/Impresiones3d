@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { paletas, paletasList } from '../utils/paletas';
@@ -33,6 +33,19 @@ export default function CatalogoAdminPage() {
   const [seleccionados, setSeleccionados] = useState(
     () => new Set(biblioteca.filter(p => p.pub).map(p => p.id))
   );
+  // La selección se re-sincroniza con biblioteca mientras el usuario no
+  // haya tocado ningún checkbox. Sin esto, si esta pestaña se montaba
+  // antes de que el listener de biblioteca terminara de cargar, la
+  // selección quedaba congelada en vacío — y un clic en "Guardar cambios"
+  // despublicaba el catálogo entero sin que el usuario hubiera desmarcado
+  // nada. Una vez que el usuario empieza a marcar/desmarcar, dejamos de
+  // pisar su selección; al publicar con éxito se vuelve a seguir el
+  // estado real de la nube.
+  const seleccionTocadaRef = useRef(false);
+  useEffect(() => {
+    if (seleccionTocadaRef.current) return;
+    setSeleccionados(new Set(biblioteca.filter(p => p.pub).map(p => p.id)));
+  }, [biblioteca]);
   const [guardando, setGuardando] = useState(false);
   const [importandoId, setImportandoId] = useState(null);
 
@@ -49,6 +62,7 @@ export default function CatalogoAdminPage() {
   );
 
   const toggleProducto = (id) => {
+    seleccionTocadaRef.current = true;
     setSeleccionados(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -68,6 +82,7 @@ export default function CatalogoAdminPage() {
   const todosSeleccionados = biblioteca.length > 0 && seleccionados.size === biblioteca.length;
 
   const toggleSeleccionarTodoCatalogo = () => {
+    seleccionTocadaRef.current = true;
     setSeleccionados(todosSeleccionados ? new Set() : new Set(biblioteca.map(p => p.id)));
   };
 
@@ -75,6 +90,7 @@ export default function CatalogoAdminPage() {
   const categoriaCompleta = (cat) => idsDeCategoria(cat).every(id => seleccionados.has(id));
 
   const toggleSeleccionarCategoria = (cat) => {
+    seleccionTocadaRef.current = true;
     const ids = idsDeCategoria(cat);
     const completa = ids.every(id => seleccionados.has(id));
     setSeleccionados(prev => {
@@ -86,7 +102,11 @@ export default function CatalogoAdminPage() {
 
   const handlePublicar = async () => {
     setGuardando(true);
-    await publicarProductosEnCatalogo(seleccionados);
+    const ok = await publicarProductosEnCatalogo(seleccionados);
+    // Publicado con éxito: la selección vuelve a seguir el estado real de
+    // los flags pub (que el listener de biblioteca va a reflejar enseguida).
+    // Si falló, se mantiene lo elegido para que el usuario pueda reintentar.
+    if (ok) seleccionTocadaRef.current = false;
     setGuardando(false);
   };
 

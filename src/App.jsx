@@ -95,6 +95,12 @@ function App() {
   const [modalPedidoOpen, setModalPedidoOpen] = useState(false);
   const [modalPedidoEditId, setModalPedidoEditId] = useState(null);
   const [modalPedidoSavedCallback, setModalPedidoSavedCallback] = useState(null);
+  // Datos frescos para inicializar ModalPedido cuando se llega desde
+  // "Editar" en el detalle del pedido: el borrador recién guardado ahí
+  // puede no haberse reflejado todavía en `pedidos` (el listener de
+  // Firestore tarda un instante), y sin esto el formulario se armaba con
+  // los datos viejos y al guardar los pisaba.
+  const [modalPedidoDatosIniciales, setModalPedidoDatosIniciales] = useState(null);
 
   const [modalPedidoDetalleOpen, setModalPedidoDetalleOpen] = useState(false);
   const [modalPedidoDetalleId, setModalPedidoDetalleId] = useState(null);
@@ -418,6 +424,7 @@ function App() {
             onOpenNewOrder={() => {
               setModalPedidoEditId(null);
               setModalPedidoSavedCallback(null);
+              setModalPedidoDatosIniciales(null);
               setModalPedidoOpen(true);
             }}
             onOpenOrderDetail={(id) => {
@@ -582,10 +589,14 @@ function App() {
         editId={modalCompraEditId} 
       />
 
-      <ModalPedido 
-        isOpen={modalPedidoOpen} 
-        onClose={() => setModalPedidoOpen(false)} 
+      <ModalPedido
+        isOpen={modalPedidoOpen}
+        onClose={() => {
+          setModalPedidoOpen(false);
+          setModalPedidoDatosIniciales(null);
+        }}
         editId={modalPedidoEditId}
+        datosIniciales={modalPedidoDatosIniciales}
         onSaved={(id) => {
           if (modalPedidoSavedCallback) {
             modalPedidoSavedCallback(id);
@@ -598,9 +609,10 @@ function App() {
         isOpen={modalPedidoDetalleOpen} 
         onClose={() => setModalPedidoDetalleOpen(false)} 
         pedidoId={modalPedidoDetalleId}
-        onEditOrder={(id) => {
+        onEditOrder={(id, borrador) => {
           setModalPedidoDetalleOpen(false);
           setModalPedidoEditId(id);
+          setModalPedidoDatosIniciales(borrador || null);
           setModalPedidoOpen(true);
         }}
         onAddProduct={(pedidoId) => {
@@ -687,6 +699,11 @@ function App() {
           setModalArmarPedidoSelectedIds(nextSet);
           if (nextSet.size === 0) {
             setPedidoObjetivoBib(null);
+            // Sin productos no queda nada que armar: se cierra de verdad
+            // (no sólo dejar de renderizar), así ModalArmarPedido ve la
+            // transición cerrado -> abierto y reinicializa su formulario
+            // la próxima vez que se abra con una selección nueva.
+            setModalArmarPedidoOpen(false);
           }
         }}
         onViewOrder={(id) => {
