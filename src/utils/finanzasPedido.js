@@ -1,5 +1,17 @@
 import { precioNeto } from './precioNeto';
 
+// Pedidos viejos guardan la fecha de creación en "creado" como dd/mm/aaaa
+// en vez de aaaa-mm-dd (ver PedidosPage.jsx / ModalClienteDetalle.jsx, que
+// la parsean igual con split('/')). La normalizamos para que sea comparable
+// con fechaAbonado/fechaCompletado, que siempre son aaaa-mm-dd.
+const normalizarFecha = (f) => {
+  if (!f || typeof f !== 'string') return null;
+  if (f.includes('-') && f.length === 10) return f;
+  const partes = f.split('/');
+  if (partes.length === 3) return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+  return null;
+};
+
 // Reglas de reconocimiento de "venta" y "pendiente" por pedido:
 //
 // - en_verificacion / cancelado: no aportan nada a ninguno de los dos (el
@@ -26,16 +38,24 @@ export const movimientosVenta = (p) => {
   const neto = precioNeto(p);
   if (neto <= 0) return [];
 
+  const entregado = p.estado === 'enviado' || p.estado === 'completado';
   const abonado = montoAbonadoDe(p);
+  // Pedidos viejos, cargados antes de que existieran fechaAbonado/
+  // fechaCompletado (o que nunca pasaron por el flujo de estados que las
+  // completa), se quedan sin ninguna de las dos. Si ya se entregaron, la
+  // fecha del pedido es mejor aproximación de cuándo se concretó la venta
+  // que perderla del todo por falta de fecha.
+  const fechaEntrega = p.fechaCompletado || p.fechaPedido || p.fecha || normalizarFecha(p.creado) || null;
   const movimientos = [];
   if (abonado > 0) {
-    movimientos.push({ monto: abonado, fecha: p.fechaAbonado || null });
+    const fecha = p.fechaAbonado || (entregado ? fechaEntrega : null) || null;
+    movimientos.push({ monto: abonado, fecha });
   }
 
-  if (p.estado === 'enviado' || p.estado === 'completado') {
+  if (entregado) {
     const saldo = neto - abonado;
     if (saldo > 0) {
-      movimientos.push({ monto: saldo, fecha: p.fechaCompletado || null });
+      movimientos.push({ monto: saldo, fecha: fechaEntrega });
     }
   }
 
