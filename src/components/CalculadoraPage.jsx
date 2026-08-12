@@ -47,6 +47,13 @@ export default function CalculadoraPage({
   // Consumables checked state: { [name]: { checked: boolean, qty: number, price: number } }
   const [insumosState, setInsumosState] = useState({});
 
+  // Por defecto los 5 rubros llevan margen de ganancia. Al desmarcar uno,
+  // ese costo se suma tal cual (a costo) al Precio de venta en vez de
+  // multiplicarse por el margen.
+  const [aplicaMargen, setAplicaMargen] = useState({
+    elec: true, mant: true, mo: true, ins: true, extras: true
+  });
+
   // Parsed G-code data state
   const [gcodeData, setGcodeData] = useState(null);
   const [gcodeItems, setGcodeItems] = useState([]);
@@ -127,6 +134,10 @@ export default function CalculadoraPage({
         setWatts(cfg.impresoras[idx].watts);
       }
     }
+  };
+
+  const handleAplicaMargenChange = (key, checked) => {
+    setAplicaMargen(prev => ({ ...prev, [key]: checked }));
   };
 
   // Insumos handlers
@@ -637,6 +648,7 @@ export default function CalculadoraPage({
     setMargen(prod.margen || cfg.margen);
     setDesperdicio(prod.desperdicio || cfg.desperdicio);
     setCantidad(prod.cantidad || 1);
+    setAplicaMargen(prod.aplicaMargen || { elec: true, mant: true, mo: true, ins: true, extras: true });
 
     if (prod.materiales && prod.materiales.length > 0 && prod.matData) {
       const matMap = {};
@@ -770,8 +782,18 @@ export default function CalculadoraPage({
     const costePorUnidad = costeFil + costeElec + costeMant + costeMO + costeIns + ext;
     const cantBase = parseFloat(cantidad) || 1;
     const totalCost = costePorUnidad * cantBase;
-    
-    const precioSugerido = totalCost * (1 + mgn / 100);
+
+    // Filamento siempre lleva margen. Los otros 5 rubros llevan margen o
+    // van a costo puro (sin marcar arriba) según lo tildado en "aplicaMargen".
+    const costeConMargen = costeFil
+      + (aplicaMargen.elec ? costeElec : 0)
+      + (aplicaMargen.mant ? costeMant : 0)
+      + (aplicaMargen.mo ? costeMO : 0)
+      + (aplicaMargen.ins ? costeIns : 0)
+      + (aplicaMargen.extras ? ext : 0);
+    const costeSinMargen = costePorUnidad - costeConMargen;
+
+    const precioSugerido = (costeConMargen * (1 + mgn / 100) + costeSinMargen) * cantBase;
 
     let finalPrice;
     if (precioVentaTocado && precioVentaManual !== '') {
@@ -798,6 +820,7 @@ export default function CalculadoraPage({
       horas: hrs,
       cantidad: cantBase,
       margen: mgn,
+      aplicaMargen,
       impresoraNombre: selImpresora !== 'manual' ? cfg.impresoras[parseInt(selImpresora, 10)]?.nombre : null,
       
       // Raw form values
@@ -833,7 +856,8 @@ export default function CalculadoraPage({
   }, [
     horas, watts, precioKwh, manoObra, horasTrabajo, extras, margen, desperdicio,
     precioRollo, gramos, cantidad, selFilamento, selImpresora, insumosState,
-    gcodeData, isGcodeApplied, bambuMats, precioVentaTocado, precioVentaManual, cfg.impresoras
+    gcodeData, isGcodeApplied, bambuMats, precioVentaTocado, precioVentaManual, cfg.impresoras,
+    aplicaMargen
   ]);
 
   // Expose current calculation to global window object for ModalAgregarPieza
@@ -1392,23 +1416,68 @@ export default function CalculadoraPage({
             </div>
 
             <div className="r-row">
-              <span>Electricidad</span>
+              <span>
+                <input
+                  type="checkbox"
+                  className="margen-flag-input"
+                  checked={aplicaMargen.elec}
+                  title="Aplicar margen de ganancia a este costo"
+                  onChange={(e) => handleAplicaMargenChange('elec', e.target.checked)}
+                />
+                Electricidad
+              </span>
               <span id="r-elec">{fmt(calcOutput.costeElec * cantidad)}</span>
             </div>
             <div className="r-row">
-              <span>Mantenimiento imp.</span>
+              <span>
+                <input
+                  type="checkbox"
+                  className="margen-flag-input"
+                  checked={aplicaMargen.mant}
+                  title="Aplicar margen de ganancia a este costo"
+                  onChange={(e) => handleAplicaMargenChange('mant', e.target.checked)}
+                />
+                Mantenimiento imp.
+              </span>
               <span id="r-mant">{fmt(calcOutput.costeMant * cantidad)}</span>
             </div>
             <div className="r-row">
-              <span>Mano de obra</span>
+              <span>
+                <input
+                  type="checkbox"
+                  className="margen-flag-input"
+                  checked={aplicaMargen.mo}
+                  title="Aplicar margen de ganancia a este costo"
+                  onChange={(e) => handleAplicaMargenChange('mo', e.target.checked)}
+                />
+                Mano de obra
+              </span>
               <span id="r-mo">{fmt(calcOutput.costeMO * cantidad)}</span>
             </div>
             <div className="r-row">
-              <span>Insumos</span>
+              <span>
+                <input
+                  type="checkbox"
+                  className="margen-flag-input"
+                  checked={aplicaMargen.ins}
+                  title="Aplicar margen de ganancia a este costo"
+                  onChange={(e) => handleAplicaMargenChange('ins', e.target.checked)}
+                />
+                Insumos
+              </span>
               <span id="r-ins">{fmt(calcOutput.costeIns * cantidad)}</span>
             </div>
             <div className="r-row">
-              <span>Extras</span>
+              <span>
+                <input
+                  type="checkbox"
+                  className="margen-flag-input"
+                  checked={aplicaMargen.extras}
+                  title="Aplicar margen de ganancia a este costo"
+                  onChange={(e) => handleAplicaMargenChange('extras', e.target.checked)}
+                />
+                Extras
+              </span>
               <span id="r-ext">{fmt(extras * cantidad)}</span>
             </div>
             <div className="r-row total">

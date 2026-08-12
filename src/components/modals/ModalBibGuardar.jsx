@@ -131,6 +131,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       costoUnitario: p.total,
       precioSugUnitario: p.precio,
       margen: p.margen,
+      aplicaMargen: p.aplicaMargen || { elec: true, mant: true, mo: true, ins: true, extras: true },
       horas: p.horas,
       cantidad: p.cantidad || 1,
       impresoraNombre: p.impresoraNombre || null,
