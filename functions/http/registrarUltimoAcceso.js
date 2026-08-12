@@ -1,5 +1,38 @@
 const { onCall } = require('firebase-functions/v2/https');
-const { db, Timestamp } = require('../admin');
+const { logger } = require('firebase-functions');
+const { db, Timestamp, DIA_MS } = require('../admin');
+const { enviarEmail, gmailAppPassword } = require('../mailer');
+const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
+
+// Freeze entre avisos de plan gratuito a un mismo suscriptor: antes esto lo
+// disparaba un botón manual del panel admin (con confirmación humana antes
+// de cada tanda); ahora se manda solo, así que el cooldown es lo único que
+// evita saturar a alguien que entra todos los días.
+const COOLDOWN_DIAS_AVISO_PLAN_GRATUITO = 10;
+
+// Manda el aviso de que existe el plan gratuito "Boceto" si la cuenta que
+// acaba de ingresar es candidata: mismo criterio que tenía el botón manual
+// del panel admin (ahora desactivado, ver AdminPage.jsx) -- está en trial, o
+// está en modo lectura sin ningún plan asignado (su trial venció sin que
+// nadie le asignara un plan pago). No hace falta el filtro de "ingresó hace
+// menos de N días" que tenía el botón: acá se sabe que ingresó AHORA MISMO.
+async function avisarPlanGratuitoSiCorresponde(subRef, data) {
+  const elegible = data.estado === 'trial' || (!data.planId && data.estado === 'lectura');
+  if (!elegible || !data.email) return;
+
+  const ultimoEnvioMs = data.avisoPlanGratuitoEnviadoEl?.toMillis?.();
+  const cooldownDesde = Date.now() - COOLDOWN_DIAS_AVISO_PLAN_GRATUITO * DIA_MS;
+  if (ultimoEnvioMs && ultimoEnvioMs > cooldownDesde) return;
+
+  try {
+    const overrides = await obtenerOverridesPlantillas();
+    const { subject, html } = renderPlantilla('avisoPlanGratuito', {}, overrides);
+    await enviarEmail({ to: data.email, subject, html });
+    await subRef.set({ avisoPlanGratuitoEnviadoEl: Timestamp.now() }, { merge: true });
+  } catch (e) {
+    logger.error('Error al enviar aviso automático de plan gratuito:', e);
+  }
+}
 
 // La llama el propio cliente (AppContext.jsx) una vez por sesión, apenas
 // resuelve qué cuenta efectiva está usando (la propia o la del dueño, si
@@ -9,7 +42,7 @@ const { db, Timestamp } = require('../admin');
 // acceso en el mismo doc que ya lee el admin/revendedor (mismo patrón que
 // bibliotecaCount, ver onBibliotecaCambio.js), así el panel de consumo
 // puede mostrar "hace cuánto no entra" sin pedir un permiso nuevo.
-exports.registrarUltimoAcceso = onCall(async (request) => {
+exports.registrarUltimoAcceso = onCall({ secrets: [gmailAppPassword] }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) return { ok: false };
 
@@ -31,5 +64,6 @@ exports.registrarUltimoAcceso = onCall(async (request) => {
   if (!subSnap.exists) return { ok: false };
 
   await subRef.set({ ultimoAcceso: Timestamp.now() }, { merge: true });
+  await avisarPlanGratuitoSiCorresponde(subRef, subSnap.data());
   return { ok: true };
 });

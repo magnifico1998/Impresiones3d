@@ -84,6 +84,17 @@ const DEFAULTS = {
     `.trim(),
     variables: {},
   },
+  avisoPlanGratuito: {
+    label: 'Aviso de plan gratuito disponible (Boceto)',
+    subject: 'Podés seguir usando Manager3D gratis con el plan Boceto',
+    bodyHtml: `
+      <h2 style="${TITULO}">Seguí usando Manager3D sin costo</h2>
+      <p>Notamos que tu cuenta está en período de prueba o en modo solo lectura. Antes de que se venza o se bloquee, queremos contarte que tenemos un <strong>plan gratuito llamado Boceto</strong>, pensado para que sigas usando la plataforma sin necesidad de abonar.</p>
+      <p>Para activarlo, sólo tenés que entrar a la app, completar el formulario de "Contactate con el área comercial" y pedirnos el <strong>plan Boceto</strong>. Nosotros nos encargamos del resto.</p>
+      ${BOTON}
+    `.trim(),
+    variables: {},
+  },
   reactivacion: {
     label: 'Reactivación de suscriptores inactivos',
     subject: 'Te extrañamos en Manager3D 👋',
