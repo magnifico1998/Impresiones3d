@@ -17,7 +17,8 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
   if (c.documento) info.push(`🪪 ${c.documento}`);
 
   const addressParts = [c.calle, c.altura].filter(Boolean).join(' ');
-  const locationParts = [addressParts, c.loc, c.prov].filter(Boolean).join(', ');
+  const pisoDepto = [c.piso ? `Piso ${c.piso}` : '', c.depto ? `Depto ${c.depto}` : ''].filter(Boolean).join(' ');
+  const locationParts = [[addressParts, pisoDepto].filter(Boolean).join(', '), c.loc, c.prov].filter(Boolean).join(', ');
   if (locationParts) info.push(`📍 ${locationParts} ${c.cp ? `(CP: ${c.cp})` : ''}`);
 
   // Fetch client orders

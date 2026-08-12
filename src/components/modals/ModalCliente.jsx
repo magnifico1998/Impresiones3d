@@ -14,6 +14,8 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
     cp: '',
     calle: '',
     altura: '',
+    piso: '',
+    depto: '',
     notas: ''
   });
 
@@ -32,6 +34,8 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
             cp: c.cp || '',
             calle: c.calle || '',
             altura: c.altura || '',
+            piso: c.piso || '',
+            depto: c.depto || '',
             notas: c.notas || ''
           });
         }
@@ -46,6 +50,8 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           cp: '',
           calle: '',
           altura: '',
+          piso: '',
+          depto: '',
           notas: ''
         });
       }
@@ -79,6 +85,8 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
       cp: form.cp,
       calle: form.calle,
       altura: form.altura,
+      piso: form.piso,
+      depto: form.depto,
       notas: form.notas
     };
 
@@ -159,6 +167,14 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           <div>
             <label className="fl">Altura</label>
             <input type="text" id="altura" value={form.altura} onChange={handleChange} />
+          </div>
+          <div>
+            <label className="fl">Piso</label>
+            <input type="text" id="piso" value={form.piso} onChange={handleChange} />
+          </div>
+          <div>
+            <label className="fl">Depto</label>
+            <input type="text" id="depto" value={form.depto} onChange={handleChange} />
           </div>
         </div>
         <div>

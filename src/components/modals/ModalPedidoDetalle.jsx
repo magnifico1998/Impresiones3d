@@ -557,14 +557,31 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
     const cliente = clientes.find(c => c.nombre === p.cliente);
     const vendLines = [empresa.nombre || '—', [empresa.direccion, empresa.cp].filter(Boolean).join(', '), empresa.telefono || '', empresa.email || ''].filter(l => l !== '');
+    const cliPisoDepto = cliente ? [cliente.piso ? `Piso ${cliente.piso}` : '', cliente.depto ? `Depto ${cliente.depto}` : ''].filter(Boolean).join(' ') : '';
     const cliDireccion = cliente ? [cliente.calle, cliente.altura].filter(Boolean).join(' ') : '';
-    const cliLines = [p.cliente || '—', [cliDireccion, cliente?.loc, cliente?.cp].filter(Boolean).join(', '), cliente?.tel || '', cliente?.email || ''].filter(l => l !== '');
-    const maxLines = Math.max(vendLines.length, cliLines.length, 1);
+    const cliDireccionCompleta = [cliDireccion, cliPisoDepto].filter(Boolean).join(' ');
+    const cliLines = [p.cliente || '—', [cliDireccionCompleta, cliente?.loc, cliente?.cp].filter(Boolean).join(', '), cliente?.tel || '', cliente?.email || ''].filter(l => l !== '');
+
+    // Cada entrada de vendLines/cliLines puede envolver a más de una línea
+    // visual (ej. una dirección larga con piso/depto). Antes se asumía 1
+    // línea por entrada y se listaban con maxWidth: el texto se envolvía
+    // igual, pero el alto de la caja y el próximo renglón no lo tenían en
+    // cuenta, así que las líneas quedaban superpuestas.
+    doc.setTextColor(40, 40, 40); doc.setFontSize(9);
+    const wrapLines = (lines) => {
+      const out = [];
+      lines.forEach((l, i) => {
+        doc.splitTextToSize(l, boxW - 6).forEach(w => out.push({ text: w, bold: i === 0 }));
+      });
+      return out;
+    };
+    const vendWrapped = wrapLines(vendLines);
+    const cliWrapped = wrapLines(cliLines);
+    const maxLines = Math.max(vendWrapped.length, cliWrapped.length, 1);
     const boxBodyH = maxLines * 4.7 + 4;
     doc.setDrawColor(220); doc.rect(marginX, y, boxW, boxBodyH); doc.rect(boxX2, y, boxW, boxBodyH);
-    doc.setTextColor(40, 40, 40); doc.setFontSize(9);
-    vendLines.forEach((l, i) => { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.text(l, marginX + 3, y + 4.5 + i * 4.7, { maxWidth: boxW - 6 }); });
-    cliLines.forEach((l, i) => { doc.setFont('helvetica', i === 0 ? 'bold' : 'normal'); doc.text(l, boxX2 + 3, y + 4.5 + i * 4.7, { maxWidth: boxW - 6 }); });
+    vendWrapped.forEach((l, i) => { doc.setFont('helvetica', l.bold ? 'bold' : 'normal'); doc.text(l.text, marginX + 3, y + 4.5 + i * 4.7); });
+    cliWrapped.forEach((l, i) => { doc.setFont('helvetica', l.bold ? 'bold' : 'normal'); doc.text(l.text, boxX2 + 3, y + 4.5 + i * 4.7); });
     y += boxBodyH + 6;
 
     // Products table header
