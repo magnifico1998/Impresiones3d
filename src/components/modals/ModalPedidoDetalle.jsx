@@ -452,6 +452,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   // {codigo} de la plantilla.
   const nombreMetodo = (m) => (typeof m === 'string' ? m : m?.nombre) || '';
   const urlMetodo = (m) => (typeof m === 'string' ? '' : m?.urlSeguimiento) || '';
+  // Por defecto se incluye el código en el link (comportamiento histórico).
+  // Algunos transportes (ej. Correo Argentino) tienen una única página de
+  // seguimiento sin parámetro de código en la URL: ahí conviene mandar el
+  // link "pelado" y el código aparte, en vez de pegárselo al final.
+  const incluyeCodigoMetodo = (m) => (typeof m === 'string' ? true : m?.incluirCodigo !== false);
 
   const handleGenerarLinkSeguimiento = () => {
     if (!draft.metodoEnvio) {
@@ -471,9 +476,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       return;
     }
 
-    const link = plantilla.includes('{codigo}')
-      ? plantilla.replace('{codigo}', encodeURIComponent(draft.numeroSeguimiento))
-      : plantilla + encodeURIComponent(draft.numeroSeguimiento);
+    const link = !incluyeCodigoMetodo(metodoCfg)
+      ? plantilla
+      : plantilla.includes('{codigo}')
+        ? plantilla.replace('{codigo}', encodeURIComponent(draft.numeroSeguimiento))
+        : plantilla + encodeURIComponent(draft.numeroSeguimiento);
 
     const mensaje = [
       'Tu pedido ya fue enviado 📦',

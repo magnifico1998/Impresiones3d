@@ -208,13 +208,14 @@ export default function ConfiguracionPage() {
           <div className="card">
             <div className="card-title">Métodos de envío</div>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px', fontFamily: 'var(--mono)' }}>
-              Opciones del envío en cada pedido. La URL de seguimiento se usa para armar el link cuando marcás un pedido como "Enviado" — poné <code>{'{codigo}'}</code> donde debería ir el número de seguimiento.
+              Opciones del envío en cada pedido. La URL de seguimiento se usa para armar el link cuando marcás un pedido como "Enviado" — poné <code>{'{codigo}'}</code> donde debería ir el número de seguimiento. Destildá "Incluir código" para transportes (ej. Correo Argentino) donde el link va solo a la página de seguimiento y el código se envía aparte.
             </div>
             <div id="cfg-envios">
               {(cfg.metodosEnvio || []).map((raw, i) => {
                 const m = typeof raw === 'string' ? { nombre: raw, urlSeguimiento: '' } : raw;
+                const incluirCodigo = m.incluirCodigo !== false;
                 return (
-                  <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr 1fr auto', gap: '6px' }}>
+                  <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr 1fr auto auto', gap: '6px', alignItems: 'center' }}>
                     <input
                       type="text"
                       value={m.nombre}
@@ -227,15 +228,24 @@ export default function ConfiguracionPage() {
                       placeholder="https://.../seguimiento?codigo={codigo}"
                       onChange={(e) => handleUpdateField('metodosEnvio', i, 'urlSeguimiento', e.target.value)}
                     />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>
+                      <input
+                        type="checkbox"
+                        checked={incluirCodigo}
+                        title="Incluir el código de seguimiento en el link generado"
+                        onChange={(e) => handleUpdateField('metodosEnvio', i, 'incluirCodigo', e.target.checked)}
+                      />
+                      Incluir código
+                    </label>
                     <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('metodosEnvio', i)}>✕</button>
                   </div>
                 );
               })}
             </div>
-            <button 
-              className="btn btn-sm" 
+            <button
+              className="btn btn-sm"
               style={{ marginTop: '10px', width: '100%' }}
-              onClick={() => handleAddItem('metodosEnvio', { nombre: 'Nuevo método', urlSeguimiento: '' })}
+              onClick={() => handleAddItem('metodosEnvio', { nombre: 'Nuevo método', urlSeguimiento: '', incluirCodigo: true })}
             >
               + Agregar
             </button>

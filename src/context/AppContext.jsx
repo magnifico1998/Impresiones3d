@@ -42,7 +42,7 @@ const defaultCfg = {
     { nombre: 'Amarillo', hex: '#fdd835' }
   ],
   metodosEnvio: [
-    { nombre: 'Correo Argentino', urlSeguimiento: 'https://www.correoargentino.com.ar/seguimiento?codigo={codigo}' },
+    { nombre: 'Correo Argentino', urlSeguimiento: 'https://www.correoargentino.com.ar/seguimiento', incluirCodigo: false },
     { nombre: 'Andreani', urlSeguimiento: 'https://www.andreani.com/#!/informacionEnvio/{codigo}' },
     { nombre: 'Retiro en persona', urlSeguimiento: '' },
     { nombre: 'Envío propio', urlSeguimiento: '' }
