@@ -112,6 +112,21 @@ service cloud.firestore {
           get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('pedidosMes', null);
     }
 
+    // Mismo patrón que dentroDelLimiteDePedidos, pero sobre bibliotecaCount
+    // (mantenido en suscripcion/actual por onBibliotecaCambio.js) en vez de
+    // un contador por ciclo -- la Biblioteca es un límite de cantidad total
+    // vigente, no de actividad mensual (ver ModalBibGuardar.jsx). Antes esto
+    // sólo se validaba en el cliente, así que cualquiera podía saltearse el
+    // tope de su plan llamando al SDK de Firestore directo.
+    function dentroDelLimiteDeBiblioteca(uid) {
+      return !exists(suscripcionRef(uid)) ||
+        get(suscripcionRef(uid)).data.planId == null ||
+        !exists(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)) ||
+        get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('productosBiblioteca', null) == null ||
+        get(suscripcionRef(uid)).data.get('bibliotecaCount', 0) <
+          get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('productosBiblioteca', null);
+    }
+
     // (El documento raíz users/{uid} ya no existe ni se lee: la migración
     // legacy Fase 1-5 se retiró de AppContext.jsx cuando no quedó ninguna
     // cuenta sin migrar. Cada doc users/{uid} es hoy un "fantasma" que sólo
@@ -142,7 +157,8 @@ service cloud.firestore {
     }
     match /users/{uid}/biblioteca/{docId} {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
-      allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+      allow update, delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+      allow create: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) && dentroDelLimiteDeBiblioteca(uid);
     }
     match /users/{uid}/pedidos/{docId} {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
@@ -246,6 +262,11 @@ service cloud.firestore {
       allow read: if tieneAcceso(uid) || esAdmin() || esRevendedorDe(uid) ||
         (miCodigoRevendedor() != null && resource.data.get('codigoRevendedor', null) == miCodigoRevendedor());
 
+      // El dueño siempre manda "estado: pendiente" (ver ModalContacto.jsx:
+      // reenviar el formulario reabre su propia solicitud) -- exigirlo acá
+      // en vez de dejarlo libre evita que alguien, saltándose la UI y
+      // llamando a Firestore directo, se autoasigne cualquier otro estado
+      // (ej "contactado"), que se supone es territorio exclusivo del admin.
       allow create: if tieneAcceso(uid) &&
         request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
         request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() < 100 &&
@@ -254,6 +275,7 @@ service cloud.firestore {
         request.resource.data.telefono is string && request.resource.data.telefono.matches('^[0-9]{10}$') &&
         request.resource.data.email is string && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
         request.resource.data.resena is string && request.resource.data.resena.size() < 600 &&
+        (!('estado' in request.resource.data) || request.resource.data.estado == 'pendiente') &&
         (!('codigoRevendedor' in request.resource.data) ||
           request.resource.data.codigoRevendedor == null ||
           (request.resource.data.codigoRevendedor is string && request.resource.data.codigoRevendedor.matches('^[A-Z0-9]{4,12}$')));
@@ -261,8 +283,13 @@ service cloud.firestore {
       allow update: if
         (tieneAcceso(uid) &&
           request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
+          request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() < 100 &&
+          request.resource.data.apellido is string && request.resource.data.apellido.size() > 0 && request.resource.data.apellido.size() < 100 &&
+          request.resource.data.localidad is string && request.resource.data.localidad.size() > 0 && request.resource.data.localidad.size() < 100 &&
           request.resource.data.telefono.matches('^[0-9]{10}$') &&
           request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
+          request.resource.data.resena is string && request.resource.data.resena.size() < 600 &&
+          (!('estado' in request.resource.data) || request.resource.data.estado == 'pendiente') &&
           (!('codigoRevendedor' in request.resource.data) ||
             request.resource.data.codigoRevendedor == null ||
             (request.resource.data.codigoRevendedor is string && request.resource.data.codigoRevendedor.matches('^[A-Z0-9]{4,12}$')))) ||
@@ -367,6 +394,11 @@ service cloud.firestore {
       match /solicitudes/{docId} {
         allow create: if request.resource.data.keys().hasAll(['cliente', 'items', 'estado', 'creado'])
                       && request.resource.data.estado == 'pendiente'
+                      // CatalogoPublico.jsx manda new Date().toISOString(), no
+                      // serverTimestamp() -- validamos el tipo real que se
+                      // escribe (string), no "is timestamp" (que rechazaría
+                      // el pedido real y rompería el checkout del catálogo).
+                      && request.resource.data.creado is string
                       && request.resource.data.cliente is string
                       && request.resource.data.cliente.size() > 0
                       && request.resource.data.cliente.size() < 200
