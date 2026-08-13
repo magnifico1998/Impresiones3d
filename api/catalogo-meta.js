@@ -19,6 +19,15 @@
 
 const FIRESTORE_PROJECT_ID = 'print3d-manager-73846';
 
+// Dominio contra el que esta función se pide a sí misma /index.html. OJO:
+// tiene que ser un valor de confianza del servidor, nunca las cabeceras
+// Host/X-Forwarded-Host de la request -- quien las controla podría hacer
+// que este fetch() saliente (y la respuesta, que se devuelve casi tal
+// cual) apunten a cualquier host elegido por él (SSRF). VERCEL_URL lo
+// define el propio Vercel por deployment (no el cliente), así que sigue
+// funcionando en preview deployments sin reabrir el mismo agujero.
+const APP_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://manager3d.vercel.app';
+
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -26,9 +35,6 @@ function escapeHtml(str) {
 }
 
 export default async function handler(req, res) {
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const baseUrl = `${protocol}://${host}`;
   const uid = req.query?.uid || null;
 
   let empresaNombre = 'Catálogo';
@@ -53,7 +59,7 @@ export default async function handler(req, res) {
 
   let html;
   try {
-    const htmlRes = await fetch(`${baseUrl}/index.html`);
+    const htmlRes = await fetch(`${APP_URL}/index.html`);
     html = await htmlRes.text();
   } catch (e) {
     console.error('No se pudo cargar index.html base:', e);
@@ -63,7 +69,7 @@ export default async function handler(req, res) {
 
   const titulo = `${empresaNombre} · Catálogo`;
   const descripcion = 'Elegí tus productos y armá tu pedido';
-  const urlCatalogo = uid ? `${baseUrl}/catalogo/${uid}` : `${baseUrl}/catalogo`;
+  const urlCatalogo = uid ? `${APP_URL}/catalogo/${uid}` : `${APP_URL}/catalogo`;
 
   const metaTags = `<title>${escapeHtml(titulo)}</title>
     <meta property="og:title" content="${escapeHtml(titulo)}" />

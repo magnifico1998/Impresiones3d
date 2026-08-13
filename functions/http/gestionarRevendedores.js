@@ -292,6 +292,9 @@ exports.generarCierreRevendedor = onCall(async (request) => {
 // firestore.rules para no dejar enumerar códigos/emails ajenos desde el
 // cliente; esta función sólo devuelve datos de UN código puntual que el
 // usuario ya escribió, nunca un listado.
+const LIMITE_INTENTOS_VALIDAR_CODIGO = 8;
+const VENTANA_INTENTOS_VALIDAR_CODIGO_MS = 10 * 60 * 1000;
+
 exports.validarCodigoRevendedor = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Necesitás estar logueado.');
@@ -301,9 +304,38 @@ exports.validarCodigoRevendedor = onCall(async (request) => {
     return { valido: false };
   }
 
+  // Sin este freno, cualquier cuenta logueada podía probar los ~1.7M
+  // códigos de 4 caracteres posibles uno por uno y armar un directorio de
+  // nombre/teléfono/email de todos los revendedores activos -- exactamente
+  // lo que el comentario de arriba dice querer evitar. Un cupo de intentos
+  // FALLIDOS por cuenta y ventana de tiempo corta la fuerza bruta sin
+  // afectar a alguien que sólo tipeó mal su propio código una o dos veces.
+  const intentosRef = db.doc(`intentosValidarCodigoRevendedor/${request.auth.uid}`);
+  const intentosSnap = await intentosRef.get();
+  const ahoraMs = Date.now();
+  const intentosPrevios = intentosSnap.exists ? intentosSnap.data() : null;
+  const dentroDeVentana = Boolean(intentosPrevios) && (ahoraMs - intentosPrevios.desde.toMillis()) < VENTANA_INTENTOS_VALIDAR_CODIGO_MS;
+  const fallidosPrevios = dentroDeVentana ? (intentosPrevios.fallidos || 0) : 0;
+  if (fallidosPrevios >= LIMITE_INTENTOS_VALIDAR_CODIGO) {
+    throw new HttpsError('resource-exhausted', 'Demasiados intentos con códigos inválidos. Probá de nuevo en unos minutos.');
+  }
+
   const revSnap = await db.doc(`revendedores/${codigo}`).get();
-  if (!revSnap.exists || !revSnap.data().activo) {
+  const encontrado = revSnap.exists && revSnap.data().activo;
+
+  if (!encontrado) {
+    await intentosRef.set({
+      fallidos: fallidosPrevios + 1,
+      desde: dentroDeVentana ? intentosPrevios.desde : Timestamp.now()
+    });
     return { valido: false };
+  }
+
+  // Un acierto no cuenta como intento fallido -- limpia el contador para
+  // que encontrar el código correcto nunca deje a alguien más cerca del
+  // límite por un uso normal.
+  if (dentroDeVentana && fallidosPrevios > 0) {
+    await intentosRef.delete();
   }
 
   const contacto = await obtenerContactoRevendedor(revSnap.data().uid);
