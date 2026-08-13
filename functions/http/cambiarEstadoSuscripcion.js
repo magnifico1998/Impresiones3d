@@ -182,6 +182,19 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
 
   switch (accion) {
     case 'activar': {
+      // Un planId que no existe en planes/ dejaría la cuenta activa con
+      // montoPlan=0 más abajo (nada que facturarle al revendedor) y sin
+      // límite de pedidos (firestore.rules trata un plan inexistente como
+      // "sin límite") -- validamos que exista ANTES de activar nada, tanto
+      // si lo pide un admin (typo) como un revendedor (mismo chequeo que ya
+      // hace codigosPromocionales.js al aceptar un planId).
+      if (planId) {
+        const planIdSnap = await db.doc(`planes/${planId}`).get();
+        if (!planIdSnap.exists) {
+          throw new HttpsError('not-found', `No existe el plan "${planId}".`);
+        }
+      }
+
       // Botón "Renovar suscripción" del panel: cubre tanto dar de alta /
       // reactivar una cuenta caída como renovar una que sigue vigente.
       //   - Si la cuenta YA está vigente (trial o ciclo pago que todavía

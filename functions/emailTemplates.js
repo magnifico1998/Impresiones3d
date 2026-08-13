@@ -139,6 +139,16 @@ const DEFAULTS = {
   },
 };
 
+// Los valores de este formulario los tipea cualquier cuenta autenticada
+// (ModalContacto.jsx) y terminan, tal cual, en un mail HTML a la casilla
+// real del admin -- si no se escapan acá, alguien podría inyectar un link
+// de phishing o una imagen de rastreo disfrazada de "solicitud de contacto".
+function escapeHtml(valor) {
+  return String(valor).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
 function filasTablaContacto(datos) {
   const filas = [
     ['Nombre', `${datos.nombre || ''} ${datos.apellido || ''}`.trim()],
@@ -150,12 +160,23 @@ function filasTablaContacto(datos) {
     ['¿Qué haría con la app?', datos.resena || ''],
   ];
   return filas
-    .map(([label, valor]) => `<tr><td style="padding: 4px 12px 4px 0; color: #666;">${label}</td><td style="padding: 4px 0;">${valor || '-'}</td></tr>`)
+    .map(([label, valor]) => `<tr><td style="padding: 4px 12px 4px 0; color: #666;">${label}</td><td style="padding: 4px 0;">${escapeHtml(valor || '-')}</td></tr>`)
     .join('');
 }
 
-function sustituirVariables(texto, vars) {
-  return (texto || '').replace(/\{\{(\w+)\}\}/g, (_, clave) => (vars[clave] ?? ''));
+// filasTabla ya llega como HTML seguro (cada valor de datos del usuario se
+// escapó adentro de filasTablaContacto): es la única variable que se deja
+// pasar sin re-escapar en el cuerpo del mail. Cualquier otra variable que
+// use el cuerpo de una plantilla se escapa siempre, así una plantilla
+// nueva no puede reabrir sin querer el mismo agujero por descuido.
+const VARIABLES_HTML_CONFIABLE = new Set(['filasTabla']);
+
+function sustituirVariables(texto, vars, { escaparHtml = false } = {}) {
+  return (texto || '').replace(/\{\{(\w+)\}\}/g, (_, clave) => {
+    const valor = vars[clave] ?? '';
+    if (escaparHtml && !VARIABLES_HTML_CONFIABLE.has(clave)) return escapeHtml(valor);
+    return valor;
+  });
 }
 
 // Trae los overrides guardados desde el panel admin (un único doc con un
@@ -169,13 +190,15 @@ async function obtenerOverridesPlantillas() {
 
 // Arma { subject, html } final de una plantilla: toma el override guardado
 // (si existe y tiene ese campo) o el default hardcodeado, sustituye
-// {{variables}} y envuelve el cuerpo en el layout común.
+// {{variables}} y envuelve el cuerpo en el layout común. El asunto no se
+// escapa (es texto plano, no se renderiza como HTML); el cuerpo sí, para
+// que ninguna variable pueda inyectar markup en el mail final.
 function renderPlantilla(id, vars, overrides = {}) {
   const base = DEFAULTS[id];
   if (!base) throw new Error(`Plantilla de mail desconocida: ${id}`);
   const override = overrides[id] || {};
   const subject = sustituirVariables(override.subject || base.subject, vars);
-  const bodyHtml = sustituirVariables(override.bodyHtml || base.bodyHtml, vars);
+  const bodyHtml = sustituirVariables(override.bodyHtml || base.bodyHtml, vars, { escaparHtml: true });
   return { subject, html: layout(bodyHtml) };
 }
 
