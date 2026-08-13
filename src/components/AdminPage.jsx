@@ -120,11 +120,6 @@ export default function AdminPage({ modoRevendedor = false }) {
   const [filtroEstadoSuscriptores, setFiltroEstadoSuscriptores] = useState('todos');
   const [gruposAbiertos, setGruposAbiertos] = useState(() => new Set());
 
-  // Filtro de la campaña de reactivación de inactivos (plan + días sin
-  // ingresar), independiente del filtro de búsqueda/estado de arriba.
-  const [filtroPlanReactivacion, setFiltroPlanReactivacion] = useState('todos');
-  const [diasInactividadReactivacion, setDiasInactividadReactivacion] = useState(30);
-  const [enviandoReactivacion, setEnviandoReactivacion] = useState(false);
   // Orden dentro de cada grupo (que sigue agrupado por plan): por vencimiento
   // o por último acceso, asc/desc. null = orden natural (el que llega de Firestore).
   const [ordenSuscriptores, setOrdenSuscriptores] = useState({ campo: null, dir: 'asc' });
@@ -756,48 +751,6 @@ export default function AdminPage({ modoRevendedor = false }) {
     URL.revokeObjectURL(url);
   };
 
-  // Suscriptores que cumplen el filtro de la campaña de reactivación (plan +
-  // días sin ingresar). Se calcula sobre cuentasVisibles (no cuentasFiltradas)
-  // porque es independiente del filtro de búsqueda/estado de la tabla de
-  // arriba -- son dos herramientas separadas sobre la misma base.
-  const candidatosReactivacion = useMemo(() => {
-    const dias = Number(diasInactividadReactivacion);
-    if (!dias || dias <= 0) return [];
-    const minMs = dias * 24 * 60 * 60 * 1000;
-    const ahoraMs = Date.now();
-    return cuentasVisibles.filter(c => {
-      if (filtroPlanReactivacion !== 'todos' && c.planId !== filtroPlanReactivacion) return false;
-      const ms = getUltimoAccesoMs(c);
-      if (ms == null) return false;
-      return (ahoraMs - ms) >= minMs;
-    });
-  }, [cuentasVisibles, filtroPlanReactivacion, diasInactividadReactivacion]);
-
-  const handleEnviarReactivacion = async () => {
-    if (candidatosReactivacion.length === 0) {
-      showToast('No hay suscriptores que cumplan ese filtro.', 'info');
-      return;
-    }
-    const cantidad = candidatosReactivacion.length;
-    const confirmado = window.confirm(
-      `Se va a mandar el mail de reactivación a ${cantidad} suscriptor${cantidad !== 1 ? 'es' : ''}. ¿Confirmás el envío?`
-    );
-    if (!confirmado) return;
-
-    setEnviandoReactivacion(true);
-    try {
-      const enviar = httpsCallable(functions, 'enviarReactivacionMasiva');
-      const { data } = await enviar({ uids: candidatosReactivacion.map(c => c.uid) });
-      const detalleOmitidos = data.omitidos ? ` ${data.omitidos} omitido(s) (ya contactado hace menos de 30 días).` : '';
-      showToast(`✓ Mail enviado a ${data.enviados} suscriptor${data.enviados !== 1 ? 'es' : ''}.${detalleOmitidos}`);
-    } catch (e) {
-      console.error('Error al enviar reactivación:', e);
-      showToast(e.message || 'No se pudo enviar el mail de reactivación.', 'error');
-    } finally {
-      setEnviandoReactivacion(false);
-    }
-  };
-
   const badgeEstado = (estado) => {
     const clases = {
       trial: 'badge-progress',
@@ -1076,40 +1029,6 @@ export default function AdminPage({ modoRevendedor = false }) {
             <option value="suspendida">Suspendida</option>
           </select>
         </div>
-
-        {!modoRevendedor && (
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '14px', padding: '10px', background: 'var(--bg3)', borderRadius: 'var(--radius)' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text2)', fontWeight: 600 }}>Reactivación de inactivos:</span>
-            <select
-              value={filtroPlanReactivacion}
-              onChange={(e) => setFiltroPlanReactivacion(e.target.value)}
-              style={{ fontSize: '13px', width: '160px' }}
-            >
-              <option value="todos">Todos los planes</option>
-              {planes.map(p => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
-            <span style={{ fontSize: '13px', color: 'var(--text2)' }}>sin ingresar hace más de</span>
-            <input
-              type="number"
-              min="1"
-              value={diasInactividadReactivacion}
-              onChange={(e) => setDiasInactividadReactivacion(e.target.value)}
-              style={{ fontSize: '13px', width: '70px' }}
-            />
-            <span style={{ fontSize: '13px', color: 'var(--text2)' }}>días</span>
-            <button
-              className="btn btn-primary"
-              style={{ fontSize: '11px', padding: '5px 10px' }}
-              onClick={handleEnviarReactivacion}
-              disabled={enviandoReactivacion}
-              title="Manda el mail de reactivación a los suscriptores que cumplan este filtro (pidiendo feedback de qué mejorar)"
-            >
-              {enviandoReactivacion ? 'Enviando...' : `✉ Enviar reactivación (${candidatosReactivacion.length})`}
-            </button>
-          </div>
-        )}
 
         {loadingCuentas && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
 

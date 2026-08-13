@@ -12,9 +12,9 @@ const { webhookMercadoPago } = require('./http/webhookMercadoPago');
 const { agregarMiembro, quitarMiembro } = require('./http/gestionarMiembros');
 const { borrarCuenta } = require('./http/borrarCuenta');
 const { transicionSuscripciones } = require('./scheduled/transicionSuscripciones');
+const { reactivacionInactivos } = require('./scheduled/reactivacionInactivos');
 const { onNuevaSolicitudContacto } = require('./triggers/onNuevaSolicitudContacto');
 const { listarPlantillasEmail, guardarPlantillaEmail, restablecerPlantillaEmail } = require('./http/plantillasEmail');
-const { enviarReactivacionMasiva } = require('./http/enviarReactivacionMasiva');
 const { habilitarRevendedor, deshabilitarRevendedor, borrarRevendedor, actualizarDescuentosRevendedor, generarCierreRevendedor, vincularRevendedor, validarCodigoRevendedor } = require('./http/gestionarRevendedores');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
@@ -30,11 +30,11 @@ module.exports = {
   quitarMiembro,
   borrarCuenta,
   transicionSuscripciones,
+  reactivacionInactivos,
   onNuevaSolicitudContacto,
   listarPlantillasEmail,
   guardarPlantillaEmail,
   restablecerPlantillaEmail,
-  enviarReactivacionMasiva,
   habilitarRevendedor,
   deshabilitarRevendedor,
   actualizarDescuentosRevendedor,
