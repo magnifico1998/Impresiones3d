@@ -23,10 +23,21 @@ const FIRESTORE_PROJECT_ID = 'print3d-manager-73846';
 // tiene que ser un valor de confianza del servidor, nunca las cabeceras
 // Host/X-Forwarded-Host de la request -- quien las controla podría hacer
 // que este fetch() saliente (y la respuesta, que se devuelve casi tal
-// cual) apunten a cualquier host elegido por él (SSRF). VERCEL_URL lo
-// define el propio Vercel por deployment (no el cliente), así que sigue
-// funcionando en preview deployments sin reabrir el mismo agujero.
-const APP_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://manager3d.vercel.app';
+// cual) apunten a cualquier host elegido por él (SSRF).
+//
+// En producción usamos VERCEL_PROJECT_PRODUCTION_URL (el dominio público
+// estable) y no VERCEL_URL: VERCEL_URL es la URL única de ESE deployment
+// puntual, que cae bajo la protección "Vercel Authentication" del
+// proyecto aunque sea un deployment de producción -- pedirle /index.html
+// devuelve la pantalla de login de Vercel en vez del HTML real. El
+// dominio de producción no tiene esa protección porque es el que
+// efectivamente navegan los usuarios. En preview deployments no existe
+// VERCEL_PROJECT_PRODUCTION_URL con contenido de ESE preview, así que
+// ahí seguimos usando VERCEL_URL (ambos los define Vercel, nunca el
+// cliente, así que no reabre el SSRF).
+const APP_URL = process.env.VERCEL_ENV === 'production'
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'manager3d.vercel.app'}`
+  : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://manager3d.vercel.app');
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
