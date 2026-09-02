@@ -318,7 +318,12 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
  * Componente principal BibliotecaPage
  */
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido, onOpenPresupuesto }) {
-  const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa, fmt } = useApp();
+  const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa, fmt, suscripcion, isAdmin } = useApp();
+  // Igual que la Calculadora: armar un presupuesto no escribe nada en
+  // Firestore, así que en modo lectura no queda bloqueado solo -- hay que
+  // deshabilitar el botón a mano. Se excluye a los admins (mismo criterio
+  // que el resto de los bloqueos por modo lectura).
+  const presupuestoBloqueado = suscripcion?.estado === 'lectura' && !isAdmin;
 
   const [q, setQ] = useState('');
   const [filterCat, setFilterCat] = useState('');
@@ -618,7 +623,12 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             🛒 {selectedIds.size} producto{selectedIds.size > 1 ? 's' : ''} seleccionado{selectedIds.size > 1 ? 's' : ''}
           </span>
           <button className="btn btn-sm" onClick={handleClearSelection}>Cancelar</button>
-          <button className="btn btn-sm" onClick={() => onOpenPresupuesto(selectedIds)}>
+          <button
+            className="btn btn-sm"
+            disabled={presupuestoBloqueado}
+            title={presupuestoBloqueado ? 'No disponible en modo lectura' : undefined}
+            onClick={() => onOpenPresupuesto(selectedIds)}
+          >
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '13px', height: '13px' }}>
               <path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z" />
               <path d="M12 2v3h3M7 11h6M7 14h4" />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import JSZip from 'jszip';
+import AvisoModoLectura from './AvisoModoLectura';
 
 // Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
 // al índice correspondiente de cfg.impresoras, o null si no hay ninguna
@@ -25,7 +26,7 @@ export default function CalculadoraPage({
   onOpenPresupuesto,
   resetTick
 }) {
-  const { cfg, biblioteca, showToast, fmt } = useApp();
+  const { cfg, biblioteca, showToast, fmt, suscripcion, isAdmin } = useApp();
 
   const [horas, setHoras] = useState(2);
   const [watts, setWatts] = useState(120);
@@ -895,6 +896,16 @@ export default function CalculadoraPage({
     }
     onOpenPresupuesto();
   };
+
+  // La Calculadora no escribe nada en Firestore mientras se calcula (a
+  // diferencia de "Guardar en biblioteca"/"Agregar a pedido"/"Presupuesto",
+  // que sí, y ya quedan bloqueados solos por las reglas de Firestore), así
+  // que en modo lectura hay que cortarla acá a mano. Se excluye a los
+  // admins, mismo criterio que el bloqueo de cuenta "suspendida" en
+  // App.jsx, para no trabarse a sí mismos probando la app.
+  if (suscripcion?.estado === 'lectura' && !isAdmin) {
+    return <AvisoModoLectura titulo="La Calculadora no está disponible en modo lectura" />;
+  }
 
   return (
     <div className="page active" id="page-calc">

@@ -219,6 +219,20 @@ export const AppProvider = ({ children }) => {
     return Date.now() * 1000 + idSeqRef.current;
   };
 
+  // Mensaje de error homogéneo para cualquier escritura que Firestore
+  // rechace por estar la cuenta en modo lectura (ver cuentaPuedeEscribir
+  // en firestore.rules) -- en vez del genérico "no se pudo guardar", le
+  // explica por qué y le ofrece el plan gratuito Boceto para seguir
+  // cargando datos sin costo. Cualquier otro error (ej. de red) sigue
+  // mostrando el mensaje original.
+  const mostrarErrorGuardado = (mensajeDefault) => {
+    if (suscripcion?.estado === 'lectura') {
+      showToast('⚠ Tu cuenta está en modo lectura por falta de pago. Pedinos el plan gratuito Boceto desde "Contactate con el área comercial" (en Resumen) para seguir cargando datos sin costo.', 'error');
+    } else {
+      showToast(mensajeDefault, 'error');
+    }
+  };
+
   // ---------------------------------------------------------------------
   // Compras: subcolección propia (users/{uid}/compras/{compraId}), un
   // documento por compra, escritura directa en cada add/update/remove.
@@ -229,7 +243,7 @@ export const AppProvider = ({ children }) => {
       await setDoc(compraDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar compra:", e);
-      showToast('⚠ No se pudo guardar la compra en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo guardar la compra en la nube.');
     }
   };
 
@@ -241,7 +255,7 @@ export const AppProvider = ({ children }) => {
       await setDoc(compraDocRef(id), nuevo);
     } catch (e) {
       console.error("Error al actualizar compra:", e);
-      showToast('⚠ No se pudo actualizar la compra en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo actualizar la compra en la nube.');
     }
   };
 
@@ -250,7 +264,7 @@ export const AppProvider = ({ children }) => {
       await deleteDoc(compraDocRef(id));
     } catch (e) {
       console.error("Error al eliminar compra:", e);
-      showToast('⚠ No se pudo eliminar la compra en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo eliminar la compra en la nube.');
     }
   };
 
@@ -278,7 +292,7 @@ export const AppProvider = ({ children }) => {
       await setDoc(clienteDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar cliente:", e);
-      showToast('⚠ No se pudo guardar el cliente en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo guardar el cliente en la nube.');
     }
   };
 
@@ -290,7 +304,7 @@ export const AppProvider = ({ children }) => {
       await setDoc(clienteDocRef(id), nuevo);
     } catch (e) {
       console.error("Error al actualizar cliente:", e);
-      showToast('⚠ No se pudo actualizar el cliente en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo actualizar el cliente en la nube.');
     }
   };
 
@@ -299,7 +313,7 @@ export const AppProvider = ({ children }) => {
       await deleteDoc(clienteDocRef(id));
     } catch (e) {
       console.error("Error al eliminar cliente:", e);
-      showToast('⚠ No se pudo eliminar el cliente en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo eliminar el cliente en la nube.');
     }
   };
 
@@ -326,7 +340,7 @@ export const AppProvider = ({ children }) => {
       await setDoc(productoDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar producto:", e);
-      showToast('⚠ No se pudo guardar el producto en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo guardar el producto en la nube.');
     }
   };
 
@@ -350,7 +364,7 @@ export const AppProvider = ({ children }) => {
       }
     } catch (e) {
       console.error("Error al actualizar producto:", e);
-      showToast('⚠ No se pudo actualizar el producto en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo actualizar el producto en la nube.');
       // Antes este error se atrapaba acá y nunca se volvía a lanzar, así que
       // quien llamaba a updateProducto no tenía forma de saber que la
       // escritura había fallado — por eso el modal de edición mostraba
@@ -375,7 +389,7 @@ export const AppProvider = ({ children }) => {
       await batch.commit();
     } catch (e) {
       console.error("Error al eliminar producto:", e);
-      showToast('⚠ No se pudo eliminar el producto en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo eliminar el producto en la nube.');
     }
   };
 
@@ -465,7 +479,7 @@ export const AppProvider = ({ children }) => {
       await Promise.all(batches.map(b => b.commit()));
     } catch (e) {
       console.error("Error al actualizar productos en lote:", e);
-      showToast('⚠ No se pudo aplicar la actualización masiva en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.');
     }
   };
 
@@ -495,7 +509,7 @@ export const AppProvider = ({ children }) => {
       await setDoc(pedidoDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar pedido:", e);
-      showToast('⚠ No se pudo guardar el pedido en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo guardar el pedido en la nube.');
     }
   };
 
@@ -507,7 +521,7 @@ export const AppProvider = ({ children }) => {
       await setDoc(pedidoDocRef(id), nuevo);
     } catch (e) {
       console.error("Error al actualizar pedido:", e);
-      showToast('⚠ No se pudo actualizar el pedido en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo actualizar el pedido en la nube.');
     }
   };
 
@@ -527,7 +541,7 @@ export const AppProvider = ({ children }) => {
       await batch.commit();
     } catch (e) {
       console.error("Error al actualizar pedidos en lote:", e);
-      showToast('⚠ No se pudo aplicar la actualización masiva en la nube.', 'error');
+      mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.');
     }
   };
 
