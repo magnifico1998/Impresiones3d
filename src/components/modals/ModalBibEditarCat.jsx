@@ -10,7 +10,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [desc, setDesc] = useState('');
   const [descLarga, setDescLarga] = useState('');
   const [precio, setPrecio] = useState('');
-  const [permiteColorSecundario, setPermiteColorSecundario] = useState(false);
+  const [modoColorSecundario, setModoColorSecundario] = useState('');
   const [imagenes, setImagenes] = useState([]);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const dragIndex = useRef(null);
@@ -38,7 +38,10 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setDesc(prod.desc || '');
         setDescLarga(prod.descLarga || '');
         setPrecio(prod.precioSugUnitario !== undefined ? String(prod.precioSugUnitario) : '');
-        setPermiteColorSecundario(!!prod.permiteColorSecundario);
+        // Fallback al booleano viejo (permiteColorSecundario) para productos
+        // marcados antes de este cambio -- mismo criterio que
+        // proyeccionCatalogoProducto en AppContext.jsx.
+        setModoColorSecundario(prod.modoColorSecundario || (prod.permiteColorSecundario ? 'libre' : ''));
         setImagenes(prod.imagenes?.length ? prod.imagenes : (prod.imagen ? [prod.imagen] : []));
         subidasSesionRef.current = [];
       }
@@ -168,7 +171,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         desc: cleanDesc,
         descLarga: cleanDescLarga,
         precioSugUnitario: cleanPrecio,
-        permiteColorSecundario,
+        modoColorSecundario,
         imagenes,
         imagen: imagenes[0] || ''
       });
@@ -252,14 +255,12 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           ))}
         </datalist>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', fontSize: '13px' }}>
-          <input
-            type="checkbox"
-            checked={permiteColorSecundario}
-            onChange={(e) => setPermiteColorSecundario(e.target.checked)}
-          />
-          Permite elegir color secundario en el catálogo (para combinar colores)
-        </label>
+        <label className="fl">Color secundario en el catálogo</label>
+        <select value={modoColorSecundario} onChange={(e) => setModoColorSecundario(e.target.value)}>
+          <option value="">Ninguno (un solo color)</option>
+          <option value="libre">Libre (el cliente combina cualquier color marcado "Sec.")</option>
+          <option value="combinaciones">Sólo combinaciones predefinidas (Configuración → Combinaciones de colores)</option>
+        </select>
 
         <label className="fl">Imágenes del producto (la primera es la principal — arrastrá para reordenar)</label>
         <input

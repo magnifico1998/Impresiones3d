@@ -215,6 +215,7 @@ export default function CatalogoPublico() {
 
   const colores = config?.colores || [];
   const coloresSecundarios = colores.filter(c => c.secundario);
+  const combinaciones = config?.combinacionesColores || [];
 
   const totalCarrito = carrito.reduce((s, it) => s + it.precio * it.versiones.reduce((a, v) => a + (v.cantidad || 0), 0), 0);
   const cantidadCarrito = carrito.reduce((s, it) => s + it.versiones.reduce((a, v) => a + (v.cantidad || 0), 0), 0);
@@ -239,6 +240,16 @@ export default function CatalogoPublico() {
   const actualizarDraftVersion = (versionLocalId, campo, valor) => {
     setDraftVersiones(prev => prev.map(v => v.localId === versionLocalId
       ? { ...v, [campo]: campo === 'cantidad' ? Math.max(0, parseInt(valor) || 0) : valor }
+      : v));
+  };
+
+  // Elegir una combinación predefinida pisa color + colorSecundario a la
+  // vez (a diferencia del modo libre, que los edita por separado) -- así
+  // el resto del sistema (payload, Solicitudes, detalle de pedido) sigue
+  // leyendo esos mismos dos campos sin ningún cambio.
+  const actualizarDraftCombinacion = (versionLocalId, combo) => {
+    setDraftVersiones(prev => prev.map(v => v.localId === versionLocalId
+      ? { ...v, color: combo?.color || '', colorSecundario: combo?.colorSecundario || '' }
       : v));
   };
 
@@ -566,16 +577,31 @@ export default function CatalogoPublico() {
                       {detalleEstaAbierto && (
                         <div style={{ background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: '12px', padding: '12px', marginTop: '12px' }}>
                           {draftVersiones.map(v => (
-                            <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: p.permiteColorSecundario ? '56px 1fr 1fr 1fr auto' : '56px 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                            <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: p.modoColorSecundario === 'libre' ? '56px 1fr 1fr 1fr auto' : '56px 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
                               <input
                                 type="number" min="0" value={v.cantidad}
                                 onChange={(e) => actualizarDraftVersion(v.localId, 'cantidad', e.target.value)}
                               />
-                              <select value={v.color} onChange={(e) => actualizarDraftVersion(v.localId, 'color', e.target.value)}>
-                                <option value="">Sin color</option>
-                                {colores.map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
-                              </select>
-                              {p.permiteColorSecundario && (
+                              {p.modoColorSecundario === 'combinaciones' ? (
+                                <select
+                                  value={(() => {
+                                    const idx = combinaciones.findIndex(c => c.color === v.color && c.colorSecundario === v.colorSecundario);
+                                    return idx >= 0 ? String(idx) : '';
+                                  })()}
+                                  onChange={(e) => actualizarDraftCombinacion(v.localId, combinaciones[parseInt(e.target.value, 10)])}
+                                >
+                                  <option value="">Sin color</option>
+                                  {combinaciones.map((comb, ci) => (
+                                    <option key={ci} value={ci}>{comb.color} + {comb.colorSecundario}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <select value={v.color} onChange={(e) => actualizarDraftVersion(v.localId, 'color', e.target.value)}>
+                                  <option value="">Sin color</option>
+                                  {colores.map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
+                                </select>
+                              )}
+                              {p.modoColorSecundario === 'libre' && (
                                 <select value={v.colorSecundario || ''} onChange={(e) => actualizarDraftVersion(v.localId, 'colorSecundario', e.target.value)}>
                                   <option value="">Sin combinar</option>
                                   {coloresSecundarios.map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}

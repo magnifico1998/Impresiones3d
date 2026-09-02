@@ -59,7 +59,12 @@ const defaultCfg = {
   // Orden manual de categorías (arrastrar para reordenar en Biblioteca).
   // Lista de nombres de categoría; las que no aparecen acá se agregan al
   // final ordenadas alfabéticamente. Se persiste igual que el resto de cfg.
-  categoriaOrden: []
+  categoriaOrden: [],
+  // Pares de colores predefinidos ({color, colorSecundario}) para
+  // productos en modo "combinaciones" (ver proyeccionCatalogoProducto):
+  // el cliente elige la combinación completa de un único selector, no
+  // colores sueltos.
+  combinacionesColores: []
 };
 
 const defaultEmpresa = {
@@ -93,7 +98,10 @@ const proyeccionCatalogoProducto = (p) => ({
   imagen: p.imagen || '',
   imagenes: p.imagenes?.length ? p.imagenes : (p.imagen ? [p.imagen] : []),
   precio: p.precioSugUnitario || p.costoUnitario || 0,
-  permiteColorSecundario: !!p.permiteColorSecundario,
+  // Fallback al booleano viejo (permiteColorSecundario) para no perder el
+  // flag de productos marcados antes de este cambio -- ver
+  // ModalBibEditarCat.jsx, que hace el mismo fallback al cargar.
+  modoColorSecundario: p.modoColorSecundario || (p.permiteColorSecundario ? 'libre' : ''),
   actualizado: new Date().toISOString()
 });
 
@@ -1132,10 +1140,11 @@ export const AppProvider = ({ children }) => {
       logo: empresa?.logo || '',
       facebook: empresa?.facebook || '',
       instagram: empresa?.instagram || '',
-      colores: cfg?.colores || []
+      colores: cfg?.colores || [],
+      combinacionesColores: cfg?.combinacionesColores || []
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cuentaId, datosCargadosOk, empresa?.nombre, empresa?.telefono, empresa?.logo, empresa?.facebook, empresa?.instagram, cfg?.colores]);
+  }, [cuentaId, datosCargadosOk, empresa?.nombre, empresa?.telefono, empresa?.logo, empresa?.facebook, empresa?.instagram, cfg?.colores, cfg?.combinacionesColores]);
 
   // Listener de la config pública del catálogo web de ESTA tienda (colores,
   // nombre, si está activo). Sólo se suscribe con sesión iniciada porque es

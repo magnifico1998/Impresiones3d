@@ -213,6 +213,42 @@ export default function ConfiguracionPage() {
             </button>
           </div>
 
+          {/* Color combinations config card */}
+          <div className="card">
+            <div className="card-title">Combinaciones de colores</div>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px', fontFamily: 'var(--mono)' }}>
+              Pares de colores predefinidos para productos en modo "Sólo combinaciones" (Biblioteca → Editar producto). El cliente elige una combinación completa, no colores sueltos.
+            </div>
+            <div id="cfg-combos">
+              {(cfg.combinacionesColores || []).map((comb, i) => (
+                <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr 1fr auto', gap: '6px', alignItems: 'center' }}>
+                  <select value={comb.color || ''} onChange={(e) => handleUpdateField('combinacionesColores', i, 'color', e.target.value)}>
+                    <option value="">Color 1...</option>
+                    {comb.color && !(cfg.colores || []).some(c => c.nombre === comb.color) && (
+                      <option value={comb.color}>{comb.color} (ya no está en Colores)</option>
+                    )}
+                    {(cfg.colores || []).map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
+                  </select>
+                  <select value={comb.colorSecundario || ''} onChange={(e) => handleUpdateField('combinacionesColores', i, 'colorSecundario', e.target.value)}>
+                    <option value="">Color 2...</option>
+                    {comb.colorSecundario && !(cfg.colores || []).some(c => c.nombre === comb.colorSecundario) && (
+                      <option value={comb.colorSecundario}>{comb.colorSecundario} (ya no está en Colores)</option>
+                    )}
+                    {(cfg.colores || []).map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
+                  </select>
+                  <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('combinacionesColores', i)}>✕</button>
+                </div>
+              ))}
+            </div>
+            <button
+              className="btn btn-sm"
+              style={{ marginTop: '10px', width: '100%' }}
+              onClick={() => handleAddItem('combinacionesColores', { color: '', colorSecundario: '' })}
+            >
+              + Agregar combinación
+            </button>
+          </div>
+
           {/* Shipping config card */}
           <div className="card">
             <div className="card-title">Métodos de envío</div>
