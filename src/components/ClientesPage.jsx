@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { precioNeto } from '../utils/precioNeto';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 
 const sortOptions = [
   { id: 'nombreAsc', label: 'Nombre A → Z' },
@@ -13,7 +14,9 @@ const sortOptions = [
 
 export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
   const { clientes, pedidos, fmt } = useApp();
-  const [sortMode, setSortMode] = useState('nombreAsc');
+  // Se persiste en localStorage para que el orden elegido quede fijo al
+  // salir y volver a "Clientes", hasta que se elija otro.
+  const [sortMode, setSortMode] = useLocalStorageState('ordenClientes', 'nombreAsc');
   const [busqueda, setBusqueda] = useState('');
 
   const formatDate = (timestamp) => {
