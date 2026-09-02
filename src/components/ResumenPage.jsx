@@ -6,6 +6,7 @@ import ModalContacto from './modals/ModalContacto';
 import ModalCodigoPromocional from './modals/ModalCodigoPromocional';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { movimientosVenta, pendienteDePedido } from '../utils/finanzasPedido';
+import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
 
 // Cuántos días faltan hasta un Timestamp de Firestore, redondeado para
 // arriba (así "faltan 0 días" nunca se muestra como "ya venció" de
@@ -118,9 +119,10 @@ export default function ResumenPage() {
       .catch((e) => console.error('Error al verificar el formulario de contacto:', e));
   }, [cuentaId, suscripcion?.estado]);
 
-  const [diasPeriodo, setDiasPeriodo] = useState(7);
-  const [fechaDesde, setFechaDesde] = useState('');
-  const [fechaHasta, setFechaHasta] = useState('');
+  // Se persiste en localStorage para que el período elegido quede fijo al
+  // salir y volver a "Resumen", hasta que se elija otro.
+  const { diasPeriodo, setDiasPeriodo, fechaDesde, setFechaDesde, fechaHasta, setFechaHasta } =
+    useFiltroPeriodo('filtroPeriodo.resumen', 7);
 
   const canvasRef = useRef(null);
 

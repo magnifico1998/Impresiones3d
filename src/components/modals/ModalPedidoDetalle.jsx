@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { jsPDF } from 'jspdf';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
+import { buildWaLink, findClientePedido } from '../../utils/whatsapp';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
   const {
@@ -53,6 +54,12 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     if (!c) return '';
     return [c.tel, c.email].filter(Boolean).join(' | ');
   };
+
+  const clienteDelPedido = findClientePedido(clientes, draft.cliente);
+  const waLinkHeader = buildWaLink(
+    clienteDelPedido?.tel,
+    `Hola ${draft.cliente}! Te escribo por tu pedido #${String(draft.id).padStart(4, '0')}.`
+  );
 
   // Math calculations
   const getCostoPieza = (pz) => {
@@ -833,6 +840,22 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            {waLinkHeader && (
+              <a
+                className="btn btn-sm"
+                href={waLinkHeader}
+                target="_blank"
+                rel="noreferrer"
+                title={`Enviar WhatsApp a ${draft.cliente}`}
+                style={{ color: '#25D366' }}
+              >
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px', marginRight: '4px', display: 'inline-block', verticalAlign: '-2px' }}>
+                  <path d="M10 2.5a7.5 7.5 0 0 0-6.4 11.4L2.5 17.5l3.75-1.05A7.5 7.5 0 1 0 10 2.5z" strokeLinejoin="round" />
+                  <path d="M7.2 6.8c.15-.35.3-.35.45-.35h.35c.15 0 .3 0 .45.35.2.45.6 1.5.65 1.6.05.1.1.25 0 .4-.1.15-.15.25-.3.4l-.35.4c-.1.1-.2.2-.1.4.15.3.6 1 1.3 1.6.9.8 1.6 1.05 1.85 1.15.2.1.3.05.4-.05l.5-.55c.15-.15.3-.2.5-.1.2.05 1.25.6 1.45.7.2.1.35.15.4.25.05.15.05.6-.15 1.15-.2.55-1.15 1.05-1.6 1.1-.45.05-.9.25-2.95-.65-2.5-1.1-4.05-3.7-4.15-3.9-.1-.15-.85-1.15-.85-2.15 0-1.05.55-1.5.75-1.7z" fill="currentColor" stroke="none" />
+                </svg>
+                WhatsApp
+              </a>
+            )}
             {/* Se pasa el borrador junto con el id: ModalPedido inicializa su
                 formulario con estos datos en vez de leer `pedidos` del
                 contexto, que puede no haber recibido todavía el eco del
