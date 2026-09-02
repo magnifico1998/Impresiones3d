@@ -24,6 +24,7 @@ import ModalCompra from './components/modals/ModalCompra';
 import ModalPedido from './components/modals/ModalPedido';
 import ModalPedidoDetalle from './components/modals/ModalPedidoDetalle';
 import ModalAgregarPieza from './components/modals/ModalAgregarPieza';
+import ModalPresupuesto from './components/modals/ModalPresupuesto';
 import ModalBibGuardar from './components/modals/ModalBibGuardar';
 import ModalBibEditarCat from './components/modals/ModalBibEditarCat';
 import ModalBibUsar from './components/modals/ModalBibUsar';
@@ -107,6 +108,9 @@ function App() {
 
   const [modalAgregarPiezaOpen, setModalAgregarPiezaOpen] = useState(false);
   const [modalAgregarPiezaPedidoId, setModalAgregarPiezaPedidoId] = useState(null);
+
+  const [modalPresupuestoOpen, setModalPresupuestoOpen] = useState(false);
+  const [modalPresupuestoSelectedIds, setModalPresupuestoSelectedIds] = useState(new Set());
 
   // Sube cada vez que se guarda un producto en biblioteca o se agrega una
   // pieza a un pedido desde la Calculadora, para que ésta limpie sola los
@@ -461,6 +465,10 @@ function App() {
               setModalAgregarPiezaPedidoId(orderId);
               setModalAgregarPiezaOpen(true);
             }}
+            onOpenPresupuesto={() => {
+              setModalPresupuestoSelectedIds(new Set());
+              setModalPresupuestoOpen(true);
+            }}
             resetTick={calcResetTick}
           />
         );
@@ -499,9 +507,13 @@ function App() {
               setModalArmarPedidoSelectedIds(selectedIds);
               setModalArmarPedidoOpen(true);
             }}
+            onOpenPresupuesto={(selectedIds) => {
+              setModalPresupuestoSelectedIds(selectedIds);
+              setModalPresupuestoOpen(true);
+            }}
           />
         );
-      
+
       case 'catalogoweb':
         return <CatalogoAdminPage />;
 
@@ -711,6 +723,13 @@ function App() {
           setModalPedidoDetalleId(id);
           setModalPedidoDetalleOpen(true);
         }}
+      />
+
+      <ModalPresupuesto
+        isOpen={modalPresupuestoOpen}
+        onClose={() => setModalPresupuestoOpen(false)}
+        selectedProdIds={modalPresupuestoSelectedIds}
+        presupuestoActual={window._currentPresupuesto || null}
       />
     </>
   );

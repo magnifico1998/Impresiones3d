@@ -22,6 +22,7 @@ export default function CalculadoraPage({
   onOpenBibUsar,
   onOpenBibGuardar,
   onOpenAgregarPieza,
+  onOpenPresupuesto,
   resetTick
 }) {
   const { cfg, biblioteca, showToast, fmt } = useApp();
@@ -887,6 +888,14 @@ export default function CalculadoraPage({
     onOpenAgregarPieza(null);
   };
 
+  const handleGenerarPresupuesto = () => {
+    if (!calcOutput.currentPresupuesto || calcOutput.totalCost === 0) {
+      showToast('Primero calculá el costo del producto.', 'error');
+      return;
+    }
+    onOpenPresupuesto();
+  };
+
   return (
     <div className="page active" id="page-calc">
       <div className="page-title">Calculadora de costos</div>
@@ -1536,7 +1545,7 @@ export default function CalculadoraPage({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
             <button 
               className="btn btn-primary" 
               style={{ flex: 1, justifyContent: 'center' }} 
@@ -1554,15 +1563,26 @@ export default function CalculadoraPage({
               </svg>
               Guardar en biblioteca
             </button>
-            <button 
-              className="btn" 
-              style={{ flex: 1, justifyContent: 'center' }} 
+            <button
+              className="btn"
+              style={{ flex: 1, justifyContent: 'center' }}
               onClick={handleAddToOrder}
             >
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M10 4v12M4 10h12" />
               </svg>
               Agregar a pedido
+            </button>
+            <button
+              className="btn"
+              style={{ flex: 1, justifyContent: 'center' }}
+              onClick={handleGenerarPresupuesto}
+            >
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z" />
+                <path d="M12 2v3h3M7 11h6M7 14h4" />
+              </svg>
+              Presupuesto
             </button>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text3)', textAlign: 'center', marginTop: '8px', lineHeight: 1.4 }}>

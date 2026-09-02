@@ -317,7 +317,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
 /**
  * Componente principal BibliotecaPage
  */
-export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido }) {
+export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido, onOpenPresupuesto }) {
   const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa, fmt } = useApp();
 
   const [q, setQ] = useState('');
@@ -618,6 +618,13 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             🛒 {selectedIds.size} producto{selectedIds.size > 1 ? 's' : ''} seleccionado{selectedIds.size > 1 ? 's' : ''}
           </span>
           <button className="btn btn-sm" onClick={handleClearSelection}>Cancelar</button>
+          <button className="btn btn-sm" onClick={() => onOpenPresupuesto(selectedIds)}>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '13px', height: '13px' }}>
+              <path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z" />
+              <path d="M12 2v3h3M7 11h6M7 14h4" />
+            </svg>
+            Presupuesto
+          </button>
           <button className="btn btn-primary btn-sm" onClick={() => onOpenArmarPedido(selectedIds)}>
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '13px', height: '13px' }}>
               <path d="M10 4v12M4 10h12" />
