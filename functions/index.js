@@ -14,6 +14,7 @@ const { borrarCuenta } = require('./http/borrarCuenta');
 const { transicionSuscripciones } = require('./scheduled/transicionSuscripciones');
 const { reactivacionInactivos } = require('./scheduled/reactivacionInactivos');
 const { onNuevaSolicitudContacto } = require('./triggers/onNuevaSolicitudContacto');
+const { onNuevaSolicitudCatalogo } = require('./triggers/onNuevaSolicitudCatalogo');
 const { listarPlantillasEmail, guardarPlantillaEmail, restablecerPlantillaEmail } = require('./http/plantillasEmail');
 const { habilitarRevendedor, deshabilitarRevendedor, borrarRevendedor, actualizarDescuentosRevendedor, generarCierreRevendedor, vincularRevendedor, validarCodigoRevendedor } = require('./http/gestionarRevendedores');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
@@ -32,6 +33,7 @@ module.exports = {
   transicionSuscripciones,
   reactivacionInactivos,
   onNuevaSolicitudContacto,
+  onNuevaSolicitudCatalogo,
   listarPlantillasEmail,
   guardarPlantillaEmail,
   restablecerPlantillaEmail,

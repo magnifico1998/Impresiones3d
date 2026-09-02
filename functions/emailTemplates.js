@@ -137,6 +137,25 @@ const DEFAULTS = {
       }),
     },
   },
+  nuevoPedidoCatalogo: {
+    label: 'Aviso al emprendedor: nuevo pedido desde el catálogo',
+    subject: 'Nuevo pedido en tu catálogo: {{cliente}}',
+    bodyHtml: `
+      <h2 style="${TITULO}">🔔 Nuevo pedido en tu catálogo</h2>
+      <table style="border-collapse: collapse;">{{filasTabla}}</table>
+      ${BOTON}
+    `.trim(),
+    // Mismo criterio que nuevaSolicitudContacto: {{filasTabla}} se arma
+    // siempre desde los datos reales de la solicitud (ver más abajo), acá
+    // sólo hay datos de ejemplo para la vista previa del panel.
+    variables: {
+      cliente: 'Juana Pérez',
+      filasTabla: filasTablaPedidoCatalogo({
+        cliente: 'Juana Pérez', telefono: '351-1234567', email: 'juana@ejemplo.com',
+        totalEstimado: 45000, items: [{ nombre: 'Maceta hexagonal', cantidad: 2 }, { nombre: 'Llavero', cantidad: 3 }],
+      }),
+    },
+  },
 };
 
 // Los valores de este formulario los tipea cualquier cuenta autenticada
@@ -164,11 +183,32 @@ function filasTablaContacto(datos) {
     .join('');
 }
 
+// La solicitud de catálogo la carga cualquier visitante sin login
+// (CatalogoPublico.jsx) -- mismo motivo que filasTablaContacto para
+// escapar cada valor acá adentro en vez de dejarlo como variable de texto
+// libre en la plantilla.
+function filasTablaPedidoCatalogo(datos) {
+  const itemsTexto = (datos.items || [])
+    .map(it => `${it.cantidad}x ${it.nombre}`)
+    .join(', ') || '—';
+  const filas = [
+    ['Cliente', datos.cliente || ''],
+    ['Teléfono', datos.telefono || ''],
+    ['Email', datos.email || ''],
+    ['Total estimado', datos.totalEstimado != null ? `$${Number(datos.totalEstimado).toLocaleString('es-AR')}` : '—'],
+    ['Productos', itemsTexto],
+  ];
+  return filas
+    .map(([label, valor]) => `<tr><td style="padding: 4px 12px 4px 0; color: #666;">${label}</td><td style="padding: 4px 0;">${escapeHtml(valor || '-')}</td></tr>`)
+    .join('');
+}
+
 // filasTabla ya llega como HTML seguro (cada valor de datos del usuario se
-// escapó adentro de filasTablaContacto): es la única variable que se deja
-// pasar sin re-escapar en el cuerpo del mail. Cualquier otra variable que
-// use el cuerpo de una plantilla se escapa siempre, así una plantilla
-// nueva no puede reabrir sin querer el mismo agujero por descuido.
+// escapó adentro de filasTablaContacto/filasTablaPedidoCatalogo): es la
+// única variable que se deja pasar sin re-escapar en el cuerpo del mail.
+// Cualquier otra variable que use el cuerpo de una plantilla se escapa
+// siempre, así una plantilla nueva no puede reabrir sin querer el mismo
+// agujero por descuido.
 const VARIABLES_HTML_CONFIABLE = new Set(['filasTabla']);
 
 function sustituirVariables(texto, vars, { escaparHtml = false } = {}) {
@@ -207,4 +247,5 @@ module.exports = {
   obtenerOverridesPlantillas,
   renderPlantilla,
   filasTablaContacto,
+  filasTablaPedidoCatalogo,
 };
