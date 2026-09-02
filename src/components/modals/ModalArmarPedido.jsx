@@ -56,7 +56,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
           nombre: prod.nombre,
           cantidad,
           precioEstimado: prod.precioSugUnitario || prod.costoUnitario || 0,
-          versiones: [{ id: Date.now() + Math.random(), cantidad, color: '', comentario: '' }]
+          versiones: [{ id: Date.now() + Math.random(), cantidad, color: '', colorSecundario: '', comentario: '' }]
         };
       }).filter(Boolean);
 
@@ -107,7 +107,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         // de "versiones incompletas" en handleConfirm avisará si dejan de sumar el total.
         let versiones = item.versiones || [];
         if (versiones.length <= 1) {
-          versiones = [{ ...(versiones[0] || { id: Date.now() + Math.random(), color: '', comentario: '' }), cantidad: qty }];
+          versiones = [{ ...(versiones[0] || { id: Date.now() + Math.random(), color: '', colorSecundario: '', comentario: '' }), cantidad: qty }];
         }
         return { ...item, cantidad: qty, versiones };
       }
@@ -141,7 +141,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         if (left <= 0) return item;
         return {
           ...item,
-          versiones: [...item.versiones, { id: Date.now() + Math.random(), cantidad: left, color: '', comentario: '' }]
+          versiones: [...item.versiones, { id: Date.now() + Math.random(), cantidad: left, color: '', colorSecundario: '', comentario: '' }]
         };
       }
       return item;
@@ -216,6 +216,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         id: Date.now() + Math.random(),
         cantidad: v.cantidad,
         color: v.color,
+        colorSecundario: v.colorSecundario || '',
         comentario: v.comentario,
         realizados: 0
       }))
@@ -446,16 +447,16 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
                       </div>
                       
                       {it.versiones.map(v => (
-                        <div key={v.id} className="version-row">
-                          <input 
-                            type="number" 
-                            min="1" 
-                            max={it.cantidad} 
-                            value={v.cantidad} 
-                            onChange={(e) => handleVersionFieldChange(idx, v.id, 'cantidad', e.target.value)} 
+                        <div key={v.id} className="version-row" style={{ gridTemplateColumns: '56px 1fr 1fr 1fr 24px' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max={it.cantidad}
+                            value={v.cantidad}
+                            onChange={(e) => handleVersionFieldChange(idx, v.id, 'cantidad', e.target.value)}
                           />
-                          <select 
-                            value={v.color || ''} 
+                          <select
+                            value={v.color || ''}
                             onChange={(e) => handleVersionFieldChange(idx, v.id, 'color', e.target.value)}
                           >
                             <option value="">Sin color</option>
@@ -463,11 +464,20 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
                               <option key={ci} value={col.nombre}>{col.nombre}</option>
                             ))}
                           </select>
-                          <input 
-                            type="text" 
-                            placeholder="Comentario..." 
-                            value={v.comentario || ''} 
-                            onChange={(e) => handleVersionFieldChange(idx, v.id, 'comentario', e.target.value)} 
+                          <select
+                            value={v.colorSecundario || ''}
+                            onChange={(e) => handleVersionFieldChange(idx, v.id, 'colorSecundario', e.target.value)}
+                          >
+                            <option value="">Sin combinar</option>
+                            {(cfg.colores || []).map((col, ci) => (
+                              <option key={ci} value={col.nombre}>{col.nombre}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            placeholder="Comentario..."
+                            value={v.comentario || ''}
+                            onChange={(e) => handleVersionFieldChange(idx, v.id, 'comentario', e.target.value)}
                           />
                           <button className="btn btn-danger btn-sm" style={{ padding: '2px 5px' }} onClick={() => handleRemoveVersion(idx, v.id)}>✕</button>
                         </div>

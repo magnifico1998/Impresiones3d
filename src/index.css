@@ -252,7 +252,7 @@ select option{background:var(--bg3)}
 .prod-control input::-webkit-outer-spin-button, .prod-control input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .prod-control input[type=number] { -moz-appearance: textfield; }
 .prod-status { font-size:11px; font-family:var(--mono); text-align:right; flex-grow:1; }
-.det-ver-row { display:grid; grid-template-columns:84px 1fr 1fr auto; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+.det-ver-row { display:grid; grid-template-columns:84px 1fr 1fr 1fr auto; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
 .det-ver-row:last-child { border-bottom:none; }
 .det-ver-realizados { display:flex; align-items:center; gap:3px; }
 .det-ver-realizados input { width:38px; font-size:12px; padding:3px 4px; text-align:center; background:var(--bg2); border:1px solid var(--border); border-radius:4px; color:var(--text1); }

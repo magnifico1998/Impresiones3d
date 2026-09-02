@@ -382,6 +382,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             cantidad: newQty,
             realizados: 0,
             color: '',
+            colorSecundario: '',
             comentario: ''
           };
           return {
@@ -1033,15 +1034,17 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                                 {faltanAsignar === 0 ? '✓ Cantidades asignadas completas' : `⚠ Faltan asignar ${faltanAsignar} unidad(es) entre versiones`}
                               </div>
                               
-                              <div style={{ fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: '4px', display: 'grid', gridTemplateColumns: '84px 1fr 1fr auto', gap: '6px' }}>
+                              <div style={{ fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: '4px', display: 'grid', gridTemplateColumns: '84px 1fr 1fr 1fr auto', gap: '6px' }}>
                                 <span>Real / Total</span>
                                 <span>Color</span>
+                                <span>Color 2</span>
                                 <span>Comentario</span>
                                 <span></span>
                               </div>
 
                               {(pz.versiones || []).map(v => {
                                 const hex = colorHexPorNombre(v.color);
+                                const hexSecundario = colorHexPorNombre(v.colorSecundario);
                                 const vDone = (v.realizados || 0) >= v.cantidad;
                                 return (
                                   <div key={v.id} className="det-ver-row">
@@ -1087,9 +1090,27 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                                         ))}
                                       </select>
                                     </div>
-                                    <input 
-                                      type="text" 
-                                      value={v.comentario || ''} 
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                      {hexSecundario && (
+                                        <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', background: hexSecundario, border: '1px solid var(--border)', flexShrink: 0, marginRight: '3px' }}></span>
+                                      )}
+                                      <select
+                                        value={v.colorSecundario || ''}
+                                        style={{ flex: 1, fontSize: '11px', padding: '3px 4px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)' }}
+                                        onChange={(e) => handleUpdateVersion(pz.id, v.id, 'colorSecundario', e.target.value)}
+                                      >
+                                        <option value="">Sin combinar</option>
+                                        {v.colorSecundario && !(cfg.colores || []).some(col => col.nombre === v.colorSecundario) && (
+                                          <option value={v.colorSecundario}>{v.colorSecundario} (ya no está en Configuración)</option>
+                                        )}
+                                        {(cfg.colores || []).map((col, ci) => (
+                                          <option key={ci} value={col.nombre}>{col.nombre}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={v.comentario || ''}
                                       placeholder="Comentario..."
                                       style={{ fontSize: '11px', padding: '3px 6px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)', width: '100%' }}
                                       onChange={(e) => handleUpdateVersion(pz.id, v.id, 'comentario', e.target.value)} 

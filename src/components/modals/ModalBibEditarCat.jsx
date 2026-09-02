@@ -10,6 +10,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [desc, setDesc] = useState('');
   const [descLarga, setDescLarga] = useState('');
   const [precio, setPrecio] = useState('');
+  const [permiteColorSecundario, setPermiteColorSecundario] = useState(false);
   const [imagenes, setImagenes] = useState([]);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const dragIndex = useRef(null);
@@ -37,6 +38,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setDesc(prod.desc || '');
         setDescLarga(prod.descLarga || '');
         setPrecio(prod.precioSugUnitario !== undefined ? String(prod.precioSugUnitario) : '');
+        setPermiteColorSecundario(!!prod.permiteColorSecundario);
         setImagenes(prod.imagenes?.length ? prod.imagenes : (prod.imagen ? [prod.imagen] : []));
         subidasSesionRef.current = [];
       }
@@ -166,6 +168,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         desc: cleanDesc,
         descLarga: cleanDescLarga,
         precioSugUnitario: cleanPrecio,
+        permiteColorSecundario,
         imagenes,
         imagen: imagenes[0] || ''
       });
@@ -248,6 +251,15 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
             <option key={idx} value={s} />
           ))}
         </datalist>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', fontSize: '13px' }}>
+          <input
+            type="checkbox"
+            checked={permiteColorSecundario}
+            onChange={(e) => setPermiteColorSecundario(e.target.checked)}
+          />
+          Permite elegir color secundario en el catálogo (para combinar colores)
+        </label>
 
         <label className="fl">Imágenes del producto (la primera es la principal — arrastrá para reordenar)</label>
         <input

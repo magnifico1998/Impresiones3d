@@ -33,13 +33,13 @@ const defaultCfg = {
     { nombre: 'Empaque / envío', precio: 700 }
   ],
   colores: [
-    { nombre: 'Blanco', hex: '#f5f5f5' },
-    { nombre: 'Negro', hex: '#1a1a1a' },
-    { nombre: 'Rojo', hex: '#e53935' },
-    { nombre: 'Azul', hex: '#1e88e5' },
-    { nombre: 'Verde', hex: '#43a047' },
-    { nombre: 'Gris', hex: '#9e9e9e' },
-    { nombre: 'Amarillo', hex: '#fdd835' }
+    { nombre: 'Blanco', hex: '#f5f5f5', secundario: false },
+    { nombre: 'Negro', hex: '#1a1a1a', secundario: false },
+    { nombre: 'Rojo', hex: '#e53935', secundario: false },
+    { nombre: 'Azul', hex: '#1e88e5', secundario: false },
+    { nombre: 'Verde', hex: '#43a047', secundario: false },
+    { nombre: 'Gris', hex: '#9e9e9e', secundario: false },
+    { nombre: 'Amarillo', hex: '#fdd835', secundario: false }
   ],
   metodosEnvio: [
     { nombre: 'Correo Argentino', urlSeguimiento: 'https://www.correoargentino.com.ar/seguimiento', incluirCodigo: false },
@@ -93,6 +93,7 @@ const proyeccionCatalogoProducto = (p) => ({
   imagen: p.imagen || '',
   imagenes: p.imagenes?.length ? p.imagenes : (p.imagen ? [p.imagen] : []),
   precio: p.precioSugUnitario || p.costoUnitario || 0,
+  permiteColorSecundario: !!p.permiteColorSecundario,
   actualizado: new Date().toISOString()
 });
 
@@ -1405,6 +1406,7 @@ export const AppProvider = ({ children }) => {
         id: Date.now() + Math.random(),
         cantidad: v.cantidad,
         color: v.color || '',
+        colorSecundario: v.colorSecundario || '',
         comentario: v.comentario || '',
         realizados: 0
       }))

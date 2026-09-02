@@ -194,7 +194,7 @@ export default function CatalogoAdminPage() {
                     <strong>{it.cantidad}×</strong> {it.nombre}
                     {(it.versiones || []).map((v, vi) => (
                       <div key={vi} style={{ fontSize: '11px', color: 'var(--text3)', marginLeft: '16px' }}>
-                        {v.cantidad}× {v.color || 'sin color'}{v.comentario ? ` — ${v.comentario}` : ''}
+                        {v.cantidad}× {v.color || 'sin color'}{v.colorSecundario ? ` + ${v.colorSecundario}` : ''}{v.comentario ? ` — ${v.comentario}` : ''}
                       </div>
                     ))}
                   </div>

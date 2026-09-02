@@ -175,30 +175,39 @@ export default function ConfiguracionPage() {
           <div className="card">
             <div className="card-title">Colores disponibles</div>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px', fontFamily: 'var(--mono)' }}>
-              Usados al armar versiones de un pedido
+              Usados al armar versiones de un pedido. "Sec." marca el color como disponible para elegir como color SECUNDARIO en los productos que permiten combinar colores (Biblioteca → Editar producto).
             </div>
             <div id="cfg-colores">
               {(cfg.colores || []).map((c, i) => (
-                <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr 46px auto' }}>
-                  <input 
+                <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr 46px auto auto', gap: '6px', alignItems: 'center' }}>
+                  <input
                     type="text"
-                    value={c.nombre} 
-                    onChange={(e) => handleUpdateField('colores', i, 'nombre', e.target.value)} 
+                    value={c.nombre}
+                    onChange={(e) => handleUpdateField('colores', i, 'nombre', e.target.value)}
                   />
-                  <input 
-                    type="color" 
-                    value={c.hex || '#cccccc'} 
+                  <input
+                    type="color"
+                    value={c.hex || '#cccccc'}
                     style={{ padding: '2px', height: '34px' }}
-                    onChange={(e) => handleUpdateField('colores', i, 'hex', e.target.value)} 
+                    onChange={(e) => handleUpdateField('colores', i, 'hex', e.target.value)}
                   />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!c.secundario}
+                      title="Disponible para elegir como color secundario en productos que combinan colores"
+                      onChange={(e) => handleUpdateField('colores', i, 'secundario', e.target.checked)}
+                    />
+                    Sec.
+                  </label>
                   <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('colores', i)}>✕</button>
                 </div>
               ))}
             </div>
-            <button 
-              className="btn btn-sm" 
+            <button
+              className="btn btn-sm"
               style={{ marginTop: '10px', width: '100%' }}
-              onClick={() => handleAddItem('colores', { nombre: 'Nuevo color', hex: '#cccccc' })}
+              onClick={() => handleAddItem('colores', { nombre: 'Nuevo color', hex: '#cccccc', secundario: false })}
             >
               + Agregar
             </button>
