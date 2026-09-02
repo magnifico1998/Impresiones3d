@@ -1,31 +1,37 @@
 const { onCall } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
-const { db, Timestamp, FieldValue, DIA_MS, sumarDias } = require('../admin');
+const { db, Timestamp, FieldValue, DIA_MS, sumarDias, formatearFecha } = require('../admin');
 const { enviarEmail, gmailAppPassword } = require('../mailer');
 const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
 
-// Días que se extiende cicloFin en cada ingreso para un plan marcado
-// `gratuito` (ej. "Boceto"): no tiene ciclo de cobro real, así que en vez
-// de vencer a fecha fija se mantiene viva mientras el dueño siga entrando
-// -- si deja de entrar más de este tiempo, cae en modo lectura/suspendida
-// por el cron normal (transicionSuscripciones.js), y con el próximo
-// ingreso se reactiva sola con otros 30 días (sin importar en qué estado
-// haya quedado mientras tanto).
+// Días del ciclo nuevo que se le habilita a un plan marcado `gratuito`
+// (ej. "Boceto") cuando lo reactiva un ingreso.
 const DIAS_EXTENSION_PLAN_GRATUITO = 30;
 
 // Si la cuenta tiene asignado un plan marcado `gratuito: true` en
-// planes/{planId} (ver ModalPlan.jsx), le "revive"/extiende la
-// suscripción en cada ingreso: no requiere que un admin la renueve a
-// mano. Devuelve los campos a mergear en suscripcion/actual, o null si el
-// plan no es gratuito (no toca nada, sigue el ciclo normal de cobro).
+// planes/{planId} (ver ModalPlan.jsx) Y ya cayó en modo lectura (por no
+// haber entrado durante su ciclo anterior), este ingreso le arranca un
+// ciclo nuevo de 30 días -- así no requiere que un admin la reactive a
+// mano cada vez. A propósito NO toca nada si la cuenta ya está 'activa'
+// (ni tampoco revive una 'suspendida' sola): extender cicloFin en cada
+// login sin cerrar el ciclo anterior nunca deja que arranque un cicloId
+// nuevo, y el conteo de cuotas del plan (pedidos/mes, ver
+// dentroDelLimiteDePedidos en firestore.rules) queda pegado al mismo
+// ciclo para siempre -- mismo problema que ya evita el cron con el
+// beneficio de códigos promocionales (ver "promo renovada" en
+// transicionSuscripciones.js, que arranca cicloInicio/cicloId nuevos en
+// vez de sólo empujar cicloFin).
 async function extenderSiEsPlanGratuito(data) {
-  if (!data.planId) return null;
+  if (data.estado !== 'lectura' || !data.planId) return null;
   const planSnap = await db.doc(`planes/${data.planId}`).get();
   if (!planSnap.exists || !planSnap.data().gratuito) return null;
 
+  const ahora = Timestamp.now();
   return {
     estado: 'activa',
-    cicloFin: sumarDias(Timestamp.now(), DIAS_EXTENSION_PLAN_GRATUITO),
+    cicloInicio: ahora,
+    cicloId: formatearFecha(ahora),
+    cicloFin: sumarDias(ahora, DIAS_EXTENSION_PLAN_GRATUITO),
     fechaLimiteLectura: FieldValue.delete()
   };
 }
