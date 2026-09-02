@@ -8,6 +8,7 @@ const FORM_VACIO = {
   precioMensual: '',
   orden: '1',
   activo: true,
+  gratuito: false,
   limites: { usuarios: '', productosBiblioteca: '', pedidosMes: '', aperturasCatalogoMes: '', montoFacturadoMes: '' }
 };
 
@@ -27,6 +28,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
         precioMensual: plan.precioMensual ?? '',
         orden: plan.orden ?? '1',
         activo: plan.activo !== false,
+        gratuito: !!plan.gratuito,
         limites: {
           usuarios: plan.limites?.usuarios ?? '',
           productosBiblioteca: plan.limites?.productosBiblioteca ?? '',
@@ -64,6 +66,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
         precioMensual: Number(form.precioMensual),
         orden: Number(form.orden) || 1,
         activo: !!form.activo,
+        gratuito: !!form.gratuito,
         limites: {
           usuarios: aNumeroONull(form.limites.usuarios),
           productosBiblioteca: aNumeroONull(form.limites.productosBiblioteca),
@@ -105,6 +108,12 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '22px' }}>
             <input type="checkbox" id="activo" checked={form.activo} onChange={(e) => setForm(prev => ({ ...prev, activo: e.target.checked }))} />
             <label htmlFor="activo" style={{ fontSize: '13px' }}>Plan activo (visible para contratar)</label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+            <input type="checkbox" id="gratuito" checked={form.gratuito} onChange={(e) => setForm(prev => ({ ...prev, gratuito: e.target.checked }))} />
+            <label htmlFor="gratuito" style={{ fontSize: '13px' }}>
+              Plan gratuito (ej. Boceto): no vence a fecha fija, se extiende sola 30 días con cada ingreso del dueño
+            </label>
           </div>
         </div>
 

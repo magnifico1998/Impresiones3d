@@ -29,6 +29,14 @@ function formatearFecha(timestamp) {
   return timestamp.toDate().toISOString().slice(0, 10); // "YYYY-MM-DD"
 }
 
+// Suma N días corridos a un Timestamp (a diferencia de sumarMesCalendario,
+// que ancla al día del mes) -- la usa el plan gratuito "Boceto" para
+// extender cicloFin 30 días desde cada ingreso, en vez de un ciclo
+// calendario fijo (ver registrarUltimoAcceso.js).
+function sumarDias(timestamp, n) {
+  return Timestamp.fromMillis(timestamp.toMillis() + n * DIA_MS);
+}
+
 // Copia liviana de los datos de contacto de un revendedor (nombre,
 // apellido, teléfono, email), para denormalizar sobre la suscripción de
 // cada referido -- el referido no tiene permiso para leer la cuenta del
@@ -49,4 +57,4 @@ async function obtenerContactoRevendedor(uid) {
   };
 }
 
-module.exports = { db, Timestamp, FieldValue, DIA_MS, DURACION_TRIAL_DIAS, DURACION_LECTURA_DIAS, sumarMesCalendario, formatearFecha, obtenerContactoRevendedor };
+module.exports = { db, Timestamp, FieldValue, DIA_MS, DURACION_TRIAL_DIAS, DURACION_LECTURA_DIAS, sumarMesCalendario, sumarDias, formatearFecha, obtenerContactoRevendedor };

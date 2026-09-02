@@ -1,8 +1,34 @@
 const { onCall } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
-const { db, Timestamp, DIA_MS } = require('../admin');
+const { db, Timestamp, FieldValue, DIA_MS, sumarDias } = require('../admin');
 const { enviarEmail, gmailAppPassword } = require('../mailer');
 const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
+
+// Días que se extiende cicloFin en cada ingreso para un plan marcado
+// `gratuito` (ej. "Boceto"): no tiene ciclo de cobro real, así que en vez
+// de vencer a fecha fija se mantiene viva mientras el dueño siga entrando
+// -- si deja de entrar más de este tiempo, cae en modo lectura/suspendida
+// por el cron normal (transicionSuscripciones.js), y con el próximo
+// ingreso se reactiva sola con otros 30 días (sin importar en qué estado
+// haya quedado mientras tanto).
+const DIAS_EXTENSION_PLAN_GRATUITO = 30;
+
+// Si la cuenta tiene asignado un plan marcado `gratuito: true` en
+// planes/{planId} (ver ModalPlan.jsx), le "revive"/extiende la
+// suscripción en cada ingreso: no requiere que un admin la renueve a
+// mano. Devuelve los campos a mergear en suscripcion/actual, o null si el
+// plan no es gratuito (no toca nada, sigue el ciclo normal de cobro).
+async function extenderSiEsPlanGratuito(data) {
+  if (!data.planId) return null;
+  const planSnap = await db.doc(`planes/${data.planId}`).get();
+  if (!planSnap.exists || !planSnap.data().gratuito) return null;
+
+  return {
+    estado: 'activa',
+    cicloFin: sumarDias(Timestamp.now(), DIAS_EXTENSION_PLAN_GRATUITO),
+    fechaLimiteLectura: FieldValue.delete()
+  };
+}
 
 // Freeze entre avisos de plan gratuito a un mismo suscriptor: antes esto lo
 // disparaba un botón manual del panel admin (con confirmación humana antes
@@ -63,7 +89,8 @@ exports.registrarUltimoAcceso = onCall({ secrets: [gmailAppPassword] }, async (r
   const subSnap = await subRef.get();
   if (!subSnap.exists) return { ok: false };
 
-  await subRef.set({ ultimoAcceso: Timestamp.now() }, { merge: true });
+  const extension = await extenderSiEsPlanGratuito(subSnap.data());
+  await subRef.set({ ultimoAcceso: Timestamp.now(), ...(extension || {}) }, { merge: true });
   await avisarPlanGratuitoSiCorresponde(subRef, subSnap.data());
   return { ok: true };
 });
