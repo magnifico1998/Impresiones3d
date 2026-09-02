@@ -427,8 +427,13 @@ export default function CalculadoraPage({
   };
 
   const parseTiempoStr = (str) => {
-    const sh = str.match(/(\d+)\s*h/i), sm = str.match(/(\d+)\s*m/i), ss = str.match(/(\d+)\s*s/i);
+    // Bambu Studio / PrusaSlicer pasan a formato "Xd Yh Zm" apenas la
+    // impresión supera las 24hs (ej. "1d 1h 30m" para 25h30m) -- sin
+    // este patrón los días se ignoraban por completo y una impresión de
+    // 25hs se leía como 1h.
+    const sd = str.match(/(\d+)\s*d/i), sh = str.match(/(\d+)\s*h/i), sm = str.match(/(\d+)\s*m/i), ss = str.match(/(\d+)\s*s/i);
     let t = 0;
+    if (sd) t += parseInt(sd[1], 10) * 24;
     if (sh) t += parseInt(sh[1], 10);
     if (sm) t += parseInt(sm[1], 10) / 60;
     if (ss) t += parseInt(ss[1], 10) / 3600;
