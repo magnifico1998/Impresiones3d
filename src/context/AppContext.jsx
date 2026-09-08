@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider, functions } from '../firebase';
-import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, signInWithEmailAndPassword, EmailAuthProvider, linkWithCredential, updatePassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
@@ -572,6 +572,44 @@ export const AppProvider = ({ children }) => {
     } catch (error) {
       console.error("Error al enviar el link de acceso:", error);
       showToast('No se pudo enviar el link. Revisá el email e intentá de nuevo.', 'error');
+      throw error;
+    }
+  };
+
+  // Login con contraseña: única forma de entrar que funciona dentro de la
+  // app empaquetada para Android (Capacitor), porque ahí corre en un
+  // WebView y tanto el popup de Google como el link mágico por email
+  // dependen de abrir una URL externa que en ese contexto no es alcanzable
+  // (ver guardarPasswordAcceso más abajo, que es como se crea esta
+  // contraseña sobre una cuenta que ya inició sesión con Google/link).
+  const loginWithPassword = async (email, password) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      showToast('Sesión iniciada');
+    } catch (error) {
+      console.error("Error al iniciar sesión con contraseña:", error);
+      showToast('Email o contraseña incorrectos.', 'error');
+      throw error;
+    }
+  };
+
+  // Le agrega (o actualiza) una contraseña a la cuenta YA logueada (por
+  // Google o link de email), para poder entrar con esa misma cuenta desde
+  // la app instalada en el celular usando loginWithPassword.
+  const guardarPasswordAcceso = async (password) => {
+    if (!auth.currentUser) return;
+    try {
+      const yaTienePassword = auth.currentUser.providerData.some(p => p.providerId === 'password');
+      if (yaTienePassword) {
+        await updatePassword(auth.currentUser, password);
+      } else {
+        const cred = EmailAuthProvider.credential(auth.currentUser.email, password);
+        await linkWithCredential(auth.currentUser, cred);
+      }
+      showToast('Contraseña guardada. Ya podés usarla para entrar desde la app del celular.');
+    } catch (error) {
+      console.error("Error al guardar la contraseña de acceso:", error);
+      showToast('No se pudo guardar la contraseña. Probá cerrar sesión y volver a entrar antes de reintentar.', 'error');
       throw error;
     }
   };
@@ -1616,6 +1654,8 @@ export const AppProvider = ({ children }) => {
     reintentarCargaDatos,
     loginWithGoogle,
     loginWithEmailLink,
+    loginWithPassword,
+    guardarPasswordAcceso,
     logout,
     activePage,
     setActivePage,

@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { paletas, paletasList } from '../utils/paletas';
 
 export default function ConfiguracionPage() {
-  const { cfg, setCfg } = useApp();
+  const { cfg, setCfg, user, guardarPasswordAcceso } = useApp();
+
+  // Contraseña para poder entrar desde la app instalada en el celular:
+  // ahí adentro no funcionan ni el popup de Google ni el link de email
+  // (dependen de abrir una URL externa que en esa app empaquetada no es
+  // alcanzable), así que hace falta una contraseña sobre la MISMA cuenta.
+  const [passwordAcceso, setPasswordAcceso] = useState('');
+  const [guardandoPassword, setGuardandoPassword] = useState(false);
+
+  const handleGuardarPasswordAcceso = async (e) => {
+    e.preventDefault();
+    if (passwordAcceso.length < 6) return;
+    setGuardandoPassword(true);
+    try {
+      await guardarPasswordAcceso(passwordAcceso);
+      setPasswordAcceso('');
+    } catch (e) {
+      // el toast de error ya lo muestra guardarPasswordAcceso
+    } finally {
+      setGuardandoPassword(false);
+    }
+  };
 
   const handleUpdateField = (section, idx, field, value) => {
     setCfg(prev => {
@@ -80,6 +101,30 @@ export default function ConfiguracionPage() {
 
       <div className="grid2" style={{ alignItems: 'flex-start' }}>
         <div>
+          {/* App instalada (Android): acá se crea/actualiza la contraseña
+              de la MISMA cuenta ({user?.email}), porque dentro de esa app
+              el login con Google o con link de email no funciona. */}
+          <div className="card">
+            <div className="card-title">Acceso desde la app del celular</div>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
+              La app instalada en Android no puede usar el login con Google ni el link de email.
+              Creá acá una contraseña para <strong>{user?.email}</strong> y usala para entrar desde el celular.
+            </div>
+            <form onSubmit={handleGuardarPasswordAcceso} style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Nueva contraseña (mín. 6 caracteres)"
+                value={passwordAcceso}
+                onChange={(e) => setPasswordAcceso(e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <button type="submit" className="btn btn-sm" disabled={guardandoPassword || passwordAcceso.length < 6}>
+                {guardandoPassword ? 'Guardando...' : 'Guardar'}
+              </button>
+            </form>
+          </div>
+
           {/* Filaments Config Card */}
           <div className="card">
             <div className="card-title">Filamentos</div>
