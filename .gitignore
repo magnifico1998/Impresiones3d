@@ -1,3 +1,4 @@
+```
 # Dependencies
 node_modules/
 
@@ -8,16 +9,6 @@ node_modules/
 .env
 .env.local
 *.env.*
-
+```
 # Build
 dist/
-
-# Android / Capacitor
-android/app/build/
-android/build/
-android/.gradle/
-android/local.properties
-android/captures/
-android/app/release/
-*.keystore
-*.jks

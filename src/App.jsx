@@ -41,7 +41,6 @@ function App() {
     loading,
     loginWithGoogle,
     loginWithEmailLink,
-    loginWithPassword,
     activePage,
     setActivePage,
     showToast,
@@ -81,28 +80,6 @@ function App() {
       // el toast de error ya lo muestra loginWithEmailLink
     } finally {
       setEmailLinkEnviando(false);
-    }
-  };
-
-  // Login con contraseña: la única opción que funciona dentro de la app
-  // instalada en el celular (Google y el link de email dependen de abrir
-  // una URL externa que ahí no es alcanzable). La contraseña se crea desde
-  // Configuración estando logueado por Google/email en la compu.
-  const [mostrarFormPassword, setMostrarFormPassword] = useState(false);
-  const [passwordLoginEmail, setPasswordLoginEmail] = useState('');
-  const [passwordLoginPass, setPasswordLoginPass] = useState('');
-  const [passwordLoginEnviando, setPasswordLoginEnviando] = useState(false);
-
-  const handleLoginPassword = async (e) => {
-    e.preventDefault();
-    if (!passwordLoginEmail.trim() || !passwordLoginPass) return;
-    setPasswordLoginEnviando(true);
-    try {
-      await loginWithPassword(passwordLoginEmail.trim(), passwordLoginPass);
-    } catch (e) {
-      // el toast de error ya lo muestra loginWithPassword
-    } finally {
-      setPasswordLoginEnviando(false);
     }
   };
 
@@ -307,54 +284,6 @@ function App() {
             }}
           >
             Ingresar con email (sin contraseña)
-          </button>
-        )}
-
-        {mostrarFormPassword ? (
-          <form onSubmit={handleLoginPassword} style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '260px' }}>
-            <input
-              type="email"
-              autoComplete="email"
-              autoFocus
-              required
-              placeholder="tu@email.com"
-              value={passwordLoginEmail}
-              onChange={(e) => setPasswordLoginEmail(e.target.value)}
-              className="input"
-              style={{ fontSize: '14px', padding: '10px 12px', borderRadius: 'var(--radius2)' }}
-            />
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              placeholder="Contraseña"
-              value={passwordLoginPass}
-              onChange={(e) => setPasswordLoginPass(e.target.value)}
-              className="input"
-              style={{ fontSize: '14px', padding: '10px 12px', borderRadius: 'var(--radius2)' }}
-            />
-            <button
-              type="submit"
-              disabled={passwordLoginEnviando}
-              className="btn"
-              style={{ fontSize: '13px', padding: '9px 16px', borderRadius: 'var(--radius2)' }}
-            >
-              {passwordLoginEnviando ? 'Ingresando...' : 'Ingresar'}
-            </button>
-          </form>
-        ) : (
-          <button
-            onClick={() => setMostrarFormPassword(true)}
-            className="btn"
-            style={{
-              fontSize: '13px',
-              padding: '9px 16px',
-              borderRadius: 'var(--radius2)',
-              background: 'transparent',
-              color: 'var(--text2)'
-            }}
-          >
-            Ingresar con contraseña
           </button>
         )}
       </div>

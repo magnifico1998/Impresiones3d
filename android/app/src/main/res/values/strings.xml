@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Manager3D</string>
-    <string name="title_activity_main">Manager3D</string>
-    <string name="package_name">com.impresiones3d.manager3d</string>
-    <string name="custom_url_scheme">com.impresiones3d.manager3d</string>
-</resources>
