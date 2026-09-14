@@ -194,6 +194,8 @@ select option{background:var(--bg3)}
 .cost-line.mat{padding-left:12px;font-size:11px}
 .cost-line.strong{color:var(--text);font-weight:500;font-size:13px;border-top:1px solid var(--border);padding-top:6px;margin-top:4px}
 .total-section{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.total-section input[type=text],.total-section input[type=number],.total-section input[type=date],.total-section select{background:var(--bg);border-color:var(--border2)}
+.total-section input[type=text]:focus,.total-section input[type=number]:focus,.total-section input[type=date]:focus,.total-section select:focus{border-color:var(--accent)}
 .empty{text-align:center;color:var(--text3);padding:40px 20px;font-size:13px;font-family:var(--mono)}
 .sep{height:1px;background:var(--border);margin:16px 0}
 .data-table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}
