@@ -40,15 +40,18 @@ function timestampPedido(p) {
   return 0;
 }
 
-// horas es el tiempo de TODA la tanda de `cantidad` unidades, no por
-// unidad -- ver src/components/modals/ModalBibGuardar.jsx. El tiempo
-// restante de una pieza parcialmente producida se aproxima linealmente.
+// `horas` es el tiempo de impresión POR UNIDAD, no de toda la tanda -- ver
+// CalculadoraPage.jsx: costeElec/costeMant se calculan a partir de `horas`
+// solo, y el costo/precio TOTAL se obtiene multiplicando por `cantidad`
+// ("El costo y precio se multiplican por la cantidad", helper del campo
+// Cantidad de unidades). El tiempo restante de una pieza parcialmente
+// producida es entonces horas × unidades que todavía faltan.
 function horasRestantesPieza(pieza) {
   const cantidad = pieza.cantidad || 0;
   const elaborados = pieza.elaborados || 0;
   const horas = pieza.horas || 0;
   if (cantidad <= 0 || elaborados >= cantidad) return 0;
-  return horas * (cantidad - elaborados) / cantidad;
+  return horas * (cantidad - elaborados);
 }
 
 function piezasPendientesDePedido(pedido) {
