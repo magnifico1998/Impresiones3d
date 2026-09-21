@@ -31,7 +31,6 @@ import ModalBibUsar from './components/modals/ModalBibUsar';
 import ModalArmarPedido from './components/modals/ModalArmarPedido';
 import ModalContacto from './components/modals/ModalContacto';
 import ModalFaqGuardar from './components/modals/ModalFaqGuardar';
-import ModalFaqOrdenCategorias from './components/modals/ModalFaqOrdenCategorias';
 
 function App() {
   const {
@@ -126,8 +125,6 @@ function App() {
 
   const [modalFaqGuardarOpen, setModalFaqGuardarOpen] = useState(false);
   const [modalFaqGuardarEditId, setModalFaqGuardarEditId] = useState(null);
-
-  const [modalFaqOrdenCategoriasOpen, setModalFaqOrdenCategoriasOpen] = useState(false);
 
   const [modalBibUsarOpen, setModalBibUsarOpen] = useState(false);
   
@@ -528,7 +525,6 @@ function App() {
               setModalFaqGuardarEditId(id);
               setModalFaqGuardarOpen(true);
             }}
-            onOpenOrdenCategorias={() => setModalFaqOrdenCategoriasOpen(true)}
           />
         );
 
@@ -687,12 +683,7 @@ function App() {
         editId={modalFaqGuardarEditId}
       />
 
-      <ModalFaqOrdenCategorias
-        isOpen={modalFaqOrdenCategoriasOpen}
-        onClose={() => setModalFaqOrdenCategoriasOpen(false)}
-      />
-
-      <ModalBibUsar 
+      <ModalBibUsar
         isOpen={modalBibUsarOpen}
         onClose={() => setModalBibUsarOpen(false)}
         onSelectProduct={(id) => {

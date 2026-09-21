@@ -45,6 +45,27 @@ export default function ConfiguracionPage() {
     setCfg(prev => ({ ...prev, impresoraDefault: val }));
   };
 
+  // Cuentas con un doc de config ya existente no reciben los defaults de
+  // defaultCfg (AppContext no mergea, usa el doc guardado tal cual), así
+  // que si sólo aplicáramos el spread de prev.capacidadProduccion, el
+  // primer campo que se toque (ej. el checkbox de "habilitado") dejaría el
+  // resto de los campos undefined -- de ahí se completa siempre con estos
+  // defaults antes de aplicar el cambio.
+  const CAPACIDAD_DEFAULT = {
+    habilitado: false,
+    cantidadImpresoras: 1,
+    horasPorDia: 8,
+    horaInicio: 9,
+    diasLaborables: [1, 2, 3, 4, 5, 6]
+  };
+
+  const handleCapacidadChange = (field, val) => {
+    setCfg(prev => ({
+      ...prev,
+      capacidadProduccion: { ...CAPACIDAD_DEFAULT, ...prev.capacidadProduccion, [field]: val }
+    }));
+  };
+
   // Los 5 colores que se pueden retocar a mano en la tarjeta "Paleta
   // personalizada" (los mismos que se ven en la vista previa de cada
   // paleta de acá arriba). Se guardan aparte en cfg.paletaCustom y se
@@ -403,6 +424,96 @@ export default function ConfiguracionPage() {
               "Gastos compras", para no contar el mismo gasto dos veces.
             </p>
 
+          </div>
+
+          {/* Estimación de capacidad de producción: ver useCapacidadProduccion
+              y src/utils/capacidadProduccion.js. cantidadImpresoras/horasPorDia
+              son independientes de la lista nombrada "Impresoras" de arriba
+              (esa es sólo para costeo eléctrico). */}
+          <div className="card">
+            <div className="card-title">Capacidad de producción</div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <input
+                type="checkbox"
+                id="capacidadHabilitada"
+                checked={!!cfg.capacidadProduccion?.habilitado}
+                onChange={(e) => handleCapacidadChange('habilitado', e.target.checked)}
+              />
+              <label htmlFor="capacidadHabilitada" style={{ fontSize: '13px' }}>
+                Activar estimación de capacidad de producción
+              </label>
+            </div>
+
+            {cfg.capacidadProduccion?.habilitado && (
+              <>
+                <div className="sep"></div>
+
+                <label className="fl">Cantidad de impresoras</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={cfg.capacidadProduccion?.cantidadImpresoras ?? 1}
+                  onChange={(e) => handleCapacidadChange('cantidadImpresoras', parseInt(e.target.value) || 1)}
+                />
+
+                <label className="fl">Horas de trabajo por día</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="24"
+                  step="1"
+                  value={cfg.capacidadProduccion?.horasPorDia ?? 8}
+                  onChange={(e) => handleCapacidadChange('horasPorDia', parseInt(e.target.value) || 1)}
+                />
+
+                <label className="fl">Hora de inicio de la jornada</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="23"
+                  step="1"
+                  value={cfg.capacidadProduccion?.horaInicio ?? 9}
+                  onChange={(e) => handleCapacidadChange('horaInicio', parseInt(e.target.value) || 0)}
+                />
+
+                <label className="fl">Días laborables</label>
+                <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                  {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((letra, dia) => {
+                    const activo = (cfg.capacidadProduccion?.diasLaborables || []).includes(dia);
+                    return (
+                      <button
+                        key={dia}
+                        type="button"
+                        className="btn btn-sm"
+                        style={{
+                          padding: '4px 10px',
+                          background: activo ? 'var(--accentDim)' : undefined,
+                          color: activo ? 'var(--accent)' : undefined,
+                          borderColor: activo ? 'rgba(110,231,183,.3)' : undefined
+                        }}
+                        onClick={() => {
+                          const actuales = cfg.capacidadProduccion?.diasLaborables || [];
+                          const nuevos = activo
+                            ? actuales.filter(d => d !== dia)
+                            : [...actuales, dia].sort((a, b) => a - b);
+                          handleCapacidadChange('diasLaborables', nuevos);
+                        }}
+                      >
+                        {letra}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '8px' }}>
+                  Con estos datos, Pedidos va a mostrar una fecha estimada de entrega por pedido
+                  (simulando la cola de impresión) y un aviso si no se llega a la fecha comprometida.
+                  Es una aproximación: no contempla mantenimiento, fallas ni trabajo cargado fuera del sistema.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="card">

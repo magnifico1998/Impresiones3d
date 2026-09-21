@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 import { obtenerBloques } from '../../utils/faqBloques';
+import { rutaDeFaq } from '../../utils/faqCategoriaPath';
 
 export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
   const { faq, addFaq, updateFaq, getNewId, showToast, cuentaId } = useApp();
   const [pregunta, setPregunta] = useState('');
-  const [categoria, setCategoria] = useState('');
-  const [subcategoria, setSubcategoria] = useState('');
+  // Ruta completa de categoría en un solo campo, niveles separados por "/"
+  // (ver rutaDeFaq) -- reemplaza los campos separados de categoría y
+  // subcategoría, para poder anidar tantos niveles como haga falta sin
+  // tocar código.
+  const [categoriaTexto, setCategoriaTexto] = useState('');
   const [bloques, setBloques] = useState([]);
   const [subiendoIdx, setSubiendoIdx] = useState(null);
   const dragIndex = useRef(null);
@@ -20,10 +24,7 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
   const imagenesInicialesRef = useRef([]);
   const subidasSesionRef = useRef([]);
 
-  const uniqueCats = Array.from(new Set(faq.map(f => f.categoria).filter(Boolean))).sort();
-  const uniqueSubcats = Array.from(new Set(
-    faq.filter(f => f.categoria === (categoria.trim() || 'General')).map(f => f.subcategoria).filter(Boolean)
-  )).sort();
+  const rutasExistentes = Array.from(new Set(faq.map(f => rutaDeFaq(f).join(' / ')))).sort();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -31,8 +32,7 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
       const item = faq.find(f => f.id === editId);
       if (item) {
         setPregunta(item.pregunta || '');
-        setCategoria(item.categoria || '');
-        setSubcategoria(item.subcategoria || '');
+        setCategoriaTexto(rutaDeFaq(item).join(' / '));
         const bloquesIniciales = obtenerBloques(item);
         setBloques(bloquesIniciales);
         imagenesInicialesRef.current = bloquesIniciales
@@ -42,8 +42,7 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
       }
     } else {
       setPregunta('');
-      setCategoria('');
-      setSubcategoria('');
+      setCategoriaTexto('');
       setBloques([]);
       imagenesInicialesRef.current = [];
       subidasSesionRef.current = [];
@@ -130,8 +129,8 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
       showToast('La pregunta no puede estar vacía.', 'error');
       return;
     }
-    const cleanCat = categoria.trim() || 'General';
-    const cleanSubcat = subcategoria.trim() || null;
+    const segmentos = categoriaTexto.split('/').map(s => s.trim()).filter(Boolean);
+    const categoriaPath = segmentos.length ? segmentos : ['General'];
     const cleanBloques = bloques
       .map(b => b.tipo === 'texto' ? { tipo: 'texto', texto: b.texto.trim() } : b)
       .filter(b =>
@@ -144,8 +143,7 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
       if (editId !== null) {
         await updateFaq(editId, {
           pregunta: cleanPregunta,
-          categoria: cleanCat,
-          subcategoria: cleanSubcat,
+          categoriaPath,
           bloques: cleanBloques
         });
         showToast('✓ Pregunta actualizada.');
@@ -153,19 +151,26 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
         await addFaq({
           id: getNewId(),
           pregunta: cleanPregunta,
-          categoria: cleanCat,
-          subcategoria: cleanSubcat,
+          categoriaPath,
           bloques: cleanBloques,
           orden: Date.now()
         });
         showToast('✓ Pregunta agregada.');
       }
+    } catch (err) {
+      console.error('Error al guardar pregunta frecuente:', err);
+      return;
+    }
 
-      // Con el guardado ya confirmado, se limpian de Storage las imágenes
-      // que quedaron sin referencia (las que tenía la pregunta y se
-      // quitaron, y las subidas en esta sesión que se descartaron). Si el
-      // guardado hubiera fallado, no se toca nada: la pregunta guardada
-      // sigue apuntando a sus imágenes originales.
+    // El guardado ya está confirmado -- el modal se cierra acá, sin esperar
+    // a la limpieza de imágenes de abajo (que es de mejor esfuerzo: si
+    // falla, no debe dejar la pregunta ya guardada con el modal trabado).
+    onClose();
+
+    try {
+      // Se limpian de Storage las imágenes que quedaron sin referencia (las
+      // que tenía la pregunta y se quitaron, y las subidas en esta sesión
+      // que se descartaron).
       const referenciadas = new Set(
         cleanBloques.filter(b => b.tipo === 'imagen' && b.url).map(b => b.url)
       );
@@ -174,10 +179,8 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
       for (const url of sinReferencia) {
         await borrarImagenDeFirebase(url);
       }
-
-      onClose();
     } catch (err) {
-      console.error('Error al guardar pregunta frecuente:', err);
+      console.error('Error al limpiar imágenes sin referencia de la pregunta frecuente:', err);
     }
   };
 
@@ -194,31 +197,21 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
           placeholder="Ej: ¿Cómo cambio el precio de un filamento?"
         />
 
-        <label className="fl">Categoría / tema</label>
+        <label className="fl">Categoría</label>
+        <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '6px' }}>
+          Separá los niveles con "/", ej: Pedidos / Capacidad de producción y ETA. Para forzar el orden,
+          anteponé un número al nombre (ej: "1. Pedidos") -- el orden es siempre alfabético.
+        </div>
         <input
           type="text"
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-          placeholder="Ej: Calculadora, Pedidos, Facturación..."
+          value={categoriaTexto}
+          onChange={(e) => setCategoriaTexto(e.target.value)}
+          placeholder="Ej: Pedidos / Capacidad de producción y ETA"
           list="faq-cats-list-modal"
         />
         <datalist id="faq-cats-list-modal">
-          {uniqueCats.map((cat, idx) => (
-            <option key={idx} value={cat} />
-          ))}
-        </datalist>
-
-        <label className="fl">Subcategoría (opcional)</label>
-        <input
-          type="text"
-          value={subcategoria}
-          onChange={(e) => setSubcategoria(e.target.value)}
-          placeholder="Dejar vacío si no aplica"
-          list="faq-subcats-list-modal"
-        />
-        <datalist id="faq-subcats-list-modal">
-          {uniqueSubcats.map((sub, idx) => (
-            <option key={idx} value={sub} />
+          {rutasExistentes.map((ruta, idx) => (
+            <option key={idx} value={ruta} />
           ))}
         </datalist>
 

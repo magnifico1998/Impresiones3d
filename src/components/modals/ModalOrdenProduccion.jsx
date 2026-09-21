@@ -1,29 +1,47 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { ordenarCategorias } from '../../utils/categoriaOrden';
+
+// Mismo criterio de "antigüedad de un pedido" que PedidosPage.jsx
+// (getTimestamp) y capacidadProduccion.js (timestampPedido).
+function timestampPedido(p) {
+  if (p.creadoTs) return p.creadoTs;
+  if (p.fechaPedido) return new Date(p.fechaPedido + 'T12:00:00').getTime();
+  if (p.creado) {
+    const partes = p.creado.split('/');
+    if (partes.length === 3) return new Date(partes[2], partes[1] - 1, partes[0]).getTime();
+  }
+  return 0;
+}
+
+function ordenInicial(pendientes) {
+  return [...pendientes].sort((a, b) => {
+    const oa = a.ordenProduccion ?? Infinity;
+    const ob = b.ordenProduccion ?? Infinity;
+    if (oa !== ob) return oa - ob;
+    return timestampPedido(a) - timestampPedido(b);
+  });
+}
 
 /**
- * Modal para definir el orden manual en el que las categorías de FAQ
- * aparecen en la columna izquierda. Mismo mecanismo de
- * ModalOrdenCategorias.jsx (Biblioteca), pero lee/escribe
- * faq/faqCategoriaOrden en vez de cfg.categoriaOrden.
+ * Modal para definir el orden de prioridad manual de los pedidos
+ * "pendiente", que alimenta la simulación de capacidad de producción (ver
+ * useCapacidadProduccion) para estimar sus fechas de entrega en cola.
+ *
+ * Mismo patrón de drag&drop + botones subir/bajar que ModalOrdenCategorias.jsx.
  */
-export default function ModalFaqOrdenCategorias({ isOpen, onClose }) {
-  const { faq, faqCategoriaOrden, guardarFaqCategoriaOrden, showToast } = useApp();
+export default function ModalOrdenProduccion({ isOpen, onClose }) {
+  const { pedidos, updatePedidosBulk, showToast } = useApp();
   const [orden, setOrden] = useState([]);
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
 
-  const categoriasActuales = Array.from(
-    new Set(faq.map((f) => f.categoria || 'General').filter(Boolean))
-  );
-
   useEffect(() => {
     if (isOpen) {
-      setOrden(ordenarCategorias(categoriasActuales, faqCategoriaOrden));
+      setOrden(ordenInicial(pedidos.filter(p => p.estado === 'pendiente')));
     }
-    // Sólo se reinicializa al abrir el modal, mismo criterio que
-    // ModalOrdenCategorias.jsx.
+    // A propósito NO depende de `pedidos` -- mismo criterio que
+    // ModalOrdenCategorias.jsx: evitar que una sincronización en tiempo
+    // real reinicie un reordenamiento en curso.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -63,33 +81,33 @@ export default function ModalFaqOrdenCategorias({ isOpen, onClose }) {
     setOverIndex(null);
   };
 
-  const handleSave = async () => {
-    try {
-      await guardarFaqCategoriaOrden(orden);
-      showToast('✓ Orden de categorías guardado.');
-      onClose();
-    } catch (err) {
-      console.error('Error al guardar orden de categorías de FAQ:', err);
-    }
+  const handleSave = () => {
+    const nuevoOrden = new Map(orden.map((p, i) => [p.id, i]));
+    updatePedidosBulk(
+      (p) => nuevoOrden.has(p.id),
+      (p) => ({ ...p, ordenProduccion: nuevoOrden.get(p.id) })
+    );
+    showToast('✓ Orden de prioridad guardado.');
+    onClose();
   };
 
   return (
     <div className="modal-overlay open" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: '460px' }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-title">Ordenar categorías</div>
+      <div className="modal" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-title">Ordenar prioridad de producción</div>
         <div className="modal-sub">
-          Arrastrá las categorías para definir el orden en que aparecen en Preguntas frecuentes.
+          Arrastrá los pedidos pendientes para definir en qué orden se van a fabricar. Ese orden se usa para estimar sus fechas de entrega.
         </div>
 
         {orden.length === 0 ? (
           <div className="empty" style={{ marginTop: '12px' }}>
-            No hay categorías cargadas todavía.
+            No hay pedidos pendientes para priorizar.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px', maxHeight: '50vh', overflowY: 'auto' }}>
-            {orden.map((cat, i) => (
+            {orden.map((p, i) => (
               <div
-                key={cat}
+                key={p.id}
                 draggable
                 onDragStart={handleDragStart(i)}
                 onDragOver={handleDragOver(i)}
@@ -113,7 +131,7 @@ export default function ModalFaqOrdenCategorias({ isOpen, onClose }) {
                   ⠿
                 </span>
                 <span style={{ flex: 1, fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {cat}
+                  #{String(p.id).padStart(4, '0')} — {p.cliente} — {p.desc || 'Sin descripción'}
                 </span>
                 <div style={{ display: 'flex', gap: '2px' }}>
                   <button

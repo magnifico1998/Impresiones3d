@@ -64,7 +64,19 @@ const defaultCfg = {
   // productos en modo "combinaciones" (ver proyeccionCatalogoProducto):
   // el cliente elige la combinación completa de un único selector, no
   // colores sueltos.
-  combinacionesColores: []
+  combinacionesColores: [],
+  // Estimación de capacidad de producción (ver src/utils/capacidadProduccion.js):
+  // simula la cola de impresión para calcular si se llega a la fechaEntrega
+  // de cada pedido. cantidadImpresoras/horasPorDia/horaInicio son
+  // independientes de la lista nombrada `impresoras` de arriba (esa es sólo
+  // para costeo eléctrico). diasLaborables: 0=Dom .. 6=Sáb.
+  capacidadProduccion: {
+    habilitado: false,
+    cantidadImpresoras: 1,
+    horasPorDia: 8,
+    horaInicio: 9,
+    diasLaborables: [1, 2, 3, 4, 5, 6]
+  }
 };
 
 const defaultEmpresa = {
@@ -134,9 +146,6 @@ export const AppProvider = ({ children }) => {
   // arma/edita un admin general y lo ve cualquier usuario logueado (ver
   // firestore.rules).
   const [faq, setFaq] = useState([]);
-  // Orden manual de categorías de FAQ (faqMeta/config.categoriaOrden),
-  // mismo concepto que cfg.categoriaOrden de Biblioteca pero global.
-  const [faqCategoriaOrden, setFaqCategoriaOrden] = useState([]);
 
   const [user, setUser] = useState(null);
   // cuentaId: la raíz real de todas las rutas de datos (users/{cuentaId}/...,
@@ -429,16 +438,6 @@ export const AppProvider = ({ children }) => {
     } catch (e) {
       console.error("Error al eliminar pregunta frecuente:", e);
       showToast('⚠ No se pudo eliminar la pregunta en la nube.', 'error');
-    }
-  };
-
-  const guardarFaqCategoriaOrden = async (orden) => {
-    try {
-      await setDoc(doc(db, "faqMeta", "config"), { categoriaOrden: orden });
-    } catch (e) {
-      console.error("Error al guardar el orden de categorías de FAQ:", e);
-      showToast('⚠ No se pudo guardar el orden de categorías en la nube.', 'error');
-      throw e;
     }
   };
 
@@ -1077,23 +1076,6 @@ export const AppProvider = ({ children }) => {
     return () => unsubscribe();
   }, [user]);
 
-  // Orden manual de categorías de FAQ: doc único faqMeta/config.
-  useEffect(() => {
-    if (!user) {
-      setFaqCategoriaOrden([]);
-      return;
-    }
-
-    const unsubscribe = onSnapshot(
-      doc(db, "faqMeta", "config"),
-      (snap) => setFaqCategoriaOrden(snap.exists() ? (snap.data().categoriaOrden || []) : []),
-      (error) => {
-        console.error("Error en la suscripción en tiempo real de faqMeta:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user]);
 
   // Listener en tiempo real para la subcolección de biblioteca (Fase 3).
   // Mismo criterio que clientes en Fase 2: sin detección de eco por
@@ -1585,8 +1567,6 @@ export const AppProvider = ({ children }) => {
     addFaq,
     updateFaq,
     removeFaq,
-    faqCategoriaOrden,
-    guardarFaqCategoriaOrden,
     clientes,
     addCliente,
     updateCliente,

@@ -1,8 +1,51 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { ordenarCategorias } from '../utils/categoriaOrden';
 import { obtenerBloques } from '../utils/faqBloques';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
+import { rutaDeFaq, compararSegmentosCategoria } from '../utils/faqCategoriaPath';
+
+// Separador de la clave de "colapsadas" -- une los segmentos de la ruta de
+// un nodo del árbol. No puede aparecer en un nombre de categoría escrito a
+// mano, así que no hay riesgo de colisión entre nodos de distinta ruta.
+const SEP_RUTA = '␟';
+
+// Arma el árbol de categorías a partir de la ruta de cada pregunta (ver
+// rutaDeFaq): cada nodo tiene sus propias preguntas (las que terminan
+// exactamente en ese nivel) y sus hijos (niveles más profundos). Una
+// pregunta con ruta de 1 solo segmento y otra con ruta de 3 segmentos que
+// comparte el primero conviven en el mismo árbol sin problema.
+function construirArbolFaq(faq) {
+  const raiz = { nombre: null, rutaCompleta: [], preguntas: [], hijos: new Map() };
+  [...faq]
+    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+    .forEach(item => {
+      let nodo = raiz;
+      rutaDeFaq(item).forEach(segmento => {
+        if (!nodo.hijos.has(segmento)) {
+          nodo.hijos.set(segmento, { nombre: segmento, rutaCompleta: nodo.rutaCompleta.concat(segmento), preguntas: [], hijos: new Map() });
+        }
+        nodo = nodo.hijos.get(segmento);
+      });
+      nodo.preguntas.push(item);
+    });
+  return raiz;
+}
+
+function hijosOrdenados(nodo) {
+  return Array.from(nodo.hijos.values()).sort((a, b) => compararSegmentosCategoria(a.nombre, b.nombre));
+}
+
+// Primera pregunta del árbol en profundidad (propia del nodo si tiene, si
+// no la del primer hijo ordenado) -- usada para preseleccionar algo al
+// entrar a la pantalla.
+function primeraPreguntaDe(nodo) {
+  if (nodo.preguntas[0]) return nodo.preguntas[0];
+  for (const hijo of hijosOrdenados(nodo)) {
+    const encontrada = primeraPreguntaDe(hijo);
+    if (encontrada) return encontrada;
+  }
+  return null;
+}
 
 // Convierte una URL de YouTube (watch?v=, youtu.be/, /embed/, /shorts/) en su
 // ID de video. Devuelve null si no reconoce el formato, para no romper el
@@ -81,72 +124,52 @@ function renderBloqueTexto(texto) {
   });
 }
 
-export default function FaqPage({ onOpenNuevo, onOpenEditar, onOpenOrdenCategorias }) {
-  const { faq, faqCategoriaOrden, isAdmin, removeFaq, showToast } = useApp();
+export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
+  const { faq, isAdmin, removeFaq, showToast } = useApp();
   const [selectedId, setSelectedId] = useState(null);
   // Categorías colapsadas: sólo estado local de la pantalla (no se
   // persiste) -- es una comodidad de navegación, no contenido que un admin
-  // necesite definir para los demás.
+  // necesite definir para los demás. Clave = ruta completa del nodo unida
+  // con SEP_RUTA, así funciona para cualquier profundidad.
   const [colapsadas, setColapsadas] = useState(() => new Set());
 
-  const toggleColapsada = (cat) => {
+  const toggleColapsada = (rutaCompleta) => {
+    const key = rutaCompleta.join(SEP_RUTA);
     setColapsadas(prev => {
       const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat);
-      else next.add(cat);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
 
-  // Agrupa por categoría (orden manual vía faqCategoriaOrden, mismo
-  // mecanismo que Biblioteca) y, dentro de cada categoría, por
-  // subcategoría opcional -- las preguntas sin subcategoría (null) van
-  // primero, sueltas, y el resto se agrupa bajo su subcategoría.
-  const categorias = useMemo(() => {
-    const porCategoria = new Map();
-    [...faq]
-      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
-      .forEach(f => {
-        const cat = f.categoria || 'General';
-        if (!porCategoria.has(cat)) porCategoria.set(cat, []);
-        porCategoria.get(cat).push(f);
-      });
+  // Árbol de categorías de profundidad libre -- ver construirArbolFaq. El
+  // orden de hermanos en cada nivel es siempre alfanumérico (no hay más
+  // orden manual: quien necesite forzar un orden antepone un número al
+  // nombre, ej. "1. Pedidos").
+  const raiz = useMemo(() => construirArbolFaq(faq), [faq]);
+  const nivel1 = useMemo(() => hijosOrdenados(raiz), [raiz]);
 
-    const nombresOrdenados = ordenarCategorias(Array.from(porCategoria.keys()), faqCategoriaOrden);
-
-    return nombresOrdenados.map(cat => {
-      const preguntas = porCategoria.get(cat);
-      const sinSubcat = preguntas.filter(f => !f.subcategoria);
-      const porSubcat = new Map();
-      preguntas.forEach(f => {
-        if (!f.subcategoria) return;
-        if (!porSubcat.has(f.subcategoria)) porSubcat.set(f.subcategoria, []);
-        porSubcat.get(f.subcategoria).push(f);
-      });
-      const gruposSubcat = Array.from(porSubcat.entries()).sort((a, b) =>
-        a[0].localeCompare(b[0], 'es', { sensitivity: 'base' })
-      );
-      return { cat, sinSubcat, gruposSubcat };
-    });
-  }, [faq, faqCategoriaOrden]);
-
-  // Al entrar a la pantalla arranca con todas las categorías colapsadas
-  // (sólo una vez, cuando `faq` ya trajo datos) -- después el usuario
-  // decide cuáles abrir, sin que se vuelvan a colapsar solas.
+  // Al entrar a la pantalla arranca con el primer nodo de nivel 1 abierto
+  // (para que se vea contenido de entrada) y el resto colapsado -- sólo una
+  // vez, cuando `faq` ya trajo datos; después el usuario decide qué abrir o
+  // cerrar, sin que se vuelvan a colapsar solas.
   const colapsadoInicial = useRef(false);
   useEffect(() => {
-    if (colapsadoInicial.current || categorias.length === 0) return;
+    if (colapsadoInicial.current || nivel1.length === 0) return;
     colapsadoInicial.current = true;
-    setColapsadas(new Set(categorias.map(({ cat }) => cat)));
-  }, [categorias]);
+    setColapsadas(new Set(nivel1.slice(1).map(n => n.rutaCompleta.join(SEP_RUTA))));
+  }, [nivel1]);
 
   // Si la pregunta seleccionada desaparece (la borró un admin en otra
   // pestaña) o todavía no hay ninguna elegida, seleccionamos la primera
-  // disponible para no dejar la columna derecha vacía sin motivo.
+  // pregunta del primer nodo de nivel 1 (el que queda abierto de entrada)
+  // para que lo resaltado en la lista coincida con lo que se ve a la derecha.
   useEffect(() => {
     if (faq.some(f => f.id === selectedId)) return;
-    setSelectedId(faq[0]?.id ?? null);
-  }, [faq, selectedId]);
+    const primeraPregunta = nivel1[0] ? primeraPreguntaDe(nivel1[0]) : null;
+    setSelectedId(primeraPregunta?.id ?? faq[0]?.id ?? null);
+  }, [faq, selectedId, nivel1]);
 
   const seleccionada = faq.find(f => f.id === selectedId) || null;
 
@@ -158,6 +181,54 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar, onOpenOrdenCategori
     showToast('Pregunta borrada.');
   };
 
+  // Render recursivo de un nodo del árbol de categorías (ver
+  // construirArbolFaq): profundidad 1 = categoría de primer nivel, mismo
+  // estilo visual que antes; profundidad 2+ generaliza el estilo que antes
+  // era exclusivo de "subcategoría", con más sangría por cada nivel extra.
+  const renderNodo = (nodo, profundidad) => {
+    const key = nodo.rutaCompleta.join(SEP_RUTA);
+    const abierta = !colapsadas.has(key);
+    const esNivel1 = profundidad === 1;
+
+    return (
+      <div key={key}>
+        <div
+          onClick={() => toggleColapsada(nodo.rutaCompleta)}
+          style={esNivel1 ? {
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '7px', userSelect: 'none',
+            padding: '16px 20px 6px', fontSize: '13.5px', fontWeight: 700, color: 'var(--text)',
+            borderLeft: '2px solid var(--accent)'
+          } : {
+            padding: `9px 20px 3px ${12 + profundidad * 8}px`, fontSize: '10.5px', fontWeight: 600,
+            color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '.5px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '5px', userSelect: 'none'
+          }}
+        >
+          <span style={{
+            display: 'inline-block', transform: abierta ? 'rotate(90deg)' : 'none', transition: 'transform .15s',
+            fontSize: esNivel1 ? '9px' : '7px', color: esNivel1 ? 'var(--accent)' : undefined
+          }}>▶</span>
+          {nodo.nombre}
+        </div>
+        {abierta && (
+          <>
+            {nodo.preguntas.map(f => (
+              <div
+                key={f.id}
+                className={`nav-item ${selectedId === f.id ? 'active' : ''}`}
+                style={esNivel1 ? undefined : { paddingLeft: `${20 + profundidad * 8}px`, fontSize: '12.5px' }}
+                onClick={() => setSelectedId(f.id)}
+              >
+                {f.pregunta}
+              </div>
+            ))}
+            {hijosOrdenados(nodo).map(hijo => renderNodo(hijo, profundidad + 1))}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="page active">
       <div className="page-title">Preguntas frecuentes</div>
@@ -167,9 +238,6 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar, onOpenOrdenCategori
         <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
           <button className="btn btn-primary btn-sm" onClick={() => onOpenNuevo?.()}>
             + Agregar pregunta
-          </button>
-          <button className="btn btn-sm" onClick={() => onOpenOrdenCategorias?.()}>
-            Ordenar categorías
           </button>
         </div>
       )}
@@ -183,69 +251,7 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar, onOpenOrdenCategori
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', alignItems: 'flex-start' }}>
           <div className="card" style={{ padding: '10px 0' }}>
-            {categorias.map(({ cat, sinSubcat, gruposSubcat }) => {
-              const abierta = !colapsadas.has(cat);
-              return (
-                <div key={cat}>
-                  <div
-                    onClick={() => toggleColapsada(cat)}
-                    style={{
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '7px',
-                      userSelect: 'none',
-                      padding: '16px 20px 6px',
-                      fontSize: '13.5px',
-                      fontWeight: 700,
-                      color: 'var(--text)',
-                      borderLeft: '2px solid var(--accent)'
-                    }}
-                  >
-                    <span style={{ display: 'inline-block', transform: abierta ? 'rotate(90deg)' : 'none', transition: 'transform .15s', fontSize: '9px', color: 'var(--accent)' }}>▶</span>
-                    {cat}
-                  </div>
-                  {abierta && (
-                    <>
-                      {sinSubcat.map(f => (
-                        <div
-                          key={f.id}
-                          className={`nav-item ${selectedId === f.id ? 'active' : ''}`}
-                          onClick={() => setSelectedId(f.id)}
-                        >
-                          {f.pregunta}
-                        </div>
-                      ))}
-                      {gruposSubcat.map(([subcat, preguntas]) => {
-                        const subcatKey = `${cat}::${subcat}`;
-                        const subcatAbierta = !colapsadas.has(subcatKey);
-                        return (
-                          <div key={subcat}>
-                            <div
-                              onClick={() => toggleColapsada(subcatKey)}
-                              style={{ padding: '9px 20px 3px 28px', fontSize: '10.5px', fontWeight: 600, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '.5px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', userSelect: 'none' }}
-                            >
-                              <span style={{ display: 'inline-block', transform: subcatAbierta ? 'rotate(90deg)' : 'none', transition: 'transform .15s', fontSize: '7px' }}>▶</span>
-                              {subcat}
-                            </div>
-                            {subcatAbierta && preguntas.map(f => (
-                              <div
-                                key={f.id}
-                                className={`nav-item ${selectedId === f.id ? 'active' : ''}`}
-                                style={{ paddingLeft: '36px', fontSize: '12.5px' }}
-                                onClick={() => setSelectedId(f.id)}
-                              >
-                                {f.pregunta}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </>
-                  )}
-                </div>
-              );
-            })}
+            {nivel1.map(nodo => renderNodo(nodo, 1))}
           </div>
 
           <div className="card">
