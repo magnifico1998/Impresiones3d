@@ -2,29 +2,34 @@
 // a terminar de imprimirse, dada la capacidad instalada (cantidad de
 // impresoras y horas laborables) configurada en cfg.capacidadProduccion.
 //
-// Modelo (peor escenario, a propósito conservador): las N impresoras se
-// dedican TODAS al pedido de mayor prioridad hasta terminarlo -- recién ahí
-// pasan en bloque al siguiente. No se asume que una impresora que queda
-// libre "adelanta" trabajo de un pedido de menor prioridad mientras el de
-// mayor prioridad todavía tiene piezas pendientes en otra impresora (eso
-// daría una estimación más optimista, pero también más frágil si en la
-// práctica el taller prioriza terminar un pedido antes de arrancar el
-// siguiente). Dentro de un mismo pedido, sus piezas sí se reparten en
-// paralelo entre las N impresoras (algoritmo LPT: la pieza más larga
-// primero, a la impresora que antes quede libre) -- la ETA del pedido es el
-// momento en que la última impresora ocupada por sus piezas termina.
+// Modelo de dos etapas:
+//   1. Los pedidos 'progreso' están genuinamente en curso AL MISMO TIEMPO
+//      (el taller ya les está dedicando impresoras), así que se agrupan en
+//      un único pool: todas sus piezas pendientes compiten juntas por las N
+//      impresoras, y TODOS comparten la misma ETA -- el momento en que
+//      termina la última pieza de ese pool combinado.
+//   2. Los pedidos 'pendiente' todavía no arrancaron, así que se toma el
+//      peor escenario (conservador): se procesan uno a la vez en orden de
+//      prioridad, dedicándole TODAS las impresoras a cada uno hasta
+//      terminarlo antes de pasar al siguiente -- no se asume que una
+//      impresora libre adelanta trabajo del próximo pedido mientras el
+//      actual todavía tiene piezas en otra impresora.
+// En ambos casos, dentro de un mismo pedido (o del pool de 'progreso') las
+// piezas se reparten en paralelo entre las N impresoras con LPT (longest
+// processing time first: la pieza más larga primero, a la impresora que
+// antes quede libre).
 //
 // Orden de la cola (reglas de negocio ya definidas, no reordenar sin
 // confirmar con el dueño del negocio):
 //   1. Pedidos en 'progreso' siempre van antes que los 'pendiente' (ya
-//      están en curso, no se pueden reordenar) -- el primero de la cola es
-//      la prioridad 1, el siguiente la 2, y así sucesivamente.
-//   2. Entre los 'progreso': los que tienen fechaEntrega van primero,
-//      ordenados por fecha más próxima; los que no la tienen van después,
-//      ordenados por antigüedad del pedido.
+//      están en curso, no se pueden reordenar).
+//   2. Entre los 'progreso': sólo importa como desempate dentro del pool
+//      combinado (ver arriba) -- los que tienen fechaEntrega ordenan primero
+//      por fecha más próxima, los que no la tienen por antigüedad.
 //   3. Entre los 'pendiente': por el orden manual de prioridad
-//      (pedido.ordenProduccion), y los que no tienen ese campo van al final
-//      ordenados por antigüedad.
+//      (pedido.ordenProduccion) -- el primero de la cola es la prioridad 1,
+//      el siguiente la 2, y así sucesivamente; los que no tienen ese campo
+//      van al final ordenados por antigüedad.
 
 // Mismo criterio de "antigüedad de un pedido" que PedidosPage.jsx (getTimestamp):
 // creadoTs es un timestamp real fijado una sola vez al crear el pedido: es
@@ -146,6 +151,32 @@ function avanzarTiempoLaboral(desde, horas, capacidadCfg) {
   return cursor;
 }
 
+// Reparte `piezas` (de uno o varios pedidos, ya mezcladas si corresponde)
+// entre `n` impresoras, todas arrancando en `cursor`, con LPT (la pieza más
+// larga primero, a la impresora que antes quede libre). Devuelve el detalle
+// de inicio/fin de cada pieza y el momento en que la última impresora queda
+// libre (el fin del lote completo).
+function repartirEntreImpresoras(piezas, n, cursor, capacidadCfg) {
+  const libres = new Array(n).fill(cursor);
+  const piezasDetalle = [];
+
+  [...piezas]
+    .sort((a, b) => b.horasRestantes - a.horasRestantes)
+    .forEach(pieza => {
+      let idxMin = 0;
+      for (let i = 1; i < libres.length; i++) {
+        if (libres[i] < libres[idxMin]) idxMin = i;
+      }
+      const inicio = libres[idxMin];
+      const fin = avanzarTiempoLaboral(inicio, pieza.horasRestantes, capacidadCfg);
+      libres[idxMin] = fin;
+      piezasDetalle.push({ ...pieza, inicio, fin });
+    });
+
+  const fin = libres.reduce((max, t) => (t > max ? t : max), libres[0]);
+  return { piezasDetalle, fin };
+}
+
 // Devuelve { [pedidoId]: { etaEstimada: Date|null, piezasDetalle: [...] } }
 // para todos los pedidos en 'progreso'/'pendiente' con piezas por terminar.
 export function simularCapacidadProduccion(pedidos, capacidadCfgRaw) {
@@ -157,6 +188,8 @@ export function simularCapacidadProduccion(pedidos, capacidadCfgRaw) {
   const cola = ordenarColaPedidos(
     pedidos.filter(p => p.estado === 'progreso' || p.estado === 'pendiente')
   );
+  const enProgreso = cola.filter(p => p.estado === 'progreso');
+  const pendientesOrdenados = cola.filter(p => p.estado === 'pendiente');
 
   const resultado = {};
   cola.forEach(pedido => {
@@ -166,39 +199,42 @@ export function simularCapacidadProduccion(pedidos, capacidadCfgRaw) {
   // Simplificación deliberada: no hay telemetría real de qué está
   // imprimiendo cada máquina ahora mismo, así que arrancamos asumiendo que
   // las N impresoras quedan libres en conjunto desde el próximo instante
-  // laboral -- ese es el momento en que se le puede dedicar toda la
-  // capacidad al pedido de prioridad 1.
+  // laboral.
   let cursor = proximoInicioLaboral(new Date(), capacidadCfg);
 
-  cola.forEach(pedido => {
+  // Etapa 1: pool combinado de todos los pedidos 'progreso' -- comparten
+  // impresoras entre sí porque están en curso al mismo tiempo, y por eso
+  // comparten la misma ETA de salida.
+  const piezasProgreso = [];
+  enProgreso.forEach(pedido => {
+    piezasPendientesDePedido(pedido).forEach(pieza => {
+      piezasProgreso.push({ ...pieza, pedidoId: pedido.id });
+    });
+  });
+
+  if (piezasProgreso.length > 0) {
+    const { piezasDetalle, fin } = repartirEntreImpresoras(piezasProgreso, n, cursor, capacidadCfg);
+    piezasDetalle.forEach(({ pedidoId, piezaId, inicio, fin: finPieza }) => {
+      resultado[pedidoId].piezasDetalle.push({ piezaId, inicio, fin: finPieza });
+    });
+    cursor = fin;
+    enProgreso.forEach(pedido => {
+      resultado[pedido.id].etaEstimada = fin;
+    });
+  }
+  // Pedidos 'progreso' sin ninguna pieza pendiente (ya terminados) quedan
+  // con etaEstimada null -- no hay nada por terminar, no se les muestra ETA.
+
+  // Etapa 2: pedidos 'pendiente', uno a la vez en orden de prioridad, cada
+  // uno con las N impresoras dedicadas por completo (peor escenario).
+  pendientesOrdenados.forEach(pedido => {
     const piezas = piezasPendientesDePedido(pedido);
     if (piezas.length === 0) return; // ya terminado, no consume capacidad ni corre el cursor
 
-    // LPT (longest processing time first): repartir la pieza más larga
-    // primero da un reparto entre impresoras más parejo que en el orden en
-    // que están cargadas.
-    const libres = new Array(n).fill(cursor);
-    const detalle = resultado[pedido.id];
-
-    [...piezas]
-      .sort((a, b) => b.horasRestantes - a.horasRestantes)
-      .forEach(pieza => {
-        let idxMin = 0;
-        for (let i = 1; i < libres.length; i++) {
-          if (libres[i] < libres[idxMin]) idxMin = i;
-        }
-
-        const inicio = libres[idxMin];
-        const fin = avanzarTiempoLaboral(inicio, pieza.horasRestantes, capacidadCfg);
-        libres[idxMin] = fin;
-        detalle.piezasDetalle.push({ piezaId: pieza.piezaId, inicio, fin });
-      });
-
-    // El pedido no está listo hasta que la última impresora ocupada con sus
-    // piezas termina -- y ese es también el momento en que las N impresoras
-    // vuelven a estar todas libres para el siguiente pedido de la cola.
-    cursor = libres.reduce((max, t) => (t > max ? t : max), libres[0]);
-    detalle.etaEstimada = cursor;
+    const { piezasDetalle, fin } = repartirEntreImpresoras(piezas, n, cursor, capacidadCfg);
+    resultado[pedido.id].piezasDetalle = piezasDetalle;
+    cursor = fin;
+    resultado[pedido.id].etaEstimada = fin;
   });
 
   return resultado;
