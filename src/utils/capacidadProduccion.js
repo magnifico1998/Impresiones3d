@@ -2,16 +2,23 @@
 // a terminar de imprimirse, dada la capacidad instalada (cantidad de
 // impresoras y horas laborables) configurada en cfg.capacidadProduccion.
 //
-// Granularidad: por PIEZA, no por pedido. Cada pieza de un pedido se asigna
-// a la primera impresora que quede libre, así piezas de un mismo pedido
-// pueden imprimirse en paralelo en distintas impresoras. La ETA de un
-// pedido es el máximo entre las ETAs de sus piezas (el pedido no está listo
-// hasta que termina la última).
+// Modelo (peor escenario, a propósito conservador): las N impresoras se
+// dedican TODAS al pedido de mayor prioridad hasta terminarlo -- recién ahí
+// pasan en bloque al siguiente. No se asume que una impresora que queda
+// libre "adelanta" trabajo de un pedido de menor prioridad mientras el de
+// mayor prioridad todavía tiene piezas pendientes en otra impresora (eso
+// daría una estimación más optimista, pero también más frágil si en la
+// práctica el taller prioriza terminar un pedido antes de arrancar el
+// siguiente). Dentro de un mismo pedido, sus piezas sí se reparten en
+// paralelo entre las N impresoras (algoritmo LPT: la pieza más larga
+// primero, a la impresora que antes quede libre) -- la ETA del pedido es el
+// momento en que la última impresora ocupada por sus piezas termina.
 //
 // Orden de la cola (reglas de negocio ya definidas, no reordenar sin
 // confirmar con el dueño del negocio):
 //   1. Pedidos en 'progreso' siempre van antes que los 'pendiente' (ya
-//      están en curso, no se pueden reordenar).
+//      están en curso, no se pueden reordenar) -- el primero de la cola es
+//      la prioridad 1, el siguiente la 2, y así sucesivamente.
 //   2. Entre los 'progreso': los que tienen fechaEntrega van primero,
 //      ordenados por fecha más próxima; los que no la tienen van después,
 //      ordenados por antigüedad del pedido.
@@ -143,10 +150,6 @@ export function simularCapacidadProduccion(pedidos, capacidadCfgRaw) {
 
   const capacidadCfg = resolverCapacidadCfg(capacidadCfgRaw);
   const n = Math.max(1, capacidadCfgRaw.cantidadImpresoras || 1);
-  // Simplificación deliberada: no hay telemetría real de qué está
-  // imprimiendo cada máquina ahora mismo, así que todas las impresoras
-  // arrancan libres desde el próximo instante laboral.
-  const libres = Array.from({ length: n }, () => proximoInicioLaboral(new Date(), capacidadCfg));
 
   const cola = ordenarColaPedidos(
     pedidos.filter(p => p.estado === 'progreso' || p.estado === 'pendiente')
@@ -157,23 +160,42 @@ export function simularCapacidadProduccion(pedidos, capacidadCfgRaw) {
     resultado[pedido.id] = { etaEstimada: null, piezasDetalle: [] };
   });
 
+  // Simplificación deliberada: no hay telemetría real de qué está
+  // imprimiendo cada máquina ahora mismo, así que arrancamos asumiendo que
+  // las N impresoras quedan libres en conjunto desde el próximo instante
+  // laboral -- ese es el momento en que se le puede dedicar toda la
+  // capacidad al pedido de prioridad 1.
+  let cursor = proximoInicioLaboral(new Date(), capacidadCfg);
+
   cola.forEach(pedido => {
-    piezasPendientesDePedido(pedido).forEach(pieza => {
-      let idxMin = 0;
-      for (let i = 1; i < libres.length; i++) {
-        if (libres[i] < libres[idxMin]) idxMin = i;
-      }
+    const piezas = piezasPendientesDePedido(pedido);
+    if (piezas.length === 0) return; // ya terminado, no consume capacidad ni corre el cursor
 
-      const inicio = libres[idxMin];
-      const fin = avanzarTiempoLaboral(inicio, pieza.horasRestantes, capacidadCfg);
-      libres[idxMin] = fin;
+    // LPT (longest processing time first): repartir la pieza más larga
+    // primero da un reparto entre impresoras más parejo que en el orden en
+    // que están cargadas.
+    const libres = new Array(n).fill(cursor);
+    const detalle = resultado[pedido.id];
 
-      const detalle = resultado[pedido.id];
-      detalle.piezasDetalle.push({ piezaId: pieza.piezaId, inicio, fin });
-      if (!detalle.etaEstimada || fin > detalle.etaEstimada) {
-        detalle.etaEstimada = fin;
-      }
-    });
+    [...piezas]
+      .sort((a, b) => b.horasRestantes - a.horasRestantes)
+      .forEach(pieza => {
+        let idxMin = 0;
+        for (let i = 1; i < libres.length; i++) {
+          if (libres[i] < libres[idxMin]) idxMin = i;
+        }
+
+        const inicio = libres[idxMin];
+        const fin = avanzarTiempoLaboral(inicio, pieza.horasRestantes, capacidadCfg);
+        libres[idxMin] = fin;
+        detalle.piezasDetalle.push({ piezaId: pieza.piezaId, inicio, fin });
+      });
+
+    // El pedido no está listo hasta que la última impresora ocupada con sus
+    // piezas termina -- y ese es también el momento en que las N impresoras
+    // vuelven a estar todas libres para el siguiente pedido de la cola.
+    cursor = libres.reduce((max, t) => (t > max ? t : max), libres[0]);
+    detalle.etaEstimada = cursor;
   });
 
   return resultado;
