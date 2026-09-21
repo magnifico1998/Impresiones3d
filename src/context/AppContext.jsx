@@ -64,19 +64,7 @@ const defaultCfg = {
   // productos en modo "combinaciones" (ver proyeccionCatalogoProducto):
   // el cliente elige la combinación completa de un único selector, no
   // colores sueltos.
-  combinacionesColores: [],
-  // Estimación de capacidad de producción (ver src/utils/capacidadProduccion.js):
-  // simula la cola de impresión para calcular si se llega a la fechaEntrega
-  // de cada pedido. cantidadImpresoras/horasPorDia/horaInicio son
-  // independientes de la lista nombrada `impresoras` de arriba (esa es sólo
-  // para costeo eléctrico). diasLaborables: 0=Dom .. 6=Sáb.
-  capacidadProduccion: {
-    habilitado: false,
-    cantidadImpresoras: 1,
-    horasPorDia: 8,
-    horaInicio: 9,
-    diasLaborables: [1, 2, 3, 4, 5, 6]
-  }
+  combinacionesColores: []
 };
 
 const defaultEmpresa = {
