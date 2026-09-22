@@ -69,6 +69,12 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   // fechaEntrega comprometida: sin fechaEntrega no hay contra qué comparar,
   // así que sólo se informa (estado neutro). Si la ETA cae en la fecha de
   // entrega o antes, verde (en fecha); si cae después, rojo (no llega).
+  // Verde fijo (no var(--accent)): el acento de la paleta elegida no
+  // siempre es verde -- varía entre paletas (rosa, naranja, celeste...) --
+  // y un semáforo tiene que significar lo mismo sin importar la paleta.
+  // Mismo criterio que el verde fijo de WhatsApp más abajo.
+  const ETA_VERDE = '#22c55e';
+
   const etaEstado = (p, etaEstimada) => {
     if (!p.fechaEntrega) return { color: 'var(--text2)', texto: 'sin fecha ref.' };
 
@@ -78,7 +84,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     const margenDias = Math.round((diaEntrega - diaEta) / (1000 * 60 * 60 * 24));
 
     if (margenDias < 0) return { color: 'var(--danger)', texto: 'no llega' };
-    return { color: 'var(--accent)', texto: 'en fecha' };
+    return { color: ETA_VERDE, texto: 'en fecha' };
   };
 
   const getTimestamp = (p) => {
