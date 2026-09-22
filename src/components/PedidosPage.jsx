@@ -67,9 +67,8 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
   // Semáforo de la ETA estimada por la simulación de capacidad contra la
   // fechaEntrega comprometida: sin fechaEntrega no hay contra qué comparar,
-  // así que sólo se informa (estado neutro). Con margen de 2+ días queda en
-  // verde; con 0 o 1 día de margen pasa a amarillo como aviso de que está
-  // ajustado; si la ETA cae después de la fecha de entrega, rojo.
+  // así que sólo se informa (estado neutro). Si la ETA cae en la fecha de
+  // entrega o antes, verde (en fecha); si cae después, rojo (no llega).
   const etaEstado = (p, etaEstimada) => {
     if (!p.fechaEntrega) return { color: 'var(--text2)', texto: 'sin fecha ref.' };
 
@@ -79,7 +78,6 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     const margenDias = Math.round((diaEntrega - diaEta) / (1000 * 60 * 60 * 24));
 
     if (margenDias < 0) return { color: 'var(--danger)', texto: 'no llega' };
-    if (margenDias <= 1) return { color: 'var(--warn)', texto: 'ajustado' };
     return { color: 'var(--accent)', texto: 'en fecha' };
   };
 
