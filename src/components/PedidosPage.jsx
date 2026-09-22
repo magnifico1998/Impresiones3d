@@ -5,9 +5,11 @@ import { ventasDePedido, pendienteDePedido } from '../utils/finanzasPedido';
 import { calcularFechaCompletado, fechaLocalHoy } from '../utils/fechaCompletado';
 import { buildWaLink, findClientePedido } from '../utils/whatsapp';
 import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
+import { useCapacidadProduccion } from '../hooks/useCapacidadProduccion';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
-  const { pedidos, clientes, updatePedido, showToast, fmt } = useApp();
+  const { pedidos, clientes, cfg, updatePedido, showToast, fmt } = useApp();
+  const capacidad = useCapacidadProduccion();
 
   // Los completados y cancelados quedan colapsados juntos por defecto: con
   // el tiempo se acumulan y ocupan espacio sin aportar nada al vistazo diario.
@@ -63,6 +65,24 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     return diff >= 0 && diff <= 7;
   };
 
+  // Semáforo de la ETA estimada por la simulación de capacidad contra la
+  // fechaEntrega comprometida: sin fechaEntrega no hay contra qué comparar,
+  // así que sólo se informa (estado neutro). Con margen de 2+ días queda en
+  // verde; con 0 o 1 día de margen pasa a amarillo como aviso de que está
+  // ajustado; si la ETA cae después de la fecha de entrega, rojo.
+  const etaEstado = (p, etaEstimada) => {
+    if (!p.fechaEntrega) return { color: 'var(--text2)', texto: 'sin fecha ref.' };
+
+    const diaEta = new Date(etaEstimada);
+    diaEta.setHours(0, 0, 0, 0);
+    const diaEntrega = new Date(p.fechaEntrega + 'T00:00:00');
+    const margenDias = Math.round((diaEntrega - diaEta) / (1000 * 60 * 60 * 24));
+
+    if (margenDias < 0) return { color: 'var(--danger)', texto: 'no llega' };
+    if (margenDias <= 1) return { color: 'var(--warn)', texto: 'ajustado' };
+    return { color: 'var(--accent)', texto: 'en fecha' };
+  };
+
   const getTimestamp = (p) => {
     // creadoTs es un timestamp real (con hora/minuto/segundo) fijado una
     // sola vez al crear el pedido, y nunca se edita — es la única fuente
@@ -113,9 +133,34 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     return [...pedidosDelPeriodo].sort((a, b) => getTimestamp(b) - getTimestamp(a));
   }, [pedidosDelPeriodo]);
 
+  // Prioridad de producción de los pedidos activos: el que tiene la fecha
+  // de entrega más próxima va primero; entre los que no tienen fecha de
+  // entrega cargada, el más antiguo tiene mayor prioridad. Se recalcula
+  // solo en cada render a partir de los datos del pedido -- no hay ningún
+  // campo de orden manual, así que si se carga o cambia una fechaEntrega el
+  // orden se actualiza automáticamente, sin que nadie tenga que reordenar.
+  const comparaPorPrioridad = (a, b) => {
+    if (a.fechaEntrega && b.fechaEntrega) return a.fechaEntrega.localeCompare(b.fechaEntrega);
+    if (a.fechaEntrega) return -1;
+    if (b.fechaEntrega) return 1;
+    return getTimestamp(a) - getTimestamp(b);
+  };
+
+  // Antes de aplicar esa prioridad por fecha, los pedidos se agrupan por
+  // estado: primero los que ya están en producción (para que se vea qué se
+  // está haciendo ahora), después los pendientes en orden de prioridad, y
+  // por último el resto de los activos (en verificación, listo, enviado).
+  const grupoEstado = { progreso: 0, pendiente: 1 };
+  const grupoDe = (p) => grupoEstado[p.estado] ?? 2;
+
   const pedidosActivos = useMemo(
-    () => sortedPedidos.filter(p => p.estado !== 'completado' && p.estado !== 'cancelado'),
-    [sortedPedidos]
+    () => pedidosDelPeriodo
+      .filter(p => p.estado !== 'completado' && p.estado !== 'cancelado')
+      .sort((a, b) => {
+        const diffGrupo = grupoDe(a) - grupoDe(b);
+        return diffGrupo !== 0 ? diffGrupo : comparaPorPrioridad(a, b);
+      }),
+    [pedidosDelPeriodo]
   );
   const pedidosCompletados = useMemo(
     () => sortedPedidos.filter(p => p.estado === 'completado' || p.estado === 'cancelado'),
@@ -142,7 +187,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     showToast('Estado actualizado a: ' + badgeText);
   };
 
-  const renderPedidoCard = (p) => {
+  const renderPedidoCard = (p, prioridad) => {
     const urgente = esUrgente(p);
 
     const costoPiezas = p.piezas.reduce(
@@ -179,12 +224,27 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
         className={`pedido-card ${urgente ? 'urgente' : ''}`}
         onClick={() => onOpenOrderDetail(p.id)}
       >
-        <div style={{ flex: '0 0 30%', minWidth: 0, maxWidth: '30%' }}>
-          <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {p.cliente}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {p.desc || 'Sin descripción'}
+        <div style={{ flex: '0 0 30%', minWidth: 0, maxWidth: '30%', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {prioridad && (
+            <div
+              title="Prioridad de producción"
+              style={{
+                flexShrink: 0, width: '22px', height: '22px', borderRadius: '50%',
+                background: 'var(--bg3)', border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '11px', fontWeight: 700, color: 'var(--text2)', fontFamily: 'var(--mono)'
+              }}
+            >
+              {prioridad}
+            </div>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {p.cliente}
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {p.desc || 'Sin descripción'}
+            </div>
           </div>
         </div>
 
@@ -199,7 +259,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
             justifyContent: 'flex-end'
           }}
         >
-          <div style={{ textAlign: 'center', minWidth: '70px' }}>
+          <div style={{ textAlign: 'center', width: '70px', flexShrink: 0 }}>
             <div style={{ fontSize: '9px', color: 'var(--text3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '3px' }}>
               Unidades
             </div>
@@ -208,7 +268,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
             </div>
           </div>
 
-          <div style={{ textAlign: 'center', minWidth: '60px' }}>
+          <div style={{ textAlign: 'center', width: '60px', flexShrink: 0 }}>
             <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
               Avance
             </div>
@@ -220,51 +280,100 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', minWidth: '200px', textAlign: 'right', alignItems: 'flex-start' }}>
-            <div style={{ minWidth: '64px' }}>
+          {/* Columna de ETA de producción: se reserva el mismo ancho fijo
+              siempre que la feature esté habilitada (con contenido vacío si
+              este pedido en particular no tiene ETA todavía), para que las
+              columnas de la derecha no se corran de lugar entre pedidos que
+              sí muestran ETA y los que no. */}
+          {cfg.capacidadProduccion?.habilitado && (p.estado === 'progreso' || p.estado === 'pendiente') && (() => {
+            const detalle = capacidad[p.id];
+            const estado = detalle?.etaEstimada ? etaEstado(p, detalle.etaEstimada) : null;
+            return (
+              <>
+                {/* Horas totales pendientes del pedido, sin repartir entre
+                    impresoras -- sólo para verificar a ojo que la ETA de al
+                    lado tiene sentido (ej. 25hs con 1 impresora = +25hs
+                    laborales). Siempre en horas, nunca en días. */}
+                <div style={{ textAlign: 'center', width: '56px', flexShrink: 0 }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
+                    Hs total
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+                    {detalle ? `${detalle.horasTotales.toFixed(1)}h` : '-'}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'center', width: '64px', flexShrink: 0, overflow: 'hidden' }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '3px' }}>
+                    ETA prod.
+                  </div>
+                  {estado ? (
+                    <>
+                      <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)', color: estado.color }}>
+                        {detalle.etaEstimada.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                      </div>
+                      <div
+                        title={estado.texto}
+                        style={{ fontSize: '10px', color: estado.color, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {estado.texto}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ fontSize: '12px', color: 'var(--text3)' }}>-</div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+
+          <div style={{ display: 'flex', gap: '10px', flexShrink: 0, textAlign: 'right', alignItems: 'flex-start' }}>
+            <div style={{ width: '72px', flexShrink: 0 }}>
               <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
                 Costos
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {fmt(costoTotal)}
               </div>
             </div>
-            <div style={{ minWidth: '64px' }}>
+            <div style={{ width: '72px', flexShrink: 0 }}>
               <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
                 Ganancia
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {ganancia !== null ? fmt(ganancia) : '-'}
               </div>
             </div>
-            <div style={{ minWidth: '64px' }}>
+            <div style={{ width: '72px', flexShrink: 0 }}>
               <div style={{ fontSize: '8px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '2px' }}>
                 Venta
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {p.precioVenta ? fmt(precioNeto(p)) : '-'}
               </div>
             </div>
           </div>
 
           {/* Botón para escribirle al cliente por WhatsApp sin copiar el
-              teléfono a mano; se oculta si el cliente no tiene tel cargado. */}
-          {waLink && (
+              teléfono a mano. Se reserva el espacio siempre (visibility, no
+              display) aunque el cliente no tenga tel cargado -- así su
+              ausencia no corre el resto de las columnas de un pedido a otro. */}
+          <div style={{ width: '28px', flexShrink: 0, visibility: waLink ? 'visible' : 'hidden' }}>
             <a
-              href={waLink}
+              href={waLink || undefined}
               target="_blank"
               rel="noreferrer"
               title={`Enviar WhatsApp a ${p.cliente}`}
               onClick={(e) => e.stopPropagation()}
               className="btn btn-ghost btn-sm"
-              style={{ padding: '5px 7px', flexShrink: 0, color: '#25D366' }}
+              style={{ padding: '5px 7px', color: '#25D366' }}
             >
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '16px', height: '16px', display: 'block' }}>
                 <path d="M10 2.5a7.5 7.5 0 0 0-6.4 11.4L2.5 17.5l3.75-1.05A7.5 7.5 0 1 0 10 2.5z" strokeLinejoin="round" />
                 <path d="M7.2 6.8c.15-.35.3-.35.45-.35h.35c.15 0 .3 0 .45.35.2.45.6 1.5.65 1.6.05.1.1.25 0 .4-.1.15-.15.25-.3.4l-.35.4c-.1.1-.2.2-.1.4.15.3.6 1 1.3 1.6.9.8 1.6 1.05 1.85 1.15.2.1.3.05.4-.05l.5-.55c.15-.15.3-.2.5-.1.2.05 1.25.6 1.45.7.2.1.35.15.4.25.05.15.05.6-.15 1.15-.2.55-1.15 1.05-1.6 1.1-.45.05-.9.25-2.95-.65-2.5-1.1-4.05-3.7-4.15-3.9-.1-.15-.85-1.15-.85-2.15 0-1.05.55-1.5.75-1.7z" fill="currentColor" stroke="none" />
               </svg>
             </a>
-          )}
+          </div>
 
           {/* ✅ STATUS AL LADO */}
           <select
@@ -397,7 +506,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
           </div>
         ) : (
           <>
-            {pedidosActivos.map(p => renderPedidoCard(p))}
+            {pedidosActivos.map((p, i) => renderPedidoCard(p, i + 1))}
 
             {pedidosCompletados.length > 0 && (
               <div className="card" style={{ padding: 0, overflow: 'hidden', marginTop: pedidosActivos.length ? '12px' : 0 }}>
