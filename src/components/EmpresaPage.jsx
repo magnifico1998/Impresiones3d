@@ -2,6 +2,20 @@ import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../utils/imageCompress';
 import { paisesList, PAIS_DEFAULT } from '../utils/paises';
+import { functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
+import ModalSuscribirse from './modals/ModalSuscribirse';
+import { sincronizarPagoMP } from '../utils/pagosMP';
+
+// Texto del estado del débito automático de Mercado Pago
+// (suscripcion.cobro.estado, lo mantiene el webhook).
+function textoDebito(suscripcion) {
+  const estado = suscripcion?.cobro?.estado;
+  if (estado === 'authorized') return '💳 Débito automático mensual activo con Mercado Pago.';
+  if (estado === 'paused') return 'Tu débito automático está pausado en Mercado Pago.';
+  if (estado === 'cancelled' && suscripcion.estado === 'activa') return 'Débito automático cancelado: tu plan sigue activo hasta el fin del ciclo ya pago.';
+  return 'Sin débito automático.';
+}
 
 // Nota: esto es el precio del PLAN de Manager3D (lo que le pagás a
 // Manager3D), no un monto del negocio del usuario -- se muestra siempre
@@ -44,6 +58,37 @@ export default function EmpresaPage() {
   const [emailNuevo, setEmailNuevo] = useState('');
   const [agregando, setAgregando] = useState(false);
   const [quitandoEmail, setQuitandoEmail] = useState(null);
+  const [modalSuscribirseOpen, setModalSuscribirseOpen] = useState(false);
+  const [cancelandoDebito, setCancelandoDebito] = useState(false);
+  const [verificandoPago, setVerificandoPago] = useState(false);
+  const debitoActivo = suscripcion?.cobro?.estado === 'authorized';
+
+  const handleVerificarPago = async () => {
+    setVerificandoPago(true);
+    try {
+      const { mensaje, tipo } = await sincronizarPagoMP();
+      showToast(mensaje, tipo);
+    } catch (e) {
+      console.error('Error al verificar el pago con Mercado Pago:', e);
+      showToast(e?.message || 'No se pudo verificar el pago.', 'error');
+    } finally {
+      setVerificandoPago(false);
+    }
+  };
+
+  const handleCancelarDebito = async () => {
+    if (!window.confirm('¿Cancelar el débito automático? Tu plan sigue activo hasta el fin del ciclo ya pago y después pasa a modo lectura.')) return;
+    setCancelandoDebito(true);
+    try {
+      await httpsCallable(functions, 'cancelarSuscripcionMP')();
+      showToast('Débito automático cancelado.');
+    } catch (e) {
+      console.error('Error al cancelar el débito automático:', e);
+      showToast(e?.message || 'No se pudo cancelar el débito automático.', 'error');
+    } finally {
+      setCancelandoDebito(false);
+    }
+  };
 
   const miembrosActivos = miembros.filter(m => m.estado === 'activo');
   const limiteUsuarios = planContratado?.limites?.usuarios ?? null;
@@ -345,6 +390,31 @@ export default function EmpresaPage() {
             />
           </>
         )}
+
+        {/* Pago del plan: sólo el dueño contrata (un miembro invitado usa el plan del dueño). */}
+        {suscripcion && !esMiembro && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{textoDebito(suscripcion)}</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn btn-sm"
+                disabled={verificandoPago}
+                onClick={handleVerificarPago}
+                title="Consulta a Mercado Pago si tu pago ya se acreditó y actualiza tu plan"
+              >
+                {verificandoPago ? 'Verificando...' : 'Verificar pago'}
+              </button>
+              {debitoActivo && (
+                <button className="btn btn-sm" disabled={cancelandoDebito} onClick={handleCancelarDebito}>
+                  {cancelandoDebito ? 'Cancelando...' : 'Cancelar débito'}
+                </button>
+              )}
+              <button className="btn btn-primary btn-sm" onClick={() => setModalSuscribirseOpen(true)}>
+                {debitoActivo ? 'Cambiar plan' : 'Contratar plan'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ---- Contacto del revendedor (si esta cuenta fue activada por uno) ---- */}
@@ -425,6 +495,8 @@ export default function EmpresaPage() {
           </>
         )}
       </div>
+
+      <ModalSuscribirse isOpen={modalSuscribirseOpen} onClose={() => setModalSuscribirseOpen(false)} />
     </div>
   );
 }

@@ -255,7 +255,7 @@ exports.generarCierreRevendedor = onCall(async (request) => {
   const ventaRef = db.doc(`revendedores/${codigo}/ventas/${anioMes}`);
   const ventaSnap = await ventaRef.get();
   const datos = ventaSnap.exists ? ventaSnap.data() : {
-    items: [], totalPlan: 0, totalDescuento: 0, totalFacturable: 0
+    items: [], totalPlan: 0, totalDescuento: 0, totalFacturable: 0, totalComisionAPagar: 0
   };
 
   // El cierre es sólo informativo (no bloquea ni modifica suscripciones):
@@ -281,7 +281,13 @@ exports.generarCierreRevendedor = onCall(async (request) => {
     fecha: item.fecha && typeof item.fecha.toDate === 'function' ? item.fecha.toDate().toISOString() : item.fecha
   }));
 
-  return { ok: true, codigo, anioMes, ...datos, items: itemsSerializables };
+  // Neto del mes (ver ledgerRevendedor.js): positivo = el revendedor le
+  // debe a la plataforma, negativo = la plataforma le debe al revendedor.
+  // Meses anteriores a los pagos por Mercado Pago no tienen
+  // totalComisionAPagar, cuenta como 0.
+  const saldo = Math.round((Number(datos.totalFacturable || 0) - Number(datos.totalComisionAPagar || 0)) * 100) / 100;
+
+  return { ok: true, codigo, anioMes, ...datos, saldo, items: itemsSerializables };
 });
 
 // Valida un código de revendedor en vivo desde el formulario de contacto

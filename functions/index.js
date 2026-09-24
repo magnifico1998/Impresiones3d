@@ -9,6 +9,7 @@ const { registrarAperturaCatalogo } = require('./http/registrarAperturaCatalogo'
 const { registrarUltimoAcceso } = require('./http/registrarUltimoAcceso');
 const { cambiarEstadoSuscripcion } = require('./http/cambiarEstadoSuscripcion');
 const { webhookMercadoPago } = require('./http/webhookMercadoPago');
+const { crearSuscripcionMP, sincronizarSuscripcionMP, cancelarSuscripcionMP } = require('./http/pagosMercadoPago');
 const { agregarMiembro, quitarMiembro } = require('./http/gestionarMiembros');
 const { borrarCuenta } = require('./http/borrarCuenta');
 const { transicionSuscripciones } = require('./scheduled/transicionSuscripciones');
@@ -27,6 +28,9 @@ module.exports = {
   registrarUltimoAcceso,
   cambiarEstadoSuscripcion,
   webhookMercadoPago,
+  crearSuscripcionMP,
+  sincronizarSuscripcionMP,
+  cancelarSuscripcionMP,
   agregarMiembro,
   quitarMiembro,
   borrarCuenta,

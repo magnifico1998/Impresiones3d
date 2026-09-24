@@ -243,6 +243,7 @@ function renderPlantilla(id, vars, overrides = {}) {
 }
 
 module.exports = {
+  APP_URL,
   DEFAULTS,
   obtenerOverridesPlantillas,
   renderPlantilla,

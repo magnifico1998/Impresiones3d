@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import ModalContacto from './modals/ModalContacto';
 import ModalCodigoPromocional from './modals/ModalCodigoPromocional';
+import ModalSuscribirse from './modals/ModalSuscribirse';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { movimientosVenta, pendienteDePedido } from '../utils/finanzasPedido';
 import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
@@ -17,7 +18,7 @@ const diasHasta = (timestamp) => {
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 };
 
-function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbrirPromo, contactoEnviado }) {
+function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbrirPromo, onAbrirSuscribirse, contactoEnviado }) {
   if (!suscripcion) return null;
 
   if (suscripcion.estado === 'activa') {
@@ -51,9 +52,14 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
             >
               🎟️ Activar código promocional
             </button>
-            <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
+            <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
               Contactar
             </button>
+            {onAbrirSuscribirse && (
+              <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirSuscribirse}>
+                Contratar plan
+              </button>
+            )}
           </div>
         </div>
         {contactoEnviado === false && (
@@ -74,9 +80,16 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
             ⚠ Tu cuenta está en <strong>modo lectura</strong> por falta de pago
             {dias !== null ? ` — si no se regulariza en ${dias} día${dias === 1 ? '' : 's'}, tu información se elimina` : ', tu información se eliminará si no se regulariza'}.
           </div>
-          <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
-            Contactar
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
+              Contactar
+            </button>
+            {onAbrirSuscribirse && (
+              <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirSuscribirse}>
+                Pagar plan
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -101,8 +114,9 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
 }
 
 export default function ResumenPage() {
-  const { pedidos, compras, suscripcion, planContratado, fmt, cfg, cuentaId } = useApp();
+  const { pedidos, compras, suscripcion, planContratado, fmt, cfg, cuentaId, esMiembro } = useApp();
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
+  const [modalSuscribirseOpen, setModalSuscribirseOpen] = useState(false);
   const [modalPromoOpen, setModalPromoOpen] = useState(false);
 
   // Para poder activar un código promocional durante el trial, primero hay
@@ -515,7 +529,7 @@ export default function ResumenPage() {
 
   return (
     <div className="page active">
-      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} contactoEnviado={contactoEnviado} />
+      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} onAbrirSuscribirse={esMiembro ? null : () => setModalSuscribirseOpen(true)} contactoEnviado={contactoEnviado} />
       <div className="page-title">Resumen</div>
       <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
       
@@ -732,6 +746,7 @@ export default function ResumenPage() {
         }}
       />
       <ModalCodigoPromocional isOpen={modalPromoOpen} onClose={() => setModalPromoOpen(false)} />
+      <ModalSuscribirse isOpen={modalSuscribirseOpen} onClose={() => setModalSuscribirseOpen(false)} />
     </div>
   );
 }

@@ -1,26 +1,48 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
+const { mpAccessToken, mpWebhookSecret, firmaWebhookValida } = require('../mercadopago');
+const { procesarCobroRecurrente, procesarCambioPreapproval } = require('../cobrosMercadoPago');
 
-// TODO (fase de integración con Mercado Pago): esto queda deshabilitado a
-// propósito. Un webhook de pagos NO se puede dejar "andando a medias":
-// sin validar la firma (header x-signature) que manda Mercado Pago,
-// cualquiera podría pegarle a esta URL simulando un aviso de pago
-// aprobado y activar una cuenta gratis. Falta:
-//   1. Las credenciales del Application de Mercado Pago (Access Token +
-//      clave del webhook), que hoy no tenemos.
-//   2. Implementar la validación de firma según la documentación oficial
-//      de Mercado Pago (cambia de vez en cuando, hay que mirar la vigente).
-//   3. Buscar la cuenta (uid) correspondiente al preapproval que avisa el
-//      webhook -- probablemente vía external_reference al crear la
-//      suscripción en Mercado Pago (Fase de checkout).
-//   4. Llamar a la misma lógica de cambiarEstadoSuscripcion.js (acción
-//      "activar" o "renovarCiclo") para no duplicar la lógica de fechas.
-// Hasta entonces devuelve 501 y loggea lo que llegó, para poder revisarlo
-// cuando se dé de alta la cuenta de Mercado Pago.
-exports.webhookMercadoPago = onRequest(async (req, res) => {
-  logger.warn('webhookMercadoPago: recibido pero la integración todavía no está activa.', {
-    headers: req.headers,
-    body: req.body
-  });
-  res.status(501).send('Integración con Mercado Pago pendiente.');
+// Notificaciones de Mercado Pago (panel de MP -> Webhooks, eventos
+// "Planes y suscripciones"). Valida la firma y delega en
+// cobrosMercadoPago.js, que es la misma lógica que usa la sincronización
+// manual desde la app. Maneja dos tipos:
+//   - subscription_preapproval: la suscripción cambió de estado.
+//   - subscription_authorized_payment: un cobro mensual.
+exports.webhookMercadoPago = onRequest({ secrets: [mpAccessToken, mpWebhookSecret] }, async (req, res) => {
+  if (req.method !== 'POST') {
+    res.status(405).send('Método no permitido.');
+    return;
+  }
+  if (!firmaWebhookValida(req, mpWebhookSecret.value())) {
+    logger.warn('webhookMercadoPago: firma inválida, se rechaza.', { query: req.query, body: req.body });
+    res.status(401).send('Firma inválida.');
+    return;
+  }
+
+  const tipo = req.body?.type || req.query.type;
+  const id = req.query['data.id'] ?? req.body?.data?.id;
+  const mpUserId = req.body?.user_id != null ? String(req.body.user_id) : null;
+
+  try {
+    if (tipo === 'subscription_authorized_payment') {
+      await procesarCobroRecurrente(id, mpUserId);
+    } else if (tipo === 'subscription_preapproval') {
+      await procesarCambioPreapproval(id, mpUserId);
+    } else {
+      logger.info(`webhookMercadoPago: tipo "${tipo}" ignorado.`);
+    }
+    res.status(200).send('ok');
+  } catch (e) {
+    // El recurso no existe en Mercado Pago (ej. el id de ejemplo del
+    // simulador del panel): reintentar no lo va a hacer aparecer.
+    if (e.status === 404) {
+      logger.warn(`webhookMercadoPago: ${tipo} ${id} no existe en Mercado Pago, se ignora.`);
+      res.status(200).send('ok');
+      return;
+    }
+    // 500 para que Mercado Pago reintente: el procesamiento es idempotente.
+    logger.error(`webhookMercadoPago: error procesando ${tipo} ${id}:`, e.message, e.data);
+    res.status(500).send('Error procesando la notificación.');
+  }
 });

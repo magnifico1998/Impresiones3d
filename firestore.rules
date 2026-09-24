@@ -339,6 +339,24 @@ service cloud.firestore {
       }
     }
 
+    // ---- Pagos de Mercado Pago ----
+    // Doc ID = id del pago en Mercado Pago. Lo escribe sólo el webhook
+    // (webhookMercadoPago.js) y es a la vez el candado de idempotencia: un
+    // pago que ya tiene doc acá no se vuelve a aplicar. Sólo lectura para
+    // el admin, para auditar/conciliar.
+    match /pagosMP/{paymentId} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+
+    // Tokens OAuth de Mercado Pago de revendedores que cobren en su propia
+    // cuenta (opción C, todavía no habilitada -- ver tokenDelCobrador en
+    // functions/mercadopago.js). Cerrada del todo al cliente, incluso a
+    // admins: sólo la leen Cloud Functions.
+    match /credencialesMP/{mpUserId} {
+      allow read, write: if false;
+    }
+
     // ---- Códigos promocionales de comercios ----
     // Doc ID = código. A diferencia de revendedores (% de descuento sobre
     // el precio real), estos códigos otorgan un plan a costo $0 durante N

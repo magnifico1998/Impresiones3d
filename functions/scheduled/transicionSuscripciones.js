@@ -1,7 +1,9 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { logger } = require('firebase-functions');
-const { db, Timestamp, FieldValue, DIA_MS, DURACION_LECTURA_DIAS, formatearFecha, sumarMesCalendario } = require('../admin');
+const { db, Timestamp, FieldValue, DIA_MS, DURACION_LECTURA_DIAS, DIAS_GRACIA_DEBITO_AUTOMATICO, formatearFecha, sumarMesCalendario } = require('../admin');
 const { enviarEmail, gmailAppPassword } = require('../mailer');
+const { mpAccessToken } = require('../mercadopago');
+const { sincronizarPreapproval } = require('../cobrosMercadoPago');
 const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
 
 // Manda un mail por cada doc de una lista, sin dejar que un fallo de mail
@@ -38,7 +40,7 @@ async function mandarEnLote(docs, plantillaId, armarVars, overrides) {
 // cambian de estado en un mismo día no supera 500 (límite de un batch). Si
 // el negocio crece mucho, esto se parte en batches de a 500.
 exports.transicionSuscripciones = onSchedule(
-  { schedule: 'every day 03:00', secrets: [gmailAppPassword] },
+  { schedule: 'every day 03:00', secrets: [gmailAppPassword, mpAccessToken] },
   async () => {
     const ahora = Timestamp.now();
     const batch = db.batch();
@@ -72,9 +74,45 @@ exports.transicionSuscripciones = onSchedule(
       .where('cicloFin', '<=', ahora)
       .get();
 
+    // Con débito automático de Mercado Pago vigente se espera unos días el
+    // cobro antes de pasar a lectura (ver DIAS_GRACIA_DEBITO_AUTOMATICO):
+    // cuando el pago se acredita, el webhook corre cicloFin y la cuenta
+    // nunca llega a enterarse del vencimiento.
+    const limiteGraciaMs = ahora.toMillis() - DIAS_GRACIA_DEBITO_AUTOMATICO * DIA_MS;
+
+    // Red de seguridad por si se perdió el aviso del webhook: antes de
+    // tocar una cuenta con débito automático vencida se le pregunta a
+    // Mercado Pago por sus cobros. Si el pago ya estaba, se aplica ahí mismo
+    // (misma lógica idempotente del webhook) y la cuenta sigue activa. Se
+    // usan los datos releídos, porque la sincronización también puede haber
+    // reflejado una cancelación.
+    const datosSincronizados = new Map();
+    let renovadasPorSincronizacion = 0;
+    for (const doc of ciclosVencidos.docs) {
+      const { cobro } = doc.data();
+      if (cobro?.estado !== 'authorized' || !cobro.preapprovalId) continue;
+      try {
+        await sincronizarPreapproval(cobro.preapprovalId, cobro.mpUserId);
+        const actualizado = (await doc.ref.get()).data();
+        datosSincronizados.set(doc.ref.path, actualizado);
+        if (actualizado.cicloFin && actualizado.cicloFin.toMillis() > ahora.toMillis()) renovadasPorSincronizacion++;
+      } catch (e) {
+        logger.error(`transicionSuscripciones: no se pudo sincronizar con Mercado Pago ${doc.ref.path}:`, e.message);
+      }
+    }
+
     const ciclosVencidosSinPromo = [];
+    let enGraciaDebito = 0;
+    let promosRenovadas = 0;
     ciclosVencidos.forEach((doc) => {
-      const data = doc.data();
+      const data = datosSincronizados.get(doc.ref.path) || doc.data();
+      if (data.estado !== 'activa' || data.cicloFin.toMillis() > ahora.toMillis()) {
+        return; // la sincronización con Mercado Pago ya la renovó
+      }
+      if (data.cobro?.estado === 'authorized' && data.cicloFin.toMillis() > limiteGraciaMs) {
+        enGraciaDebito++;
+        return;
+      }
       if (data.promoCiclosRestantes > 0) {
         const cicloAnteriorFin = data.cicloFin || ahora;
         const nuevoCicloFin = sumarMesCalendario(cicloAnteriorFin);
@@ -86,6 +124,7 @@ exports.transicionSuscripciones = onSchedule(
         });
         batch.set(doc.ref.collection('eventos').doc(), { tipo: 'promo_renovada', fecha: ahora });
         cambios++;
+        promosRenovadas++;
         return;
       }
       ciclosVencidosSinPromo.push(doc);
@@ -149,8 +188,11 @@ exports.transicionSuscripciones = onSchedule(
       .where('cicloFin', '>=', cicloDesde)
       .where('cicloFin', '<', cicloHasta)
       .get();
+    // Sin aviso para quien tiene débito automático: se renueva solo, el mail
+    // de "renová antes de esa fecha" sólo confundiría.
     const ciclosPorVencerAAvisar = ciclosPorVencer.docs.filter(
-      (doc) => doc.data().avisoVencimiento5dEnviadoPara !== doc.data().cicloFin.toMillis()
+      (doc) => doc.data().avisoVencimiento5dEnviadoPara !== doc.data().cicloFin.toMillis() &&
+        doc.data().cobro?.estado !== 'authorized'
     );
     ciclosPorVencerAAvisar.forEach((doc) => {
       batch.update(doc.ref, { avisoVencimiento5dEnviadoPara: doc.data().cicloFin.toMillis() });
@@ -209,7 +251,7 @@ exports.transicionSuscripciones = onSchedule(
     }
 
     logger.info(
-      `transicionSuscripciones: ${trialsVencidos.size} trial->lectura, ${ciclosVencidosSinPromo.length} activa->lectura, ${ciclosVencidos.size - ciclosVencidosSinPromo.length} promo renovada, ` +
+      `transicionSuscripciones: ${trialsVencidos.size} trial->lectura, ${ciclosVencidosSinPromo.length} activa->lectura, ${promosRenovadas} promo renovada, ${enGraciaDebito} esperando débito MP, ${renovadasPorSincronizacion} renovadas por sincronización MP, ` +
       `${lecturaVencida.size} lectura->suspendida, ${trialsPorVencerAAvisar.length + ciclosPorVencerAAvisar.length} avisos de vencimiento, ` +
       `${bloqueo10dAAvisar.length} avisos de bloqueo (10d), ${bloqueo5dAAvisar.length} avisos de bloqueo (5d)`
     );

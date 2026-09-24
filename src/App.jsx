@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from './context/AppContext';
 
 // Layout and views
@@ -30,6 +30,8 @@ import ModalBibEditarCat from './components/modals/ModalBibEditarCat';
 import ModalBibUsar from './components/modals/ModalBibUsar';
 import ModalArmarPedido from './components/modals/ModalArmarPedido';
 import ModalContacto from './components/modals/ModalContacto';
+import ModalSuscribirse from './components/modals/ModalSuscribirse';
+import { sincronizarPagoMP } from './utils/pagosMP';
 import ModalFaqGuardar from './components/modals/ModalFaqGuardar';
 
 function App() {
@@ -47,7 +49,8 @@ function App() {
     datosCargadosOk,
     reintentarCargaDatos,
     logout,
-    suscripcion
+    suscripcion,
+    esMiembro
   } = useApp();
 
   // Cuenta bloqueada: se muestra en vez de la pantalla genérica de "no
@@ -58,6 +61,28 @@ function App() {
   // que esta pantalla se puede armar con datos reales incluso con el resto
   // de la app bloqueada.
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
+  const [modalSuscribirseOpen, setModalSuscribirseOpen] = useState(false);
+
+  // Vuelta del checkout de Mercado Pago (back_url con ?pagoMP=1): se
+  // sincroniza el pago al toque en vez de esperar el aviso del webhook, y se
+  // limpia el parámetro para que un refresh no lo repita.
+  useEffect(() => {
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('pagoMP')) return;
+    params.delete('pagoMP');
+    const resto = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (resto ? `?${resto}` : '') + window.location.hash);
+    sincronizarPagoMP()
+      .then(({ mensaje, tipo }) => showToast(mensaje, tipo, 6000))
+      .catch((e) => {
+        console.error('Error al verificar el pago con Mercado Pago:', e);
+        showToast('No se pudo verificar el pago. Probá con "Verificar pago" en Mi emprendimiento.', 'error', 6000);
+      });
+    // showToast cambia en cada render del contexto; esto tiene que correr
+    // una única vez por usuario logueado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Login por link de email (alternativa a Google para cuando el popup
   // falla por bloqueos del navegador). mostrarFormEmail alterna entre el
@@ -330,10 +355,19 @@ function App() {
             Pasaron los 30 días de modo lectura sin que se reactivara la suscripción, así que ya no podés acceder a tu información. Contactate con el área comercial para regularizar tu situación y recuperar el acceso — tus datos siguen guardados.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {!esMiembro && (
+            <button
+              onClick={() => setModalSuscribirseOpen(true)}
+              className="btn btn-primary"
+              style={{ fontSize: '14px', padding: '10px 20px', borderRadius: 'var(--radius2)' }}
+            >
+              Pagar plan y reactivar
+            </button>
+          )}
           <button
             onClick={() => setModalContactoOpen(true)}
-            className="btn btn-primary"
+            className={esMiembro ? 'btn btn-primary' : 'btn'}
             style={{ fontSize: '14px', padding: '10px 20px', borderRadius: 'var(--radius2)' }}
           >
             Contactate con el área comercial
@@ -347,6 +381,7 @@ function App() {
           </button>
         </div>
         <ModalContacto isOpen={modalContactoOpen} onClose={() => setModalContactoOpen(false)} />
+        <ModalSuscribirse isOpen={modalSuscribirseOpen} onClose={() => setModalSuscribirseOpen(false)} />
       </div>
     );
   }

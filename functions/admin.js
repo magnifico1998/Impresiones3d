@@ -7,6 +7,11 @@ const db = getFirestore();
 const DIA_MS = 24 * 60 * 60 * 1000;
 const DURACION_TRIAL_DIAS = 7;
 const DURACION_LECTURA_DIAS = 30;
+// Días que se espera el cobro de un débito automático de Mercado Pago
+// después de cicloFin antes de pasar la cuenta a modo lectura: Mercado Pago
+// debita por fecha (no a la hora exacta de cicloFin), reintenta si falla, y
+// el aviso al webhook puede llegar horas después.
+const DIAS_GRACIA_DEBITO_AUTOMATICO = 3;
 
 // Suma un mes calendario a un Timestamp, anclado al día de activación (no
 // a 30 días fijos). Ej: activó el 15/07 -> próximo ciclo 15/08. Si el mes
@@ -37,6 +42,30 @@ function sumarDias(timestamp, n) {
   return Timestamp.fromMillis(timestamp.toMillis() + n * DIA_MS);
 }
 
+// Ciclo nuevo al activar/renovar un plan pago (botón "Renovar suscripción"
+// del panel o pago acreditado por Mercado Pago):
+//   - Si la cuenta YA está vigente (trial o ciclo pago que todavía no
+//     venció), se PRORROGA: el ciclo nuevo arranca desde el vencimiento
+//     actual (no desde hoy), para no resignarle al suscriptor los días que
+//     le quedaban si paga antes de vencer.
+//   - Si no está vigente (nunca tuvo suscripción, o ya venció:
+//     lectura/suspendida/trial vencido), arranca de cero desde hoy.
+function calcularCicloActivacion(datosPrevios, ahora) {
+  const vencimientoVigente = datosPrevios.estado === 'trial'
+    ? datosPrevios.trialFin
+    : datosPrevios.estado === 'activa'
+      ? datosPrevios.cicloFin
+      : null;
+  const cicloInicio = (vencimientoVigente && vencimientoVigente.toMillis() > ahora.toMillis())
+    ? vencimientoVigente
+    : ahora;
+  return {
+    cicloInicio,
+    cicloId: formatearFecha(cicloInicio),
+    cicloFin: sumarMesCalendario(cicloInicio)
+  };
+}
+
 // Copia liviana de los datos de contacto de un revendedor (nombre,
 // apellido, teléfono, email), para denormalizar sobre la suscripción de
 // cada referido -- el referido no tiene permiso para leer la cuenta del
@@ -57,4 +86,4 @@ async function obtenerContactoRevendedor(uid) {
   };
 }
 
-module.exports = { db, Timestamp, FieldValue, DIA_MS, DURACION_TRIAL_DIAS, DURACION_LECTURA_DIAS, sumarMesCalendario, sumarDias, formatearFecha, obtenerContactoRevendedor };
+module.exports = { db, Timestamp, FieldValue, DIA_MS, DURACION_TRIAL_DIAS, DURACION_LECTURA_DIAS, DIAS_GRACIA_DEBITO_AUTOMATICO, sumarMesCalendario, sumarDias, formatearFecha, calcularCicloActivacion, obtenerContactoRevendedor };

@@ -504,7 +504,7 @@ export default function AdminPage({ modoRevendedor = false }) {
     setCargandoVentasCodigo(codigo);
     try {
       const snap = await getDoc(doc(db, 'revendedores', codigo, 'ventas', anioMes));
-      const base = { items: [], totalPlan: 0, totalDescuento: 0, totalFacturable: 0 };
+      const base = { items: [], totalPlan: 0, totalDescuento: 0, totalFacturable: 0, totalComisionAPagar: 0 };
       setVentasDelMesPorCodigo(prev => ({
         ...prev,
         [`${codigo}:${anioMes}`]: snap.exists() ? { ...base, ...snap.data() } : base
@@ -536,8 +536,11 @@ export default function AdminPage({ modoRevendedor = false }) {
     doc2.text(`Período: ${anioMes}`, marginX, y);
     y += 10;
 
-    const colFecha = 24, colEmail = 62, colPlan = 30, colMonto = 24, colDto = 18, colFact = 24;
-    const xFecha = marginX, xEmail = xFecha + colFecha, xPlan = xEmail + colEmail, xMonto = xPlan + colPlan, xDto = xMonto + colMonto, xFact = xDto + colDto;
+    // SALDO con signo desde el lado de la plataforma (ver
+    // functions/ledgerRevendedor.js): positivo = lo debe el revendedor
+    // (cobró él), negativo = comisión a pagarle (cobró Mercado Pago).
+    const colFecha = 22, colEmail = 52, colPlan = 26, colMonto = 22, colDto = 14, colCobro = 20, colFact = 24;
+    const xFecha = marginX, xEmail = xFecha + colFecha, xPlan = xEmail + colEmail, xMonto = xPlan + colPlan, xDto = xMonto + colMonto, xCobro = xDto + colDto, xFact = xCobro + colCobro;
     doc2.setFillColor(...navy);
     doc2.rect(marginX, y, contentW, 7, 'F');
     doc2.setTextColor(255, 255, 255); doc2.setFont('helvetica', 'bold'); doc2.setFontSize(8.5);
@@ -545,8 +548,9 @@ export default function AdminPage({ modoRevendedor = false }) {
     doc2.text('SUSCRIPTOR', xEmail + 2, y + 5);
     doc2.text('PLAN', xPlan + 2, y + 5);
     doc2.text('LISTA', xMonto + colMonto - 2, y + 5, { align: 'right' });
-    doc2.text('DTO %', xDto + colDto - 2, y + 5, { align: 'right' });
-    doc2.text('A FACTURAR', xFact + colFact - 2, y + 5, { align: 'right' });
+    doc2.text('COM %', xDto + colDto - 2, y + 5, { align: 'right' });
+    doc2.text('COBRÓ', xCobro + 2, y + 5);
+    doc2.text('SALDO', xFact + colFact - 2, y + 5, { align: 'right' });
     y += 7;
 
     doc2.setTextColor(40, 40, 40); doc2.setFont('helvetica', 'normal'); doc2.setFontSize(8.2);
@@ -565,15 +569,30 @@ export default function AdminPage({ modoRevendedor = false }) {
       doc2.text(planNombrePorId[item.planId] || '—', xPlan + 2, y + 4.2, { maxWidth: colPlan - 4 });
       doc2.text(`$${Number(item.montoPlan || 0).toLocaleString('es-AR')}`, xMonto + colMonto - 2, y + 4.2, { align: 'right' });
       doc2.text(`${item.descuentoPct || 0}%`, xDto + colDto - 2, y + 4.2, { align: 'right' });
-      doc2.text(`$${Number(item.montoFacturable || 0).toLocaleString('es-AR')}`, xFact + colFact - 2, y + 4.2, { align: 'right' });
+      // Ítems anteriores a los pagos por Mercado Pago no tienen cobradoPor
+      // ni saldo: son todos ventas manuales (cobró el revendedor).
+      const cobroPlataforma = item.cobradoPor === 'plataforma';
+      const saldoItem = item.saldo ?? item.montoFacturable ?? 0;
+      doc2.text(cobroPlataforma ? 'Merc. Pago' : 'Revend.', xCobro + 2, y + 4.2);
+      doc2.text(`${saldoItem < 0 ? '-' : ''}$${Math.abs(Number(saldoItem)).toLocaleString('es-AR')}`, xFact + colFact - 2, y + 4.2, { align: 'right' });
       y += 6;
     });
 
+    const fmtPesos = (n) => `$${Math.abs(Number(n || 0)).toLocaleString('es-AR')}`;
+    const saldo = datos.saldo ?? (Number(datos.totalFacturable || 0) - Number(datos.totalComisionAPagar || 0));
     y += 4;
     doc2.setDrawColor(210); doc2.line(marginX, y, pageW - marginX, y);
+    y += 6;
+    doc2.setFont('helvetica', 'normal'); doc2.setFontSize(9.5);
+    doc2.text(`Cobrado por el revendedor — a facturarle: ${fmtPesos(datos.totalFacturable)}`, pageW - marginX, y, { align: 'right' });
+    y += 5;
+    doc2.text(`Cobrado por Mercado Pago — comisión a pagarle: ${fmtPesos(datos.totalComisionAPagar)}`, pageW - marginX, y, { align: 'right' });
     y += 7;
     doc2.setFont('helvetica', 'bold'); doc2.setFontSize(11);
-    doc2.text(`Total a facturar: $${Number(datos.totalFacturable || 0).toLocaleString('es-AR')}`, pageW - marginX, y, { align: 'right' });
+    const textoSaldo = saldo > 0 ? `Saldo: el revendedor debe ${fmtPesos(saldo)}`
+      : saldo < 0 ? `Saldo: a pagar al revendedor ${fmtPesos(saldo)}`
+      : 'Saldo: $0';
+    doc2.text(textoSaldo, pageW - marginX, y, { align: 'right' });
 
     doc2.save(`cierre-${rev.codigo}-${anioMes}.pdf`);
   };
@@ -1093,7 +1112,12 @@ export default function AdminPage({ modoRevendedor = false }) {
                         return (
                           <tr key={c.uid}>
                             <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
-                            <td>{badgeEstado(c.estado)}</td>
+                            <td>
+                              {badgeEstado(c.estado)}
+                              {c.cobro?.estado === 'authorized' && (
+                                <span className="badge badge-done" style={{ marginLeft: '6px' }} title="Paga con débito automático de Mercado Pago">💳 MP</span>
+                              )}
+                            </td>
                             <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>
                               {vence}
                               {periodos > 1 && (
@@ -1402,8 +1426,9 @@ export default function AdminPage({ modoRevendedor = false }) {
                       {ventas && (
                         <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', marginTop: '8px' }}>
                           {ventas.items.length} venta(s) en {anioMes} · lista ${Number(ventas.totalPlan || 0).toLocaleString('es-AR')} ·
-                          {' '}descuento ${Number(ventas.totalDescuento || 0).toLocaleString('es-AR')} ·
-                          {' '}a facturar ${Number(ventas.totalFacturable || 0).toLocaleString('es-AR')}
+                          {' '}comisión ${Number(ventas.totalDescuento || 0).toLocaleString('es-AR')} ·
+                          {' '}a facturar ${Number(ventas.totalFacturable || 0).toLocaleString('es-AR')} ·
+                          {' '}a pagarle (MP) ${Number(ventas.totalComisionAPagar || 0).toLocaleString('es-AR')}
                           {ventas.cerrado && <span className="badge badge-done" style={{ marginLeft: '8px' }}>cerrado</span>}
                         </div>
                       )}

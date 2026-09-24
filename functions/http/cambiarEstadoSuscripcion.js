@@ -1,6 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getAuth } = require('firebase-admin/auth');
-const { db, Timestamp, FieldValue, DIA_MS, DURACION_LECTURA_DIAS, sumarMesCalendario, formatearFecha, obtenerContactoRevendedor } = require('../admin');
+const { db, Timestamp, FieldValue, DIA_MS, DURACION_LECTURA_DIAS, sumarMesCalendario, formatearFecha, calcularCicloActivacion, obtenerContactoRevendedor } = require('../admin');
+const { pctComision, armarVentaLedger } = require('../ledgerRevendedor');
 
 // Acciones que además de un admin puede ejecutar un revendedor, pero SOLO
 // sobre cuentas que son "suyas" (ver resolverAutorizacion más abajo) --
@@ -21,8 +22,9 @@ const ACCIONES_REVENDEDOR = ['activar', 'suspender', 'toggleContactadoPostBloque
 //  - la atribución a un revendedor (revendedorUid/revendedorCodigo) y el
 //    ledger de ventas para el cierre mensual se escriban siempre juntos
 //    con el cambio de estado, nunca por separado,
-//  - el día de mañana el webhook de Mercado Pago reutilice exactamente
-//    esta misma lógica para la acción "activar" cuando llegue un pago.
+//  - el webhook de Mercado Pago (webhookMercadoPago.js) aplique las mismas
+//    reglas de ciclo y de ledger que "activar" (calcularCicloActivacion y
+//    armarVentaLedger son compartidas).
 exports.cambiarEstadoSuscripcion = onCall(async (request) => {
   const emailSolicitante = request.auth?.token?.email?.toLowerCase();
   const uidSolicitante = request.auth?.uid;
@@ -110,6 +112,14 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
   }
   const datosPrevios = subSnap.exists ? subSnap.data() : {};
 
+  // Con débito automático de Mercado Pago vigente, el ciclo lo renueva el
+  // webhook con cada cobro. Una renovación manual encima le sumaría un mes
+  // sin cobrarlo (o se lo cobraría dos veces si el suscriptor además pagó
+  // por fuera) y duplicaría la venta en el ledger del revendedor.
+  if (accion === 'activar' && datosPrevios.cobro?.estado === 'authorized') {
+    throw new HttpsError('failed-precondition', 'Esta cuenta paga con débito automático de Mercado Pago: se renueva sola con cada cobro. Para cambiar de plan, el suscriptor lo hace desde "Mi emprendimiento".');
+  }
+
   // Si el doc no existía, de paso le guardamos el email (buscándolo en
   // Firebase Auth por uid) para que la tabla del panel no muestre el uid
   // pelado la primera vez que se activa una cuenta legacy. Si el uid ni
@@ -196,29 +206,14 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
       }
 
       // Botón "Renovar suscripción" del panel: cubre tanto dar de alta /
-      // reactivar una cuenta caída como renovar una que sigue vigente.
-      //   - Si la cuenta YA está vigente (trial o ciclo pago que todavía
-      //     no venció), se PRORROGA: el ciclo nuevo arranca desde el
-      //     vencimiento actual (no desde hoy), para no resignarle al
-      //     suscriptor los días que le quedaban si paga antes de vencer.
-      //   - Si no está vigente (nunca tuvo suscripción, o ya venció:
-      //     lectura/suspendida/trial vencido), arranca de cero desde hoy.
-      const vencimientoVigente = datosPrevios.estado === 'trial'
-        ? datosPrevios.trialFin
-        : datosPrevios.estado === 'activa'
-          ? datosPrevios.cicloFin
-          : null;
-      const cicloInicio = (vencimientoVigente && vencimientoVigente.toMillis() > ahora.toMillis())
-        ? vencimientoVigente
-        : ahora;
-      const cicloFin = sumarMesCalendario(cicloInicio);
+      // reactivar una cuenta caída como renovar una que sigue vigente
+      // (prorroga desde el vencimiento vigente, ver calcularCicloActivacion
+      // -- misma regla que aplica el webhook de Mercado Pago).
       update = {
         estado: 'activa',
         planId: planId || datosPrevios.planId || null,
         email: emailCuenta,
-        cicloInicio,
-        cicloId: formatearFecha(cicloInicio),
-        cicloFin,
+        ...calcularCicloActivacion(datosPrevios, ahora),
         fechaLimiteLectura: FieldValue.delete()
       };
       if (esVinculacionNueva) {
@@ -229,8 +224,8 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
     }
 
     case 'renovarCiclo': {
-      // La usa (a futuro) el webhook de Mercado Pago cuando confirma un
-      // pago de renovación: corre el ciclo un mes más desde el cicloFin
+      // Renovación "pura" (sin atribución ni ledger): corre el ciclo un
+      // mes más desde el cicloFin
       // anterior (no desde "ahora"), para no regalar ni recortar días si
       // el pago llega un poco antes o después de la fecha exacta.
       const cicloAnteriorFin = datosPrevios.cicloFin || ahora;
@@ -319,8 +314,7 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
       pctDescuento = Math.max(0, Math.min(100, Number(descuentoPct)));
     } else {
       const revSnapPct = await db.doc(`revendedores/${revendedorInfo.codigo}`).get();
-      const defaultPlan = revSnapPct.exists ? revSnapPct.data().descuentosPorPlan?.[update.planId] : null;
-      pctDescuento = Math.max(0, Math.min(100, Number(defaultPlan) || 0));
+      pctDescuento = pctComision(revSnapPct.exists ? revSnapPct.data() : null, update.planId);
     }
   }
 
@@ -339,33 +333,27 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
   // Ledger de ventas del revendedor para el cierre mensual (ver
   // gestionarRevendedores.js -> generarCierreRevendedor). Se agrega un
   // ítem en CADA "activar" atribuido a un revendedor -- primera venta o
-  // renovación, todas cuentan para el mes en curso.
+  // renovación, todas cuentan para el mes en curso. Por acá pasan sólo
+  // ventas manuales (el revendedor cobró por fuera), así que la deuda es
+  // del revendedor hacia la plataforma; los pagos por Mercado Pago escriben
+  // el mismo ledger desde el webhook como cobradoPor 'plataforma'.
   if (revendedorInfo && revendedorInfo.codigo) {
-    const pct = pctDescuento;
     let montoPlan = 0;
     if (update.planId) {
       const planSnap = await db.doc(`planes/${update.planId}`).get();
       montoPlan = planSnap.exists ? Number(planSnap.data().precioMensual || 0) : 0;
     }
-    const montoFacturable = Math.round(montoPlan * (1 - pct / 100) * 100) / 100;
-    const montoDescuento = Math.round((montoPlan - montoFacturable) * 100) / 100;
-    const anioMes = formatearFecha(ahora).slice(0, 7);
-    const ventaRef = db.doc(`revendedores/${revendedorInfo.codigo}/ventas/${anioMes}`);
-    await ventaRef.set({
-      items: FieldValue.arrayUnion({
-        uid,
-        email: emailCuenta,
-        planId: update.planId,
-        fecha: ahora,
-        montoPlan,
-        descuentoPct: pct,
-        montoFacturable
-      }),
-      totalPlan: FieldValue.increment(montoPlan),
-      totalDescuento: FieldValue.increment(montoDescuento),
-      totalFacturable: FieldValue.increment(montoFacturable),
-      actualizadoEl: ahora
-    }, { merge: true });
+    const venta = armarVentaLedger({
+      codigo: revendedorInfo.codigo,
+      uid,
+      email: emailCuenta,
+      planId: update.planId,
+      fecha: ahora,
+      montoPlan,
+      pct: pctDescuento,
+      cobradoPor: 'revendedor'
+    });
+    await venta.ref.set(venta.datos, { merge: true });
   }
 
   return { ok: true };
