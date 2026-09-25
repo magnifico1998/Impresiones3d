@@ -60,6 +60,14 @@ exports.crearSuscripcionMP = onCall({ secrets: [mpAccessToken] }, async (request
   if (!planId || typeof planId !== 'string') {
     throw new HttpsError('invalid-argument', 'Falta el plan a contratar.');
   }
+  // Mercado Pago puede exigir que quien autoriza el débito esté logueado
+  // con una cuenta de MP con este mismo email, que no siempre es el de
+  // Google con el que entra a la app -- por eso el suscriptor lo puede
+  // indicar (el modal lo precarga con el de Google).
+  const emailMP = String(request.data?.emailMP || '').trim().toLowerCase();
+  if (emailMP && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailMP)) {
+    throw new HttpsError('invalid-argument', 'El email de Mercado Pago no es válido.');
+  }
   const planSnap = await db.doc(`planes/${planId}`).get();
   const plan = planSnap.exists ? planSnap.data() : null;
   const precio = Number(plan?.precioMensual || 0);
@@ -82,7 +90,7 @@ exports.crearSuscripcionMP = onCall({ secrets: [mpAccessToken] }, async (request
       body: {
         reason: `Manager3D - Plan ${plan.nombre}`,
         external_reference: armarReferencia(uid, planId),
-        payer_email: mpPayerEmailPrueba.value() || email,
+        payer_email: mpPayerEmailPrueba.value() || emailMP || email,
         // La app detecta ?pagoMP al volver y sincroniza el pago (ver
         // sincronizarSuscripcionMP), sin esperar el aviso del webhook.
         back_url: `${APP_URL}?pagoMP=1`,
@@ -103,7 +111,7 @@ exports.crearSuscripcionMP = onCall({ secrets: [mpAccessToken] }, async (request
   await subRef.collection('eventos').add({
     tipo: 'checkout_mp_iniciado',
     fecha: Timestamp.now(),
-    detalle: { planId, preapprovalId: preapproval.id, mpUserId, monto: precio }
+    detalle: { planId, preapprovalId: preapproval.id, mpUserId, monto: precio, emailMP: emailMP || email }
   });
 
   return { ok: true, initPoint: preapproval.init_point };

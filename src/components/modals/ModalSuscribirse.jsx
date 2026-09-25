@@ -17,11 +17,18 @@ const limiteTexto = (valor, singular, plural) =>
 // se acredita (lo aplica el webhook), y la app lo refleja sola porque
 // escucha suscripcion/actual en vivo.
 export default function ModalSuscribirse({ isOpen, onClose }) {
-  const { showToast, suscripcion } = useApp();
+  const { showToast, suscripcion, user } = useApp();
   const [planes, setPlanes] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [planId, setPlanId] = useState(null);
   const [redirigiendo, setRedirigiendo] = useState(false);
+  // Mercado Pago puede exigir que el débito lo autorice una cuenta de MP con
+  // este mismo email, que no siempre es el de Google con el que se entra.
+  const [emailMP, setEmailMP] = useState('');
+
+  useEffect(() => {
+    if (isOpen) setEmailMP((actual) => actual || user?.email || '');
+  }, [isOpen, user?.email]);
 
   const debitoActivo = suscripcion?.cobro?.estado === 'authorized' ? suscripcion.cobro : null;
 
@@ -51,7 +58,7 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
     setRedirigiendo(true);
     try {
       const crear = httpsCallable(functions, 'crearSuscripcionMP');
-      const { data } = await crear({ planId });
+      const { data } = await crear({ planId, emailMP: emailMP.trim() });
       window.location.href = data.initPoint;
     } catch (e) {
       console.error('Error al iniciar el pago con Mercado Pago:', e);
@@ -102,12 +109,27 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
           ))}
         </div>
 
+        {planes.length > 0 && (
+          <div style={{ marginTop: '14px' }}>
+            <label className="fl">Email de tu cuenta de Mercado Pago</label>
+            <input
+              type="email"
+              value={emailMP}
+              onChange={(e) => setEmailMP(e.target.value)}
+              placeholder="tucuenta@email.com"
+            />
+            <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '4px' }}>
+              Tiene que ser el email con el que entrás a Mercado Pago para pagar, aunque sea distinto al de esta app.
+            </div>
+          </div>
+        )}
+
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancelar</button>
           <button
             className="btn btn-primary"
             onClick={handlePagar}
-            disabled={!planId || redirigiendo || mismoPlanQueElDebito}
+            disabled={!planId || redirigiendo || mismoPlanQueElDebito || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailMP.trim())}
             title={mismoPlanQueElDebito ? 'Ya tenés débito automático de este plan.' : undefined}
           >
             {redirigiendo ? 'Abriendo Mercado Pago...' : 'Pagar con Mercado Pago'}
