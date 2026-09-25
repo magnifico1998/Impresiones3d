@@ -17,7 +17,7 @@ const { reactivacionInactivos } = require('./scheduled/reactivacionInactivos');
 const { onNuevaSolicitudContacto } = require('./triggers/onNuevaSolicitudContacto');
 const { onNuevaSolicitudCatalogo } = require('./triggers/onNuevaSolicitudCatalogo');
 const { listarPlantillasEmail, guardarPlantillaEmail, restablecerPlantillaEmail } = require('./http/plantillasEmail');
-const { habilitarRevendedor, deshabilitarRevendedor, borrarRevendedor, actualizarDescuentosRevendedor, vincularRevendedor, validarCodigoRevendedor } = require('./http/gestionarRevendedores');
+const { habilitarRevendedor, deshabilitarRevendedor, borrarRevendedor, actualizarDescuentosRevendedor, marcarCierreFacturado, vincularRevendedor, validarCodigoRevendedor } = require('./http/gestionarRevendedores');
 const { cierreMensualRevendedores } = require('./scheduled/cierreMensualRevendedores');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
@@ -46,6 +46,7 @@ module.exports = {
   deshabilitarRevendedor,
   actualizarDescuentosRevendedor,
   cierreMensualRevendedores,
+  marcarCierreFacturado,
   vincularRevendedor,
   validarCodigoRevendedor,
   borrarRevendedor,

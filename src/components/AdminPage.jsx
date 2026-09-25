@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import { useApp } from '../context/AppContext';
 import { db, functions } from '../firebase';
-import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy, getDoc } from 'firebase/firestore';
+import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy, getDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import ModalPlan from './modals/ModalPlan';
 import ModalDatosSuscriptor from './modals/ModalDatosSuscriptor';
@@ -99,9 +99,11 @@ export default function AdminPage({ modoRevendedor = false }) {
   const [codigoNuevoRevendedor, setCodigoNuevoRevendedor] = useState('');
   const [habilitandoRevendedor, setHabilitandoRevendedor] = useState(false);
   const [descuentosPorPlanEditando, setDescuentosPorPlanEditando] = useState({}); // { [codigo]: { [planId]: pct } }
-  const [ventasDelMesPorCodigo, setVentasDelMesPorCodigo] = useState({});
-  const [mesSeleccionadoPorCodigo, setMesSeleccionadoPorCodigo] = useState({}); // { [codigo]: 'YYYY-MM' }
-  const [cargandoVentasCodigo, setCargandoVentasCodigo] = useState(null);
+  // Historial de cierres por revendedor: { [codigo]: [{ anioMes, ...doc de ventas }] }, del más nuevo al más viejo.
+  const [historialPorCodigo, setHistorialPorCodigo] = useState({});
+  const [historialAbiertoCodigo, setHistorialAbiertoCodigo] = useState(null);
+  const [cargandoHistorialCodigo, setCargandoHistorialCodigo] = useState(null);
+  const [marcandoFacturado, setMarcandoFacturado] = useState(null); // `${codigo}:${anioMes}`
 
   // Plan elegido en el <select> de cada fila de la tabla de cuentas, para
   // pasárselo a la acción "Activar". Empieza vacío; se inicializa con el
@@ -505,21 +507,67 @@ export default function AdminPage({ modoRevendedor = false }) {
     return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
   };
 
-  const verVentasDelMes = async (uid, codigo, anioMes) => {
-    setCargandoVentasCodigo(codigo);
+  // Historial de meses con movimiento de un revendedor (un doc por mes en
+  // revendedores/{codigo}/ventas). Se relee cada vez que se abre, así
+  // refleja el cierre automático o una venta nueva sin recargar la página.
+  // El mes en curso se agrega aunque todavía no tenga ventas.
+  const abrirHistorial = async (codigo) => {
+    if (historialAbiertoCodigo === codigo) {
+      setHistorialAbiertoCodigo(null);
+      return;
+    }
+    setHistorialAbiertoCodigo(codigo);
+    setCargandoHistorialCodigo(codigo);
     try {
-      const snap = await getDoc(doc(db, 'revendedores', codigo, 'ventas', anioMes));
+      const snap = await getDocs(collection(db, 'revendedores', codigo, 'ventas'));
       const base = { items: [], totalPlan: 0, totalDescuento: 0, totalFacturable: 0, totalComisionAPagar: 0 };
-      setVentasDelMesPorCodigo(prev => ({
+      const meses = snap.docs.map(d => ({ ...base, ...d.data(), anioMes: d.id }));
+      if (!meses.some(m => m.anioMes === mesActual())) meses.push({ ...base, anioMes: mesActual() });
+      meses.sort((a, b) => b.anioMes.localeCompare(a.anioMes));
+      setHistorialPorCodigo(prev => ({ ...prev, [codigo]: meses }));
+    } catch (e) {
+      console.error(`Error al leer el historial de ${codigo}:`, e);
+      showToast('No se pudo leer el historial de este revendedor.', 'error');
+    } finally {
+      setCargandoHistorialCodigo(null);
+    }
+  };
+
+  const marcarFacturado = async (codigo, anioMes, facturado) => {
+    setMarcandoFacturado(`${codigo}:${anioMes}`);
+    try {
+      await httpsCallable(functions, 'marcarCierreFacturado')({ codigo, anioMes, facturado });
+      setHistorialPorCodigo(prev => ({
         ...prev,
-        [`${codigo}:${anioMes}`]: snap.exists() ? { ...base, ...snap.data() } : base
+        [codigo]: prev[codigo].map(m => m.anioMes !== anioMes ? m : {
+          ...m,
+          facturado,
+          facturadoEl: facturado ? Timestamp.now() : null,
+          facturadoPor: facturado ? user?.email : null
+        })
       }));
     } catch (e) {
-      console.error(`Error al leer las ventas de ${codigo}:`, e);
-      showToast('No se pudieron leer las ventas de este revendedor.', 'error');
+      console.error('Error al marcar el cierre como facturado:', e);
+      showToast(e?.message || 'No se pudo actualizar el cierre.', 'error');
     } finally {
-      setCargandoVentasCodigo(null);
+      setMarcandoFacturado(null);
     }
+  };
+
+  // "2026-09" -> "Septiembre 2026"
+  const nombreMes = (anioMes) => {
+    const [anio, mes] = anioMes.split('-').map(Number);
+    const nombre = new Date(anio, mes - 1, 1).toLocaleDateString('es-AR', { month: 'long' });
+    return `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${anio}`;
+  };
+
+  // Saldo neto del mes desde el lado de la plataforma (ver
+  // functions/ledgerRevendedor.js): lo congela el cierre; en el mes en curso
+  // se calcula con lo acumulado hasta ahora.
+  const saldoDelMes = (m) => m.saldo ?? (Number(m.totalFacturable || 0) - Number(m.totalComisionAPagar || 0));
+  const textoSaldo = (saldo) => {
+    const monto = `$${Math.abs(Math.round(saldo)).toLocaleString('es-AR')}`;
+    return saldo > 0 ? `Revendedor debe ${monto}` : saldo < 0 ? `A pagarle ${monto}` : '$0';
   };
 
   // Arma el PDF de un cierre ya hecho (lo cierra solo
@@ -1350,8 +1398,8 @@ export default function AdminPage({ modoRevendedor = false }) {
             {!loadingRevendedores && revendedores.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {revendedores.map((rev) => {
-                  const anioMes = mesSeleccionadoPorCodigo[rev.codigo] || mesActual();
-                  const ventas = ventasDelMesPorCodigo[`${rev.codigo}:${anioMes}`];
+                  const historialAbierto = historialAbiertoCodigo === rev.codigo;
+                  const historial = historialPorCodigo[rev.codigo] || [];
                   return (
                     <div key={rev.codigo} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -1362,21 +1410,12 @@ export default function AdminPage({ modoRevendedor = false }) {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                          <input
-                            type="month"
-                            value={anioMes}
-                            onChange={(e) => setMesSeleccionadoPorCodigo(prev => ({ ...prev, [rev.codigo]: e.target.value }))}
-                            max={mesActual()}
-                            style={{ fontSize: '12px', padding: '3px 4px' }}
-                            title="Mes a consultar"
-                          />
                           <button
                             className="btn"
                             style={{ fontSize: '11px', padding: '4px 8px' }}
-                            disabled={cargandoVentasCodigo === rev.codigo}
-                            onClick={() => verVentasDelMes(rev.uid, rev.codigo, anioMes)}
+                            onClick={() => abrirHistorial(rev.codigo)}
                           >
-                            {cargandoVentasCodigo === rev.codigo ? 'Cargando...' : 'Ver ventas'}
+                            {historialAbierto ? '▾' : '▸'} Historial de cierres
                           </button>
                           {rev.activo ? (
                             <button
@@ -1407,38 +1446,82 @@ export default function AdminPage({ modoRevendedor = false }) {
                         </div>
                       </div>
 
-                      {ventas && (
-                        <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', marginTop: '8px' }}>
-                          {ventas.items.length} venta(s) en {anioMes} · lista ${Number(ventas.totalPlan || 0).toLocaleString('es-AR')} ·
-                          {' '}comisión ${Number(ventas.totalDescuento || 0).toLocaleString('es-AR')} ·
-                          {' '}a facturar ${Number(ventas.totalFacturable || 0).toLocaleString('es-AR')} ·
-                          {' '}a pagarle (MP) ${Number(ventas.totalComisionAPagar || 0).toLocaleString('es-AR')}
-                          {/* El cierre lo hace solo el último día del mes a las 24 hs
-                              (cierreMensualRevendedores); desde el panel sólo se
-                              revisa y se descarga para facturar. */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
-                            {ventas.cerrado ? (
-                              <>
-                                <span className="badge badge-done">
-                                  cerrado{ventas.cerradoEl ? ` el ${fmtFecha(ventas.cerradoEl)}` : ''}
-                                </span>
-                                <button
-                                  className="btn"
-                                  style={{ fontSize: '11px', padding: '4px 8px' }}
-                                  onClick={() => generarPdfCierre(rev, anioMes, ventas)}
-                                  title="Descarga el detalle del mes cerrado con el saldo a facturar"
-                                >
-                                  📄 Descargar PDF del cierre
-                                </button>
-                              </>
-                            ) : (
-                              <span style={{ fontFamily: 'var(--sans)' }}>
-                                {anioMes === mesActual()
-                                  ? 'Mes en curso: se cierra automáticamente el último día a las 24 hs.'
-                                  : 'Este mes no tiene cierre.'}
-                              </span>
-                            )}
-                          </div>
+                      {/* Historial de cierres: los cierra solo el último día del mes
+                          a las 24 hs (cierreMensualRevendedores); desde acá sólo se
+                          revisan, se descargan para facturar y se marcan como
+                          facturados. */}
+                      {historialAbierto && (
+                        <div style={{ marginTop: '10px', overflowX: 'auto' }}>
+                          {cargandoHistorialCodigo === rev.codigo ? (
+                            <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Cargando historial...</div>
+                          ) : (
+                            <table className="data-table" style={{ width: '100%' }}>
+                              <thead>
+                                <tr>
+                                  <th>Mes</th>
+                                  <th>Estado</th>
+                                  <th style={{ textAlign: 'right' }}>Ventas</th>
+                                  <th style={{ textAlign: 'right' }}>Saldo</th>
+                                  <th></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {historial.map((m) => {
+                                  const saldo = saldoDelMes(m);
+                                  const clave = `${rev.codigo}:${m.anioMes}`;
+                                  return (
+                                    <tr key={m.anioMes}>
+                                      <td style={{ whiteSpace: 'nowrap' }}>{nombreMes(m.anioMes)}</td>
+                                      <td>
+                                        {!m.cerrado ? (
+                                          <span className="badge">en curso</span>
+                                        ) : m.facturado ? (
+                                          <span className="badge badge-done" title={m.facturadoPor ? `Marcado por ${m.facturadoPor}` : undefined}>
+                                            facturado{m.facturadoEl ? ` el ${fmtFecha(m.facturadoEl)}` : ''}
+                                          </span>
+                                        ) : (
+                                          <span className="badge badge-pending">cerrado · sin facturar</span>
+                                        )}
+                                      </td>
+                                      <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontSize: '12px' }}>{(m.items || []).length}</td>
+                                      <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontSize: '12px' }}>
+                                        <div style={{ fontWeight: 600 }}>{textoSaldo(saldo)}{!m.cerrado && ' (parcial)'}</div>
+                                        <div style={{ fontSize: '10px', color: 'var(--text2)' }}>
+                                          a facturar ${Number(m.totalFacturable || 0).toLocaleString('es-AR')} · a pagarle ${Number(m.totalComisionAPagar || 0).toLocaleString('es-AR')}
+                                        </div>
+                                      </td>
+                                      <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                                        {m.cerrado ? (
+                                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                            <button
+                                              className="btn"
+                                              style={{ fontSize: '11px', padding: '4px 8px' }}
+                                              onClick={() => generarPdfCierre(rev, m.anioMes, m)}
+                                              title="Descarga el detalle del mes cerrado con el saldo a facturar"
+                                            >
+                                              📄 PDF
+                                            </button>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', cursor: 'pointer' }}>
+                                              <input
+                                                type="checkbox"
+                                                checked={!!m.facturado}
+                                                disabled={marcandoFacturado === clave}
+                                                onChange={(e) => marcarFacturado(rev.codigo, m.anioMes, e.target.checked)}
+                                                style={{ width: 'auto' }}
+                                              />
+                                              Facturado
+                                            </label>
+                                          </div>
+                                        ) : (
+                                          <span style={{ fontSize: '11px', color: 'var(--text2)' }}>se cierra el último día a las 24 hs</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
                         </div>
                       )}
 

@@ -237,6 +237,33 @@ exports.vincularRevendedor = onCall(async (request) => {
   return { ok: true, codigo: codigoLimpio };
 });
 
+// Marca (o desmarca) como facturado el cierre de un mes -- es sólo una
+// constancia administrativa de que ya se emitió la factura de ese saldo,
+// no cambia ningún número del cierre. Sólo sobre meses ya cerrados (ver
+// cierreMensualRevendedores.js): un mes en curso todavía puede cambiar.
+exports.marcarCierreFacturado = onCall(async (request) => {
+  const emailSolicitante = await exigirAdmin(request);
+
+  const codigo = validarCodigo(request.data?.codigo);
+  const anioMes = request.data?.anioMes;
+  const facturado = request.data?.facturado === true;
+  if (!anioMes || !/^\d{4}-\d{2}$/.test(anioMes)) {
+    throw new HttpsError('invalid-argument', 'Falta el mes (YYYY-MM).');
+  }
+
+  const ventaRef = db.doc(`revendedores/${codigo}/ventas/${anioMes}`);
+  const ventaSnap = await ventaRef.get();
+  if (!ventaSnap.exists || !ventaSnap.data().cerrado) {
+    throw new HttpsError('failed-precondition', 'Sólo se puede marcar como facturado un mes ya cerrado.');
+  }
+
+  await ventaRef.update(facturado
+    ? { facturado: true, facturadoEl: Timestamp.now(), facturadoPor: emailSolicitante }
+    : { facturado: false, facturadoEl: FieldValue.delete(), facturadoPor: FieldValue.delete() });
+
+  return { ok: true };
+});
+
 // Valida un código de revendedor en vivo desde el formulario de contacto
 // (ModalContacto.jsx), devolviendo nombre/apellido/email para que el
 // interesado confirme que es el revendedor correcto antes de enviar. NO es
