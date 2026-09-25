@@ -100,6 +100,12 @@ select option{background:var(--bg3)}
 .btn-danger{color:var(--danger);border-color:transparent;background:none}
 .btn-danger:hover{background:var(--dangerDim);border-color:var(--danger)}
 .btn-sm{padding:5px 10px;font-size:12px}
+/* Botón deshabilitado: grisado, sin efecto hover, para que no parezca
+   clickeable. .btn-inactivo es el mismo look para un botón que se ve
+   deshabilitado pero sigue escuchando el click para explicar qué falta
+   (ver ModalSuscribirse.jsx). */
+.btn:disabled,.btn:disabled:hover,.btn-inactivo,.btn-inactivo:hover{opacity:.45;filter:grayscale(.6);cursor:not-allowed}
+.btn-primary:disabled:hover,.btn-primary.btn-inactivo:hover{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:var(--accent)}
 .btn svg{width:14px;height:14px}
 .status{display:none;border-radius:var(--radius);padding:10px 14px;font-size:13px;margin-bottom:12px;align-items:center;gap:8px}
 .status.active{display:flex}

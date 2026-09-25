@@ -29,6 +29,9 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
   const [paso, setPaso] = useState(1);
   const [emailMP, setEmailMP] = useState('');
   const [emailConfirmado, setEmailConfirmado] = useState(false);
+  // Se prende si tocan "Pagar" sin haber confirmado el email: resalta la
+  // casilla y explica qué falta.
+  const [avisoConfirmar, setAvisoConfirmar] = useState(false);
 
   // Cada vez que se abre arranca de cero, con el email de contacto de la
   // tienda (Mi emprendimiento) o, si no tiene, el de la cuenta de Google.
@@ -37,6 +40,7 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
     setPaso(1);
     setEmailMP(empresa?.email || user?.email || '');
     setEmailConfirmado(false);
+    setAvisoConfirmar(false);
     // Sólo al abrir: no pisar lo que el usuario está editando.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -66,6 +70,7 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
   const mismoPlanQueElDebito = debitoActivo && debitoActivo.planId === planId;
   const planElegido = planes.find((p) => p.id === planId) || null;
   const emailValido = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailMP.trim());
+  const listoParaPagar = Boolean(planId) && emailValido && emailConfirmado;
 
   const handlePagar = async () => {
     setRedirigiendo(true);
@@ -113,23 +118,40 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
             <div style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '4px' }}>El email no es válido.</div>
           )}
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '14px', fontSize: '13px', cursor: 'pointer' }}>
+          <label style={{
+            display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '14px', fontSize: '13px', cursor: 'pointer',
+            padding: '8px 10px', borderRadius: 'var(--radius2)', transition: 'all .15s',
+            border: `1px solid ${avisoConfirmar && !emailConfirmado ? 'var(--danger)' : 'transparent'}`,
+            background: avisoConfirmar && !emailConfirmado ? 'var(--dangerDim)' : 'transparent'
+          }}>
             <input
               type="checkbox"
               checked={emailConfirmado}
-              onChange={(e) => setEmailConfirmado(e.target.checked)}
+              onChange={(e) => { setEmailConfirmado(e.target.checked); if (e.target.checked) setAvisoConfirmar(false); }}
               disabled={!emailValido}
               style={{ width: 'auto', marginTop: '2px' }}
             />
             <span>Confirmo que <strong>{emailValido ? emailMP.trim() : 'este'}</strong> es el email con el que entro a Mercado Pago.</span>
           </label>
 
+          {avisoConfirmar && !listoParaPagar && (
+            <div style={{ fontSize: '12px', color: 'var(--danger)', marginTop: '8px' }}>
+              ⚠ {emailValido
+                ? 'Para continuar, tildá la casilla confirmando que es el email de tu cuenta de Mercado Pago.'
+                : 'Ingresá un email válido y confirmalo con la casilla para continuar.'}
+            </div>
+          )}
+
           <div className="modal-footer">
             <button className="btn" onClick={() => setPaso(1)} disabled={redirigiendo}>← Volver</button>
+            {/* Se ve deshabilitado hasta confirmar el email, pero sigue
+                escuchando el click para explicar qué falta (un botón
+                disabled de verdad no recibe clicks). */}
             <button
-              className="btn btn-primary"
-              onClick={handlePagar}
-              disabled={!planId || redirigiendo || !emailValido || !emailConfirmado}
+              className={`btn btn-primary${listoParaPagar ? '' : ' btn-inactivo'}`}
+              aria-disabled={!listoParaPagar}
+              onClick={() => (listoParaPagar ? handlePagar() : setAvisoConfirmar(true))}
+              disabled={redirigiendo}
             >
               {redirigiendo ? 'Abriendo Mercado Pago...' : 'Pagar con Mercado Pago'}
             </button>
