@@ -331,7 +331,7 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
   });
 
   // Ledger de ventas del revendedor para el cierre mensual (ver
-  // gestionarRevendedores.js -> generarCierreRevendedor). Se agrega un
+  // scheduled/cierreMensualRevendedores.js). Se agrega un
   // ítem en CADA "activar" atribuido a un revendedor -- primera venta o
   // renovación, todas cuentan para el mes en curso. Por acá pasan sólo
   // ventas manuales (el revendedor cobró por fuera), así que la deuda es

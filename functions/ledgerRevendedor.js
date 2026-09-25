@@ -1,8 +1,8 @@
-const { db, FieldValue, formatearFecha } = require('./admin');
+const { db, FieldValue, anioMesArgentina } = require('./admin');
 
 // Ledger mensual de ventas de cada revendedor
 // (revendedores/{codigo}/ventas/{YYYY-MM}), que después consume el cierre
-// del mes (ver gestionarRevendedores.js -> generarCierreRevendedor).
+// del mes (ver scheduled/cierreMensualRevendedores.js).
 //
 // Cada venta registra QUIÉN cobró la plata, porque eso define para qué lado
 // va la deuda del cierre:
@@ -35,7 +35,7 @@ function armarVentaLedger({ codigo, uid, email, planId, fecha, montoPlan, pct, c
   const cobroRevendedor = cobradoPor === 'revendedor';
   const montoFacturable = cobroRevendedor ? redondear2(montoPlan - montoComision) : 0;
   const comisionAPagar = cobroRevendedor ? 0 : montoComision;
-  const anioMes = formatearFecha(fecha).slice(0, 7);
+  const anioMes = anioMesArgentina(fecha.toMillis());
 
   return {
     ref: db.doc(`revendedores/${codigo}/ventas/${anioMes}`),

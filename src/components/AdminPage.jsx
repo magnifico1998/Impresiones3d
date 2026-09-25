@@ -102,7 +102,6 @@ export default function AdminPage({ modoRevendedor = false }) {
   const [ventasDelMesPorCodigo, setVentasDelMesPorCodigo] = useState({});
   const [mesSeleccionadoPorCodigo, setMesSeleccionadoPorCodigo] = useState({}); // { [codigo]: 'YYYY-MM' }
   const [cargandoVentasCodigo, setCargandoVentasCodigo] = useState(null);
-  const [generandoCierreCodigo, setGenerandoCierreCodigo] = useState(null);
 
   // Plan elegido en el <select> de cada fila de la tabla de cuentas, para
   // pasárselo a la acción "Activar". Empieza vacío; se inicializa con el
@@ -498,7 +497,13 @@ export default function AdminPage({ modoRevendedor = false }) {
     }
   };
 
-  const mesActual = () => new Date().toISOString().slice(0, 7);
+  // Mes en curso en hora local (Argentina), el mismo criterio con el que el
+  // ledger agrupa las ventas -- toISOString() daría el mes UTC, que el
+  // último día después de las 21 hs ya es el siguiente.
+  const mesActual = () => {
+    const hoy = new Date();
+    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+  };
 
   const verVentasDelMes = async (uid, codigo, anioMes) => {
     setCargandoVentasCodigo(codigo);
@@ -517,10 +522,11 @@ export default function AdminPage({ modoRevendedor = false }) {
     }
   };
 
-  // Arma el PDF de cierre client-side con jsPDF, mismo criterio visual que
-  // el PDF de pedido (ver ModalPedidoDetalle.jsx): header simple + tabla +
-  // total, sin depender de nada que exija ida y vuelta al servidor más
-  // allá de la llamada que marca el mes como cerrado.
+  // Arma el PDF de un cierre ya hecho (lo cierra solo
+  // functions/scheduled/cierreMensualRevendedores.js el último día del mes
+  // a las 24 hs) client-side con jsPDF, mismo criterio visual que el PDF de
+  // pedido (ver ModalPedidoDetalle.jsx): header simple + tabla + total. Es
+  // sólo para revisar y facturar, no cambia nada del mes.
   const generarPdfCierre = (rev, anioMes, datos) => {
     const doc2 = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = 210, marginX = 15, contentW = pageW - marginX * 2;
@@ -597,20 +603,6 @@ export default function AdminPage({ modoRevendedor = false }) {
     doc2.save(`cierre-${rev.codigo}-${anioMes}.pdf`);
   };
 
-  const generarCierre = async (rev, anioMes) => {
-    setGenerandoCierreCodigo(rev.codigo);
-    try {
-      const generar = httpsCallable(functions, 'generarCierreRevendedor');
-      const { data } = await generar({ uid: rev.uid, anioMes });
-      generarPdfCierre(rev, anioMes, data);
-      showToast('Cierre generado.');
-    } catch (e) {
-      console.error('Error al generar el cierre del revendedor:', e);
-      showToast(e?.message || 'No se pudo generar el cierre.', 'error');
-    } finally {
-      setGenerandoCierreCodigo(null);
-    }
-  };
 
   // En modo revendedor, acotamos todo a "mi cartera": cuentas que ya
   // activé/renové yo (revendedorUid == mi uid) y leads que todavía no se
@@ -1374,8 +1366,9 @@ export default function AdminPage({ modoRevendedor = false }) {
                             type="month"
                             value={anioMes}
                             onChange={(e) => setMesSeleccionadoPorCodigo(prev => ({ ...prev, [rev.codigo]: e.target.value }))}
+                            max={mesActual()}
                             style={{ fontSize: '12px', padding: '3px 4px' }}
-                            title="Mes a consultar/cerrar"
+                            title="Mes a consultar"
                           />
                           <button
                             className="btn"
@@ -1384,15 +1377,6 @@ export default function AdminPage({ modoRevendedor = false }) {
                             onClick={() => verVentasDelMes(rev.uid, rev.codigo, anioMes)}
                           >
                             {cargandoVentasCodigo === rev.codigo ? 'Cargando...' : 'Ver ventas'}
-                          </button>
-                          <button
-                            className="btn"
-                            style={{ fontSize: '11px', padding: '4px 8px' }}
-                            disabled={generandoCierreCodigo === rev.codigo}
-                            onClick={() => generarCierre(rev, anioMes)}
-                            title="Marca el mes elegido como cerrado y descarga el PDF con el detalle y el total a facturar"
-                          >
-                            {generandoCierreCodigo === rev.codigo ? 'Generando...' : '📄 Generar cierre del mes'}
                           </button>
                           {rev.activo ? (
                             <button
@@ -1429,7 +1413,32 @@ export default function AdminPage({ modoRevendedor = false }) {
                           {' '}comisión ${Number(ventas.totalDescuento || 0).toLocaleString('es-AR')} ·
                           {' '}a facturar ${Number(ventas.totalFacturable || 0).toLocaleString('es-AR')} ·
                           {' '}a pagarle (MP) ${Number(ventas.totalComisionAPagar || 0).toLocaleString('es-AR')}
-                          {ventas.cerrado && <span className="badge badge-done" style={{ marginLeft: '8px' }}>cerrado</span>}
+                          {/* El cierre lo hace solo el último día del mes a las 24 hs
+                              (cierreMensualRevendedores); desde el panel sólo se
+                              revisa y se descarga para facturar. */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+                            {ventas.cerrado ? (
+                              <>
+                                <span className="badge badge-done">
+                                  cerrado{ventas.cerradoEl ? ` el ${fmtFecha(ventas.cerradoEl)}` : ''}
+                                </span>
+                                <button
+                                  className="btn"
+                                  style={{ fontSize: '11px', padding: '4px 8px' }}
+                                  onClick={() => generarPdfCierre(rev, anioMes, ventas)}
+                                  title="Descarga el detalle del mes cerrado con el saldo a facturar"
+                                >
+                                  📄 Descargar PDF del cierre
+                                </button>
+                              </>
+                            ) : (
+                              <span style={{ fontFamily: 'var(--sans)' }}>
+                                {anioMes === mesActual()
+                                  ? 'Mes en curso: se cierra automáticamente el último día a las 24 hs.'
+                                  : 'Este mes no tiene cierre.'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
 

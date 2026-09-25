@@ -34,6 +34,15 @@ function formatearFecha(timestamp) {
   return timestamp.toDate().toISOString().slice(0, 10); // "YYYY-MM-DD"
 }
 
+// Mes contable "YYYY-MM" en hora de Argentina (UTC-3 fijo, sin horario de
+// verano) -- el del ledger de revendedores, que se cierra el último día del
+// mes a las 24 hs de Argentina (ver cierreMensualRevendedores.js). En UTC,
+// una venta del último día después de las 21 hs caería en el mes siguiente.
+const OFFSET_ARGENTINA_MS = -3 * 60 * 60 * 1000;
+function anioMesArgentina(ms) {
+  return new Date(ms + OFFSET_ARGENTINA_MS).toISOString().slice(0, 7);
+}
+
 // Suma N días corridos a un Timestamp (a diferencia de sumarMesCalendario,
 // que ancla al día del mes) -- la usa el plan gratuito "Boceto" para
 // extender cicloFin 30 días desde cada ingreso, en vez de un ciclo
@@ -86,4 +95,4 @@ async function obtenerContactoRevendedor(uid) {
   };
 }
 
-module.exports = { db, Timestamp, FieldValue, DIA_MS, DURACION_TRIAL_DIAS, DURACION_LECTURA_DIAS, DIAS_GRACIA_DEBITO_AUTOMATICO, sumarMesCalendario, sumarDias, formatearFecha, calcularCicloActivacion, obtenerContactoRevendedor };
+module.exports = { db, Timestamp, FieldValue, DIA_MS, DURACION_TRIAL_DIAS, DURACION_LECTURA_DIAS, DIAS_GRACIA_DEBITO_AUTOMATICO, sumarMesCalendario, sumarDias, formatearFecha, anioMesArgentina, calcularCicloActivacion, obtenerContactoRevendedor };

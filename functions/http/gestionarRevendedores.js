@@ -237,59 +237,6 @@ exports.vincularRevendedor = onCall(async (request) => {
   return { ok: true, codigo: codigoLimpio };
 });
 
-exports.generarCierreRevendedor = onCall(async (request) => {
-  await exigirAdmin(request);
-
-  const { uid, anioMes } = request.data || {};
-  if (!uid || typeof uid !== 'string' || !anioMes || !/^\d{4}-\d{2}$/.test(anioMes)) {
-    throw new HttpsError('invalid-argument', 'Faltan datos (uid, anioMes en formato YYYY-MM).');
-  }
-
-  const subSnap = await db.doc(`users/${uid}/suscripcion/actual`).get();
-  const codigo = subSnap.exists ? (subSnap.data().codigoRevendedor || null) : null;
-  if (!codigo) {
-    throw new HttpsError('not-found', 'Esa cuenta no tiene un código de revendedor habilitado.');
-  }
-
-  const emailSolicitante = request.auth.token.email.toLowerCase();
-  const ventaRef = db.doc(`revendedores/${codigo}/ventas/${anioMes}`);
-  const ventaSnap = await ventaRef.get();
-  const datos = ventaSnap.exists ? ventaSnap.data() : {
-    items: [], totalPlan: 0, totalDescuento: 0, totalFacturable: 0, totalComisionAPagar: 0
-  };
-
-  // El cierre es sólo informativo (no bloquea ni modifica suscripciones):
-  // se puede volver a generar sin riesgo si hace falta reimprimir el PDF
-  // de un mes ya cerrado. Importante: si el doc todavía no existía (mes
-  // sin ventas), hay que persistir TAMBIÉN los defaults de "datos" acá --
-  // si sólo se guardara {cerrado,...}, el doc quedaría sin items/totales y
-  // "Ver ventas" (que lee el doc directo) rompería al no encontrarlos.
-  await ventaRef.set({
-    ...datos,
-    cerrado: true,
-    cerradoEl: Timestamp.now(),
-    cerradoPor: emailSolicitante
-  }, { merge: true });
-
-  // Las llamadas onCall serializan la respuesta como JSON plano: un
-  // Timestamp de Firestore (item.fecha) no le sobrevive a esa vuelta con
-  // .toDate() todavía andando del otro lado -- por eso el PDF (que arma el
-  // cliente con estos datos) mostraba la fecha vacía. Se convierte acá a
-  // string ISO, así llega como algo que el cliente puede parsear siempre.
-  const itemsSerializables = (datos.items || []).map((item) => ({
-    ...item,
-    fecha: item.fecha && typeof item.fecha.toDate === 'function' ? item.fecha.toDate().toISOString() : item.fecha
-  }));
-
-  // Neto del mes (ver ledgerRevendedor.js): positivo = el revendedor le
-  // debe a la plataforma, negativo = la plataforma le debe al revendedor.
-  // Meses anteriores a los pagos por Mercado Pago no tienen
-  // totalComisionAPagar, cuenta como 0.
-  const saldo = Math.round((Number(datos.totalFacturable || 0) - Number(datos.totalComisionAPagar || 0)) * 100) / 100;
-
-  return { ok: true, codigo, anioMes, ...datos, saldo, items: itemsSerializables };
-});
-
 // Valida un código de revendedor en vivo desde el formulario de contacto
 // (ModalContacto.jsx), devolviendo nombre/apellido/email para que el
 // interesado confirme que es el revendedor correcto antes de enviar. NO es
