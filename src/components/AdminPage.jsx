@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { confirmar, pedirTexto } from './Dialogos';
 import { jsPDF } from 'jspdf';
 import { useApp } from '../context/AppContext';
 import { db, functions } from '../firebase';
@@ -335,8 +336,9 @@ export default function AdminPage({ modoRevendedor = false }) {
     const avisoEstadoActivo = estado !== 'suspendida'
       ? `⚠ ATENCIÓN: esta cuenta está ${estado === 'activa' ? 'ACTIVA' : estado === 'trial' ? 'en TRIAL' : 'en modo lectura'}, no bloqueada. La vas a borrar de todos modos, sin esperar los 30 días de gracia.\n\n`
       : '';
-    const confirmacion = window.prompt(
-      `${avisoEstadoActivo}Esto borra TODO lo de "${emailCuenta}" (pedidos, biblioteca, clientes, catálogo web, la cuenta de Google) sin posibilidad de recuperarlo.\n\nPara confirmar, escribí el email exacto de la cuenta:`
+    const confirmacion = await pedirTexto(
+      `${avisoEstadoActivo}Esto borra TODO lo de "${emailCuenta}" (pedidos, biblioteca, clientes, catálogo web, la cuenta de Google) sin posibilidad de recuperarlo.\n\nPara confirmar, escribí el email exacto de la cuenta:`,
+      { titulo: 'Borrar cuenta definitivamente', placeholder: emailCuenta, tipoInput: 'email', textoConfirmar: 'Borrar cuenta' }
     );
     if (confirmacion === null) return;
     if (confirmacion.trim().toLowerCase() !== emailCuenta.toLowerCase()) {
@@ -413,7 +415,7 @@ export default function AdminPage({ modoRevendedor = false }) {
   };
 
   const deshabilitarRevendedor = async (uid) => {
-    if (!window.confirm('¿Deshabilitar a este revendedor? Deja de poder operar sus suscriptores, pero no se toca nada de lo ya vendido.')) return;
+    if (!(await confirmar('Deja de poder operar sus suscriptores, pero no se toca nada de lo ya vendido.', { titulo: '¿Deshabilitar a este revendedor?', textoConfirmar: 'Deshabilitar', peligro: true }))) return;
     try {
       const deshabilitar = httpsCallable(functions, 'deshabilitarRevendedor');
       await deshabilitar({ uid });
@@ -442,7 +444,7 @@ export default function AdminPage({ modoRevendedor = false }) {
   const [borrandoRevendedorCodigo, setBorrandoRevendedorCodigo] = useState(null);
 
   const borrarRevendedor = async (rev) => {
-    if (!window.confirm(`¿Borrar definitivamente el código ${rev.codigo}? Esto no se puede deshacer. Si todavía tiene suscriptores con suscripción vigente, se va a rechazar.`)) return;
+    if (!(await confirmar(`Esto no se puede deshacer. Si todavía tiene suscriptores con suscripción vigente, se va a rechazar.`, { titulo: `¿Borrar el código ${rev.codigo}?`, textoConfirmar: 'Borrar', peligro: true }))) return;
     setBorrandoRevendedorCodigo(rev.codigo);
     try {
       const borrar = httpsCallable(functions, 'borrarRevendedor');

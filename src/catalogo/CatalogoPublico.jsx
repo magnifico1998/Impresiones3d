@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Dialogos, { avisar } from '../components/Dialogos';
 import { db, functions } from '../firebase';
 import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -264,7 +265,7 @@ export default function CatalogoPublico() {
   const confirmarAgregado = (p) => {
     const versionesValidas = draftVersiones.filter(v => v.cantidad > 0);
     if (!versionesValidas.length) {
-      alert('Poné al menos una cantidad mayor a 0 antes de confirmar.');
+      avisar('Poné al menos una cantidad mayor a 0 antes de confirmar.');
       return;
     }
 
@@ -300,19 +301,19 @@ export default function CatalogoPublico() {
 
   const handleEnviar = async () => {
     if (!cliente.trim()) {
-      alert('Contanos tu nombre para poder armar el pedido.');
+      avisar('Contanos tu nombre para poder armar el pedido.');
       return;
     }
     if (!telefono.trim()) {
-      alert('Dejanos un teléfono de contacto para poder coordinar el pedido.');
+      avisar('Dejanos un teléfono de contacto para poder coordinar el pedido.');
       return;
     }
     if (!validarTelefono(telefono, pais.id)) {
-      alert(pais.mensajeTelefono);
+      avisar(pais.mensajeTelefono);
       return;
     }
     if (!carrito.length || cantidadCarrito === 0) {
-      alert('Agregá al menos un producto con cantidad mayor a 0.');
+      avisar('Agregá al menos un producto con cantidad mayor a 0.');
       return;
     }
 
@@ -348,7 +349,7 @@ export default function CatalogoPublico() {
       setEnviado({ docId: ref.id, payload });
     } catch (e) {
       console.error('Error al enviar el pedido:', e);
-      alert('No se pudo enviar el pedido. Probá de nuevo en un momento.');
+      avisar('No se pudo enviar el pedido. Probá de nuevo en un momento.');
     } finally {
       setEnviando(false);
     }
@@ -405,6 +406,9 @@ export default function CatalogoPublico() {
   return (
     <div style={{ ...estiloPaleta(config), minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', paddingBottom: carrito.length ? '76px' : '0' }}>
       <style>{ESTILOS_RESPONSIVE}</style>
+      {/* Adentro del contenedor con la paleta de la tienda, así los avisos
+          toman sus colores en vez de los de la app. */}
+      <Dialogos />
 
       <header style={{
         position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg)',

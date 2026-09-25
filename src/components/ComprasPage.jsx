@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 
 export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
@@ -33,8 +34,8 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
     return [...list].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   }, [compras, filtroCat]);
 
-  const handleDelete = (id) => {
-    if (window.confirm('¿Eliminar esta compra?')) {
+  const handleDelete = async (id) => {
+    if (await confirmar('Esta acción no se puede deshacer.', { titulo: '¿Eliminar esta compra?', textoConfirmar: 'Eliminar', peligro: true })) {
       removeCompra(id);
       showToast('Compra eliminada', 'info');
     }

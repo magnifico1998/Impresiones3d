@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { confirmar, pedirTexto } from '../components/Dialogos';
 import { auth, db, googleProvider, functions } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
@@ -576,7 +577,7 @@ export const AppProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    if (window.confirm("¿Cerrar sesión en Manager3D?")) {
+    if (await confirmar('Vas a tener que volver a ingresar para usar la app.', { titulo: '¿Cerrar sesión?', textoConfirmar: 'Cerrar sesión' })) {
       await signOut(auth);
       window.location.reload();
     }
@@ -688,22 +689,29 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (!isSignInWithEmailLink(auth, window.location.href)) return;
 
-    let email = window.localStorage.getItem('emailParaLink');
-    if (!email) {
-      email = window.prompt('Confirmá tu email para completar el ingreso:');
-    }
-    if (!email) return;
+    (async () => {
+      let email = window.localStorage.getItem('emailParaLink');
+      if (!email) {
+        email = await pedirTexto('Abriste el link en otro navegador o dispositivo. Confirmá el email con el que pediste el ingreso:', {
+          titulo: 'Completar el ingreso',
+          tipoInput: 'email',
+          placeholder: 'tu@email.com',
+          textoConfirmar: 'Ingresar'
+        });
+      }
+      if (!email) return;
 
-    signInWithEmailLink(auth, email, window.location.href)
-      .then(() => {
-        window.localStorage.removeItem('emailParaLink');
-        window.history.replaceState(null, '', window.location.pathname);
-        showToast('Sesión iniciada');
-      })
-      .catch((error) => {
-        console.error("Error al completar el login con el link:", error);
-        showToast('El link no es válido o ya expiró. Pedí uno nuevo.', 'error');
-      });
+      signInWithEmailLink(auth, email, window.location.href)
+        .then(() => {
+          window.localStorage.removeItem('emailParaLink');
+          window.history.replaceState(null, '', window.location.pathname);
+          showToast('Sesión iniciada');
+        })
+        .catch((error) => {
+          console.error("Error al completar el login con el link:", error);
+          showToast('El link no es válido o ya expiró. Pedí uno nuevo.', 'error');
+        });
+    })();
   }, []);
 
   // Initial load from Firebase

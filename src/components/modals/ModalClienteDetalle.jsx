@@ -1,4 +1,5 @@
 import React from 'react';
+import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { precioNeto } from '../../utils/precioNeto';
 
@@ -56,12 +57,8 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
       cancelado: 'badge-cancelled'
     }[e] || '');
 
-  const handleDelete = () => {
-    if (
-      window.confirm(
-        '¿Eliminar este cliente? Sus pedidos NO se borrarán, pero quedarán sin vincular.'
-      )
-    ) {
+  const handleDelete = async () => {
+    if (await confirmar('Sus pedidos NO se borran, pero quedan sin vincular a un cliente.', { titulo: '¿Eliminar este cliente?', textoConfirmar: 'Eliminar', peligro: true })) {
       removeCliente(clientId);
       showToast('Cliente eliminado', 'info');
       onClose();

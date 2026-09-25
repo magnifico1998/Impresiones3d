@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 
@@ -97,8 +98,8 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   // recién al Guardar (ver handleSave). Antes se borraba acá mismo, y si el
   // usuario después tocaba "Cancelar", el producto — y su copia en el
   // catálogo público — quedaban apuntando a una URL ya inexistente.
-  const handleRemoveImagen = (idx) => {
-    if (!window.confirm('¿Quitar esta imagen? Se borra definitivamente al guardar los cambios.')) return;
+  const handleRemoveImagen = async (idx) => {
+    if (!(await confirmar('Se borra definitivamente al guardar los cambios.', { titulo: '¿Quitar esta imagen?', textoConfirmar: 'Quitar', peligro: true }))) return;
     setImagenes(prev => prev.filter((_, i) => i !== idx));
   };
 

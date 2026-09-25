@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 import { obtenerBloques } from '../utils/faqBloques';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
@@ -174,7 +175,7 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
   const seleccionada = faq.find(f => f.id === selectedId) || null;
 
   const handleBorrar = async (f) => {
-    if (!window.confirm(`¿Borrar la pregunta "${f.pregunta}"?`)) return;
+    if (!(await confirmar(`"${f.pregunta}"`, { titulo: '¿Borrar esta pregunta?', textoConfirmar: 'Borrar', peligro: true }))) return;
     const imagenes = obtenerBloques(f).filter(b => b.tipo === 'imagen' && b.url);
     await Promise.all(imagenes.map(b => borrarImagenDeFirebase(b.url)));
     await removeFaq(f.id);

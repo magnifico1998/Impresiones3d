@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
 import { generarListadoProductosPDF } from '../utils/listadoPDF';
@@ -429,7 +430,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const handleClearSelection = () => setSelectedIds(new Set());
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`¿Eliminar "${name}" de la biblioteca?`)) {
+    if (await confirmar(`Se elimina "${name}" y sus imágenes. Esta acción no se puede deshacer.`, { titulo: '¿Eliminar de la biblioteca?', textoConfirmar: 'Eliminar', peligro: true })) {
       const prod = biblioteca.find(p => p.id === id);
       const imagenesABorrar = prod?.imagenes?.length ? prod.imagenes : [prod?.imagen].filter(Boolean);
       for (const url of imagenesABorrar) {

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
@@ -65,7 +66,7 @@ export default function ModalPlantillaEmail({ isOpen, onClose, plantilla, onGuar
   };
 
   const handleRestablecer = async () => {
-    if (!window.confirm('¿Volver esta plantilla al texto original? Se pierde la personalización guardada.')) return;
+    if (!(await confirmar('Se pierde la personalización guardada.', { titulo: '¿Volver al texto original?', textoConfirmar: 'Restablecer', peligro: true }))) return;
     setRestableciendo(true);
     try {
       const restablecer = httpsCallable(functions, 'restablecerPlantillaEmail');

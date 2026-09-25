@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 
@@ -165,7 +166,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
     const existente = biblioteca.find(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());
 
     if (existente) {
-      if (window.confirm(`Ya existe "${nameTrimmed}" en la biblioteca. ¿Reemplazarlo con los valores actuales? Se actualizan costos y datos de impresión; las imágenes y descripciones ya guardadas se conservan salvo que hayas cargado nuevas.`)) {
+      if (await confirmar('Se actualizan costos y datos de impresión con los valores actuales. Las imágenes y descripciones ya guardadas se conservan, salvo que hayas cargado nuevas.', { titulo: `Ya existe "${nameTrimmed}" en la biblioteca`, textoConfirmar: 'Reemplazar' })) {
         // Reemplazar actualiza el CÁLCULO (costos, horas, materiales, G-code),
         // pero lo que este modal dejó vacío no debe pisar lo ya guardado:
         // este formulario siempre arranca en blanco, así que sin este merge

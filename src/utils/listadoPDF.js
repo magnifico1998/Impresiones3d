@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf';
+import { avisar } from '../components/Dialogos';
 import { paletas } from './paletas';
 import { ordenarCategorias } from './categoriaOrden';
 import { loadImageAsBase64 } from './loadImageAsBase64';
@@ -61,7 +62,7 @@ function construirPaletaPDF(paletaId) {
  */
 export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, categoriaOrden) {
   if (!biblioteca || biblioteca.length === 0) {
-    alert('No hay productos para generar el listado');
+    await avisar('Cargá productos en la Biblioteca para poder generar el listado.', { titulo: 'No hay productos' });
     return;
   }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 
@@ -70,7 +71,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
     }));
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (destino === 'nuevo' && !cliente.trim()) {
       showToast('Ingresá el cliente del pedido nuevo.', 'error');
       return;
@@ -79,7 +80,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
     // Sin el filtro por cantidad > 1 que había antes: una pieza de 1
     // unidad con versiones que suman 0 o 2 está igual de desbalanceada.
     if (asignado !== cantidadTotal) {
-      if (!window.confirm('Hay versiones sin asignar completamente (color/comentario). ¿Querés agregar la pieza igual?')) {
+      if (!(await confirmar('Hay versiones sin asignar completamente (color/comentario).', { titulo: '¿Agregar la pieza igual?', textoConfirmar: 'Agregar igual' }))) {
         return;
       }
     }

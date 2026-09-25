@@ -1,4 +1,5 @@
 import React from 'react';
+import { avisar, confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 
 export default function Header({ onToggleMenu }) {
@@ -16,18 +17,18 @@ export default function Header({ onToggleMenu }) {
         try {
           const data = JSON.parse(ev.target.result);
           if (!data.pedidos || !data.cfg) {
-            alert('Archivo de backup inválido.');
+            await avisar('El archivo elegido no es un backup de Manager3D.', { titulo: 'Archivo de backup inválido' });
             return;
           }
-          const exportLabel = data.exportado 
-            ? new Date(data.exportado).toLocaleDateString('es-AR') 
+          const exportLabel = data.exportado
+            ? new Date(data.exportado).toLocaleDateString('es-AR')
             : '?';
-          if (!window.confirm(`¿Restaurar backup del ${exportLabel}? Se reemplazarán todos los datos actuales.`)) {
+          if (!(await confirmar('Se reemplazan todos los datos actuales por los del backup.', { titulo: `¿Restaurar el backup del ${exportLabel}?`, textoConfirmar: 'Restaurar', peligro: true }))) {
             return;
           }
           await restaurarBackupData(data);
         } catch (err) {
-          alert('Error al leer el archivo: ' + err.message);
+          await avisar(err.message, { titulo: 'Error al leer el archivo' });
         }
       };
       reader.readAsText(file);

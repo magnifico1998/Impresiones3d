@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { confirmar } from './components/Dialogos';
 import { useApp } from './context/AppContext';
 
 // Layout and views
@@ -676,10 +677,10 @@ function App() {
         }}
         presupuestoActual={window._currentPresupuesto || null}
         defaultPedidoId={modalAgregarPiezaPedidoId}
-        onConfirm={(name, orderId) => {
+        onConfirm={async (name, orderId) => {
           setCalcResetTick(t => t + 1);
           // Confirm window redirect workflow
-          if (window.confirm(`✓ Pieza "${name}" agregada. ¿Ver el pedido?`)) {
+          if (await confirmar(`"${name}" quedó agregada al pedido.`, { titulo: '✓ Pieza agregada', textoConfirmar: 'Ver el pedido', textoCancelar: 'Seguir acá' })) {
             setActivePage('pedidos');
             setTimeout(() => {
               setModalPedidoDetalleId(orderId);

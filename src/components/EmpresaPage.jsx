@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../utils/imageCompress';
 import { paisesList, PAIS_DEFAULT } from '../utils/paises';
@@ -77,7 +78,12 @@ export default function EmpresaPage() {
   };
 
   const handleCancelarDebito = async () => {
-    if (!window.confirm('¿Cancelar el débito automático? Tu plan sigue activo hasta el fin del ciclo ya pago y después pasa a modo lectura.')) return;
+    if (!(await confirmar('Tu plan sigue activo hasta el fin del ciclo ya pago y después pasa a modo lectura.', {
+      titulo: '¿Cancelar el débito automático?',
+      textoConfirmar: 'Cancelar débito',
+      textoCancelar: 'Volver',
+      peligro: true
+    }))) return;
     setCancelandoDebito(true);
     try {
       await httpsCallable(functions, 'cancelarSuscripcionMP')();
@@ -104,7 +110,7 @@ export default function EmpresaPage() {
   };
 
   const handleQuitarMiembro = async (email) => {
-    if (!window.confirm(`¿Quitarle el acceso a ${email}?`)) return;
+    if (!(await confirmar(`${email} deja de poder entrar a tu cuenta.`, { titulo: '¿Quitar el acceso?', textoConfirmar: 'Quitar acceso', peligro: true }))) return;
     setQuitandoEmail(email);
     await quitarMiembro(email);
     setQuitandoEmail(null);

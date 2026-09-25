@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 
@@ -223,7 +224,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
     };
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!armarPedidoItems.length) {
       showToast('No hay productos para agregar.', 'error');
       return;
@@ -236,7 +237,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
     );
     
     if (incompletas.length) {
-      if (!window.confirm('Hay productos con versiones sin asignar completamente (color/comentario). ¿Querés crear el pedido igual?')) {
+      if (!(await confirmar('Hay productos con versiones sin asignar completamente (color/comentario).', { titulo: '¿Crear el pedido igual?', textoConfirmar: 'Crear igual' }))) {
         return;
       }
     }

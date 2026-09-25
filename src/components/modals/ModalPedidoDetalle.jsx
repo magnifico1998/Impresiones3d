@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { confirmar, pedirTexto } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { jsPDF } from 'jspdf';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
@@ -95,7 +96,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     updatePedido(draft.id, { ...draft, envio: parseFloat(draft.envio) || 0, montoAbonado: parseFloat(draft.montoAbonado) || 0 });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Mismo aviso que al armar el pedido: si las versiones de alguna pieza
     // no suman su cantidad total, se pregunta antes de guardar (se puede
     // guardar igual — a veces se reparte el resto más tarde).
@@ -105,7 +106,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     );
     if (desbalanceadas.length) {
       const nombres = desbalanceadas.map(pz => pz.nombre).join(', ');
-      if (!window.confirm(`Las versiones de "${nombres}" no suman la cantidad total de la pieza. ¿Guardar igual?`)) {
+      if (!(await confirmar(`Las versiones de "${nombres}" no suman la cantidad total de la pieza.`, { titulo: '¿Guardar igual?', textoConfirmar: 'Guardar igual' }))) {
         return;
       }
     }
@@ -115,8 +116,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     onClose();
   };
 
-  const handleCancelarPedido = () => {
-    if (window.confirm('¿Cancelar este pedido? Va a quedar marcado como cancelado, pero no se borra.')) {
+  const handleCancelarPedido = async () => {
+    if (await confirmar('Va a quedar marcado como cancelado, pero no se borra.', { titulo: '¿Cancelar este pedido?', textoConfirmar: 'Cancelar pedido', textoCancelar: 'Volver', peligro: true })) {
       updatePedido(draft.id, (p) => ({
         ...p,
         estado: 'cancelado',
@@ -284,8 +285,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     }));
   };
 
-  const handleDeletePart = (piezaId) => {
-    if (window.confirm('¿Eliminar esta pieza del pedido?')) {
+  const handleDeletePart = async (piezaId) => {
+    if (await confirmar('Se quita la pieza de este pedido.', { titulo: '¿Eliminar esta pieza?', textoConfirmar: 'Eliminar', peligro: true })) {
       setDraft(prev => {
         const piezas = prev.piezas.filter(pz => pz.id !== piezaId);
         
@@ -449,7 +450,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     navigator.clipboard.writeText(texto).then(() => {
       showToast('✓ Resumen copiado, pegalo donde lo necesites.');
     }).catch(() => {
-      window.prompt('Copiá el resumen manualmente:', texto);
+      pedirTexto('No se pudo copiar solo: seleccioná el texto y copialo a mano.', { titulo: 'Resumen del pedido', valorInicial: texto, soloLectura: true });
     });
   };
 
@@ -500,7 +501,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     navigator.clipboard.writeText(mensaje).then(() => {
       showToast('✓ Mensaje con el link de seguimiento copiado.');
     }).catch(() => {
-      window.prompt('Copiá el mensaje manualmente:', mensaje);
+      pedirTexto('No se pudo copiar solo: seleccioná el texto y copialo a mano.', { titulo: 'Mensaje de seguimiento', valorInicial: mensaje, soloLectura: true });
     });
   };
 

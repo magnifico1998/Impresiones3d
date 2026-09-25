@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import { AppProvider } from './context/AppContext.jsx'
 import CatalogoPublico from './catalogo/CatalogoPublico.jsx'
+import Dialogos from './components/Dialogos.jsx'
 
 // El catálogo público (/catalogo/{uid}) lo abre gente sin cuenta desde un
 // link de WhatsApp, así que se monta AFUERA de AppProvider/App: App.jsx
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')).render(
     ) : (
       <AppProvider>
         <App />
+        <Dialogos />
       </AppProvider>
     )}
   </StrictMode>,
