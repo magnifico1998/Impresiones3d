@@ -34,7 +34,7 @@ function validarCodigo(codigo) {
 }
 
 async function exigirAdmin(request) {
-  const emailSolicitante = request.auth?.token?.email?.toLowerCase();
+  const emailSolicitante = (request.auth?.token?.email_verified === true ? request.auth.token.email?.toLowerCase() : undefined);
   if (!emailSolicitante) {
     throw new HttpsError('unauthenticated', 'Necesitás estar logueado.');
   }
@@ -44,6 +44,14 @@ async function exigirAdmin(request) {
   }
   return emailSolicitante;
 }
+
+// Mismo freno que validarCodigoRevendedor (gestionarRevendedores.js):
+// máximo de códigos inválidos por cuenta en una ventana de tiempo, para
+// que no se puedan adivinar códigos de comercios probando en loop. La
+// colección no tiene regla en firestore.rules, así que el cliente no la
+// puede leer ni escribir.
+const LIMITE_INTENTOS_PROMO = 8;
+const VENTANA_INTENTOS_PROMO_MS = 10 * 60 * 1000;
 
 // Autoservicio: lo llama el propio suscriptor logueado desde la app (no
 // admin) para canjear el código que le dio un comercio. Todo el chequeo de
@@ -56,67 +64,97 @@ exports.activarCodigoPromocional = onCall(async (request) => {
     throw new HttpsError('unauthenticated', 'Necesitás estar logueado.');
   }
 
+  const intentosRef = db.doc(`intentosActivarCodigoPromocional/${uid}`);
+  const intentosSnap = await intentosRef.get();
+  const ahoraMsIntentos = Date.now();
+  const intentosPrevios = intentosSnap.exists ? intentosSnap.data() : null;
+  const dentroDeVentana = Boolean(intentosPrevios) && (ahoraMsIntentos - intentosPrevios.desde.toMillis()) < VENTANA_INTENTOS_PROMO_MS;
+  const fallidosPrevios = dentroDeVentana ? (intentosPrevios.fallidos || 0) : 0;
+  if (fallidosPrevios >= LIMITE_INTENTOS_PROMO) {
+    throw new HttpsError('resource-exhausted', 'Demasiados intentos con códigos inválidos. Probá de nuevo en unos minutos.');
+  }
+  const registrarFallido = () => intentosRef.set({
+    fallidos: fallidosPrevios + 1,
+    desde: dentroDeVentana ? intentosPrevios.desde : Timestamp.now()
+  });
+
   const codigo = validarCodigo(request.data?.codigo);
   const codigoRef = db.doc(`codigosPromocionales/${codigo}`);
   const subRef = db.doc(`users/${uid}/suscripcion/actual`);
   const solicitudRef = db.doc(`solicitudesContacto/${uid}`);
   const ahora = Timestamp.now();
 
-  const resultado = await db.runTransaction(async (tx) => {
-    const [codigoSnap, subSnap, solicitudSnap] = await Promise.all([tx.get(codigoRef), tx.get(subRef), tx.get(solicitudRef)]);
+  // Errores que revelan si un código existe/está vigente cuentan como
+  // intento fallido. Los chequeos propios de la cuenta (trial, formulario,
+  // código ya usado) van ANTES de mirar el código, así una cuenta que no
+  // puede canjear no sirve para sondear qué códigos existen.
+  const ERRORES_DEL_CODIGO = new Set(['not-found', 'codigo-no-vigente', 'codigo-sin-cupo']);
 
-    // Antes de regalar un plan, nos aseguramos de tener al menos los datos
-    // de contacto de quien lo activa (mismo formulario que ya llena
-    // cualquier trial para pedir ayuda comercial, ver ModalContacto.jsx) --
-    // si no, un código filtrado se podría activar desde una cuenta anónima
-    // sin ningún dato para hacerle seguimiento después.
-    if (!solicitudSnap.exists) {
-      throw new HttpsError('failed-precondition', 'Antes de activar un código promocional tenés que enviar el formulario de contacto.');
-    }
+  let resultado;
+  try {
+    resultado = await db.runTransaction(async (tx) => {
+      const [codigoSnap, subSnap, solicitudSnap] = await Promise.all([tx.get(codigoRef), tx.get(subRef), tx.get(solicitudRef)]);
 
-    if (!codigoSnap.exists || !codigoSnap.data().activo) {
-      throw new HttpsError('not-found', 'Ese código no existe o ya no está activo.');
-    }
-    const datosCodigo = codigoSnap.data();
-    if (ahora.toMillis() < datosCodigo.vigenciaInicio.toMillis() || ahora.toMillis() > datosCodigo.vigenciaFin.toMillis()) {
-      throw new HttpsError('failed-precondition', 'Ese código no está vigente en este momento.');
-    }
-    if (datosCodigo.cupoMaximo != null && (datosCodigo.activacionesTotal || 0) >= datosCodigo.cupoMaximo) {
-      throw new HttpsError('failed-precondition', 'Ese código ya alcanzó el cupo máximo de activaciones.');
-    }
+      // Antes de regalar un plan, nos aseguramos de tener al menos los datos
+      // de contacto de quien lo activa (mismo formulario que ya llena
+      // cualquier trial para pedir ayuda comercial, ver ModalContacto.jsx) --
+      // si no, un código filtrado se podría activar desde una cuenta anónima
+      // sin ningún dato para hacerle seguimiento después.
+      if (!solicitudSnap.exists) {
+        throw new HttpsError('failed-precondition', 'Antes de activar un código promocional tenés que enviar el formulario de contacto.');
+      }
+      if (!subSnap.exists || subSnap.data().estado !== 'trial') {
+        throw new HttpsError('failed-precondition', 'Sólo podés activar un código promocional mientras estás en período de prueba.');
+      }
+      // tipoRestriccion 'unico_de_por_vida': promoCodigo, una vez seteado,
+      // nunca se borra -- es en sí mismo la marca permanente de que esta
+      // cuenta ya consumió su único código, incluso si el beneficio ya se
+      // agotó. El día que existan otros tipos de restricción, acá es donde
+      // se ramificaría según datosCodigo.tipoRestriccion.
+      if (subSnap.data().promoCodigo) {
+        throw new HttpsError('failed-precondition', 'Esta cuenta ya activó un código promocional anteriormente.');
+      }
 
-    if (!subSnap.exists || subSnap.data().estado !== 'trial') {
-      throw new HttpsError('failed-precondition', 'Sólo podés activar un código promocional mientras estás en período de prueba.');
-    }
-    // tipoRestriccion 'unico_de_por_vida': promoCodigo, una vez seteado,
-    // nunca se borra -- es en sí mismo la marca permanente de que esta
-    // cuenta ya consumió su único código, incluso si el beneficio ya se
-    // agotó. El día que existan otros tipos de restricción, acá es donde
-    // se ramificaría según datosCodigo.tipoRestriccion.
-    if (subSnap.data().promoCodigo) {
-      throw new HttpsError('failed-precondition', 'Esta cuenta ya activó un código promocional anteriormente.');
-    }
+      if (!codigoSnap.exists || !codigoSnap.data().activo) {
+        throw new HttpsError('not-found', 'Ese código no existe o ya no está activo.');
+      }
+      const datosCodigo = codigoSnap.data();
+      if (ahora.toMillis() < datosCodigo.vigenciaInicio.toMillis() || ahora.toMillis() > datosCodigo.vigenciaFin.toMillis()) {
+        throw new HttpsError('failed-precondition', 'Ese código no está vigente en este momento.', { motivo: 'codigo-no-vigente' });
+      }
+      if (datosCodigo.cupoMaximo != null && (datosCodigo.activacionesTotal || 0) >= datosCodigo.cupoMaximo) {
+        throw new HttpsError('failed-precondition', 'Ese código ya alcanzó el cupo máximo de activaciones.', { motivo: 'codigo-sin-cupo' });
+      }
 
-    const cicloFin = sumarMesCalendario(ahora);
-    tx.set(subRef, {
-      estado: 'activa',
-      planId: datosCodigo.planId,
-      cicloInicio: ahora,
-      cicloId: formatearFecha(ahora),
-      cicloFin,
-      fechaLimiteLectura: FieldValue.delete(),
-      promoCodigo: codigo,
-      promoCiclosRestantes: datosCodigo.ciclos
-    }, { merge: true });
-    tx.set(subRef.collection('eventos').doc(), {
-      tipo: 'promo_activada',
-      fecha: ahora,
-      detalle: { codigo, planId: datosCodigo.planId, ciclos: datosCodigo.ciclos }
+      const cicloFin = sumarMesCalendario(ahora);
+      tx.set(subRef, {
+        estado: 'activa',
+        planId: datosCodigo.planId,
+        cicloInicio: ahora,
+        cicloId: formatearFecha(ahora),
+        cicloFin,
+        fechaLimiteLectura: FieldValue.delete(),
+        promoCodigo: codigo,
+        promoCiclosRestantes: datosCodigo.ciclos
+      }, { merge: true });
+      tx.set(subRef.collection('eventos').doc(), {
+        tipo: 'promo_activada',
+        fecha: ahora,
+        detalle: { codigo, planId: datosCodigo.planId, ciclos: datosCodigo.ciclos }
+      });
+      tx.update(codigoRef, { activacionesTotal: FieldValue.increment(1) });
+
+      return { planId: datosCodigo.planId, ciclos: datosCodigo.ciclos };
     });
-    tx.update(codigoRef, { activacionesTotal: FieldValue.increment(1) });
-
-    return { planId: datosCodigo.planId, ciclos: datosCodigo.ciclos };
-  });
+  } catch (e) {
+    if (e instanceof HttpsError && (ERRORES_DEL_CODIGO.has(e.code) || ERRORES_DEL_CODIGO.has(e.details?.motivo))) {
+      await registrarFallido();
+    }
+    throw e;
+  }
+  if (dentroDeVentana && fallidosPrevios > 0) {
+    await intentosRef.delete();
+  }
 
   // Informativo, fuera de la transacción (no afecta el cupo real).
   const anioMes = formatearFecha(ahora).slice(0, 7);

@@ -1,3 +1,9 @@
+// Tope de instancias por función (v2): acota lo que puede costar un abuso
+// de las funciones públicas (catálogo sin login, webhook) mientras no haya
+// App Check. Tiene que ir antes de cargar las funciones.
+const { setGlobalOptions } = require('firebase-functions/v2');
+setGlobalOptions({ maxInstances: 10 });
+
 // Motor de suscripciones de Manager 3D.
 // Cada función vive en su propio archivo por responsabilidad; acá sólo se
 // re-exportan para que Firebase las descubra.
@@ -10,7 +16,7 @@ const { registrarUltimoAcceso } = require('./http/registrarUltimoAcceso');
 const { cambiarEstadoSuscripcion } = require('./http/cambiarEstadoSuscripcion');
 const { webhookMercadoPago } = require('./http/webhookMercadoPago');
 const { crearSuscripcionMP, sincronizarSuscripcionMP, cancelarSuscripcionMP } = require('./http/pagosMercadoPago');
-const { agregarMiembro, quitarMiembro } = require('./http/gestionarMiembros');
+const { agregarMiembro, quitarMiembro, responderInvitacion } = require('./http/gestionarMiembros');
 const { borrarCuenta } = require('./http/borrarCuenta');
 const { transicionSuscripciones } = require('./scheduled/transicionSuscripciones');
 const { reactivacionInactivos } = require('./scheduled/reactivacionInactivos');
@@ -34,6 +40,7 @@ module.exports = {
   cancelarSuscripcionMP,
   agregarMiembro,
   quitarMiembro,
+  responderInvitacion,
   borrarCuenta,
   transicionSuscripciones,
   reactivacionInactivos,

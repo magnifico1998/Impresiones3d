@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import JSZip from 'jszip';
 import AvisoModoLectura from './AvisoModoLectura';
 
 // Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
@@ -20,7 +19,6 @@ function indiceImpresoraDefault(cfg) {
 }
 
 export default function CalculadoraPage({
-  onOpenBibUsar,
   onOpenBibGuardar,
   onOpenAgregarPieza,
   onOpenPresupuesto,
@@ -254,6 +252,8 @@ export default function CalculadoraPage({
 
   const leer3mf = async (file) => {
     setStatus('Descomprimiendo .3mf...', 'info');
+    // Import dinámico: JSZip sólo se descarga al leer un archivo .3mf.
+    const { default: JSZip } = await import('jszip');
     const zip = await JSZip.loadAsync(await file.arrayBuffer());
     const keys = Object.keys(zip.files);
     if (keys.includes('Metadata/slice_info.config')) {

@@ -1,4 +1,3 @@
-import jsPDF from 'jspdf';
 import { avisar } from '../components/Dialogos';
 import { paletas } from './paletas';
 import { ordenarCategorias } from './categoriaOrden';
@@ -61,6 +60,8 @@ function construirPaletaPDF(paletaId) {
  *   anterior).
  */
 export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, categoriaOrden) {
+  // Import dinámico: jsPDF sólo se descarga al generar el PDF.
+  const { jsPDF } = await import('jspdf');
   if (!biblioteca || biblioteca.length === 0) {
     await avisar('Cargá productos en la Biblioteca para poder generar el listado.', { titulo: 'No hay productos' });
     return;

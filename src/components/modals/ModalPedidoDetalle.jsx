@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { confirmar, pedirTexto } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
-import { jsPDF } from 'jspdf';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
 import { buildWaLink, findClientePedido } from '../../utils/whatsapp';
@@ -506,6 +505,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   };
 
   const generatePdf = async () => {
+    // Import dinámico: jsPDF sólo se descarga al generar el PDF.
+    const { jsPDF } = await import('jspdf');
     const p = draft;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = 210, pageH = 297, marginX = 15, contentW = pageW - marginX * 2;

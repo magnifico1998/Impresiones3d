@@ -51,7 +51,7 @@ function BarraConsumo({ etiqueta, usado, limite, formatear = (n) => n.toLocaleSt
 export default function EmpresaPage() {
   const {
     empresa, setEmpresa, showToast, cuentaId, esMiembro, miembros,
-    agregarMiembro, quitarMiembro, suscripcion, planContratado, consumoActual, biblioteca,
+    agregarMiembro, quitarMiembro, salirDeCuentaCompartida, suscripcion, planContratado, consumoActual, biblioteca,
     guardarCatalogoConfig
   } = useApp();
   const fileInputRef = useRef(null);
@@ -96,7 +96,10 @@ export default function EmpresaPage() {
     }
   };
 
-  const miembrosActivos = miembros.filter(m => m.estado === 'activo');
+  // Las invitaciones pendientes (todavía no aceptadas por el invitado)
+  // también ocupan un lugar del plan: si no, se podría invitar a más gente
+  // que el límite y que acepten todas después.
+  const miembrosActivos = miembros.filter(m => m.estado === 'activo' || m.estado === 'pendiente');
   const limiteUsuarios = planContratado?.limites?.usuarios ?? null;
   const enLimite = limiteUsuarios !== null && (1 + miembrosActivos.length) >= limiteUsuarios;
 
@@ -448,6 +451,17 @@ export default function EmpresaPage() {
         {esMiembro ? (
           <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
             Estás administrando la cuenta de otro emprendimiento — tenés acceso total, igual que su dueño.
+            <div style={{ marginTop: '10px' }}>
+              <button
+                className="btn btn-sm btn-danger"
+                onClick={async () => {
+                  if (!(await confirmar('Vas a dejar de tener acceso a esta cuenta y volver a la tuya propia.', { titulo: '¿Salir de esta cuenta?', textoConfirmar: 'Salir', peligro: true }))) return;
+                  await salirDeCuentaCompartida();
+                }}
+              >
+                Salir de esta cuenta
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -459,7 +473,12 @@ export default function EmpresaPage() {
 
             {miembrosActivos.map(m => (
               <div key={m._docId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '13px' }}>{m.email}</div>
+                <div style={{ fontSize: '13px' }}>
+                  {m.email}
+                  {m.estado === 'pendiente' && (
+                    <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text3)' }}>(pendiente de aceptar)</span>
+                  )}
+                </div>
                 <button
                   className="btn btn-sm btn-danger"
                   disabled={quitandoEmail === m.email}

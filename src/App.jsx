@@ -101,7 +101,7 @@ function App() {
     try {
       await loginWithEmailLink(emailLinkInput.trim());
       setEmailLinkEnviado(true);
-    } catch (e) {
+    } catch {
       // el toast de error ya lo muestra loginWithEmailLink
     } finally {
       setEmailLinkEnviando(false);

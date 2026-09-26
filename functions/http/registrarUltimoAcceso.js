@@ -83,7 +83,7 @@ exports.registrarUltimoAcceso = onCall({ secrets: [gmailAppPassword] }, async (r
   // el acceso se registra en la cuenta del DUEÑO, no en la del invitado (no
   // tiene suscripción propia).
   let cuentaId = uid;
-  const email = request.auth?.token?.email?.toLowerCase();
+  const email = (request.auth?.token?.email_verified === true ? request.auth.token.email?.toLowerCase() : undefined);
   if (email) {
     const invSnap = await db.doc(`invitacionesMiembro/${email}`).get();
     if (invSnap.exists && invSnap.data().estado === 'activo') {

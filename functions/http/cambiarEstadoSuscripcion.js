@@ -26,7 +26,7 @@ const ACCIONES_REVENDEDOR = ['activar', 'suspender', 'toggleContactadoPostBloque
 //    reglas de ciclo y de ledger que "activar" (calcularCicloActivacion y
 //    armarVentaLedger son compartidas).
 exports.cambiarEstadoSuscripcion = onCall(async (request) => {
-  const emailSolicitante = request.auth?.token?.email?.toLowerCase();
+  const emailSolicitante = (request.auth?.token?.email_verified === true ? request.auth.token.email?.toLowerCase() : undefined);
   const uidSolicitante = request.auth?.uid;
   if (!emailSolicitante || !uidSolicitante) {
     throw new HttpsError('unauthenticated', 'Necesitás estar logueado.');
@@ -134,13 +134,13 @@ exports.cambiarEstadoSuscripcion = onCall(async (request) => {
     try {
       const registro = await getAuth().getUser(uid);
       emailCuenta = registro.email || null;
-    } catch (e) {
+    } catch {
       throw new HttpsError('not-found', `No existe ninguna cuenta de Firebase con uid "${uid}". Revisá que sea el uid y no el email.`);
     }
   }
 
   const ahora = Timestamp.now();
-  let update = {};
+  let update;
 
   // Resolución de a qué revendedor (si a alguno) atribuirle esta venta.
   // OJO: esto corre en CADA "activar", no sólo la primera vez -- una

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { jsPDF } from 'jspdf';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
 
 // Presupuesto para un potencial cliente, sin crear ningún pedido: no toca
@@ -78,6 +77,8 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
   const total = items.reduce((s, it) => s + it.cantidad * it.precioUnitario, 0);
 
   const generarPdf = async () => {
+    // Import dinámico: jsPDF sólo se descarga al generar el PDF.
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = 210, pageH = 297, marginX = 15, contentW = pageW - marginX * 2;
     const navy = [40, 48, 61], lightGray = [235, 237, 240];

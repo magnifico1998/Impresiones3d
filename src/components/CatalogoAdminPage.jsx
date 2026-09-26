@@ -28,6 +28,16 @@ export default function CatalogoAdminPage() {
     fmt
   } = useApp();
 
+  // Total de una solicitud con los precios actuales de la biblioteca (el
+  // totalEstimado/precioUnit que trae la solicitud lo escribe el visitante
+  // anónimo del catálogo y se puede falsear). Si un producto ya no existe
+  // se usa el precio de la solicitud como referencia.
+  const totalConfiable = (s) => (s.items || []).reduce((acc, it) => {
+    const prod = biblioteca.find(p => p.id === it.prodId);
+    const precio = prod ? (prod.precioSugUnitario || prod.costoUnitario || 0) : (Number(it.precioUnit) || 0);
+    return acc + (Number(it.cantidad) || 0) * precio;
+  }, 0);
+
   // Selección de productos a publicar: arranca con lo que ya está marcado
   // como pub:true en biblioteca (fuente de verdad hasta que se guarde).
   const [seleccionados, setSeleccionados] = useState(
@@ -181,7 +191,7 @@ export default function CatalogoAdminPage() {
                     {s.telefono || 'sin teléfono'} · {s.creado ? new Date(s.creado).toLocaleString('es-AR') : ''}
                   </div>
                 </div>
-                <div style={{ fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{fmt(s.totalEstimado)}</div>
+                <div style={{ fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{fmt(totalConfiable(s))}</div>
               </div>
 
               {s.comentarioGeneral && (

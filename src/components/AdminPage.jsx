@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { confirmar, pedirTexto } from './Dialogos';
-import { jsPDF } from 'jspdf';
 import { useApp } from '../context/AppContext';
 import { db, functions } from '../firebase';
 import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy, getDoc, getDocs, Timestamp } from 'firebase/firestore';
@@ -577,7 +576,10 @@ export default function AdminPage({ modoRevendedor = false }) {
   // a las 24 hs) client-side con jsPDF, mismo criterio visual que el PDF de
   // pedido (ver ModalPedidoDetalle.jsx): header simple + tabla + total. Es
   // sólo para revisar y facturar, no cambia nada del mes.
-  const generarPdfCierre = (rev, anioMes, datos) => {
+  const generarPdfCierre = async (rev, anioMes, datos) => {
+    // jsPDF se carga recién al generar (import dinámico): pesa ~350 KB y
+    // no hace falta para abrir la app.
+    const { jsPDF } = await import('jspdf');
     const doc2 = new jsPDF({ unit: 'mm', format: 'a4' });
     const pageW = 210, marginX = 15, contentW = pageW - marginX * 2;
     const navy = [40, 48, 61], lightGray = [235, 237, 240];

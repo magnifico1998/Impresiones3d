@@ -37,7 +37,8 @@ service cloud.firestore {
     // email del token tal como lo escribe Firestore Auth (Google no
     // garantiza minúsculas).
     function emailDeAuth() {
-      return request.auth != null && request.auth.token.email != null
+      return request.auth != null && request.auth.token.email != null &&
+             request.auth.token.email_verified == true
         ? request.auth.token.email.lower() : '';
     }
 
@@ -56,8 +57,8 @@ service cloud.firestore {
     }
 
     function esAdmin() {
-      return request.auth != null &&
-             exists(/databases/$(database)/documents/admins/$(request.auth.token.email.lower()));
+      return request.auth != null && emailDeAuth() != '' &&
+             exists(/databases/$(database)/documents/admins/$(emailDeAuth()));
     }
 
     // Cuenta sin suscripcion/actual todavía (dato viejo, o algo falló al
@@ -267,8 +268,12 @@ service cloud.firestore {
       // en vez de dejarlo libre evita que alguien, saltándose la UI y
       // llamando a Firestore directo, se autoasigne cualquier otro estado
       // (ej "contactado"), que se supone es territorio exclusivo del admin.
+      // hasOnly: sólo los campos del formulario (ver ModalContacto.jsx) --
+      // antes se aceptaba cualquier campo extra, que después leen las
+      // Cloud Functions y el panel admin.
       allow create: if tieneAcceso(uid) &&
         request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
+        request.resource.data.keys().hasOnly(['nombre','apellido','tipoDocumento','numeroDocumento','condicionImpositiva','localidad','telefono','email','resena','codigoRevendedor','estado','actualizadoEl','creadoEl']) &&
         request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() < 100 &&
         request.resource.data.apellido is string && request.resource.data.apellido.size() > 0 && request.resource.data.apellido.size() < 100 &&
         request.resource.data.localidad is string && request.resource.data.localidad.size() > 0 && request.resource.data.localidad.size() < 100 &&
@@ -283,6 +288,9 @@ service cloud.firestore {
       allow update: if
         (tieneAcceso(uid) &&
           request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
+          // Sobre las claves que cambian (no sobre el doc entero): docs
+          // viejos pueden traer campos legacy que no hay que romper.
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre','apellido','tipoDocumento','numeroDocumento','condicionImpositiva','localidad','telefono','email','resena','codigoRevendedor','estado','actualizadoEl','creadoEl']) &&
           request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() < 100 &&
           request.resource.data.apellido is string && request.resource.data.apellido.size() > 0 && request.resource.data.apellido.size() < 100 &&
           request.resource.data.localidad is string && request.resource.data.localidad.size() > 0 && request.resource.data.localidad.size() < 100 &&
@@ -392,7 +400,7 @@ service cloud.firestore {
       // está activo). Cualquiera la puede leer; sólo su dueño (o un
       // miembro con acceso) la escribe.
       allow read: if true;
-      allow write: if tieneAcceso(uid);
+      allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
 
       // Productos publicados de ESTA tienda (mirror sanitizado de su
       // biblioteca: nombre, cat, subcat, desc, descLarga, imagen, precio —
@@ -400,7 +408,7 @@ service cloud.firestore {
       // o un miembro.
       match /productos/{prodId} {
         allow read: if true;
-        allow write: if tieneAcceso(uid);
+        allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
       }
 
       // Solicitudes que arma un cliente en ESTE catálogo. Cualquiera
@@ -410,8 +418,22 @@ service cloud.firestore {
       // otro. Sólo el dueño de esta tienda gestiona esta colección desde
       // el panel "Catálogo web" de la app.
       match /solicitudes/{docId} {
+        // Además de la forma: sólo los campos que manda CatalogoPublico.jsx
+        // (hasOnly), con tope de tamaño en cada texto, y sólo a tiendas que
+        // existen con el catálogo activo -- esta colección la puede escribir
+        // cualquiera sin login y cada solicitud dispara un mail
+        // (onNuevaSolicitudCatalogo.js), así que no puede quedar abierta a
+        // basura arbitraria ni a tiendas inexistentes.
         allow create: if request.resource.data.keys().hasAll(['cliente', 'items', 'estado', 'creado'])
+                      && request.resource.data.keys().hasOnly(['cliente', 'telefono', 'email', 'comentarioGeneral', 'items', 'totalEstimado', 'estado', 'creado'])
+                      && exists(/databases/$(database)/documents/catalogoTiendas/$(uid))
+                      && get(/databases/$(database)/documents/catalogoTiendas/$(uid)).data.get('activo', false) == true
                       && request.resource.data.estado == 'pendiente'
+                      && request.resource.data.creado.size() < 40
+                      && (!('telefono' in request.resource.data) || (request.resource.data.telefono is string && request.resource.data.telefono.size() < 40))
+                      && (!('email' in request.resource.data) || (request.resource.data.email is string && request.resource.data.email.size() < 200))
+                      && (!('comentarioGeneral' in request.resource.data) || (request.resource.data.comentarioGeneral is string && request.resource.data.comentarioGeneral.size() < 2000))
+                      && (!('totalEstimado' in request.resource.data) || request.resource.data.totalEstimado is number)
                       // CatalogoPublico.jsx manda new Date().toISOString(), no
                       // serverTimestamp() -- validamos el tipo real que se
                       // escribe (string), no "is timestamp" (que rechazaría

@@ -25,7 +25,6 @@ function recalcularProducto(prod, cfg) {
   // producto al perder los insumos del costo. Productos guardados antes de
   // este campo no lo tienen: quedan en 0, igual que siempre.
   const costeIns = prod.costeIns || 0;
-  const margen = prod.margen ?? 30;
 
   // Watts y mantenimiento con cfg.impresoras[x] actualizado
   let watts = prod.watts || 0;
@@ -107,7 +106,6 @@ function recalcularProducto(prod, cfg) {
 
   const costePorUnidad = costeFil + costeElec + costeMant + costeMO + costeIns + extras;
   const costoUnitario = costePorUnidad;
-  const precioSugUnitario = costePorUnidad * (1 + margen / 100);
 
   // Margen efectivo con el nuevo costo pero manteniendo el precio de venta anterior
   const precioVentaAnterior = prod.precioSugUnitario * (prod.cantidad || 1);

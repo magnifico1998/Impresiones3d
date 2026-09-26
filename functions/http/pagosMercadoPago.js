@@ -18,7 +18,7 @@ const { sincronizarPreapproval } = require('../cobrosMercadoPago');
 // (mismo criterio que registrarUltimoAcceso.js), no tiene una propia.
 async function exigirDuenio(request) {
   const uid = request.auth?.uid;
-  const email = request.auth?.token?.email?.toLowerCase();
+  const email = (request.auth?.token?.email_verified === true ? request.auth.token.email?.toLowerCase() : undefined);
   if (!uid) {
     throw new HttpsError('unauthenticated', 'Necesitás estar logueado.');
   }

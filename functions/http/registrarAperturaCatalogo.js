@@ -11,9 +11,11 @@ const { db, FieldValue } = require('../admin');
 // Para una métrica de uso que hoy sólo afecta límites de plan, el riesgo es
 // bajo; si en el futuro se vuelve un problema, se agrega Firebase App
 // Check acá.
-exports.registrarAperturaCatalogo = onCall(async (request) => {
+exports.registrarAperturaCatalogo = onCall({ maxInstances: 3 }, async (request) => {
   const { uidTienda } = request.data || {};
-  if (!uidTienda || typeof uidTienda !== 'string') {
+  // Formato de uid de Firebase Auth: evita que un valor con "/" arme una
+  // ruta distinta a users/{uid}/suscripcion/actual.
+  if (!uidTienda || typeof uidTienda !== 'string' || !/^[A-Za-z0-9]{1,128}$/.test(uidTienda)) {
     throw new HttpsError('invalid-argument', 'Falta uidTienda.');
   }
 

@@ -3,7 +3,7 @@ const { db, FieldValue } = require('../admin');
 const { DEFAULTS } = require('../emailTemplates');
 
 async function exigirAdmin(request) {
-  const emailSolicitante = request.auth?.token?.email?.toLowerCase();
+  const emailSolicitante = (request.auth?.token?.email_verified === true ? request.auth.token.email?.toLowerCase() : undefined);
   if (!emailSolicitante) {
     throw new HttpsError('unauthenticated', 'Necesitás estar logueado.');
   }

@@ -128,7 +128,7 @@ export const subirImagenAFirebase = async (dataUrl, { userId, fileName = 'produc
 
   const safeName = (fileName || 'producto.jpg')
     .toLowerCase()
-    .replace(/[^a-z0-9.\-]/g, '_')
+    .replace(/[^a-z0-9.-]/g, '_')
     .replace(/_+/g, '_');
 
   const storagePath = `users/${userId}/${folder}/${Date.now()}-${safeName}`;

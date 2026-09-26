@@ -21,7 +21,7 @@ function validarCodigo(codigo) {
 }
 
 async function exigirAdmin(request) {
-  const emailSolicitante = request.auth?.token?.email?.toLowerCase();
+  const emailSolicitante = (request.auth?.token?.email_verified === true ? request.auth.token.email?.toLowerCase() : undefined);
   if (!emailSolicitante) {
     throw new HttpsError('unauthenticated', 'Necesitás estar logueado.');
   }
@@ -45,7 +45,7 @@ async function resolverUid(identificador) {
   try {
     const registro = await getAuth().getUserByEmail(valor.toLowerCase());
     return registro.uid;
-  } catch (e) {
+  } catch {
     throw new HttpsError('not-found', `No existe ninguna cuenta con el email ${valor}.`);
   }
 }

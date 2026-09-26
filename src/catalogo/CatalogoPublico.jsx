@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Dialogos, { avisar } from '../components/Dialogos';
-import { db, functions } from '../firebase';
+import { db, functions } from '../firebaseBase';
 import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, validarTelefono, formatearMoneda } from '../utils/paises';
@@ -740,7 +740,7 @@ export default function CatalogoPublico() {
               <>
                 <div className="sep"></div>
                 <label className="fl" style={{ marginTop: 0 }}>Tu nombre *</label>
-                <input type="text" value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Nombre y apellido" />
+                <input type="text" maxLength={150} value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Nombre y apellido" />
 
                 <label className="fl">Teléfono / WhatsApp *</label>
                 <input
@@ -753,10 +753,10 @@ export default function CatalogoPublico() {
                 />
 
                 <label className="fl">Email (opcional)</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
+                <input type="email" maxLength={150} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
 
                 <label className="fl">Comentario general (opcional)</label>
-                <input type="text" value={comentarioGeneral} onChange={(e) => setComentarioGeneral(e.target.value)} placeholder="Ej: lo necesito para el viernes" />
+                <input type="text" maxLength={1500} value={comentarioGeneral} onChange={(e) => setComentarioGeneral(e.target.value)} placeholder="Ej: lo necesito para el viernes" />
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0' }}>
                   <span style={{ fontSize: '13px', color: 'var(--text3)' }}>Total estimado</span>

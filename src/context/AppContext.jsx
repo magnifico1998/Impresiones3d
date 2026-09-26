@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { confirmar, pedirTexto } from '../components/Dialogos';
 import { auth, db, googleProvider, functions } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
-import { doc, getDoc, setDoc, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
 import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
@@ -117,6 +117,27 @@ const proyeccionCatalogoProducto = (p) => ({
   modoColorSecundario: p.modoColorSecundario || (p.permiteColorSecundario ? 'libre' : ''),
   actualizado: new Date().toISOString()
 });
+
+// Campos de primer nivel que difieren entre la versión local (`antes`) y
+// la nueva, listos para updateDoc/batch.update. Antes cada update hacía
+// setDoc del objeto COMPLETO armado desde el estado local: si otra pestaña
+// o un miembro del equipo había cambiado otro campo del mismo documento un
+// segundo antes, esa escritura lo pisaba con el valor viejo. Escribiendo
+// sólo lo que cambió, dos ediciones de campos distintos ya no se pisan.
+const camposCambiados = (antes, despues) => {
+  const cambios = {};
+  Object.keys(despues).forEach(k => {
+    if (JSON.stringify(antes?.[k]) !== JSON.stringify(despues[k])) {
+      cambios[k] = despues[k] === undefined ? deleteField() : despues[k];
+    }
+  });
+  Object.keys(antes || {}).forEach(k => {
+    if (!(k in despues)) cambios[k] = deleteField();
+  });
+  return cambios;
+};
+
+const hayCambios = (cambios) => Object.keys(cambios).length > 0;
 
 export const AppProvider = ({ children }) => {
   const [pedidos, setPedidos] = useState([]);
@@ -262,7 +283,8 @@ export const AppProvider = ({ children }) => {
       const actual = compras.find(c => c.id === id);
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      await setDoc(compraDocRef(id), nuevo);
+      const cambios = camposCambiados(actual, nuevo);
+      if (hayCambios(cambios)) await updateDoc(compraDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar compra:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar la compra en la nube.');
@@ -311,7 +333,8 @@ export const AppProvider = ({ children }) => {
       const actual = clientes.find(c => c.id === id);
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      await setDoc(clienteDocRef(id), nuevo);
+      const cambios = camposCambiados(actual, nuevo);
+      if (hayCambios(cambios)) await updateDoc(clienteDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar cliente:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar el cliente en la nube.');
@@ -359,6 +382,8 @@ export const AppProvider = ({ children }) => {
       const actual = biblioteca.find(p => p.id === id);
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
+      const cambios = camposCambiados(actual, nuevo);
+      if (!hayCambios(cambios)) return;
       if (nuevo.pub) {
         // Producto publicado: la copia pública de catalogoTiendas se
         // actualiza en el mismo batch. Antes sólo se actualizaba al volver
@@ -366,11 +391,11 @@ export const AppProvider = ({ children }) => {
         // catálogo público seguía mostrando (y vendiendo a) precio,
         // nombre e imágenes viejos.
         const batch = writeBatch(db);
-        batch.set(productoDocRef(id), nuevo);
+        batch.update(productoDocRef(id), cambios);
         batch.set(catalogoProductoDocRef(id), proyeccionCatalogoProducto(nuevo));
         await batch.commit();
       } else {
-        await setDoc(productoDocRef(id), nuevo);
+        await updateDoc(productoDocRef(id), cambios);
       }
     } catch (e) {
       console.error("Error al actualizar producto:", e);
@@ -425,7 +450,8 @@ export const AppProvider = ({ children }) => {
       const actual = faq.find(f => f.id === id);
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      await setDoc(faqDocRef(id), nuevo);
+      const cambios = camposCambiados(actual, nuevo);
+      if (hayCambios(cambios)) await updateDoc(faqDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar pregunta frecuente:", e);
       showToast('⚠ No se pudo actualizar la pregunta en la nube.', 'error');
@@ -459,8 +485,9 @@ export const AppProvider = ({ children }) => {
       const batches = [];
       let batch = writeBatch(db);
       let ops = 0;
-      const agregarOp = (ref, data) => {
-        batch.set(ref, data);
+      const agregarOp = (ref, data, { parcial = false } = {}) => {
+        if (parcial) batch.update(ref, data);
+        else batch.set(ref, data);
         ops++;
         if (ops >= 400) {
           batches.push(batch);
@@ -470,7 +497,9 @@ export const AppProvider = ({ children }) => {
       };
       afectados.forEach(p => {
         const nuevo = updater(p);
-        agregarOp(productoDocRef(p.id), nuevo);
+        const cambios = camposCambiados(p, nuevo);
+        if (!hayCambios(cambios)) return;
+        agregarOp(productoDocRef(p.id), cambios, { parcial: true });
         if (nuevo.pub) {
           agregarOp(catalogoProductoDocRef(p.id), proyeccionCatalogoProducto(nuevo));
         }
@@ -518,7 +547,8 @@ export const AppProvider = ({ children }) => {
       const actual = pedidos.find(p => p.id === id);
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      await setDoc(pedidoDocRef(id), nuevo);
+      const cambios = camposCambiados(actual, nuevo);
+      if (hayCambios(cambios)) await updateDoc(pedidoDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar pedido:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar el pedido en la nube.');
@@ -534,11 +564,15 @@ export const AppProvider = ({ children }) => {
       const afectados = pedidos.filter(predicate);
       if (!afectados.length) return;
 
-      const batch = writeBatch(db);
-      afectados.forEach(p => {
-        batch.set(pedidoDocRef(p.id), updater(p));
-      });
-      await batch.commit();
+      // Troceado en tandas: un batch admite 500 operaciones como máximo.
+      const cambiosPorPedido = afectados
+        .map(p => [p.id, camposCambiados(p, updater(p))])
+        .filter(([, cambios]) => hayCambios(cambios));
+      for (let i = 0; i < cambiosPorPedido.length; i += 400) {
+        const batch = writeBatch(db);
+        cambiosPorPedido.slice(i, i + 400).forEach(([id, cambios]) => batch.update(pedidoDocRef(id), cambios));
+        await batch.commit();
+      }
     } catch (e) {
       console.error("Error al actualizar pedidos en lote:", e);
       mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.');
@@ -676,6 +710,23 @@ export const AppProvider = ({ children }) => {
       const invSnap = await getDoc(doc(db, 'invitacionesMiembro', currentUser.email.toLowerCase()));
       if (invSnap.exists() && invSnap.data().estado === 'activo') {
         return { idEfectivo: invSnap.data().ownerUid, miembro: true };
+      }
+      // Invitación todavía sin aceptar (ver gestionarMiembros.js): se le
+      // pregunta a la persona antes de pasarla a la cuenta ajena. "Ahora
+      // no" la deja pendiente y entra a su propia cuenta; se le vuelve a
+      // preguntar en el próximo ingreso.
+      if (invSnap.exists() && invSnap.data().estado === 'pendiente') {
+        const inv = invSnap.data();
+        const acepta = await confirmar(
+          `${inv.ownerEmail || 'Otra cuenta'} te invitó a administrar su emprendimiento en Manager3D. Si aceptás, vas a trabajar sobre SU cuenta (no la tuya) hasta que salgas desde "Mi emprendimiento".`,
+          { titulo: 'Invitación a una cuenta compartida', textoConfirmar: 'Aceptar', textoCancelar: 'Ahora no' }
+        );
+        if (acepta) {
+          const res = await httpsCallable(functions, 'responderInvitacion')({ aceptar: true });
+          if (res.data?.estado === 'activo') {
+            return { idEfectivo: inv.ownerUid, miembro: true };
+          }
+        }
       }
     } catch (e) {
       console.error('Error al resolver el vínculo de equipo:', e);
@@ -1136,8 +1187,24 @@ export const AppProvider = ({ children }) => {
   // teléfono o el logo sin volver a tocar ese botón. Ahora se resincronizan
   // solos cada vez que cambia alguno, sin que el dueño tenga que acordarse
   // de nada ni entrar a la pestaña Catálogo.
+  // silencioso: para la resincronización automática de abajo, que no la
+  // pidió el usuario -- no tiene sentido mostrarle un error por algo que
+  // no hizo (ej. cuenta en modo lectura).
+  const guardarCatalogoConfig = async (parcial, { silencioso = false } = {}) => {
+    try {
+      const nuevo = { ...parcial, actualizado: new Date().toISOString() };
+      await setDoc(doc(db, "catalogoTiendas", cuentaId), nuevo, { merge: true });
+    } catch (e) {
+      console.error("Error al guardar la configuración del catálogo:", e);
+      if (!silencioso) showToast('⚠ No se pudo guardar la configuración del catálogo.', 'error');
+    }
+  };
+
   useEffect(() => {
     if (!cuentaId || !datosCargadosOk) return;
+    // Cuenta en modo lectura/suspendida: firestore.rules ya no le deja
+    // escribir el catálogo, no tiene sentido intentarlo.
+    if (suscripcion && !['trial', 'activa'].includes(suscripcion.estado)) return;
     guardarCatalogoConfig({
       empresaNombre: empresa?.nombre || '',
       telefono: empresa?.telefono || '',
@@ -1146,9 +1213,9 @@ export const AppProvider = ({ children }) => {
       instagram: empresa?.instagram || '',
       colores: cfg?.colores || [],
       combinacionesColores: cfg?.combinacionesColores || []
-    });
+    }, { silencioso: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cuentaId, datosCargadosOk, empresa?.nombre, empresa?.telefono, empresa?.logo, empresa?.facebook, empresa?.instagram, cfg?.colores, cfg?.combinacionesColores]);
+  }, [cuentaId, datosCargadosOk, suscripcion?.estado, empresa?.nombre, empresa?.telefono, empresa?.logo, empresa?.facebook, empresa?.instagram, cfg?.colores, cfg?.combinacionesColores]);
 
   // Listener de la config pública del catálogo web de ESTA tienda (colores,
   // nombre, si está activo). Sólo se suscribe con sesión iniciada porque es
@@ -1276,20 +1343,53 @@ export const AppProvider = ({ children }) => {
         // borramos lo que ya exista en la nube (si el backup tiene menos
         // ítems que los actuales, no deben quedar huérfanos), luego
         // escribimos los del backup.
-        const restaurarSeccion = async (nombreColeccion, items) => {
+        //
+        // Antes esto armaba UN batch por sección con "borrar todo + escribir
+        // todo", y fallaba en dos casos: (1) pedidos no se pueden borrar
+        // (firestore.rules), así que el batch de pedidos se rechazaba entero
+        // si ya había alguno; (2) un batch admite 500 operaciones como
+        // máximo. Como las secciones se procesaban en orden, clientes y
+        // biblioteca ya quedaban pisados cuando fallaba pedidos: restauración
+        // a medias. Ahora: se escribe (upsert) cada ítem del backup, sólo se
+        // borran los que no están en el backup (salvo pedidos, que no se
+        // borran nunca), y todo se trocea en tandas de 400 operaciones.
+        const escribirEnTandas = async (operaciones) => {
+          for (let i = 0; i < operaciones.length; i += 400) {
+            const batch = writeBatch(db);
+            operaciones.slice(i, i + 400).forEach(op => op(batch));
+            await batch.commit();
+          }
+        };
+
+        // alEscribir/alBorrar: operaciones extra por ítem (la biblioteca
+        // tiene que mantener al día su copia pública en catalogoTiendas).
+        const restaurarSeccion = async (nombreColeccion, items, { permiteBorrar = true, alEscribir, alBorrar } = {}) => {
           const colRef = collection(db, "users", cuentaId, nombreColeccion);
-          const actuales = await getDocs(colRef);
-          const batch = writeBatch(db);
-          actuales.forEach(d => batch.delete(d.ref));
+          const idsBackup = new Set((items || []).map(item => String(item.id)));
+          const operaciones = [];
           (items || []).forEach(item => {
-            batch.set(doc(db, "users", cuentaId, nombreColeccion, String(item.id)), item);
+            operaciones.push((batch) => batch.set(doc(db, "users", cuentaId, nombreColeccion, String(item.id)), item));
+            if (alEscribir) operaciones.push((batch) => alEscribir(batch, item));
           });
-          await batch.commit();
+          if (permiteBorrar) {
+            const actuales = await getDocs(colRef);
+            actuales.forEach(d => {
+              if (idsBackup.has(d.id)) return;
+              operaciones.push((batch) => batch.delete(d.ref));
+              if (alBorrar) operaciones.push((batch) => alBorrar(batch, d.id));
+            });
+          }
+          await escribirEnTandas(operaciones);
         };
 
         await restaurarSeccion("clientes", data.clientes);
-        await restaurarSeccion("biblioteca", data.biblioteca);
-        await restaurarSeccion("pedidos", data.pedidos);
+        await restaurarSeccion("biblioteca", data.biblioteca, {
+          alEscribir: (batch, item) => item.pub
+            ? batch.set(catalogoProductoDocRef(item.id), proyeccionCatalogoProducto(item))
+            : batch.delete(catalogoProductoDocRef(item.id)),
+          alBorrar: (batch, id) => batch.delete(catalogoProductoDocRef(id))
+        });
+        await restaurarSeccion("pedidos", data.pedidos, { permiteBorrar: false });
         await restaurarSeccion("compras", data.compras);
       }
       
@@ -1314,15 +1414,6 @@ export const AppProvider = ({ children }) => {
 
   const catalogoProductoDocRef = (id) => doc(db, "catalogoTiendas", cuentaId, "productos", String(id));
 
-  const guardarCatalogoConfig = async (parcial) => {
-    try {
-      const nuevo = { ...parcial, actualizado: new Date().toISOString() };
-      await setDoc(doc(db, "catalogoTiendas", cuentaId), nuevo, { merge: true });
-    } catch (e) {
-      console.error("Error al guardar la configuración del catálogo:", e);
-      showToast('⚠ No se pudo guardar la configuración del catálogo.', 'error');
-    }
-  };
 
   // Espeja cfg.categoriaOrden (el orden manual armado arrastrando en
   // Biblioteca) a catalogoTiendas/{uid} para que el catálogo público lo
@@ -1397,10 +1488,13 @@ export const AppProvider = ({ children }) => {
       if (imp) mant = imp.mant || 0;
     }
     const costeMant = mant * horas;
+    const precioConfiable = prod.id != null
+      ? (prod.precioSugUnitario || prod.costoUnitario || 0)
+      : (Number(item.precioUnit) || 0);
 
     return {
       id: getNewId(),
-      nombre: item.nombre,
+      nombre: prod.nombre || String(item.nombre || ''),
       archivoNombre: prod.gcodeNombre || null,
       gcodeArchivos: prod.gcodeArchivos || null,
       filDetalle: prod.filDetalle || [],
@@ -1410,9 +1504,14 @@ export const AppProvider = ({ children }) => {
       horas,
       impresoraNombre: prod.impresoraNombre || null,
       costoUnitario: prod.costoUnitario || 0,
-      precioEstimado: item.precioUnit || prod.precioSugUnitario || 0,
-      precioVenta: item.precioUnit || prod.precioSugUnitario || 0,
-      cantidad: item.cantidad,
+      // El precio sale de la biblioteca (misma fórmula que la copia pública,
+      // ver proyeccionCatalogoProducto), NUNCA del precioUnit de la
+      // solicitud: ese lo escribe un visitante anónimo y lo puede poner en
+      // $1 llamando a Firestore directo. Sólo si el producto ya no existe
+      // en la biblioteca se usa el de la solicitud como referencia.
+      precioEstimado: precioConfiable,
+      precioVenta: precioConfiable,
+      cantidad: Math.max(0, Math.floor(Number(item.cantidad) || 0)),
       elaborados: 0,
       notas: 'Pedido vía catálogo web',
       versiones: (item.versiones || []).map(v => ({
@@ -1487,7 +1586,9 @@ export const AppProvider = ({ children }) => {
           fechaEntrega: '',
           notaGeneral: solicitud.telefono ? `Tel: ${solicitud.telefono}` : '',
           piezas: nuevasPiezas,
-          precioVenta: solicitud.totalEstimado || nuevasPiezas.reduce((s, p) => s + p.cantidad * p.precioVenta, 0),
+          // Recalculado con los precios de la biblioteca: totalEstimado lo
+          // manda el visitante anónimo y no es confiable.
+          precioVenta: nuevasPiezas.reduce((s, p) => s + p.cantidad * p.precioVenta, 0),
           envio: 0,
           insumos: [],
           creado: new Date().toLocaleDateString('es-AR'),
@@ -1535,7 +1636,7 @@ export const AppProvider = ({ children }) => {
     try {
       const fn = httpsCallable(functions, 'agregarMiembro');
       await fn({ email });
-      showToast(`✓ ${email} ya puede administrar tu cuenta.`);
+      showToast(`✓ Invitación enviada: ${email} va a poder administrar tu cuenta cuando la acepte al ingresar.`);
       return true;
     } catch (e) {
       console.error("Error al agregar usuario:", e);
@@ -1554,6 +1655,19 @@ export const AppProvider = ({ children }) => {
       console.error("Error al quitar usuario:", e);
       showToast(e.message || 'No se pudo quitar el usuario.', 'error');
       return false;
+    }
+  };
+
+  // Un miembro deja la cuenta compartida (ver EmpresaPage). Se recarga la
+  // página para que todo el estado (listeners, cuentaId) arranque de nuevo
+  // sobre su cuenta propia.
+  const salirDeCuentaCompartida = async () => {
+    try {
+      await httpsCallable(functions, 'responderInvitacion')({ aceptar: false });
+      window.location.reload();
+    } catch (e) {
+      console.error('Error al salir de la cuenta compartida:', e);
+      showToast(e.message || 'No se pudo salir de la cuenta.', 'error');
     }
   };
 
@@ -1593,6 +1707,7 @@ export const AppProvider = ({ children }) => {
     miembros,
     agregarMiembro,
     quitarMiembro,
+    salirDeCuentaCompartida,
     isAdmin,
     esRevendedor: !!suscripcion?.codigoRevendedor,
     suscripcion,
