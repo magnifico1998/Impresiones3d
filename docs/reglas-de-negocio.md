@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-26 (límites de monto facturado y de aperturas del catálogo pasan a bloquear).
+Última revisión: 2026-09-26 (nueva sección Presupuestos; límites de monto facturado y de aperturas del catálogo pasan a bloquear).
 
 ---
 
@@ -247,7 +247,45 @@ a **costo $0 durante N ciclos**. `functions/http/codigosPromocionales.js`.
 
 ---
 
-## 7. Pedidos, biblioteca y catálogo web
+## 7. Presupuestos
+
+Sección propia, separada de Pedidos: un presupuesto todavía no es una venta.
+Se guardan en `users/{uid}/presupuestos`. Código:
+`src/components/PresupuestosPage.jsx` y
+`src/components/modals/ModalPresupuesto.jsx`.
+
+| Estado | Significado | Se puede |
+|---|---|---|
+| `creado` ("Presupuesto creado") | Recién guardado | Editar, marcar enviado, aprobar, rechazar, eliminar |
+| `enviado` ("Aguardando respuesta") | Ya se le mandó al cliente | Editar, aprobar, rechazar, eliminar |
+| `aprobado` | El cliente lo aceptó: **se creó el pedido** | Ver el pedido, bajar el PDF |
+| `rechazado` | No prosperó | Reabrir (vuelve a "aguardando respuesta"), eliminar |
+
+- Se crean desde la Calculadora, desde la Biblioteca (productos
+  seleccionados) o desde "Nuevo presupuesto" en la sección. Ahí se puede
+  **guardar**, **guardar y generar el PDF**, o generar **solo el PDF** sin
+  guardar (como antes).
+- Numeración correlativa visible (N° 1, 2, 3…), que aparece en el PDF.
+- **Aprobar crea el pedido** en estado pendiente, con descripción
+  "Presupuesto N° X", las notas del presupuesto y el total como precio de
+  venta. Las líneas que vinieron de la Biblioteca o de la Calculadora
+  conservan sus costos y datos de impresión; las líneas libres entran sin
+  costos. Si el cliente no existe, se da de alta con el teléfono y el email
+  del presupuesto.
+- Aprobar respeta los **límites del plan** (pedidos y monto por ciclo, modo
+  lectura): si el pedido no se puede crear, el presupuesto **no** queda
+  aprobado.
+- Un presupuesto aprobado no se edita ni se borra: desde ahí manda el pedido,
+  que queda vinculado (`pedidoId` en el presupuesto, `presupuestoId` en el
+  pedido).
+- A diferencia de los pedidos, los presupuestos no aprobados **sí se pueden
+  borrar**.
+- Se incluyen en el backup. Un backup anterior a esta sección no borra los
+  presupuestos existentes al restaurarse.
+
+---
+
+## 8. Pedidos, biblioteca y catálogo web
 
 - **Los pedidos no se borran, solo se cancelan.** Las reglas de Firestore no
   permiten borrarlos, ni siquiera al dueño.
@@ -262,7 +300,7 @@ a **costo $0 durante N ciclos**. `functions/http/codigosPromocionales.js`.
 
 ---
 
-## 8. Administración
+## 9. Administración
 
 - Los admins se definen en la colección `admins/{email}` y **se agregan a mano
   desde Firebase Console**. Desde la app no se pueden crear.

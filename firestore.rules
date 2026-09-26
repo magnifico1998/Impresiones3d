@@ -190,6 +190,14 @@ service cloud.firestore {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
       allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
     }
+    // Presupuestos guardados (sección Presupuestos). A diferencia de los
+    // pedidos sí se pueden borrar: todavía no son una venta. Aprobar uno
+    // crea el pedido por la regla de pedidos de abajo, así que los límites
+    // del plan se aplican ahí, no acá.
+    match /users/{uid}/presupuestos/{docId} {
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+    }
     match /users/{uid}/biblioteca/{docId} {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
       allow update, delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);

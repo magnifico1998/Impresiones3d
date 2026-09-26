@@ -38,10 +38,10 @@ React 19 + Vite, sin router: la navegación es por estado.
 | `firebaseBase.js` | Firebase base (app + Firestore + Functions). Lo usa el catálogo público |
 | `firebase.js` | Re-exporta la base y suma Auth y Storage (app con login) |
 | `catalogo/CatalogoPublico.jsx` | Catálogo web de cada tienda, sin login |
-| `components/*Page.jsx` | Una por sección: Resumen, Pedidos, Clientes, Calculadora, Compras, Biblioteca, Catálogo web, Preguntas frecuentes, Configuración, Mi emprendimiento, Admin |
+| `components/*Page.jsx` | Una por sección: Resumen, Pedidos, Presupuestos, Clientes, Calculadora, Compras, Biblioteca, Catálogo web, Preguntas frecuentes, Configuración, Mi emprendimiento, Admin |
 | `components/admin/`, `components/modals/` | Paneles y modales |
 | `components/Dialogos.jsx` | Confirmaciones y avisos propios (reemplazan a `alert`/`confirm`) |
-| `utils/` | Cálculos (finanzas del pedido, precio neto, capacidad), PDFs, WhatsApp, paletas |
+| `utils/` | Cálculos (finanzas del pedido, precio neto, capacidad), PDFs (`presupuestoPDF.js`, `listadoPDF.js`), armado de piezas de pedido (`piezaPedido.js`), WhatsApp, paletas |
 | `index.css` | Estilos globales y variables de color |
 
 ## Vercel (`api/` y `vercel.json`)
@@ -102,7 +102,7 @@ con un máximo de 10 instancias por función.
 
 | Colección | Contenido | Quién escribe |
 |---|---|---|
-| `users/{uid}/meta`, `clientes`, `compras`, `biblioteca`, `pedidos` | Datos de trabajo de cada cuenta | Dueño y miembros (si la cuenta no está en lectura) |
+| `users/{uid}/meta`, `clientes`, `compras`, `biblioteca`, `pedidos`, `presupuestos` | Datos de trabajo de cada cuenta | Dueño y miembros (si la cuenta no está en lectura) |
 | `users/{uid}/suscripcion/actual` (+ `eventos`, `contadores/{cicloId}`) | Estado de la suscripción, historial y consumo del ciclo | Solo Cloud Functions |
 | `planes` | Planes, precios y límites | Admin |
 | `faq`, `faqMeta` | Preguntas frecuentes | Admin |

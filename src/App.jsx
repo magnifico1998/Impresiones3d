@@ -10,6 +10,7 @@ import PedidosPage from './components/PedidosPage';
 import ClientesPage from './components/ClientesPage';
 import CalculadoraPage from './components/CalculadoraPage';
 import ComprasPage from './components/ComprasPage';
+import PresupuestosPage from './components/PresupuestosPage';
 import BibliotecaPage from './components/BibliotecaPage';
 import CatalogoAdminPage from './components/CatalogoAdminPage';
 import ConfiguracionPage from './components/ConfiguracionPage';
@@ -136,6 +137,12 @@ function App() {
 
   const [modalPresupuestoOpen, setModalPresupuestoOpen] = useState(false);
   const [modalPresupuestoSelectedIds, setModalPresupuestoSelectedIds] = useState(new Set());
+  // Presupuesto guardado que se abre para editar desde la sección
+  // Presupuestos (null = presupuesto nuevo).
+  const [modalPresupuestoEditar, setModalPresupuestoEditar] = useState(null);
+  // "Nuevo presupuesto" desde la sección Presupuestos arranca vacío: sin el
+  // cálculo que haya quedado en la Calculadora.
+  const [modalPresupuestoSinCalculo, setModalPresupuestoSinCalculo] = useState(false);
 
   // Sube cada vez que se guarda un producto en biblioteca o se agrega una
   // pieza a un pedido desde la Calculadora, para que ésta limpie sola los
@@ -500,6 +507,8 @@ function App() {
             }}
             onOpenPresupuesto={() => {
               setModalPresupuestoSelectedIds(new Set());
+              setModalPresupuestoEditar(null);
+              setModalPresupuestoSinCalculo(false);
               setModalPresupuestoOpen(true);
             }}
             resetTick={calcResetTick}
@@ -542,7 +551,34 @@ function App() {
             }}
             onOpenPresupuesto={(selectedIds) => {
               setModalPresupuestoSelectedIds(selectedIds);
+              setModalPresupuestoEditar(null);
+              setModalPresupuestoSinCalculo(false);
               setModalPresupuestoOpen(true);
+            }}
+          />
+        );
+
+      case 'presupuestos':
+        return (
+          <PresupuestosPage
+            onOpenNuevo={() => {
+              setModalPresupuestoSelectedIds(new Set());
+              setModalPresupuestoEditar(null);
+              setModalPresupuestoSinCalculo(true);
+              setModalPresupuestoOpen(true);
+            }}
+            onOpenEditar={(presupuesto) => {
+              setModalPresupuestoSelectedIds(new Set());
+              setModalPresupuestoEditar(presupuesto);
+              setModalPresupuestoSinCalculo(true);
+              setModalPresupuestoOpen(true);
+            }}
+            onVerPedido={(pedidoId) => {
+              setActivePage('pedidos');
+              setTimeout(() => {
+                setModalPedidoDetalleId(pedidoId);
+                setModalPedidoDetalleOpen(true);
+              }, 150);
             }}
           />
         );
@@ -756,7 +792,8 @@ function App() {
         isOpen={modalPresupuestoOpen}
         onClose={() => setModalPresupuestoOpen(false)}
         selectedProdIds={modalPresupuestoSelectedIds}
-        presupuestoActual={window._currentPresupuesto || null}
+        presupuestoActual={modalPresupuestoSinCalculo ? null : (window._currentPresupuesto || null)}
+        presupuestoEditar={modalPresupuestoEditar}
       />
     </>
   );

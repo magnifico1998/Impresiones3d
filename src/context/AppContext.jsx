@@ -142,6 +142,7 @@ const hayCambios = (cambios) => Object.keys(cambios).length > 0;
 export const AppProvider = ({ children }) => {
   const [pedidos, setPedidos] = useState([]);
   const [compras, setCompras] = useState([]);
+  const [presupuestos, setPresupuestos] = useState([]);
   const [biblioteca, setBiblioteca] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [empresa, setEmpresa] = useState(defaultEmpresa);
@@ -297,6 +298,55 @@ export const AppProvider = ({ children }) => {
     } catch (e) {
       console.error("Error al eliminar compra:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar la compra en la nube.');
+    }
+  };
+
+  // ---------------------------------------------------------------------
+  // Presupuestos: subcolección propia (users/{uid}/presupuestos/{id}), mismo
+  // patrón que compras. Estados: 'creado' -> 'enviado' (aguardando
+  // respuesta) -> 'aprobado' (crea el pedido, ver PresupuestosPage.jsx) o
+  // 'rechazado'. add/update devuelven true si se guardó, para que quien
+  // llama no avance (ej. no marque "aprobado") si Firestore lo rechazó.
+  const presupuestoDocRef = (id) => doc(db, "users", cuentaId, "presupuestos", String(id));
+
+  // Correlativo visible (N° 1, 2, 3...), calculado sobre los presupuestos
+  // cargados. Dos pestañas creando a la vez podrían repetir un número; es
+  // sólo un rótulo para el cliente, el id real del documento es único.
+  const siguienteNumeroPresupuesto = () =>
+    presupuestos.reduce((max, p) => Math.max(max, Number(p.numero) || 0), 0) + 1;
+
+  const addPresupuesto = async (item) => {
+    try {
+      await setDoc(presupuestoDocRef(item.id), item);
+      return true;
+    } catch (e) {
+      console.error("Error al guardar presupuesto:", e);
+      mostrarErrorGuardado('⚠ No se pudo guardar el presupuesto en la nube.');
+      return false;
+    }
+  };
+
+  const updatePresupuesto = async (id, updater) => {
+    try {
+      const actual = presupuestos.find(p => p.id === id);
+      if (!actual) return false;
+      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
+      const cambios = camposCambiados(actual, nuevo);
+      if (hayCambios(cambios)) await updateDoc(presupuestoDocRef(id), cambios);
+      return true;
+    } catch (e) {
+      console.error("Error al actualizar presupuesto:", e);
+      mostrarErrorGuardado('⚠ No se pudo actualizar el presupuesto en la nube.');
+      return false;
+    }
+  };
+
+  const removePresupuesto = async (id) => {
+    try {
+      await deleteDoc(presupuestoDocRef(id));
+    } catch (e) {
+      console.error("Error al eliminar presupuesto:", e);
+      mostrarErrorGuardado('⚠ No se pudo eliminar el presupuesto en la nube.');
     }
   };
 
@@ -550,17 +600,21 @@ export const AppProvider = ({ children }) => {
     return null;
   };
 
+  // Devuelve true si el pedido se guardó (lo usa la aprobación de un
+  // presupuesto para no marcarlo aprobado si el pedido no se pudo crear).
   const addPedido = async (item) => {
     const motivo = motivoLimitePedido();
     if (motivo) {
       showToast(`⚠ ${motivo}`, 'error', 8000);
-      return;
+      return false;
     }
     try {
       await setDoc(pedidoDocRef(item.id), item);
+      return true;
     } catch (e) {
       console.error("Error al guardar pedido:", e);
       mostrarErrorGuardado('⚠ No se pudo guardar el pedido en la nube.');
+      return false;
     }
   };
 
@@ -1056,6 +1110,26 @@ export const AppProvider = ({ children }) => {
     return () => unsubscribe();
   }, [cuentaId, datosCargadosOk]);
 
+  // Listener en tiempo real para la subcolección de presupuestos, mismo
+  // criterio que compras.
+  useEffect(() => {
+    if (!cuentaId || !datosCargadosOk) return;
+
+    const colRef = collection(db, "users", cuentaId, "presupuestos");
+
+    const unsubscribe = onSnapshot(
+      colRef,
+      (snapshot) => {
+        setPresupuestos(snapshot.docs.map(d => d.data()));
+      },
+      (error) => {
+        console.error("Error en la suscripción en tiempo real de presupuestos:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [cuentaId, datosCargadosOk]);
+
   // Listener en tiempo real para config + empresa + counter, ahora en su
   // propio documento (users/{uid}/meta/config). Independiente del listener
   // principal de arriba: usa sus propias referencias de eco
@@ -1307,6 +1381,7 @@ export const AppProvider = ({ children }) => {
       const data = {
         pedidos,
         compras,
+        presupuestos,
         biblioteca,
         clientes,
         cfg,
@@ -1413,6 +1488,11 @@ export const AppProvider = ({ children }) => {
         });
         await restaurarSeccion("pedidos", data.pedidos, { permiteBorrar: false });
         await restaurarSeccion("compras", data.compras);
+        // Backups anteriores a la sección Presupuestos no traen la clave:
+        // ahí no se toca nada (si no, se borrarían los presupuestos actuales).
+        if (Array.isArray(data.presupuestos)) {
+          await restaurarSeccion("presupuestos", data.presupuestos);
+        }
       }
       
       showToast('✓ Backup restaurado correctamente.');
@@ -1702,6 +1782,11 @@ export const AppProvider = ({ children }) => {
     addCompra,
     updateCompra,
     removeCompra,
+    presupuestos,
+    addPresupuesto,
+    updatePresupuesto,
+    removePresupuesto,
+    siguienteNumeroPresupuesto,
     biblioteca,
     addProducto,
     updateProducto,

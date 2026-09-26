@@ -37,6 +37,16 @@ export default function Sidebar({ isOpen, onClose }) {
           )
         },
         {
+          id: 'presupuestos',
+          name: 'Presupuestos',
+          icon: (
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M5 2.5h7l3 3v12H5z" strokeLinejoin="round" />
+              <path d="M8 9h4M8 12h4M8 15h2" />
+            </svg>
+          )
+        },
+        {
           id: 'clientes',
           name: 'Clientes',
           icon: (

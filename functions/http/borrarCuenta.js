@@ -68,7 +68,7 @@ exports.borrarCuenta = onCall({ secrets: [mpAccessToken] }, async (request) => {
   }
 
   // Datos privados (users/{uid} y todas sus subcolecciones: meta,
-  // clientes, compras, biblioteca, pedidos, suscripcion/actual con
+  // clientes, compras, biblioteca, pedidos, presupuestos, suscripcion/actual con
   // eventos y contadores) y el catálogo web público de esa tienda
   // (catalogoTiendas/{uid} con sus productos y solicitudes recibidas).
   await db.recursiveDelete(db.doc(`users/${uid}`));

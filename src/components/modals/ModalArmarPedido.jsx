@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
+import { piezaDesdeBiblioteca } from '../../utils/piezaPedido';
 
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder }) {
   const {
@@ -181,47 +182,13 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
 
   const construirPiezaDesdeBibParaPedido = (it) => {
     const prod = biblioteca.find(p => p.id === it.prodId) || {};
-    const horas = prod.horas || 0;
-    const watts = prod.watts || 0;
-    const precioKwh = prod.precioKwh || cfg.kwh || 0;
-    const moHora = prod.moHora || 0;
-    const horasTrab = prod.horasTrab || 0;
-    const costeElec = (watts / 1000) * horas * precioKwh;
-    const costeMO = moHora * horasTrab;
-    
-    let mant = 0;
-    if (prod.impresoraNombre) {
-      const imp = cfg.impresoras.find(i => i.nombre === prod.impresoraNombre);
-      if (imp) mant = imp.mant || 0;
-    }
-    const costeMant = mant * horas;
-
-    return {
+    return piezaDesdeBiblioteca(prod, {
       id: getNewId(),
       nombre: it.nombre,
-      archivoNombre: prod.gcodeNombre || null,
-      gcodeArchivos: prod.gcodeArchivos || null,
-      filDetalle: prod.filDetalle || [],
-      costeElec,
-      costeMant,
-      costeMO,
-      horas,
-      impresoraNombre: prod.impresoraNombre || null,
-      costoUnitario: prod.costoUnitario || 0,
-      precioEstimado: it.precioEstimado,
-      precioVenta: it.precioEstimado || prod.precioSugUnitario || 0,
       cantidad: it.cantidad,
-      elaborados: 0,
-      notas: '',
-      versiones: (it.versiones || []).map(v => ({
-        id: Date.now() + Math.random(),
-        cantidad: v.cantidad,
-        color: v.color,
-        colorSecundario: v.colorSecundario || '',
-        comentario: v.comentario,
-        realizados: 0
-      }))
-    };
+      precioUnitario: it.precioEstimado,
+      versiones: it.versiones || []
+    }, cfg);
   };
 
   const handleConfirm = async () => {
