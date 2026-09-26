@@ -250,7 +250,7 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', alignItems: 'flex-start' }}>
+        <div className="faq-layout">
           <div className="card" style={{ padding: '10px 0' }}>
             {nivel1.map(nodo => renderNodo(nodo, 1))}
           </div>
