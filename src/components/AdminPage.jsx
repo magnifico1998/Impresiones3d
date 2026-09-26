@@ -493,10 +493,10 @@ export default function AdminPage({ modoRevendedor = false }) {
       // borra los planes que no se volvieron a tocar en esta sesión.
       const combinado = { ...(descuentosGuardados || {}), ...(descuentosPorPlanEditando[codigo] || {}) };
       await actualizar({ uid, descuentosPorPlan: combinado });
-      showToast('Descuentos por plan guardados.');
+      showToast('Comisiones del revendedor guardadas.');
     } catch (e) {
       console.error('Error al guardar descuentos del revendedor:', e);
-      showToast(e?.message || 'No se pudieron guardar los descuentos.', 'error');
+      showToast(e?.message || 'No se pudieron guardar las comisiones.', 'error');
     }
   };
 
@@ -923,12 +923,13 @@ export default function AdminPage({ modoRevendedor = false }) {
                               value={descuentoPorSolicitud[s.uid] ?? ''}
                               onChange={(e) => setDescuentoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
                               disabled={modoRevendedor}
-                              placeholder={defaultPct != null ? `${defaultPct}%` : '% dto.'}
+                              placeholder={defaultPct != null ? `${defaultPct}%` : '% com.'}
+                              aria-label="Comisión del revendedor (%)"
                               title={modoRevendedor
-                                ? 'El % de descuento lo fija el administrador, no se puede editar desde acá.'
+                                ? 'El % de comisión del revendedor lo fija el administrador, no se puede editar desde acá.'
                                 : (defaultPct != null
-                                  ? `Si lo dejás vacío, se factura el default de este plan para ${s.codigoRevendedor}: ${defaultPct}%`
-                                  : 'Descuento (ganancia del revendedor) para esta venta')}
+                                  ? `Comisión del revendedor (%). Si lo dejás vacío, se usa la de este plan para ${s.codigoRevendedor}: ${defaultPct}%`
+                                  : 'Comisión del revendedor (%) para esta venta: la parte del precio que se lleva él')}
                               style={{ fontSize: '12px', width: '70px' }}
                             />
                           </>
@@ -1236,12 +1237,13 @@ export default function AdminPage({ modoRevendedor = false }) {
                                       value={descuentoPorCuenta[c.uid] ?? ''}
                                       onChange={(e) => setDescuentoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
                                       disabled={modoRevendedor}
-                                      placeholder={defaultPct != null ? `${defaultPct}%` : '% dto.'}
+                                      placeholder={defaultPct != null ? `${defaultPct}%` : '% com.'}
+                                      aria-label="Comisión del revendedor (%)"
                                       title={modoRevendedor
-                                        ? 'El % de descuento lo fija el administrador, no se puede editar desde acá.'
+                                        ? 'El % de comisión del revendedor lo fija el administrador, no se puede editar desde acá.'
                                         : (defaultPct != null
-                                          ? `Si lo dejás vacío, se factura el default de este plan para ${codigoFila}: ${defaultPct}%`
-                                          : 'Descuento (ganancia del revendedor) para esta renovación')}
+                                          ? `Comisión del revendedor (%). Si lo dejás vacío, se usa la de este plan para ${codigoFila}: ${defaultPct}%`
+                                          : 'Comisión del revendedor (%) para esta renovación: la parte del precio que se lleva él')}
                                       style={{ fontSize: '12px', width: '60px' }}
                                     />
                                   </>
@@ -1530,30 +1532,39 @@ export default function AdminPage({ modoRevendedor = false }) {
                       )}
 
                       {/* Default de descuento por plan -- se prellena con lo que ya
-                          esté guardado y se guarda entero al tocar "Guardar". */}
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
-                        {planes.map(p => (
-                          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ fontSize: '11px', color: 'var(--text2)' }}>{p.nombre}</span>
-                            <input
-                              type="number" min="0" max="100"
-                              defaultValue={rev.descuentosPorPlan?.[p.id] ?? ''}
-                              onChange={(e) => setDescuentosPorPlanEditando(prev => ({
-                                ...prev,
-                                [rev.codigo]: { ...(prev[rev.codigo] || rev.descuentosPorPlan || {}), [p.id]: Number(e.target.value) || 0 }
-                              }))}
-                              placeholder="%"
-                              style={{ fontSize: '11px', width: '55px' }}
-                            />
-                          </div>
-                        ))}
-                        <button
-                          className="btn"
-                          style={{ fontSize: '11px', padding: '4px 8px' }}
-                          onClick={() => guardarDescuentosRevendedor(rev.uid, rev.codigo, rev.descuentosPorPlan)}
-                        >
-                          Guardar % default
-                        </button>
+                          esté guardado y se guarda entero al tocar "Guardar". En
+                          pantalla se llama "comisión": es el % del precio que se
+                          lleva el revendedor (ver functions/ledgerRevendedor.js). */}
+                      <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600 }}>Comisión del revendedor por plan (%)</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '8px' }}>
+                          Lo que se lleva el revendedor de cada venta. Ej.: plan de $100 con 30% → $30 para el revendedor, $70 para la plataforma.
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {planes.map(p => (
+                            <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span style={{ fontSize: '11px', color: 'var(--text2)' }}>{p.nombre}</span>
+                              <input
+                                type="number" min="0" max="100"
+                                defaultValue={rev.descuentosPorPlan?.[p.id] ?? ''}
+                                onChange={(e) => setDescuentosPorPlanEditando(prev => ({
+                                  ...prev,
+                                  [rev.codigo]: { ...(prev[rev.codigo] || rev.descuentosPorPlan || {}), [p.id]: Number(e.target.value) || 0 }
+                                }))}
+                                placeholder="0"
+                                style={{ fontSize: '11px', width: '55px' }}
+                              />
+                              <span style={{ fontSize: '11px', color: 'var(--text2)' }}>%</span>
+                            </label>
+                          ))}
+                          <button
+                            className="btn"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            onClick={() => guardarDescuentosRevendedor(rev.uid, rev.codigo, rev.descuentosPorPlan)}
+                          >
+                            Guardar comisiones
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
