@@ -178,14 +178,16 @@ export default function Sidebar({ isOpen, onClose }) {
           <React.Fragment key={gi}>
             <div className="nav-label">{group.label}</div>
             {group.links.map(link => (
-              <div 
-                key={link.id} 
+              <button
+                type="button"
+                key={link.id}
                 className={`nav-item ${activePage === link.id ? 'active' : ''}`}
+                aria-current={activePage === link.id ? 'page' : undefined}
                 onClick={() => handleNavigate(link.id)}
               >
                 {link.icon}
                 {link.name}
-              </div>
+              </button>
             ))}
           </React.Fragment>
         ))}

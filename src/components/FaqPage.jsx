@@ -193,7 +193,10 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
 
     return (
       <div key={key}>
-        <div
+        <button
+          type="button"
+          className="nav-toggle"
+          aria-expanded={abierta}
           onClick={() => toggleColapsada(nodo.rutaCompleta)}
           style={esNivel1 ? {
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '7px', userSelect: 'none',
@@ -210,18 +213,20 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
             fontSize: esNivel1 ? '9px' : '7px', color: esNivel1 ? 'var(--accent)' : undefined
           }}>▶</span>
           {nodo.nombre}
-        </div>
+        </button>
         {abierta && (
           <>
             {nodo.preguntas.map(f => (
-              <div
+              <button
+                type="button"
                 key={f.id}
                 className={`nav-item ${selectedId === f.id ? 'active' : ''}`}
+                aria-current={selectedId === f.id ? 'true' : undefined}
                 style={esNivel1 ? undefined : { paddingLeft: `${20 + profundidad * 8}px`, fontSize: '12.5px' }}
                 onClick={() => setSelectedId(f.id)}
               >
                 {f.pregunta}
-              </div>
+              </button>
             ))}
             {hijosOrdenados(nodo).map(hijo => renderNodo(hijo, profundidad + 1))}
           </>
