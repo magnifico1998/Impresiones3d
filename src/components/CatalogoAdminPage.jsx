@@ -175,6 +175,8 @@ export default function CatalogoAdminPage() {
 
   return (
     <div>
+      <div className="page-title">Catálogo web</div>
+      <div className="page-sub">Tu tienda online: solicitudes de clientes, link para compartir, colores y productos publicados.</div>
       {/* Solicitudes pendientes arriba de todo: es lo que hay que revisar
           primero cada vez que se entra a esta pantalla. */}
       <div className="card">
