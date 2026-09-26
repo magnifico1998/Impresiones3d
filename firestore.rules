@@ -113,6 +113,40 @@ service cloud.firestore {
           get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('pedidosMes', null);
     }
 
+    // Límite de monto facturado por ciclo (planes.limites.montoFacturadoMes)
+    // sobre contadores/{cicloId}.montoFacturado, que mantiene
+    // onPedidoCreado.js. Mismo patrón y mismas salidas "sin límite" que
+    // dentroDelLimiteDePedidos. Sólo frena CREAR pedidos: los existentes se
+    // pueden seguir editando y completando aunque el total pase el tope.
+    function dentroDelLimiteDeMonto(uid) {
+      return !exists(suscripcionRef(uid)) ||
+        get(suscripcionRef(uid)).data.cicloId == null ||
+        get(suscripcionRef(uid)).data.planId == null ||
+        !exists(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)) ||
+        get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('montoFacturadoMes', null) == null ||
+        !exists(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)) ||
+        get(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)).data.get('montoFacturado', 0) <
+          get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('montoFacturadoMes', null);
+    }
+
+    // Límite de aperturas del catálogo web por ciclo
+    // (planes.limites.aperturasCatalogoMes) sobre
+    // contadores/{cicloId}.aperturasCatalogo, que suma
+    // registrarAperturaCatalogo.js ANTES de que el visitante pueda armar el
+    // pedido -- por eso es "<=": la apertura que llega justo al tope todavía
+    // puede pedir. Pasado el tope el catálogo se sigue viendo, pero no
+    // acepta solicitudes nuevas hasta el próximo ciclo.
+    function dentroDelLimiteDeAperturas(uid) {
+      return !exists(suscripcionRef(uid)) ||
+        get(suscripcionRef(uid)).data.cicloId == null ||
+        get(suscripcionRef(uid)).data.planId == null ||
+        !exists(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)) ||
+        get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('aperturasCatalogoMes', null) == null ||
+        !exists(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)) ||
+        get(/databases/$(database)/documents/users/$(uid)/suscripcion/actual/contadores/$(get(suscripcionRef(uid)).data.cicloId)).data.get('aperturasCatalogo', 0) <=
+          get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('aperturasCatalogoMes', null);
+    }
+
     // Mismo patrón que dentroDelLimiteDePedidos, pero sobre bibliotecaCount
     // (mantenido en suscripcion/actual por onBibliotecaCambio.js) en vez de
     // un contador por ciclo -- la Biblioteca es un límite de cantidad total
@@ -168,13 +202,14 @@ service cloud.firestore {
       allow update: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
 
       // Crear un pedido nuevo exige además que la cuenta no esté en modo
-      // lectura/suspendida, y que no haya superado el límite de pedidos
-      // del plan contratado para el ciclo de facturación vigente. Si algo
+      // lectura/suspendida, y que no haya superado el límite de pedidos ni
+      // el de monto facturado del plan contratado para el ciclo de
+      // facturación vigente. Si algo
       // de esto no existe todavía (cuenta vieja sin suscripcion/actual, o
       // plan sin límite configurado), dejamos pasar para no romper cuentas
       // existentes — el enforcement real entra en vigencia a medida que
       // se van dando de alta las suscripciones.
-      allow create: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) && dentroDelLimiteDePedidos(uid);
+      allow create: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) && dentroDelLimiteDePedidos(uid) && dentroDelLimiteDeMonto(uid);
     }
 
     // ---- Suscripción de cada cuenta ----
@@ -428,6 +463,7 @@ service cloud.firestore {
                       && request.resource.data.keys().hasOnly(['cliente', 'telefono', 'email', 'comentarioGeneral', 'items', 'totalEstimado', 'estado', 'creado'])
                       && exists(/databases/$(database)/documents/catalogoTiendas/$(uid))
                       && get(/databases/$(database)/documents/catalogoTiendas/$(uid)).data.get('activo', false) == true
+                      && dentroDelLimiteDeAperturas(uid)
                       && request.resource.data.estado == 'pendiente'
                       && request.resource.data.creado.size() < 40
                       && (!('telefono' in request.resource.data) || (request.resource.data.telefono is string && request.resource.data.telefono.size() < 40))

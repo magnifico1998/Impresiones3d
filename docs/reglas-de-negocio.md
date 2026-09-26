@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-26.
+Última revisión: 2026-09-26 (límites de monto facturado y de aperturas del catálogo pasan a bloquear).
 
 ---
 
@@ -96,15 +96,24 @@ límites no están en el código**: se cambian desde el panel.
 Campos de cada plan: `nombre`, `precioMensual`, `orden`, `activo` (visible
 para contratar), `gratuito`, y `limites`:
 
-| Límite | Qué controla | Dónde se hace cumplir |
-|---|---|---|
-| `pedidosMes` | Pedidos nuevos por ciclo | `firestore.rules` (`dentroDelLimiteDePedidos`) |
-| `productosBiblioteca` | Productos guardados en total (no por mes) | `firestore.rules` (`dentroDelLimiteDeBiblioteca`) |
-| `usuarios` | Personas con acceso a la cuenta, contando al dueño | `functions/http/gestionarMiembros.js` |
-| `aperturasCatalogoMes` | Aperturas del catálogo web por ciclo | **No bloquea:** solo se muestra en "Mi emprendimiento" |
-| `montoFacturadoMes` | Monto facturado en pedidos por ciclo | **No bloquea:** solo se muestra en "Mi emprendimiento" |
+| Límite | Qué controla | Qué pasa al llegar | Dónde se hace cumplir |
+|---|---|---|---|
+| `pedidosMes` | Pedidos nuevos por ciclo | No puede crear pedidos nuevos | `firestore.rules` (`dentroDelLimiteDePedidos`) |
+| `montoFacturadoMes` | Monto facturado en pedidos por ciclo | No puede crear pedidos nuevos; los existentes se pueden seguir editando y completando | `firestore.rules` (`dentroDelLimiteDeMonto`) |
+| `aperturasCatalogoMes` | Aperturas del catálogo web por ciclo | El catálogo **se sigue viendo, pero no acepta pedidos** (la apertura que llega justo al límite todavía puede pedir) | `firestore.rules` (`dentroDelLimiteDeAperturas`) y `functions/http/registrarAperturaCatalogo.js` |
+| `productosBiblioteca` | Productos guardados en total (no por mes) | No puede guardar productos nuevos | `firestore.rules` (`dentroDelLimiteDeBiblioteca`) |
+| `usuarios` | Personas con acceso a la cuenta, contando al dueño | No puede invitar a nadie más | `functions/http/gestionarMiembros.js` |
 
-Un límite vacío (`null`) significa **sin límite**.
+- Un límite vacío (`null`) significa **sin límite**. Tampoco aplican durante
+  la prueba (sin plan asignado).
+- Los límites por ciclo se liberan solos cuando empieza el ciclo siguiente, o
+  antes si la cuenta pasa a un plan con un límite más alto.
+- Avisos: al crear un pedido pasado el límite, la app muestra el motivo. Con el
+  catálogo sin pedidos, el dueño ve un aviso en "Catálogo web" y el visitante,
+  uno en el catálogo que lo invita a contactar a la tienda directamente.
+- Riesgo conocido: las aperturas se cuentan sin protección anti-bot, así que
+  alguien podría inflar el contador de una tienda ajena y dejarla sin recibir
+  pedidos hasta el próximo ciclo. La solución prevista es Firebase App Check.
 
 ### Plan gratuito (ej. "Boceto")
 
@@ -245,7 +254,8 @@ a **costo $0 durante N ciclos**. `functions/http/codigosPromocionales.js`.
 - **Catálogo web público:** cada tienda tiene su catálogo en
   `/catalogo/{uid}`, que se ve sin login. Solo se publica lo que el dueño
   elige: nunca costos ni pedidos. Los visitantes pueden mandar solicitudes solo
-  si el catálogo está **activo**. Cada solicitud le llega por mail al dueño y a
+  si el catálogo está **activo** y la tienda no pasó su límite de aperturas
+  del ciclo (ver sección 2). Cada solicitud le llega por mail al dueño y a
   los miembros de la cuenta (`functions/triggers/onNuevaSolicitudCatalogo.js`).
 - Cada apertura del catálogo suma al contador de aperturas del ciclo
   (`functions/http/registrarAperturaCatalogo.js`).

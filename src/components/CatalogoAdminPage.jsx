@@ -25,8 +25,16 @@ export default function CatalogoAdminPage() {
     descartarSolicitud,
     pedidos,
     showToast,
-    fmt
+    fmt,
+    planContratado,
+    consumoActual
   } = useApp();
+
+  // Pasado el límite de aperturas del plan, el catálogo se sigue viendo pero
+  // no acepta pedidos hasta el próximo ciclo (ver registrarAperturaCatalogo.js
+  // y dentroDelLimiteDeAperturas en firestore.rules).
+  const limiteAperturas = planContratado?.limites?.aperturasCatalogoMes;
+  const catalogoSinPedidos = limiteAperturas != null && (consumoActual?.aperturasCatalogo || 0) > limiteAperturas;
 
   // Total de una solicitud con los precios actuales de la biblioteca (el
   // totalEstimado/precioUnit que trae la solicitud lo escribe el visitante
@@ -177,6 +185,15 @@ export default function CatalogoAdminPage() {
     <div>
       <div className="page-title">Catálogo web</div>
       <div className="page-sub">Tu tienda online: solicitudes de clientes, link para compartir, colores y productos publicados.</div>
+      {catalogoSinPedidos && (
+        <div className="card" role="status" style={{ borderColor: 'var(--warn)', background: 'var(--warnDim)' }}>
+          <div style={{ fontWeight: 600, marginBottom: '4px' }}>Tu catálogo no está recibiendo pedidos</div>
+          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+            Llegaste al límite de {limiteAperturas} aperturas por mes de tu plan. Tus clientes siguen viendo los productos,
+            pero no pueden enviar pedidos hasta el próximo ciclo, o antes si pasás a un plan superior desde "Mi emprendimiento".
+          </div>
+        </div>
+      )}
       {/* Solicitudes pendientes arriba de todo: es lo que hay que revisar
           primero cada vez que se entra a esta pantalla. */}
       <div className="card">

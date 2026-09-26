@@ -533,7 +533,29 @@ export const AppProvider = ({ children }) => {
   // por una condición.
   const pedidoDocRef = (id) => doc(db, "users", cuentaId, "pedidos", String(id));
 
+  // Límites del plan que frenan CREAR un pedido (los hace cumplir
+  // firestore.rules: dentroDelLimiteDePedidos y dentroDelLimiteDeMonto).
+  // Chequearlos acá antes sólo sirve para mostrar un mensaje claro en vez
+  // del error genérico de guardado; si el consumo todavía no cargó, se deja
+  // pasar y decide la regla.
+  const motivoLimitePedido = () => {
+    const limites = planContratado?.limites;
+    if (!limites || !consumoActual) return null;
+    if (limites.pedidosMes != null && (consumoActual.pedidosCreados || 0) >= limites.pedidosMes) {
+      return `Llegaste al límite de ${limites.pedidosMes} pedidos por mes de tu plan. Vas a poder crear pedidos nuevos cuando empiece el próximo ciclo, o antes si pasás a un plan superior.`;
+    }
+    if (limites.montoFacturadoMes != null && (consumoActual.montoFacturado || 0) >= limites.montoFacturadoMes) {
+      return 'Llegaste al monto facturado por mes de tu plan. Vas a poder crear pedidos nuevos cuando empiece el próximo ciclo, o antes si pasás a un plan superior. Los pedidos que ya tenés se pueden seguir editando.';
+    }
+    return null;
+  };
+
   const addPedido = async (item) => {
+    const motivo = motivoLimitePedido();
+    if (motivo) {
+      showToast(`⚠ ${motivo}`, 'error', 8000);
+      return;
+    }
     try {
       await setDoc(pedidoDocRef(item.id), item);
     } catch (e) {

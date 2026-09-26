@@ -131,6 +131,10 @@ export default function CatalogoPublico() {
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(null); // { docId, payload } una vez enviado
+  // false cuando la tienda pasó el límite de aperturas de su plan en el
+  // ciclo (lo informa registrarAperturaCatalogo): el catálogo se sigue
+  // viendo, pero no se pueden enviar pedidos.
+  const [aceptaPedidos, setAceptaPedidos] = useState(true);
   const [cliente, setCliente] = useState('');
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
@@ -173,14 +177,17 @@ export default function CatalogoPublico() {
   // Cuenta esta visita para el límite de "aperturas de catálogo" del plan
   // de la tienda dueña. Va por una Cloud Function porque un visitante sin
   // login no tiene permiso de escritura sobre los contadores de otra
-  // cuenta (ver firestore.rules). No afecta la carga del catálogo si
-  // falla: sólo se registra silenciosamente en la consola.
+  // cuenta (ver firestore.rules). La respuesta dice si la tienda todavía
+  // acepta pedidos este ciclo. No afecta la carga del catálogo si falla:
+  // sólo se registra silenciosamente en la consola.
   useEffect(() => {
     if (!uidTienda) return;
     const registrarApertura = httpsCallable(functions, 'registrarAperturaCatalogo');
-    registrarApertura({ uidTienda }).catch((err) => {
-      console.warn('No se pudo registrar la apertura del catálogo:', err);
-    });
+    registrarApertura({ uidTienda })
+      .then((res) => setAceptaPedidos(res.data?.aceptaPedidos !== false))
+      .catch((err) => {
+        console.warn('No se pudo registrar la apertura del catálogo:', err);
+      });
   }, [uidTienda]);
 
   // El <title> que ve un bot de preview (WhatsApp, etc.) lo arma
@@ -300,6 +307,7 @@ export default function CatalogoPublico() {
   };
 
   const handleEnviar = async () => {
+    if (!aceptaPedidos) return;
     if (!cliente.trim()) {
       avisar('Contanos tu nombre para poder armar el pedido.');
       return;
@@ -349,7 +357,14 @@ export default function CatalogoPublico() {
       setEnviado({ docId: ref.id, payload });
     } catch (e) {
       console.error('Error al enviar el pedido:', e);
-      avisar('No se pudo enviar el pedido. Probá de nuevo en un momento.');
+      // Rechazo de firestore.rules: el catálogo está inactivo o la tienda
+      // pasó su límite de aperturas mientras el visitante armaba el pedido.
+      if (e?.code === 'permission-denied') {
+        setAceptaPedidos(false);
+        avisar('En este momento la tienda no está recibiendo pedidos por el catálogo. Escribile directamente para hacer tu pedido.');
+      } else {
+        avisar('No se pudo enviar el pedido. Probá de nuevo en un momento.');
+      }
     } finally {
       setEnviando(false);
     }
@@ -464,6 +479,16 @@ export default function CatalogoPublico() {
           </div>
         )}
       </header>
+
+      {!aceptaPedidos && (
+        <div role="status" style={{
+          maxWidth: '640px', margin: '12px auto 0', padding: '10px 14px', borderRadius: 'var(--radius)',
+          border: '1px solid var(--border)', background: 'var(--bg2)', fontSize: '13px', color: 'var(--text2)'
+        }}>
+          Por ahora esta tienda no está recibiendo pedidos por el catálogo. Podés ver los productos
+          {config.telefono ? ' y escribirle por WhatsApp para pedir.' : ' y contactarla directamente para pedir.'}
+        </div>
+      )}
 
       <div className="catalogo-content" style={{ maxWidth: '640px', margin: '0 auto', padding: '8px 16px 16px' }}>
         {!productos.length && (
@@ -763,7 +788,12 @@ export default function CatalogoPublico() {
                   <span style={{ fontSize: '18px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{fmt(totalCarrito)}</span>
                 </div>
 
-                <button className="btn btn-primary" style={{ width: '100%' }} disabled={enviando} onClick={handleEnviar}>
+                {!aceptaPedidos && (
+                  <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
+                    La tienda no está recibiendo pedidos por el catálogo en este momento. Contactala directamente.
+                  </div>
+                )}
+                <button className="btn btn-primary" style={{ width: '100%' }} disabled={enviando || !aceptaPedidos} onClick={handleEnviar}>
                   {enviando ? 'Enviando…' : 'Enviar pedido'}
                 </button>
               </>
