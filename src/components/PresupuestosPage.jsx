@@ -4,6 +4,7 @@ import { confirmar } from './Dialogos';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { generarPdfPresupuesto } from '../utils/presupuestoPDF';
 import { piezaDesdeBiblioteca, piezaDesdeCalculadora, piezaLibre } from '../utils/piezaPedido';
+import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../utils/estadosPresupuesto';
 
 // Presupuestos guardados (users/{uid}/presupuestos), separados de los
 // pedidos: un presupuesto todavía no es una venta. Ciclo:
@@ -12,14 +13,7 @@ import { piezaDesdeBiblioteca, piezaDesdeCalculadora, piezaLibre } from '../util
 // cualquier otro, ver addPedido en AppContext.jsx) y lo deja vinculado en
 // pedidoId. Un presupuesto aprobado ya no se edita ni se borra: su pedido
 // es la fuente de verdad desde ahí.
-export const ESTADOS_PRESUPUESTO = {
-  creado: { texto: 'Presupuesto creado', badge: 'badge-progress' },
-  enviado: { texto: 'Aguardando respuesta', badge: 'badge-pending' },
-  aprobado: { texto: 'Aprobado', badge: 'badge-done' },
-  rechazado: { texto: 'Rechazado', badge: 'badge-cancelled' }
-};
-
-const ABIERTOS = ['creado', 'enviado'];
+const ABIERTOS = ESTADOS_ABIERTOS;
 
 const fechaVisible = (yyyyMmDd) => (yyyyMmDd ? yyyyMmDd.split('-').reverse().join('/') : '');
 

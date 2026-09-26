@@ -265,9 +265,13 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   productos y tocando "Presupuesto" en la barra de abajo) o desde "Nuevo
   presupuesto" en la sección. Dentro del presupuesto se suman productos con
   "+ Desde biblioteca" (buscador; si el producto ya está, suma una unidad) o
-  con "+ Línea libre". Se puede
-  **guardar**, **guardar y generar el PDF**, o generar **solo el PDF** sin
-  guardar (como antes).
+  con "+ Línea libre".
+- Desde la Calculadora o la Biblioteca se elige el **presupuesto destino**:
+  uno nuevo o uno existente **abierto** (creado o aguardando respuesta; nunca
+  aprobados ni rechazados). Si es existente, los productos se suman al final
+  de su lista y guardar actualiza ese presupuesto.
+- Se puede **guardar**, **guardar y generar el PDF**, o generar **solo el
+  PDF** sin guardar (como antes; solo en presupuestos nuevos).
 - Numeración correlativa visible (N° 1, 2, 3…), que aparece en el PDF.
 - **Aprobar crea el pedido** en estado pendiente, con descripción
   "Presupuesto N° X", las notas del presupuesto y el total como precio de

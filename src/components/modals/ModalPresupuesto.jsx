@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { generarPdfPresupuesto } from '../../utils/presupuestoPDF';
+import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../../utils/estadosPresupuesto';
 
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
 // siempre, sin guardar nada) o guardarlo en la sección Presupuestos, desde
@@ -15,6 +16,12 @@ import { generarPdfPresupuesto } from '../../utils/presupuestoPDF';
 //
 // `presupuestoEditar`: un presupuesto ya guardado para editar (sólo en
 // estado creado/enviado; PresupuestosPage no ofrece editar los cerrados).
+//
+// Destino: cuando el modal llega con productos (desde la Calculadora o la
+// Biblioteca) se puede elegir entre un presupuesto nuevo o uno existente
+// todavía abierto -- mismo concepto que "Pedido destino" en
+// ModalAgregarPieza.jsx. Elegir uno existente carga sus datos y le suma los
+// productos que se traían; guardar actualiza ese presupuesto.
 
 // Copia del resultado de la Calculadora con sólo lo que hace falta para
 // armar la pieza del pedido. Firestore rechaza valores undefined, por eso
@@ -37,8 +44,14 @@ const nuevoIdLinea = () => Date.now() + Math.random();
 export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, presupuestoActual, presupuestoEditar }) {
   const {
     biblioteca, clientes, empresa, fmt, showToast, getNewId,
-    addPresupuesto, updatePresupuesto, siguienteNumeroPresupuesto
+    presupuestos, addPresupuesto, updatePresupuesto, siguienteNumeroPresupuesto
   } = useApp();
+
+  // 'nuevo' o el id (como string) de un presupuesto abierto existente.
+  const [destinoId, setDestinoId] = useState('nuevo');
+  // Productos con los que se abrió el modal (Calculadora/Biblioteca), para
+  // volver a armar la lista al cambiar de destino.
+  const [itemsOrigen, setItemsOrigen] = useState([]);
 
   const [items, setItems] = useState([]);
   const [nombreCliente, setNombreCliente] = useState('');
@@ -65,6 +78,8 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
 
     setSelectorBibAbierto(false);
     setBusquedaBib('');
+    setDestinoId('nuevo');
+    setItemsOrigen([]);
 
     if (presupuestoEditar) {
       setItems((presupuestoEditar.items || []).map(it => ({ ...it, id: it.id ?? nuevoIdLinea() })));
@@ -99,6 +114,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     }
 
     setItems(itemsIniciales);
+    setItemsOrigen(itemsIniciales);
     setNombreCliente('');
     setTelefono('');
     setEmail('');
@@ -110,7 +126,36 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
 
   if (!isOpen) return null;
 
-  const editando = !!presupuestoEditar;
+  const presupuestosAbiertos = presupuestos
+    .filter(p => ESTADOS_ABIERTOS.includes(p.estado))
+    .sort((a, b) => (b.numero || 0) - (a.numero || 0));
+  const destinoExistente = destinoId !== 'nuevo' ? presupuestos.find(p => String(p.id) === destinoId) : null;
+  // Presupuesto guardado sobre el que se trabaja: el que se abrió para
+  // editar, o el existente elegido como destino. null = presupuesto nuevo.
+  const objetivo = presupuestoEditar || destinoExistente;
+  const editando = !!objetivo;
+  const mostrarDestino = !presupuestoEditar && itemsOrigen.length > 0;
+
+  const handleCambiarDestino = (valor) => {
+    setDestinoId(valor);
+    const existente = valor !== 'nuevo' ? presupuestos.find(p => String(p.id) === valor) : null;
+    if (!existente) {
+      setItems(itemsOrigen);
+      setNombreCliente('');
+      setTelefono('');
+      setEmail('');
+      setNotas('');
+      return;
+    }
+    setItems([
+      ...(existente.items || []).map(it => ({ ...it, id: it.id ?? nuevoIdLinea() })),
+      ...itemsOrigen.map(it => ({ ...it, id: nuevoIdLinea() }))
+    ]);
+    setNombreCliente(existente.cliente || '');
+    setTelefono(existente.telefono || '');
+    setEmail(existente.email || '');
+    setNotas(existente.notas || '');
+  };
 
   const handleItemChange = (id, campo, valor) => {
     setItems(prev => prev.map(it => it.id === id
@@ -203,9 +248,16 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
 
     let ok, numero, fecha;
     if (editando) {
-      numero = presupuestoEditar.numero;
-      fecha = presupuestoEditar.fecha;
-      ok = await updatePresupuesto(presupuestoEditar.id, (p) => ({ ...p, ...datos, actualizadoTs: Date.now() }));
+      // Pudo aprobarse o rechazarse en otra pestaña mientras el modal
+      // estaba abierto: un presupuesto cerrado ya no recibe cambios.
+      if (!ESTADOS_ABIERTOS.includes(objetivo.estado)) {
+        setGuardando(false);
+        showToast(`El presupuesto N° ${objetivo.numero} ya está ${ESTADOS_PRESUPUESTO[objetivo.estado]?.texto.toLowerCase() || 'cerrado'} y no se puede modificar.`, 'error');
+        return;
+      }
+      numero = objetivo.numero;
+      fecha = objetivo.fecha;
+      ok = await updatePresupuesto(objetivo.id, (p) => ({ ...p, ...datos, actualizadoTs: Date.now() }));
     } else {
       numero = siguienteNumeroPresupuesto();
       fecha = fechaLocalHoy();
@@ -222,7 +274,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     setGuardando(false);
     if (!ok) return;
 
-    showToast(editando ? '✓ Presupuesto actualizado.' : `✓ Presupuesto N° ${numero} guardado en Presupuestos.`);
+    showToast(editando ? `✓ Presupuesto N° ${numero} actualizado.` : `✓ Presupuesto N° ${numero} guardado en Presupuestos.`);
     if (conPdf) bajarPdf(numero, fecha.split('-').reverse().join('/'), lineas);
     onClose();
   };
@@ -230,12 +282,31 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
   return (
     <div className="modal-overlay open" onClick={onClose}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-title">{editando ? `Presupuesto N° ${presupuestoEditar.numero}` : 'Nuevo presupuesto'}</div>
-        <div className="modal-sub">
-          {editando
-            ? 'Editá los datos del presupuesto guardado.'
-            : 'Guardalo para seguirlo en Presupuestos y convertirlo en pedido si lo aprueban, o generá sólo el PDF.'}
+        <div className="modal-title">
+          {presupuestoEditar ? `Presupuesto N° ${presupuestoEditar.numero}` : destinoExistente ? `Agregar al presupuesto N° ${destinoExistente.numero}` : 'Nuevo presupuesto'}
         </div>
+        <div className="modal-sub">
+          {presupuestoEditar
+            ? 'Editá los datos del presupuesto guardado.'
+            : destinoExistente
+              ? 'Los productos nuevos se sumaron al final de la lista. Revisá y guardá.'
+              : 'Guardalo para seguirlo en Presupuestos y convertirlo en pedido si lo aprueban, o generá sólo el PDF.'}
+        </div>
+
+        {mostrarDestino && (
+          <>
+            <label className="fl" style={{ marginTop: 0 }}>Presupuesto destino</label>
+            <select value={destinoId} onChange={(e) => handleCambiarDestino(e.target.value)}>
+              <option value="nuevo">+ Crear presupuesto nuevo</option>
+              {presupuestosAbiertos.map(p => (
+                <option key={p.id} value={String(p.id)}>
+                  N° {p.numero} — {p.cliente} — {fmt(p.total || 0)} [{ESTADOS_PRESUPUESTO[p.estado].texto}]
+                </option>
+              ))}
+            </select>
+            <div className="sep"></div>
+          </>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
           <div>
