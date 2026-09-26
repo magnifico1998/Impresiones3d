@@ -23,7 +23,12 @@ revisión". Cuenta como regla de negocio cualquier cambio en:
   `functions/scheduled/cierreMensualRevendedores.js`.
 - Promociones, equipo y borrado: `functions/http/codigosPromocionales.js`,
   `functions/http/gestionarMiembros.js`, `functions/http/borrarCuenta.js`.
-- Permisos y límites: `firestore.rules`, `storage.rules`.
+- Permisos y límites: `firestore.rules`, `storage.rules`, y los chequeos de
+  límites en `src/context/AppContext.jsx` (`motivoLimitePedido`) y
+  `src/catalogo/CatalogoPublico.jsx`.
+- Presupuestos (estados, aprobación que crea el pedido):
+  `src/components/PresupuestosPage.jsx`,
+  `src/components/modals/ModalPresupuesto.jsx`, `src/utils/piezaPedido.js`.
 - Mails automáticos: `functions/emailTemplates.js` (cuándo se mandan).
 
 Si agregás o sacás una Cloud Function o una colección, actualizá

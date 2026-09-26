@@ -1,9 +1,10 @@
 # Manager3D
 
-App web para emprendimientos de impresión 3D: calculadora de costos, pedidos,
-clientes, compras, biblioteca de productos y un catálogo web público por
-tienda. Se cobra por suscripción mensual (Mercado Pago) y se vende también a
-través de revendedores.
+App web para emprendimientos de impresión 3D: calculadora de costos,
+presupuestos (que se convierten en pedidos al aprobarse), pedidos, clientes,
+compras, biblioteca de productos y un catálogo web público por tienda. Se
+cobra por suscripción mensual (Mercado Pago) y se vende también a través de
+revendedores.
 
 - **Producción:** https://manager3d.vercel.app
 - **Stack:** React 19 + Vite (Vercel) · Firebase Auth, Firestore, Storage y

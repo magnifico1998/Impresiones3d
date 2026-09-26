@@ -65,7 +65,7 @@ con un máximo de 10 instancias por función.
 | `crearSuscripcionMP`, `sincronizarSuscripcionMP`, `cancelarSuscripcionMP` | Contratar, verificar y cancelar el débito de Mercado Pago | Dueño de la cuenta |
 | `webhookMercadoPago` | Recibe los avisos de Mercado Pago (valida la firma) | Mercado Pago |
 | `registrarUltimoAcceso` | Guarda el último ingreso; renueva el plan gratuito | La app, una vez por sesión |
-| `registrarAperturaCatalogo` | Cuenta las aperturas del catálogo | Catálogo público |
+| `registrarAperturaCatalogo` | Cuenta las aperturas del catálogo y responde si la tienda todavía acepta pedidos (límite del plan) | Catálogo público |
 | `agregarMiembro`, `quitarMiembro`, `responderInvitacion` | Usuarios adicionales ("equipo") | Dueño / invitado |
 | `borrarCuenta` | Borrado definitivo de una cuenta | Admin |
 | `habilitarRevendedor`, `deshabilitarRevendedor`, `borrarRevendedor`, `actualizarDescuentosRevendedor`, `vincularRevendedor`, `marcarCierreFacturado` | Gestión de revendedores | Admin |

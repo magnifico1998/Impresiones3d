@@ -35,6 +35,11 @@ frontend nuevo nunca llama a una función que todavía no existe.
 Antes de publicar `firestore.rules`, comparalas con las que hay en Firebase
 Console → Firestore → Reglas, por si se editó algo a mano allá.
 
+**Después de deployar reglas, recargá la app (F5)** si la tenías abierta.
+Si una colección nueva se había rechazado antes del deploy, su escucha en
+tiempo real quedó cortada y Firebase no la reintenta: se puede guardar, pero
+la lista no se actualiza hasta recargar. (Pasó con Presupuestos.)
+
 ## Desarrollo local
 
 ```powershell
