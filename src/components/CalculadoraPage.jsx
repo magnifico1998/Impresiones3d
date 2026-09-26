@@ -1593,7 +1593,7 @@ export default function CalculadoraPage({
                 <path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z" />
                 <path d="M12 2v3h3M7 11h6M7 14h4" />
               </svg>
-              Presupuesto
+              Agregar a presupuesto
             </button>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text3)', textAlign: 'center', marginTop: '8px', lineHeight: 1.4 }}>
