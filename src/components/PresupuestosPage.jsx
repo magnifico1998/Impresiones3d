@@ -181,14 +181,20 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
             <option value="todos">Todos</option>
             {Object.entries(ESTADOS_PRESUPUESTO).map(([id, e]) => <option key={id} value={id}>{e.texto}</option>)}
           </select>
-          <input
-            type="search"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por cliente o N°"
-            aria-label="Buscar presupuesto"
-            style={{ flex: '1 1 200px', width: 'auto' }}
-          />
+          <div className="bib-search" style={{ flex: '1 1 200px', minWidth: '180px' }}>
+            <svg className="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px' }}>
+              <circle cx="9" cy="9" r="5" />
+              <path d="M15 15l-3-3" />
+            </svg>
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por cliente o N°..."
+              aria-label="Buscar presupuesto"
+              style={{ fontSize: '13px' }}
+            />
+          </div>
         </div>
       </div>
 

@@ -46,6 +46,11 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
   const [email, setEmail] = useState('');
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
+  // Selector de productos de la Biblioteca dentro del modal (a diferencia
+  // del pedido, que manda a la Biblioteca a seleccionar: acá se perdería lo
+  // ya cargado en el formulario).
+  const [selectorBibAbierto, setSelectorBibAbierto] = useState(false);
+  const [busquedaBib, setBusquedaBib] = useState('');
 
   // Mismo criterio que ModalArmarPedido.jsx: el formulario se arma UNA
   // sola vez en la transición cerrado -> abierto, nunca mientras sigue
@@ -57,6 +62,9 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     const recienAbierto = isOpen && !wasOpenRef.current;
     wasOpenRef.current = isOpen;
     if (!recienAbierto) return;
+
+    setSelectorBibAbierto(false);
+    setBusquedaBib('');
 
     if (presupuestoEditar) {
       setItems((presupuestoEditar.items || []).map(it => ({ ...it, id: it.id ?? nuevoIdLinea() })));
@@ -117,6 +125,31 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
   const handleAddItemLibre = () => {
     setItems(prev => [...prev, { id: nuevoIdLinea(), nombre: '', cantidad: 1, precioUnitario: 0 }]);
   };
+
+  // Mismo precio y cantidad iniciales que al armar un presupuesto
+  // seleccionando productos en la Biblioteca (ver useEffect de arriba).
+  // Si el producto ya está en la lista, suma una unidad en vez de duplicarlo.
+  const handleAddDesdeBiblioteca = (prod) => {
+    setItems(prev => {
+      const existente = prev.find(it => it.prodId === prod.id);
+      if (existente) {
+        return prev.map(it => it === existente ? { ...it, cantidad: it.cantidad + 1 } : it);
+      }
+      return [...prev, {
+        id: nuevoIdLinea(),
+        nombre: prod.nombre,
+        cantidad: prod.cantidad || 1,
+        precioUnitario: prod.precioSugUnitario || prod.costoUnitario || 0,
+        prodId: prod.id
+      }];
+    });
+    showToast(`"${prod.nombre}" agregado al presupuesto.`, 'success', 1500);
+  };
+
+  const qBib = busquedaBib.trim().toLowerCase();
+  const productosBib = biblioteca
+    .filter(p => !qBib || (p.nombre || '').toLowerCase().includes(qBib) || (p.cat || '').toLowerCase().includes(qBib))
+    .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
   const total = items.reduce((s, it) => s + it.cantidad * it.precioUnitario, 0);
 
@@ -233,7 +266,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
 
         <div style={{ maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
           {!items.length ? (
-            <div className="empty">Todavía no hay productos. Agregá uno con "+ Línea libre".</div>
+            <div className="empty">Todavía no hay productos. Agregalos desde la Biblioteca o con "+ Línea libre".</div>
           ) : (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 100px 90px 24px', gap: '6px', fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: '4px' }}>
@@ -256,9 +289,56 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
           )}
         </div>
 
-        <button className="btn btn-sm" style={{ width: '100%', marginTop: '6px' }} onClick={handleAddItemLibre}>
-          + Línea libre
-        </button>
+        <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+          <button
+            className={`btn btn-sm ${selectorBibAbierto ? 'btn-primary' : ''}`}
+            style={{ flex: 1 }}
+            aria-expanded={selectorBibAbierto}
+            onClick={() => setSelectorBibAbierto(v => !v)}
+          >
+            + Desde biblioteca
+          </button>
+          <button className="btn btn-sm" style={{ flex: 1 }} onClick={handleAddItemLibre}>
+            + Línea libre
+          </button>
+        </div>
+
+        {selectorBibAbierto && (
+          <div style={{ marginTop: '10px', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '10px' }}>
+            <div className="bib-search" style={{ marginBottom: '8px' }}>
+              <svg className="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px' }}>
+                <circle cx="9" cy="9" r="5" />
+                <path d="M15 15l-3-3" />
+              </svg>
+              <input
+                type="text"
+                value={busquedaBib}
+                onChange={(e) => setBusquedaBib(e.target.value)}
+                placeholder="Buscar en la biblioteca por nombre o categoría..."
+                aria-label="Buscar producto de la biblioteca"
+                style={{ fontSize: '13px' }}
+              />
+            </div>
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {!biblioteca.length ? (
+                <div className="empty" style={{ padding: '16px' }}>Tu biblioteca está vacía.</div>
+              ) : !productosBib.length ? (
+                <div className="empty" style={{ padding: '16px' }}>Ningún producto coincide con la búsqueda.</div>
+              ) : productosBib.map(prod => (
+                <div key={prod.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 4px', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.nombre}</div>
+                    {prod.cat && <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{prod.cat}{prod.subcat ? ` · ${prod.subcat}` : ''}</div>}
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                    {fmt(prod.precioSugUnitario || prod.costoUnitario || 0)}
+                  </div>
+                  <button className="btn btn-sm" onClick={() => handleAddDesdeBiblioteca(prod)}>Agregar</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="sep"></div>
 

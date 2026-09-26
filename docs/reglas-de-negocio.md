@@ -261,8 +261,11 @@ Se guardan en `users/{uid}/presupuestos`. Código:
 | `aprobado` | El cliente lo aceptó: **se creó el pedido** | Ver el pedido, bajar el PDF |
 | `rechazado` | No prosperó | Reabrir (vuelve a "aguardando respuesta"), eliminar |
 
-- Se crean desde la Calculadora, desde la Biblioteca (productos
-  seleccionados) o desde "Nuevo presupuesto" en la sección. Ahí se puede
+- Se crean desde la Calculadora, desde la Biblioteca (seleccionando
+  productos y tocando "Presupuesto" en la barra de abajo) o desde "Nuevo
+  presupuesto" en la sección. Dentro del presupuesto se suman productos con
+  "+ Desde biblioteca" (buscador; si el producto ya está, suma una unidad) o
+  con "+ Línea libre". Se puede
   **guardar**, **guardar y generar el PDF**, o generar **solo el PDF** sin
   guardar (como antes).
 - Numeración correlativa visible (N° 1, 2, 3…), que aparece en el PDF.
