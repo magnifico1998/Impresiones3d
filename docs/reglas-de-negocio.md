@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-26 (nueva sección Presupuestos; límites de monto facturado y de aperturas del catálogo pasan a bloquear).
+Última revisión: 2026-09-27 (datos de facturación obligatorios para contratar por Mercado Pago).
 
 ---
 
@@ -130,9 +130,19 @@ máximo cada 10 días). `functions/http/registrarUltimoAcceso.js`.
 - **Débito automático mensual** (Suscripciones de Mercado Pago), en pesos
   (ARS). Hoy **todo se cobra en la cuenta de Mercado Pago de la plataforma**
   (opción A).
-- El suscriptor contrata desde "Mi emprendimiento" en dos pasos: elige el plan
-  y confirma el email de su cuenta de Mercado Pago, que puede ser distinto del
-  de Google. **Solo contrata el dueño de la cuenta**, no los miembros invitados.
+- El suscriptor contrata desde "Mi emprendimiento" en tres pasos: elige el
+  plan, completa sus **datos de facturación** y confirma el email de su cuenta
+  de Mercado Pago, que puede ser distinto del de Google. **Solo contrata el
+  dueño de la cuenta**, no los miembros invitados.
+- **Los datos de facturación son obligatorios para pagar:** nombre, apellido,
+  DNI (7 u 8 dígitos) o CUIT (11 dígitos), condición impositiva, teléfono y
+  localidad. Del login con Google la app solo toma el email, así que sin este
+  paso quedaría un suscriptor que paga sin datos para facturarle. Los valida
+  el servidor (`crearSuscripcionMP` rechaza la contratación si falta alguno) y
+  se guardan en la ficha del suscriptor (`datosSuscriptor/{uid}`, la misma de
+  "Consultar datos" en el panel), no en la solicitud de contacto, para no
+  reabrir el lead. El paso se precarga con la ficha o, si no hay, con el
+  formulario de contacto.
 - **El plan se activa recién cuando Mercado Pago acredita el cobro**, no al
   abrir el link de pago.
 - Cada cobro se aplica **una sola vez**, aunque llegue repetido: el candado es

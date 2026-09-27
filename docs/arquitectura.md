@@ -107,7 +107,7 @@ con un máximo de 10 instancias por función.
 | `planes` | Planes, precios y límites | Admin |
 | `faq`, `faqMeta` | Preguntas frecuentes | Admin |
 | `solicitudesContacto/{uid}` | Formulario "contactate con el área comercial" | Dueño (datos) / admin (estado) |
-| `datosSuscriptor/{uid}` | Datos personales e impositivos (uso interno) | Admin / revendedor |
+| `datosSuscriptor/{uid}` | Datos personales e impositivos (uso interno); los completa el suscriptor al contratar | Admin / revendedor, y `crearSuscripcionMP` |
 | `revendedores/{codigo}` (+ `ventas/{YYYY-MM}`) | Revendedores y sus ventas por mes | Solo Cloud Functions |
 | `codigosPromocionales/{codigo}` (+ `activaciones`) | Códigos de comercios | Solo Cloud Functions |
 | `pagosMP/{paymentId}` | Registro de cobros de Mercado Pago (candado anti duplicados) | Solo Cloud Functions |

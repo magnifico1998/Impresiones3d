@@ -50,6 +50,39 @@ async function resolverCobrador(uid, datosSuscripcion) {
   return { mpUserId: await obtenerMpUserIdPlataforma() };
 }
 
+// Datos de facturación obligatorios para contratar: sin ellos quedaba un
+// suscriptor que paga del que sólo se conocía el email de Google (la app no
+// toma nada más de la cuenta de Google). Se validan acá, que es lo que
+// manda, y se guardan en datosSuscriptor/{uid}: la misma ficha que el admin
+// ve y edita con "Consultar datos" (ModalDatosSuscriptor.jsx). No van a
+// solicitudesContacto a propósito: esa colección es el circuito de leads
+// comerciales y escribirla reabriría la solicitud como "pendiente".
+const TIPOS_DOCUMENTO = { DNI: /^\d{7,8}$/, CUIT: /^\d{11}$/ };
+
+function validarDatosFacturacion(datos) {
+  const texto = (v, max) => String(v || '').trim().slice(0, max);
+  const limpio = {
+    nombre: texto(datos?.nombre, 100),
+    apellido: texto(datos?.apellido, 100),
+    tipoDocumento: texto(datos?.tipoDocumento, 10),
+    // Se aceptan puntos y guiones al tipearlo (20-12345678-9), se guardan sólo los dígitos.
+    numeroDocumento: String(datos?.numeroDocumento || '').replace(/\D/g, ''),
+    condicionImpositiva: texto(datos?.condicionImpositiva, 60),
+    telefono: String(datos?.telefono || '').replace(/\D/g, ''),
+    localidad: texto(datos?.localidad, 100)
+  };
+  if (!limpio.nombre) return { error: 'Falta el nombre.' };
+  if (!limpio.apellido) return { error: 'Falta el apellido.' };
+  if (!TIPOS_DOCUMENTO[limpio.tipoDocumento]) return { error: 'El tipo de documento tiene que ser DNI o CUIT.' };
+  if (!TIPOS_DOCUMENTO[limpio.tipoDocumento].test(limpio.numeroDocumento)) {
+    return { error: limpio.tipoDocumento === 'CUIT' ? 'El CUIT tiene que tener 11 dígitos.' : 'El DNI tiene que tener 7 u 8 dígitos.' };
+  }
+  if (!limpio.condicionImpositiva) return { error: 'Falta la condición impositiva.' };
+  if (!/^\d{6,15}$/.test(limpio.telefono)) return { error: 'El teléfono no es válido.' };
+  if (!limpio.localidad) return { error: 'Falta la localidad.' };
+  return { datos: limpio };
+}
+
 exports.crearSuscripcionMP = onCall({ secrets: [mpAccessToken] }, async (request) => {
   const { uid, email } = await exigirDuenio(request);
   if (!email) {
@@ -81,7 +114,25 @@ exports.crearSuscripcionMP = onCall({ secrets: [mpAccessToken] }, async (request
     throw new HttpsError('failed-precondition', 'Tu cuenta todavía no tiene suscripción inicializada. Contactate con soporte.');
   }
 
+  const facturacion = validarDatosFacturacion(request.data?.datos);
+  if (facturacion.error) {
+    throw new HttpsError('invalid-argument', facturacion.error);
+  }
+
   const { mpUserId } = await resolverCobrador(uid, subSnap.data());
+
+  // Se guarda antes de ir a Mercado Pago: si el pago después no se
+  // completa, los datos igual quedan cargados para la próxima vez. El email
+  // de contacto de la ficha no se pisa si el admin ya había cargado uno.
+  const datosRef = db.doc(`datosSuscriptor/${uid}`);
+  const datosSnap = await datosRef.get();
+  await datosRef.set({
+    ...facturacion.datos,
+    email: (datosSnap.exists && datosSnap.data().email) || email,
+    actualizadoEl: Timestamp.now(),
+    actualizadoDesde: 'checkout',
+    ...(datosSnap.exists ? {} : { creadoEl: Timestamp.now() })
+  }, { merge: true });
 
   let preapproval;
   try {
