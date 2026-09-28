@@ -24,13 +24,15 @@ function crearTransporter() {
 // Cualquier función que llame a esto tiene que declarar
 // `secrets: [gmailAppPassword]` en sus opciones (v2), si no
 // gmailAppPassword.value() viene vacío en producción.
-async function enviarEmail({ to, subject, html }) {
+// attachments: formato de nodemailer ([{ filename, content: Buffer }]).
+async function enviarEmail({ to, subject, html, attachments }) {
   const transporter = crearTransporter();
   await transporter.sendMail({
     from: `"Manager3D" <${GMAIL_USER}>`,
     to,
     subject,
     html,
+    attachments,
   });
 }
 

@@ -25,6 +25,8 @@ const { onNuevaSolicitudCatalogo } = require('./triggers/onNuevaSolicitudCatalog
 const { listarPlantillasEmail, guardarPlantillaEmail, restablecerPlantillaEmail } = require('./http/plantillasEmail');
 const { habilitarRevendedor, deshabilitarRevendedor, borrarRevendedor, actualizarDescuentosRevendedor, marcarCierreFacturado, vincularRevendedor, validarCodigoRevendedor } = require('./http/gestionarRevendedores');
 const { cierreMensualRevendedores } = require('./scheduled/cierreMensualRevendedores');
+const { onPagoMPRegistrado } = require('./triggers/onPagoMPRegistrado');
+const { probarConexionArca, emitirFacturaManual, facturarPagoMP, reintentarFactura, anularFactura, descargarFacturaPDF, reenviarFacturaMail } = require('./http/facturacion');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
 module.exports = {
@@ -60,5 +62,13 @@ module.exports = {
   activarCodigoPromocional,
   crearCodigoPromocional,
   actualizarCodigoPromocional,
-  desactivarCodigoPromocional
+  desactivarCodigoPromocional,
+  onPagoMPRegistrado,
+  probarConexionArca,
+  emitirFacturaManual,
+  facturarPagoMP,
+  reintentarFactura,
+  anularFactura,
+  descargarFacturaPDF,
+  reenviarFacturaMail
 };

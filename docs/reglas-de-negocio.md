@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-27 (datos de facturación obligatorios para contratar por Mercado Pago).
+Última revisión: 2026-09-28 (facturación electrónica con ARCA para el admin).
 
 ---
 
@@ -161,6 +161,41 @@ máximo cada 10 días). `functions/http/registrarUltimoAcceso.js`.
 
 Código: `functions/http/pagosMercadoPago.js`, `functions/cobrosMercadoPago.js`,
 `functions/http/webhookMercadoPago.js`, `functions/mercadopago.js`.
+
+### Facturación electrónica (ARCA)
+
+El admin factura como **monotributista**: siempre **Factura C** (código 11)
+y, para anular, **Nota de Crédito C** (código 13), sin IVA discriminado. Se
+configura y se usa desde panel Admin → "Facturación electrónica (ARCA)".
+
+- **Cobros de suscripción:** si está tildado "Facturar automáticamente", cada
+  cobro de Mercado Pago acreditado (`pagosMP/{paymentId}` con
+  `aplicado: true`) genera su factura `facturas/mp_{paymentId}` y se le manda
+  el PDF por mail al suscriptor. Es concepto **servicios**, con el período del
+  ciclo pagado (desde el inicio del ciclo hasta el día anterior a `cicloFin`).
+  Se factura aparte de la activación del plan: si ARCA está caído, el plan se
+  activa igual y la factura queda en error para reintentar.
+- **Receptor de una suscripción:** sale de la ficha `datosSuscriptor/{uid}`
+  (la que se completa al contratar). Si la ficha no tiene un DNI/CUIT válido,
+  o dice Monotributo/Responsable inscripto/Exento sin CUIT, se factura a
+  **consumidor final** y queda la advertencia en la factura.
+- **Pedidos y otros cobros** (transferencias, etc.): factura manual desde el
+  panel, con productos o servicios y hasta 50 ítems.
+- **Numeración:** la da ARCA (último autorizado + 1), de a una emisión por
+  punto de venta y tipo. Si un pedido a ARCA queda sin respuesta, antes de
+  reintentar se consulta ese número: si ARCA ya lo autorizó con el mismo
+  importe y receptor, se toma ese; nunca se emite dos veces.
+- **Anular** emite una Nota de Crédito C por el total, asociada a la factura.
+  Una factura admite una sola nota de crédito.
+- Los cobros acreditados **antes** de habilitar la facturación automática no
+  se facturan solos: se facturan con "Facturar un cobro de Mercado Pago".
+- **Homologación / producción:** en homologación los comprobantes son de
+  prueba (el PDF lo avisa). El pase a producción se hace cambiando el entorno
+  en la configuración, después de cargar el certificado de producción.
+
+Código: `functions/facturacion.js`, `functions/arca.js`,
+`functions/facturaPDF.js`, `functions/http/facturacion.js`,
+`functions/triggers/onPagoMPRegistrado.js`.
 
 ---
 

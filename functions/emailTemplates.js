@@ -156,6 +156,17 @@ const DEFAULTS = {
       }),
     },
   },
+  facturaEmitida: {
+    label: 'Factura electrónica emitida (con el PDF adjunto)',
+    subject: 'Tu comprobante de Manager3D: {{comprobante}}',
+    bodyHtml: `
+      <h2 style="${TITULO}">Tu comprobante</h2>
+      <p>Hola {{nombre}}, te adjuntamos la <strong>{{comprobante}}</strong> por <strong>{{importe}}</strong>.</p>
+      <p>Gracias por confiar en Manager3D.</p>
+      ${BOTON}
+    `.trim(),
+    variables: { nombre: 'Juana', comprobante: 'Factura C 00003-00000012', importe: '$ 15.000,00' },
+  },
 };
 
 // Los valores de este formulario los tipea cualquier cuenta autenticada

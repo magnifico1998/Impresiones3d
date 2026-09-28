@@ -69,6 +69,67 @@ tiene que estar vacío.**
 Webhook en el panel de Mercado Pago: eventos "Planes y suscripciones",
 apuntando a la función `webhookMercadoPago`.
 
+## Facturación electrónica (ARCA): puesta en marcha
+
+Hace falta clave fiscal nivel 3. La clave privada y el certificado **nunca van
+al repo**: generalos en una carpeta fuera del proyecto (ej. `C:\arca`). Si el
+PowerShell no encuentra `openssl`, usá el que trae Git:
+`& "C:\Program Files\Git\usr\bin\openssl.exe"`.
+
+### 1. Homologación (pruebas)
+
+1. Generá la clave y el pedido de certificado (reemplazá el CUIT):
+
+   ```powershell
+   cd C:\arca
+   openssl genrsa -out arca_homo.key 2048
+   openssl req -new -key arca_homo.key -subj "/C=AR/O=Manager3D/CN=manager3d/serialNumber=CUIT 20123456789" -out arca_homo.csr
+   ```
+
+2. En ARCA, adherí el servicio **"WSASS - Autogestión Certificados
+   Homologación"**. Adentro: "Nuevo certificado" (pegás el contenido de
+   `arca_homo.csr` y guardás lo que devuelve como `arca_homo.crt`) y después
+   "Crear autorización a servicio" para ese certificado con el servicio
+   **wsfe**.
+3. Cargá los secrets:
+
+   ```powershell
+   firebase functions:secrets:set ARCA_CERT --data-file C:\arca\arca_homo.crt
+   firebase functions:secrets:set ARCA_KEY --data-file C:\arca\arca_homo.key
+   ```
+
+4. Deployá functions y reglas (ver "Ramas y publicación").
+5. Panel Admin → "Facturación electrónica (ARCA)": completá los datos,
+   entorno **Homologación**, punto de venta cualquiera (ej. 1), **Guardar** y
+   **Probar conexión**. Después emití una factura manual de prueba y bajá el PDF.
+
+### 2. Producción
+
+1. Generá otra clave y otro pedido (`arca_prod.key` / `arca_prod.csr`), igual
+   que arriba.
+2. En ARCA, **"Administración de Certificados Digitales"**: agregá un alias,
+   subí `arca_prod.csr` y descargá el certificado (`arca_prod.crt`).
+3. **"Administrador de Relaciones de Clave Fiscal"** → Nueva relación → ARCA →
+   WebServices → **Facturación Electrónica**; como representante elegí el
+   alias del certificado.
+4. **"Administración de puntos de venta y domicilios"** → alta de un punto de
+   venta nuevo con sistema **"Factura Electrónica - Monotributo - Web
+   Services"**. No uses el del facturador online.
+5. Reemplazá los secrets con los archivos de producción y **volvé a deployar
+   las functions** (toman la versión del secret al deployar):
+
+   ```powershell
+   firebase functions:secrets:set ARCA_CERT --data-file C:\arca\arca_prod.crt
+   firebase functions:secrets:set ARCA_KEY --data-file C:\arca\arca_prod.key
+   firebase deploy --only functions
+   ```
+
+6. En el panel: entorno **Producción**, el punto de venta nuevo, **Guardar**,
+   **Probar conexión**. Recién ahí tildá "Facturar automáticamente".
+
+El certificado vence (suele ser a los 2 años): renovarlo repitiendo los pasos
+1, 2 y 5 de producción.
+
 ## Logs
 
 ```powershell
@@ -101,6 +162,17 @@ falló, se puede volver a ejecutar desde Google Cloud Console → Cloud Schedule
 **Un cron falla con "requires an index".**
 El log trae el link para crear el índice. Crealo y agregalo a
 `firestore.indexes.json`.
+
+**Una factura quedó en "error".**
+El panel muestra el código y el mensaje de ARCA. Corregí la causa (datos del
+emisor, ficha del suscriptor) y tocá **Reintentar**: es seguro, si ARCA ya la
+había autorizado se toma esa, no se duplica. Log:
+`firebase functions:log --only onPagoMPRegistrado`.
+
+**ARCA dice que ya hay un ticket vigente ("alreadyAuthenticated").**
+Se perdió el ticket guardado en `arcaTickets` (o se pidió uno desde otro
+sistema con el mismo certificado). Hay que esperar a que venza, hasta 12
+horas.
 
 **No llegan los mails.**
 Revisá que `GMAIL_APP_PASSWORD` siga siendo válida (Google la revoca si cambia

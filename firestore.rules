@@ -400,6 +400,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---- Facturación electrónica (ARCA) ----
+    // Los comprobantes los crea y emite sólo el servidor (functions/
+    // facturacion.js): el número y el CAE vienen de ARCA y no se pueden
+    // tocar desde el cliente. La configuración del emisor la edita el admin
+    // desde el panel. arcaTickets (credenciales de ARCA) y arcaNumeracion
+    // (candado de numeración) no tienen regla: nadie los lee desde afuera.
+    match /facturas/{facturaId} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+    match /configFacturacion/{docId} {
+      allow read, write: if esAdmin();
+    }
+
     // Tokens OAuth de Mercado Pago de revendedores que cobren en su propia
     // cuenta (opción C, todavía no habilitada -- ver tokenDelCobrador en
     // functions/mercadopago.js). Cerrada del todo al cliente, incluso a

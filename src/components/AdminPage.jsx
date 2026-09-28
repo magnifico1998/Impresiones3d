@@ -8,6 +8,7 @@ import ModalPlan from './modals/ModalPlan';
 import ModalDatosSuscriptor from './modals/ModalDatosSuscriptor';
 import ModalPlantillaEmail from './modals/ModalPlantillaEmail';
 import SeccionCodigosPromocionales from './admin/SeccionCodigosPromocionales';
+import SeccionFacturacion from './admin/SeccionFacturacion';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 
 // Panel de administración: sólo lo ven los emails presentes en la
@@ -1576,6 +1577,8 @@ export default function AdminPage({ modoRevendedor = false }) {
       </div>}
 
       {!modoRevendedor && <SeccionCodigosPromocionales planes={planes} showToast={showToast} />}
+
+      {!modoRevendedor && <SeccionFacturacion showToast={showToast} />}
 
       {/* ---- Plantillas de mail (sólo admin principal) ---- */}
       {!modoRevendedor && <div className="card">

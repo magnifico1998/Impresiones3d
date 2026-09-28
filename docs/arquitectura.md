@@ -14,6 +14,7 @@ Navegador ──► Vercel (frontend React + /api/catalogo-meta)
    └──► Cloud Functions (lógica que el cliente no puede hacer solo)
                  │
                  ├──► Mercado Pago (suscripciones y cobros)
+                 ├──► ARCA (factura electrónica: WSAA + WSFEv1)
                  └──► Gmail (mails automáticos)
 ```
 
@@ -73,6 +74,7 @@ con un máximo de 10 instancias por función.
 | `activarCodigoPromocional` | Canjear un código de comercio | Usuario en prueba |
 | `crearCodigoPromocional`, `actualizarCodigoPromocional`, `desactivarCodigoPromocional` | Gestión de códigos | Admin |
 | `listarPlantillasEmail`, `guardarPlantillaEmail`, `restablecerPlantillaEmail` | Textos de los mails | Admin |
+| `probarConexionArca`, `emitirFacturaManual`, `facturarPagoMP`, `reintentarFactura`, `anularFactura`, `descargarFacturaPDF`, `reenviarFacturaMail` | Facturación electrónica con ARCA | Admin |
 
 ### Automáticas
 
@@ -86,6 +88,7 @@ con un máximo de 10 instancias por función.
 | `transicionSuscripciones` | Todos los días, 03:00 UTC | Vencimientos, bloqueos, avisos y renovación de promos |
 | `reactivacionInactivos` | Todos los días, 04:00 UTC | Mail a quien lleva 10 días sin entrar |
 | `cierreMensualRevendedores` | Día 1, 00:00 Argentina | Cierra el mes de cada revendedor |
+| `onPagoMPRegistrado` | Alta de `pagosMP/{paymentId}` | Si está habilitado, factura el cobro en ARCA y manda el PDF |
 
 ### Módulos compartidos
 
@@ -97,6 +100,9 @@ con un máximo de 10 instancias por función.
 | `mercadopago.js` | Cliente de la API de Mercado Pago, validación de firma, secrets |
 | `mailer.js` | Envío por Gmail (`manager3d.app@gmail.com`); admin = `gustavokimmel@gmail.com` |
 | `emailTemplates.js` | Plantillas de mail por defecto |
+| `arca.js` | Cliente SOAP de ARCA: ticket de WSAA (firmado con el certificado) y WSFEv1 (CAE, último número, consulta) |
+| `facturacion.js` | Emisión de Factura C / Nota de Crédito C: candado de numeración, reintentos sin duplicar, mail |
+| `facturaPDF.js` | PDF del comprobante con el QR de ARCA (se genera al vuelo, no se guarda) |
 
 ## Firestore: colecciones
 
@@ -112,6 +118,9 @@ con un máximo de 10 instancias por función.
 | `codigosPromocionales/{codigo}` (+ `activaciones`) | Códigos de comercios | Solo Cloud Functions |
 | `pagosMP/{paymentId}` | Registro de cobros de Mercado Pago (candado anti duplicados) | Solo Cloud Functions |
 | `credencialesMP` | Tokens de revendedores (opción C, sin usar) | Solo Cloud Functions |
+| `facturas/{id}` | Comprobantes emitidos a ARCA (`mp_{paymentId}` para los de suscripciones) | Solo Cloud Functions; lee el admin |
+| `configFacturacion/emisor` | Datos del emisor, entorno y si se factura automático | Admin |
+| `arcaTickets`, `arcaNumeracion` | Ticket de acceso a ARCA y candado de numeración | Solo Cloud Functions (sin acceso desde la app) |
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |
 | `invitacionesMiembro/{email}` | Vínculos de equipo | Solo Cloud Functions |
 | `admins/{email}` | Lista de admins | A mano desde Firebase Console |
