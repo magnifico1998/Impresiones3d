@@ -247,7 +247,7 @@ export default function TablaComprobantes({ facturas, origenes, referenciaDe = (
       {facturas.length > 0 && filtradas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Ningún comprobante coincide con los filtros.</div>}
       {filtradas.length > 0 && (
         <div style={{ overflowX: 'auto' }}>
-          <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+          <table className="data-table tabla-comprobantes" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
             <thead>
               <tr>
                 <th>Fecha</th>
