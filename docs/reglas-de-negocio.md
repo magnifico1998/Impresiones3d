@@ -362,7 +362,7 @@ con **su propio CUIT**, desde el detalle del pedido.
   lectura o bloqueada no puede emitir (sí ver y bajar las que ya tiene).
 - **Cómo se habilita:** el suscriptor, en ARCA, **delega el servicio
   "Facturación Electrónica" al CUIT de Manager3D** (20262375065) y crea un
-  punto de venta "Web Services". En "Mi emprendimiento" carga CUIT, punto de
+  punto de venta "Web Services". En "Mi emprendimiento" → pestaña "Facturación ARCA" carga CUIT, punto de
   venta y datos del emisor; el servidor lo verifica contra ARCA (delegación y
   punto de venta). Solo el dueño configura; el dueño y los miembros facturan.
 - **Un CUIT, una cuenta:** la primera cuenta que configura un CUIT se lo

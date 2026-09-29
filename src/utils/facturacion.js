@@ -17,6 +17,31 @@ export const CONDICIONES_IVA = [
   [15, 'IVA No Alcanzado']
 ];
 
+// Pestañas de "Mi emprendimiento". La elegida se recuerda en el navegador;
+// el detalle del pedido la usa para abrir directo la de ARCA.
+export const PESTANAS_EMPRESA = [
+  { id: 'emprendimiento', nombre: 'Emprendimiento' },
+  { id: 'arca', nombre: 'Facturación ARCA' }
+];
+const CLAVE_PESTANA_EMPRESA = 'empresa.pestana';
+
+export function pestanaEmpresaGuardada() {
+  try {
+    const guardada = localStorage.getItem(CLAVE_PESTANA_EMPRESA);
+    return PESTANAS_EMPRESA.some((p) => p.id === guardada) ? guardada : PESTANAS_EMPRESA[0].id;
+  } catch {
+    return PESTANAS_EMPRESA[0].id;
+  }
+}
+
+export function guardarPestanaEmpresa(id) {
+  try {
+    localStorage.setItem(CLAVE_PESTANA_EMPRESA, id);
+  } catch {
+    // Sin almacenamiento: la pestaña sólo dura mientras la página está abierta.
+  }
+}
+
 export const pesosAR = (n) => '$ ' + Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const numeroComprobante = (ptoVta, numero) =>

@@ -7,6 +7,7 @@ import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import ModalSuscribirse from './modals/ModalSuscribirse';
 import TarjetaFacturacionCuenta from './TarjetaFacturacionCuenta';
+import { PESTANAS_EMPRESA, pestanaEmpresaGuardada, guardarPestanaEmpresa } from '../utils/facturacion';
 import { sincronizarPagoMP } from '../utils/pagosMP';
 
 // Texto del estado del débito automático de Mercado Pago
@@ -61,6 +62,14 @@ export default function EmpresaPage() {
   const [agregando, setAgregando] = useState(false);
   const [quitandoEmail, setQuitandoEmail] = useState(null);
   const [modalSuscribirseOpen, setModalSuscribirseOpen] = useState(false);
+  const [pestana, setPestana] = useState(pestanaEmpresaGuardada);
+  // La pestaña de ARCA existe sólo si el plan incluye la facturación.
+  const facturacionHabilitada = !!planContratado?.facturacionElectronica;
+  const pestanaVisible = facturacionHabilitada ? pestana : 'emprendimiento';
+  const elegirPestana = (id) => {
+    setPestana(id);
+    guardarPestanaEmpresa(id);
+  };
   const [cancelandoDebito, setCancelandoDebito] = useState(false);
   const [verificandoPago, setVerificandoPago] = useState(false);
   const debitoActivo = suscripcion?.cobro?.estado === 'authorized';
@@ -199,330 +208,351 @@ export default function EmpresaPage() {
     <div className="page active">
       <div className="page-title">Mi emprendimiento</div>
 
-      <div className="grid2" style={{ alignItems: 'flex-start' }}>
-        <div>
-          {/* Logo upload card */}
-          <div className="card">
-            <div className="card-title">Logo</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div 
-                id="emp-logo-preview" 
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '10px',
-                  background: 'var(--bg3)',
-                  border: '1px solid var(--border)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  flexShrink: 0
-                }}
-              >
-                {empresa.logo ? (
-                  <img src={empresa.logo} alt="Logo preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <svg viewBox="0 0 20 20" fill="none" stroke="var(--text3)" strokeWidth="1.5" style={{ width: '28px', height: '28px' }}>
-                    <polygon points="10,2 18,6 18,14 10,18 2,14 2,6" />
-                    <polygon points="10,6 14,8 14,12 10,14 6,12 6,8" />
-                  </svg>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  className="btn btn-sm" 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={subiendoLogo}
-                >
-                  {subiendoLogo ? 'Optimizando...' : 'Subir logo'}
-                </button>
-                {empresa.logo && (
-                  <button className="btn btn-danger btn-sm" onClick={handleRemoveLogo}>Quitar</button>
-                )}
-              </div>
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                accept="image/*" 
-                style={{ display: 'none' }} 
-                onChange={handleLogoUpload} 
-              />
-            </div>
-          </div>
-
-          {/* General business profile metadata card */}
-          <div className="card">
-            <div className="card-title">Datos generales</div>
-            
-            <label className="fl" style={{ marginTop: 0 }}>Nombre completo / del emprendimiento</label>
-            <input 
-              type="text" 
-              id="nombre" 
-              value={empresa.nombre || ''} 
-              placeholder="Ej: Juan Pérez 3D Prints" 
-              onChange={handleChange} 
-            />
-            
-            <label className="fl">CUIT</label>
-            <input 
-              type="text" 
-              id="cuit" 
-              value={empresa.cuit || ''} 
-              placeholder="Ej: 20-12345678-9" 
-              onChange={handleChange} 
-            />
-            
-            <label className="fl">Dirección</label>
-            <input 
-              type="text" 
-              id="direccion" 
-              value={empresa.direccion || ''} 
-              placeholder="Ej: Av. Siempre Viva 742" 
-              onChange={handleChange} 
-            />
-            
-            <label className="fl">Código postal</label>
-            <input
-              type="text"
-              id="cp"
-              value={empresa.cp || ''}
-              placeholder="Ej: X5000"
-              onChange={handleChange}
-            />
-
-            <label className="fl">País del emprendimiento</label>
-            <select id="pais" value={empresa.pais || PAIS_DEFAULT} onChange={handlePaisChange}>
-              {paisesList.map(p => (
-                <option key={p.id} value={p.id}>{p.label}</option>
-              ))}
-            </select>
-            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-              Define la moneda de los precios y el formato de teléfono en toda la app.
-            </div>
-          </div>
-        </div>
-
-        {/* Contact info card */}
-        <div>
-          <div className="card">
-            <div className="card-title">Contacto</div>
-            
-            <label className="fl" style={{ marginTop: 0 }}>Dirección de mail</label>
-            <input 
-              type="email" 
-              id="email" 
-              value={empresa.email || ''} 
-              placeholder="Ej: contacto@miemprendimiento.com" 
-              onChange={handleChange} 
-            />
-            
-            <label className="fl">Teléfono</label>
-            <input 
-              type="text" 
-              id="telefono" 
-              value={empresa.telefono || ''} 
-              placeholder="Ej: +54 9 351 1234567" 
-              onChange={handleChange} 
-            />
-            
-            <label className="fl">Facebook</label>
-            <input 
-              type="text" 
-              id="facebook" 
-              value={empresa.facebook || ''} 
-              placeholder="Ej: facebook.com/miemprendimiento" 
-              onChange={handleChange} 
-            />
-            
-            <label className="fl">Instagram</label>
-            <input 
-              type="text" 
-              id="instagram" 
-              value={empresa.instagram || ''} 
-              placeholder="Ej: @miemprendimiento" 
-              onChange={handleChange} 
-            />
-          </div>
-
-          {/* ---- Plan contratado y consumo: debajo de Contacto, en la misma columna, para compactar la pantalla ---- */}
-          <div className="card">
-            <div className="card-title">Tu plan y consumo</div>
-
-            {!suscripcion && (
-              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No se pudo cargar la información de tu suscripción.</div>
-            )}
-
-            {suscripcion?.estado === 'trial' && (
-              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
-                Estás en versión de prueba — todavía no tenés un plan contratado.
-              </div>
-            )}
-
-            {suscripcion && suscripcion.estado !== 'trial' && !planContratado && (
-              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no tenés un plan asignado.</div>
-            )}
-
-            {planContratado && (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600 }}>{planContratado.nombre}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>{fmtMoneda(planContratado.precioMensual)}/mes</div>
-                </div>
-
-                <BarraConsumo
-                  etiqueta="Pedidos este ciclo"
-                  usado={consumoActual?.pedidosCreados}
-                  limite={planContratado.limites?.pedidosMes}
-                />
-                <BarraConsumo
-                  etiqueta="Aperturas del catálogo web"
-                  usado={consumoActual?.aperturasCatalogo}
-                  limite={planContratado.limites?.aperturasCatalogoMes}
-                />
-                <BarraConsumo
-                  etiqueta="Monto facturado este ciclo"
-                  usado={consumoActual?.montoFacturado}
-                  limite={planContratado.limites?.montoFacturadoMes}
-                  formatear={fmtMoneda}
-                />
-                <BarraConsumo
-                  etiqueta="Usuarios"
-                  usado={1 + miembrosActivos.length}
-                  limite={planContratado.limites?.usuarios}
-                />
-                <BarraConsumo
-                  etiqueta="Productos en biblioteca"
-                  usado={biblioteca.length}
-                  limite={planContratado.limites?.productosBiblioteca}
-                />
-              </>
-            )}
-
-            {/* Pago del plan: sólo el dueño contrata (un miembro invitado usa el plan del dueño). */}
-            {suscripcion && !esMiembro && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{textoDebito(suscripcion)}</div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    className="btn btn-sm"
-                    disabled={verificandoPago}
-                    onClick={handleVerificarPago}
-                    title="Consulta a Mercado Pago si tu pago ya se acreditó y actualiza tu plan"
-                  >
-                    {verificandoPago ? 'Verificando...' : 'Verificar pago'}
-                  </button>
-                  {debitoActivo && (
-                    <button className="btn btn-sm" disabled={cancelandoDebito} onClick={handleCancelarDebito}>
-                      {cancelandoDebito ? 'Cancelando...' : 'Cancelar débito'}
-                    </button>
-                  )}
-                  <button className="btn btn-primary btn-sm" onClick={() => setModalSuscribirseOpen(true)}>
-                    {debitoActivo ? 'Cambiar plan' : 'Contratar plan'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ---- Contacto del revendedor (si esta cuenta fue activada por uno) ---- */}
-      {suscripcion?.revendedorContacto && (
-        <div className="card">
-          <div className="card-title">Tu ejecutivo</div>
-          <div style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.6 }}>
-            {(suscripcion.revendedorContacto.nombre || suscripcion.revendedorContacto.apellido) && (
-              <div>
-                <strong style={{ color: 'var(--text)' }}>
-                  {[suscripcion.revendedorContacto.nombre, suscripcion.revendedorContacto.apellido].filter(Boolean).join(' ')}
-                </strong>
-              </div>
-            )}
-            {suscripcion.revendedorContacto.email && <div>{suscripcion.revendedorContacto.email}</div>}
-            {suscripcion.revendedorContacto.telefono && <div>{suscripcion.revendedorContacto.telefono}</div>}
-          </div>
+      {/* Pestañas: los datos del emprendimiento y, si el plan la incluye, la
+          facturación electrónica con ARCA (va aparte porque va a crecer). */}
+      {facturacionHabilitada && (
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {PESTANAS_EMPRESA.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`btn btn-sm periodo-btn ${pestanaVisible === p.id ? 'active' : ''}`}
+              onClick={() => elegirPestana(p.id)}
+            >
+              {p.nombre}
+            </button>
+          ))}
         </div>
       )}
 
-      <TarjetaFacturacionCuenta />
-
-      {/* ---- Usuarios con acceso a la cuenta ---- */}
-      <div className="card">
-        <div className="card-title">Usuarios con acceso</div>
-
-        {esMiembro ? (
-          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
-            Estás administrando la cuenta de otro emprendimiento — tenés acceso total, igual que su dueño.
-            <div style={{ marginTop: '10px' }}>
-              <button
-                className="btn btn-sm btn-danger"
-                onClick={async () => {
-                  if (!(await confirmar('Vas a dejar de tener acceso a esta cuenta y volver a la tuya propia.', { titulo: '¿Salir de esta cuenta?', textoConfirmar: 'Salir', peligro: true }))) return;
-                  await salirDeCuentaCompartida();
-                }}
-              >
-                Salir de esta cuenta
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', marginBottom: '8px' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 500 }}>Vos (dueño)</div>
-              </div>
-            </div>
-
-            {miembrosActivos.map(m => (
-              <div key={m._docId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '13px' }}>
-                  {m.email}
-                  {m.estado === 'pendiente' && (
-                    <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text3)' }}>(pendiente de aceptar)</span>
+      {pestanaVisible === 'emprendimiento' && (
+        <>
+        <div className="grid2" style={{ alignItems: 'flex-start' }}>
+          <div>
+            {/* Logo upload card */}
+            <div className="card">
+              <div className="card-title">Logo</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div 
+                  id="emp-logo-preview" 
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '10px',
+                    background: 'var(--bg3)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    flexShrink: 0
+                  }}
+                >
+                  {empresa.logo ? (
+                    <img src={empresa.logo} alt="Logo preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <svg viewBox="0 0 20 20" fill="none" stroke="var(--text3)" strokeWidth="1.5" style={{ width: '28px', height: '28px' }}>
+                      <polygon points="10,2 18,6 18,14 10,18 2,14 2,6" />
+                      <polygon points="10,6 14,8 14,12 10,14 6,12 6,8" />
+                    </svg>
                   )}
                 </div>
-                <button
-                  className="btn btn-sm btn-danger"
-                  disabled={quitandoEmail === m.email}
-                  onClick={() => handleQuitarMiembro(m.email)}
-                >
-                  {quitandoEmail === m.email ? 'Quitando...' : 'Quitar'}
-                </button>
-              </div>
-            ))}
-
-            <div style={{ marginTop: '14px' }}>
-              <label className="fl" style={{ marginTop: 0 }}>Agregar usuario (Gmail)</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="email"
-                  value={emailNuevo}
-                  onChange={(e) => setEmailNuevo(e.target.value)}
-                  placeholder="colaborador@gmail.com"
-                  disabled={enLimite || agregando}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  className="btn btn-primary btn-sm"
-                  disabled={enLimite || agregando || !emailNuevo.trim()}
-                  onClick={handleAgregarMiembro}
-                >
-                  {agregando ? 'Agregando...' : 'Agregar'}
-                </button>
-              </div>
-              {enLimite && (
-                <div style={{ fontSize: '12px', color: 'var(--warn)', marginTop: '6px' }}>
-                  Llegaste al máximo de usuarios de tu plan ({limiteUsuarios}). Necesitás un plan superior para agregar más.
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    className="btn btn-sm" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={subiendoLogo}
+                  >
+                    {subiendoLogo ? 'Optimizando...' : 'Subir logo'}
+                  </button>
+                  {empresa.logo && (
+                    <button className="btn btn-danger btn-sm" onClick={handleRemoveLogo}>Quitar</button>
+                  )}
                 </div>
-              )}
-              <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>
-                La persona que agregues tiene que entrar con esa cuenta de Google — ahí pasa a administrar tu cuenta con acceso total.
+                <input 
+                  ref={fileInputRef}
+                  type="file" 
+                  accept="image/*" 
+                  style={{ display: 'none' }} 
+                  onChange={handleLogoUpload} 
+                />
               </div>
             </div>
-          </>
+
+            {/* General business profile metadata card */}
+            <div className="card">
+              <div className="card-title">Datos generales</div>
+              
+              <label className="fl" style={{ marginTop: 0 }}>Nombre completo / del emprendimiento</label>
+              <input 
+                type="text" 
+                id="nombre" 
+                value={empresa.nombre || ''} 
+                placeholder="Ej: Juan Pérez 3D Prints" 
+                onChange={handleChange} 
+              />
+              
+              <label className="fl">CUIT</label>
+              <input 
+                type="text" 
+                id="cuit" 
+                value={empresa.cuit || ''} 
+                placeholder="Ej: 20-12345678-9" 
+                onChange={handleChange} 
+              />
+              
+              <label className="fl">Dirección</label>
+              <input 
+                type="text" 
+                id="direccion" 
+                value={empresa.direccion || ''} 
+                placeholder="Ej: Av. Siempre Viva 742" 
+                onChange={handleChange} 
+              />
+              
+              <label className="fl">Código postal</label>
+              <input
+                type="text"
+                id="cp"
+                value={empresa.cp || ''}
+                placeholder="Ej: X5000"
+                onChange={handleChange}
+              />
+
+              <label className="fl">País del emprendimiento</label>
+              <select id="pais" value={empresa.pais || PAIS_DEFAULT} onChange={handlePaisChange}>
+                {paisesList.map(p => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+              <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+                Define la moneda de los precios y el formato de teléfono en toda la app.
+              </div>
+            </div>
+          </div>
+
+          {/* Contact info card */}
+          <div>
+            <div className="card">
+              <div className="card-title">Contacto</div>
+              
+              <label className="fl" style={{ marginTop: 0 }}>Dirección de mail</label>
+              <input 
+                type="email" 
+                id="email" 
+                value={empresa.email || ''} 
+                placeholder="Ej: contacto@miemprendimiento.com" 
+                onChange={handleChange} 
+              />
+              
+              <label className="fl">Teléfono</label>
+              <input 
+                type="text" 
+                id="telefono" 
+                value={empresa.telefono || ''} 
+                placeholder="Ej: +54 9 351 1234567" 
+                onChange={handleChange} 
+              />
+              
+              <label className="fl">Facebook</label>
+              <input 
+                type="text" 
+                id="facebook" 
+                value={empresa.facebook || ''} 
+                placeholder="Ej: facebook.com/miemprendimiento" 
+                onChange={handleChange} 
+              />
+              
+              <label className="fl">Instagram</label>
+              <input 
+                type="text" 
+                id="instagram" 
+                value={empresa.instagram || ''} 
+                placeholder="Ej: @miemprendimiento" 
+                onChange={handleChange} 
+              />
+            </div>
+
+            {/* ---- Plan contratado y consumo: debajo de Contacto, en la misma columna, para compactar la pantalla ---- */}
+            <div className="card">
+              <div className="card-title">Tu plan y consumo</div>
+
+              {!suscripcion && (
+                <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No se pudo cargar la información de tu suscripción.</div>
+              )}
+
+              {suscripcion?.estado === 'trial' && (
+                <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+                  Estás en versión de prueba — todavía no tenés un plan contratado.
+                </div>
+              )}
+
+              {suscripcion && suscripcion.estado !== 'trial' && !planContratado && (
+                <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no tenés un plan asignado.</div>
+              )}
+
+              {planContratado && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600 }}>{planContratado.nombre}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>{fmtMoneda(planContratado.precioMensual)}/mes</div>
+                  </div>
+
+                  <BarraConsumo
+                    etiqueta="Pedidos este ciclo"
+                    usado={consumoActual?.pedidosCreados}
+                    limite={planContratado.limites?.pedidosMes}
+                  />
+                  <BarraConsumo
+                    etiqueta="Aperturas del catálogo web"
+                    usado={consumoActual?.aperturasCatalogo}
+                    limite={planContratado.limites?.aperturasCatalogoMes}
+                  />
+                  <BarraConsumo
+                    etiqueta="Monto facturado este ciclo"
+                    usado={consumoActual?.montoFacturado}
+                    limite={planContratado.limites?.montoFacturadoMes}
+                    formatear={fmtMoneda}
+                  />
+                  <BarraConsumo
+                    etiqueta="Usuarios"
+                    usado={1 + miembrosActivos.length}
+                    limite={planContratado.limites?.usuarios}
+                  />
+                  <BarraConsumo
+                    etiqueta="Productos en biblioteca"
+                    usado={biblioteca.length}
+                    limite={planContratado.limites?.productosBiblioteca}
+                  />
+                </>
+              )}
+
+              {/* Pago del plan: sólo el dueño contrata (un miembro invitado usa el plan del dueño). */}
+              {suscripcion && !esMiembro && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{textoDebito(suscripcion)}</div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      className="btn btn-sm"
+                      disabled={verificandoPago}
+                      onClick={handleVerificarPago}
+                      title="Consulta a Mercado Pago si tu pago ya se acreditó y actualiza tu plan"
+                    >
+                      {verificandoPago ? 'Verificando...' : 'Verificar pago'}
+                    </button>
+                    {debitoActivo && (
+                      <button className="btn btn-sm" disabled={cancelandoDebito} onClick={handleCancelarDebito}>
+                        {cancelandoDebito ? 'Cancelando...' : 'Cancelar débito'}
+                      </button>
+                    )}
+                    <button className="btn btn-primary btn-sm" onClick={() => setModalSuscribirseOpen(true)}>
+                      {debitoActivo ? 'Cambiar plan' : 'Contratar plan'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ---- Contacto del revendedor (si esta cuenta fue activada por uno) ---- */}
+        {suscripcion?.revendedorContacto && (
+          <div className="card">
+            <div className="card-title">Tu ejecutivo</div>
+            <div style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.6 }}>
+              {(suscripcion.revendedorContacto.nombre || suscripcion.revendedorContacto.apellido) && (
+                <div>
+                  <strong style={{ color: 'var(--text)' }}>
+                    {[suscripcion.revendedorContacto.nombre, suscripcion.revendedorContacto.apellido].filter(Boolean).join(' ')}
+                  </strong>
+                </div>
+              )}
+              {suscripcion.revendedorContacto.email && <div>{suscripcion.revendedorContacto.email}</div>}
+              {suscripcion.revendedorContacto.telefono && <div>{suscripcion.revendedorContacto.telefono}</div>}
+            </div>
+          </div>
         )}
-      </div>
+
+        {/* ---- Usuarios con acceso a la cuenta ---- */}
+        <div className="card">
+          <div className="card-title">Usuarios con acceso</div>
+
+          {esMiembro ? (
+            <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+              Estás administrando la cuenta de otro emprendimiento — tenés acceso total, igual que su dueño.
+              <div style={{ marginTop: '10px' }}>
+                <button
+                  className="btn btn-sm btn-danger"
+                  onClick={async () => {
+                    if (!(await confirmar('Vas a dejar de tener acceso a esta cuenta y volver a la tuya propia.', { titulo: '¿Salir de esta cuenta?', textoConfirmar: 'Salir', peligro: true }))) return;
+                    await salirDeCuentaCompartida();
+                  }}
+                >
+                  Salir de esta cuenta
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 500 }}>Vos (dueño)</div>
+                </div>
+              </div>
+
+              {miembrosActivos.map(m => (
+                <div key={m._docId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '13px' }}>
+                    {m.email}
+                    {m.estado === 'pendiente' && (
+                      <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text3)' }}>(pendiente de aceptar)</span>
+                    )}
+                  </div>
+                  <button
+                    className="btn btn-sm btn-danger"
+                    disabled={quitandoEmail === m.email}
+                    onClick={() => handleQuitarMiembro(m.email)}
+                  >
+                    {quitandoEmail === m.email ? 'Quitando...' : 'Quitar'}
+                  </button>
+                </div>
+              ))}
+
+              <div style={{ marginTop: '14px' }}>
+                <label className="fl" style={{ marginTop: 0 }}>Agregar usuario (Gmail)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="email"
+                    value={emailNuevo}
+                    onChange={(e) => setEmailNuevo(e.target.value)}
+                    placeholder="colaborador@gmail.com"
+                    disabled={enLimite || agregando}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    className="btn btn-primary btn-sm"
+                    disabled={enLimite || agregando || !emailNuevo.trim()}
+                    onClick={handleAgregarMiembro}
+                  >
+                    {agregando ? 'Agregando...' : 'Agregar'}
+                  </button>
+                </div>
+                {enLimite && (
+                  <div style={{ fontSize: '12px', color: 'var(--warn)', marginTop: '6px' }}>
+                    Llegaste al máximo de usuarios de tu plan ({limiteUsuarios}). Necesitás un plan superior para agregar más.
+                  </div>
+                )}
+                <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>
+                  La persona que agregues tiene que entrar con esa cuenta de Google — ahí pasa a administrar tu cuenta con acceso total.
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        </>
+      )}
+
+      {pestanaVisible === 'arca' && <TarjetaFacturacionCuenta />}
 
       <ModalSuscribirse isOpen={modalSuscribirseOpen} onClose={() => setModalSuscribirseOpen(false)} />
     </div>

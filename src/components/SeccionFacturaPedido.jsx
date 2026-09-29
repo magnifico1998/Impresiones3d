@@ -5,7 +5,7 @@ import { db, functions } from '../firebase';
 import { useApp } from '../context/AppContext';
 import { confirmar, avisar, pedirTexto } from './Dialogos';
 import ModalFacturarPedido from './modals/ModalFacturarPedido';
-import { numeroComprobante, pesosAR, descargarPdfBase64, compartirPdfBase64 } from '../utils/facturacion';
+import { numeroComprobante, pesosAR, descargarPdfBase64, compartirPdfBase64, guardarPestanaEmpresa } from '../utils/facturacion';
 
 // Bloque "Factura electrónica" del detalle del pedido. El estado sale de
 // users/{cuenta}/facturasPorPedido/{pedidoId}, que mantiene el servidor
@@ -81,6 +81,7 @@ export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto,
   const irAConfigurar = () => {
     persistirBorrador();
     cerrarPedido();
+    guardarPestanaEmpresa('arca');
     setActivePage('empresa');
   };
 

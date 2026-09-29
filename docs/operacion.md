@@ -171,7 +171,7 @@ había autorizado se toma esa, no se duplica. Log:
 `firebase functions:log --only onPagoMPRegistrado`.
 
 **Un suscriptor no puede verificar la facturación.**
-El mensaje de la tarjeta de "Mi emprendimiento" dice qué falta. Lo más común:
+El mensaje de "Mi emprendimiento" → pestaña "Facturación ARCA" dice qué falta. Lo más común:
 no delegó "Facturación Electrónica" al CUIT 20262375065, o el punto de venta
 no es del tipo Web Services. La delegación puede tardar unos minutos.
 
