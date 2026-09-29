@@ -361,6 +361,12 @@ Se guardan en `users/{uid}/presupuestos`. Código:
 - El stock **se calcula a partir de las compras marcadas** (`alInventario`), no
   se guarda aparte: editar o borrar una compra corrige el stock solo. Las
   compras se agrupan por descripción, sin distinguir mayúsculas ni espacios.
+- **Filamento:** en Insumos, el tipo de insumo "Filamento" carga varias líneas
+  en una misma compra (tipo de Configuración → Filamentos, marca, color de
+  Configuración → Colores, cantidad y precio). Cada combinación tipo + marca +
+  color es un artículo propio del inventario. La compra guarda las líneas en
+  `items` (`subtipo: 'Filamento'`) y además un resumen en desc/qty/precio/total
+  para el listado y los totales de Compras.
 
 Código: `src/utils/inventario.js`, `src/components/ComprasPage.jsx`,
 `src/components/modals/ModalCompra.jsx`.

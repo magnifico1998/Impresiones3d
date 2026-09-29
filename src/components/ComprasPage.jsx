@@ -74,6 +74,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
   const catBadgeClass = (cat) =>
     ({
       Insumos: 'badge-pending',
+      Filamento: 'badge-progress',
       Equipos: 'badge-progress',
       Accesorios: 'badge-listo',
       Impuestos: 'badge-done',
@@ -263,7 +264,15 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
                     <tbody>
                       {visibles.map((a) => (
                         <tr key={a.clave}>
-                          <td>{a.nombre}</td>
+                          <td>
+                            {a.filamento && (
+                              <span
+                                title={a.nombre.split(' · ')[2]}
+                                style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '6px', verticalAlign: '-1px', border: '1px solid var(--border2)', background: a.colorHex || 'transparent' }}
+                              />
+                            )}
+                            {a.nombre}
+                          </td>
                           <td><span className={`badge ${catBadgeClass(a.cat)}`}>{a.cat}</span></td>
                           <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600 }}>{a.cantidad}</td>
                           <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>{fmt(a.costoPromedio)}</td>
