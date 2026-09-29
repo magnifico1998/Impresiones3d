@@ -29,7 +29,7 @@ const numeroCbte = (f) => f.numero
   : 'sin número';
 
 const BADGE_ESTADO = {
-  emitida: ['badge-done', 'emitida'],
+  emitida: ['badge-ok', 'emitida'],
   error: ['badge-cancelled', 'error'],
   pendiente: ['badge-pending', 'pendiente'],
   emitiendo: ['badge-progress', 'emitiendo'],

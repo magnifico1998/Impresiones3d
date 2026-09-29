@@ -126,7 +126,7 @@ export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto,
     contenido = (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ fontSize: '13px' }}>
-          <span className="badge badge-done">facturado</span>{' '}
+          <span className="badge badge-ok">facturado</span>{' '}
           Factura C {numeroComprobante(resumen.ptoVta, resumen.numero)} · {pesosAR(resumen.importeTotal)}
         </div>
         {ncConError && (

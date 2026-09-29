@@ -86,7 +86,7 @@ export default function TarjetaFacturacionCuenta() {
             <div style={{ fontSize: '13px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div>
                 {config.verificado
-                  ? <span className="badge badge-done">verificada con ARCA</span>
+                  ? <span className="badge badge-ok">verificada con ARCA</span>
                   : <span className="badge badge-cancelled">sin verificar</span>}
               </div>
               <div style={{ color: 'var(--text2)' }}>

@@ -172,6 +172,10 @@ select option{background:var(--bg3)}
 .badge-done{background:var(--accentDim);color:var(--accent)}
 .badge-cancelled{background:var(--dangerDim);color:var(--danger)}
 .badge-listo{background:rgba(167,139,250,.15);color:#a78bfa}
+/* Verde fijo (no depende de la paleta): estados "ok" de la facturación
+   (facturado, emitida, verificada). Con badge-done tomaba el acento de
+   la paleta, que puede ser amarillo o rosa y no se lee como "listo". */
+.badge-ok{background:rgba(22,163,74,.16);color:#16a34a}
 .status-select { font-size:11px; font-family:var(--mono); padding:3px 20px 3px 8px; border-radius:20px; font-weight:500; border:1px solid transparent; cursor:pointer; outline:none; -webkit-appearance:none; text-align:center; position:relative; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238b92a8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6px center; background-size: 10px; }
 .status-select.en_verificacion { background-color:rgba(244,114,182,.15); color:#f472b6; }
 .status-select.pendiente { background-color:var(--warnDim); color:var(--warn); }

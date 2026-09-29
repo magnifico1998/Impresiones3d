@@ -32,7 +32,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const badgeFactura = (p) => {
     if (!facturacionHabilitada || ['cancelado', 'en_verificacion'].includes(p.estado)) return null;
     const estado = facturasPorPedido[String(p.id)]?.estado;
-    if (estado === 'emitida') return ['badge-done', 'facturado'];
+    if (estado === 'emitida') return ['badge-ok', 'facturado'];
     if (estado === 'error') return ['badge-cancelled', 'factura con error'];
     if (estado === 'pendiente' || estado === 'emitiendo') return ['badge-progress', 'facturando'];
     return ['badge-pending', 'sin facturar']; // nunca facturado, o anulado con nota de crédito
