@@ -15,7 +15,7 @@ const llamar = (nombre, datos) => httpsCallable(functions, nombre, { timeout: 30
 
 const textoErrores = (errores) => (errores || []).map((e) => `${e.codigo}: ${e.mensaje}`).join('\n');
 
-export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto, persistirBorrador }) {
+export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto, persistirBorrador, cerrarPedido }) {
   const { cuentaId, planContratado, showToast, setActivePage } = useApp();
   const [config, setConfig] = useState(undefined);
   const [resumen, setResumen] = useState(null);
@@ -76,6 +76,14 @@ export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto,
     await accion('descartarFacturaCuenta', { id: resumen.facturaId }, 'Listo, podés volver a facturar.');
   };
 
+  // Se cierra el pedido (guardando el borrador) para que la configuración
+  // no quede tapada por el modal.
+  const irAConfigurar = () => {
+    persistirBorrador();
+    cerrarPedido();
+    setActivePage('empresa');
+  };
+
   const abrirFacturar = () => {
     // Se guarda el borrador para que la factura salga con lo que se ve.
     persistirBorrador();
@@ -94,7 +102,7 @@ export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto,
     contenido = (
       <div style={{ ...fila, fontSize: '13px', color: 'var(--text2)' }}>
         Para facturar este pedido, primero configurá la facturación.
-        <button className="btn btn-sm" onClick={() => setActivePage('empresa')}>Ir a Mi emprendimiento</button>
+        <button className="btn btn-sm" onClick={irAConfigurar}>Ir a Mi emprendimiento</button>
       </div>
     );
   } else if (!resumen || resumen.estado === 'anulada') {

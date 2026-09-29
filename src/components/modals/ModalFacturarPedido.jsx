@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
 import { useApp } from '../../context/AppContext';
@@ -90,9 +91,13 @@ export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, 
     }
   };
 
-  return (
-    <div className="modal-overlay open" onClick={emitiendo ? undefined : onClose} style={{ zIndex: 120 }}>
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+  // Portal al body: se abre desde el detalle del pedido, y su animación
+  // (transform) haría que este overlay "fixed" quede anclado a ese modal en
+  // vez de a la pantalla. margin auto lo centra y, si es más alto que la
+  // pantalla, deja scrollear sin cortar el principio.
+  return createPortal(
+    <div className="modal-overlay open" onClick={emitiendo ? undefined : onClose} style={{ zIndex: 120, padding: '20px 16px' }}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()} style={{ margin: 'auto' }}>
         <div className="modal-title">Facturar pedido #{String(pedido.id).padStart(4, '0')}</div>
 
         <div className="card-title" style={{ marginTop: 0 }}>Cliente</div>
@@ -177,6 +182,7 @@ export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

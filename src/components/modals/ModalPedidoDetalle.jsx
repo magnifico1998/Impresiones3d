@@ -1349,6 +1349,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           cliente={clienteDelPedido}
           precioVentaNeto={precioVentaNeto}
           persistirBorrador={persistDraft}
+          cerrarPedido={onClose}
         />
 
         <div className="sep"></div>
