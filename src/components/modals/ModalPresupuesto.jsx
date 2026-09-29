@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { generarPdfPresupuesto } from '../../utils/presupuestoPDF';
 import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../../utils/estadosPresupuesto';
+import { datosConsumoPieza } from '../../utils/piezaPedido';
 
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
 // siempre, sin guardar nada) o guardarlo en la sección Presupuestos, desde
@@ -36,7 +37,10 @@ const copiaCalculo = (pz) => ({
   costeMO: pz.costeMO ?? 0,
   horas: pz.horas ?? 0,
   impresoraNombre: pz.impresoraNombre ?? null,
-  total: pz.total ?? 0
+  total: pz.total ?? 0,
+  // Gramos y materiales: al aprobar, la pieza del pedido los necesita para
+  // descontar el inventario.
+  ...datosConsumoPieza(pz)
 });
 
 const nuevoIdLinea = () => Date.now() + Math.random();

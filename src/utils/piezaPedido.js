@@ -8,6 +8,17 @@
 // que ModalAgregarPieza.jsx) y `versiones` arranca con una sola versión por
 // la cantidad total si no se pasan otras.
 
+// Datos de filamento de la pieza (del producto de la Biblioteca o del
+// cálculo), para descontar el inventario al completar el pedido (ver
+// utils/consumoPedido.js). Firestore rechaza undefined: todo cae a un
+// valor definido.
+export const datosConsumoPieza = (fuente) => ({
+  gramos: Number(fuente?.gramos) || 0,
+  desperdicio: Number(fuente?.desperdicio) || 0,
+  materiales: Array.isArray(fuente?.materiales) ? fuente.materiales : null,
+  multiMat: !!fuente?.multiMat
+});
+
 const versionesDePieza = (versiones, cantidad) =>
   (versiones && versiones.length ? versiones : [{ cantidad, color: '', colorSecundario: '', comentario: '' }])
     .map(v => ({
@@ -43,6 +54,7 @@ export function piezaDesdeBiblioteca(prod, { id, nombre, cantidad, precioUnitari
     archivoNombre: prod.gcodeNombre || null,
     gcodeArchivos: prod.gcodeArchivos || null,
     filDetalle: prod.filDetalle || [],
+    ...datosConsumoPieza(prod),
     costeElec,
     costeMant,
     costeMO,
@@ -69,6 +81,7 @@ export function piezaDesdeCalculadora(calc, { id, nombre, cantidad, precioUnitar
     gcodeArchivos: calc.gcodeArchivos || null,
     costeFil: calc.costeFil || 0,
     filDetalle: calc.filDetalle || [],
+    ...datosConsumoPieza(calc),
     costeElec: calc.costeElec || 0,
     costeMant: calc.costeMant || 0,
     costeMO: calc.costeMO || 0,

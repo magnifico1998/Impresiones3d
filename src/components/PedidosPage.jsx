@@ -8,10 +8,18 @@ import { calcularFechaCompletado, fechaLocalHoy } from '../utils/fechaCompletado
 import { buildWaLink, findClientePedido } from '../utils/whatsapp';
 import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
 import { useCapacidadProduccion } from '../hooks/useCapacidadProduccion';
+import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
+import { consumosDelPedido, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
+import ModalConsumoPedido from './modals/ModalConsumoPedido';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, clientes, cfg, updatePedido, showToast, fmt, cuentaId, planContratado } = useApp();
   const capacidad = useCapacidadProduccion();
+
+  // Al pasar un pedido a completado/enviado desde la lista, se propone
+  // descontarlo del inventario (si está habilitado y todavía no se hizo).
+  const { movimientos } = useMovimientosInventario();
+  const [pedidoAConsumir, setPedidoAConsumir] = useState(null);
 
   // Estado de la factura de cada pedido (users/{cuenta}/facturasPorPedido,
   // lo mantiene el servidor). Sólo si el plan incluye la facturación.
@@ -216,6 +224,10 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     }[newStatus] || newStatus;
 
     showToast('Estado actualizado a: ' + badgeText);
+
+    if (cfg.inventarioHabilitado && ESTADOS_QUE_CONSUMEN.includes(newStatus) && consumosDelPedido(movimientos, id).length === 0) {
+      setPedidoAConsumir(id);
+    }
   };
 
   const renderPedidoCard = (p, prioridad) => {
@@ -573,6 +585,10 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
           </>
         )}
       </div>
+
+      {pedidoAConsumir !== null && pedidos.find((p) => p.id === pedidoAConsumir) && (
+        <ModalConsumoPedido pedido={pedidos.find((p) => p.id === pedidoAConsumir)} onClose={() => setPedidoAConsumir(null)} />
+      )}
     </div>
   );
 }

@@ -94,6 +94,9 @@ function entrada(l) {
     clave: [filamento ? 'filamento' : claveArticulo(l.cat), claveArticulo(nombreBaseLinea(l)), claveArticulo(l.marca), claveArticulo(l.color)].join('|'),
     base: nombreBaseLinea(l),
     nombre: nombreArticulo(l),
+    // Partes del artículo, para buscarlo al descontar un pedido.
+    marca: limpiar(l.marca),
+    color: limpiar(l.color),
     cat: filamento ? 'Filamento' : l.cat,
     filamento,
     unidad: filamento ? 'g' : 'u',

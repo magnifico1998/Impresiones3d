@@ -1602,6 +1602,12 @@ export const AppProvider = ({ children }) => {
       archivoNombre: prod.gcodeNombre || null,
       gcodeArchivos: prod.gcodeArchivos || null,
       filDetalle: prod.filDetalle || [],
+      // Gramos y materiales para descontar el inventario (mismo criterio
+      // que utils/piezaPedido.js -> datosConsumoPieza).
+      gramos: Number(prod.gramos) || 0,
+      desperdicio: Number(prod.desperdicio) || 0,
+      materiales: Array.isArray(prod.materiales) ? prod.materiales : null,
+      multiMat: !!prod.multiMat,
       costeElec,
       costeMant,
       costeMO,

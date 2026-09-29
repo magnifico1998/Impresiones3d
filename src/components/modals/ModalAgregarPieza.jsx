@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
+import { datosConsumoPieza } from '../../utils/piezaPedido';
 
 // Igual que ModalArmarPedido.jsx (el que arma pedidos desde Biblioteca):
 // el pedido destino puede ser uno existente o "+ Crear pedido nuevo", y la
@@ -94,6 +95,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
       gcodeArchivos: pz.gcodeArchivos || null,
       costeFil: pz.costeFil || 0,
       filDetalle: pz.filDetalle || [],
+      ...datosConsumoPieza(pz),
       costeElec: pz.costeElec || 0,
       costeMant: pz.costeMant || 0,
       costeMO: pz.costeMO || 0,
