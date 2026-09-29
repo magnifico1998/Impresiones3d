@@ -76,13 +76,31 @@ const DEFAULTS = {
     `.trim(),
     variables: {},
   },
+  // Carta personal del fundador: presenta el proyecto, deja el contacto
+  // directo y cuenta las mejoras que salieron de sugerencias de usuarios.
   bienvenida: {
     label: 'Bienvenida al registrarse',
     subject: '¡Bienvenido a Manager3D!',
     bodyHtml: `
-      <h2 style="${TITULO}">¡Bienvenido a Manager3D!</h2>
-      <p>Gracias por registrarte. Ya arrancó tu prueba gratuita de 7 días con acceso completo a la app.</p>
-      <p>Ante cualquier duda o inconveniente, escribinos a <strong>manager3d.app@gmail.com</strong> y te ayudamos.</p>
+      <h2 style="${TITULO}">¡Hola! ¿Cómo estás?</h2>
+      <p>Gracias por registrarte en Manager3D. Ya arrancó tu <strong>prueba gratuita de 7 días</strong> con acceso completo a la app, y quería contarte un poco más sobre el proyecto.</p>
+      <p>Soy maker, apasionado por la impresión 3D y autodidacta en programación. De la combinación de esas dos pasiones nació Manager3D, una plataforma creada por alguien que vive día a día los mismos desafíos que cualquier emprendimiento de impresión 3D.</p>
+      <p>La idea fue desarrollar una herramienta que reúna, desde una perspectiva práctica y real, todo lo necesario para administrar el negocio de forma más simple, ordenada y eficiente: presupuestos, clientes, producción, ventas, inventario y mucho más.</p>
+      <p>Pero lo más importante es que Manager3D sigue creciendo gracias a los aportes de su comunidad. Por eso me gusta mantener un contacto directo con quienes usan la plataforma. Si tenés dudas, sugerencias, necesidades específicas o ideas para mejorar alguna funcionalidad, no dudes en escribirme:</p>
+      <p>
+        📱 WhatsApp: <a href="https://wa.me/5493516617091" style="color: #1a1a1a;"><strong>351 661-7091</strong></a><br>
+        📧 Email: <a href="mailto:Manager3d@gmail.com" style="color: #1a1a1a;"><strong>Manager3d@gmail.com</strong></a>
+      </p>
+      <p>Gracias a las sugerencias de los usuarios ya incorporamos mejoras muy importantes, entre ellas:</p>
+      <p>
+        ✅ Facturación electrónica para los planes con suscripción.<br>
+        ✅ Gestión y control de inventario.<br>
+        ✅ Simplificación y rediseño de distintas secciones para mejorar la experiencia de uso.<br>
+        ✅ Nuevas funcionalidades pedidas por la comunidad.
+      </p>
+      <p>Nuestro objetivo es seguir evolucionando para que Manager3D se adapte cada vez mejor a las necesidades reales de cada maker y emprendimiento.</p>
+      <p>Muchas gracias por sumarte. Espero tus comentarios para seguir construyendo juntos la mejor herramienta de gestión para impresión 3D.</p>
+      <p>¡Saludos!<br><strong>Gustavo Kimmel</strong><br>Fundador de Manager3D</p>
       ${BOTON}
     `.trim(),
     variables: {},
