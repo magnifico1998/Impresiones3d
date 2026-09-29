@@ -203,8 +203,8 @@ export default function SeccionFacturacion({ showToast }) {
     }
   };
 
-  const input = { fontSize: '12px' };
-  const etiqueta = { display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '11px', color: 'var(--text2)' };
+  const input = { fontSize: '13px' };
+  const etiqueta = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text2)' };
   const bloque = { padding: '12px', border: '1px dashed var(--border)', borderRadius: 'var(--radius2)', marginBottom: '14px' };
   const grilla = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' };
   const botonChico = { fontSize: '11px', padding: '4px 8px' };
@@ -226,11 +226,11 @@ export default function SeccionFacturacion({ showToast }) {
           <div style={bloque}>
             <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Datos del emisor</div>
             <div style={grilla}>
-              <label style={etiqueta}>CUIT<input style={input} value={config.cuit} onChange={cambiarConfig('cuit')} placeholder="20123456789" /></label>
+              <label style={etiqueta}>CUIT<input type="text" style={input} value={config.cuit} onChange={cambiarConfig('cuit')} placeholder="20123456789" /></label>
               <label style={etiqueta}>Punto de venta (Web Services)<input style={input} type="number" min="1" value={config.ptoVta} onChange={cambiarConfig('ptoVta')} /></label>
-              <label style={etiqueta}>Razón social / nombre<input style={input} value={config.razonSocial} onChange={cambiarConfig('razonSocial')} /></label>
-              <label style={etiqueta}>Domicilio comercial<input style={input} value={config.domicilio} onChange={cambiarConfig('domicilio')} /></label>
-              <label style={etiqueta}>Ingresos Brutos<input style={input} value={config.iibb} onChange={cambiarConfig('iibb')} placeholder="Nro. o Exento" /></label>
+              <label style={etiqueta}>Razón social / nombre<input type="text" style={input} value={config.razonSocial} onChange={cambiarConfig('razonSocial')} /></label>
+              <label style={etiqueta}>Domicilio comercial<input type="text" style={input} value={config.domicilio} onChange={cambiarConfig('domicilio')} /></label>
+              <label style={etiqueta}>Ingresos Brutos<input type="text" style={input} value={config.iibb} onChange={cambiarConfig('iibb')} placeholder="Nro. o Exento" /></label>
               <label style={etiqueta}>Inicio de actividades<input style={input} type="date" value={config.inicioActividades} onChange={cambiarConfig('inicioActividades')} /></label>
               <label style={etiqueta}>Entorno
                 <select style={input} value={config.entorno} onChange={cambiarConfig('entorno')}>
@@ -261,15 +261,15 @@ export default function SeccionFacturacion({ showToast }) {
                 </select>
               </label>
               {form.docTipo !== '99' && (
-                <label style={etiqueta}>Número<input style={input} value={form.docNro} onChange={cambiarForm('docNro')} /></label>
+                <label style={etiqueta}>Número<input type="text" style={input} value={form.docNro} onChange={cambiarForm('docNro')} /></label>
               )}
               <label style={etiqueta}>Condición frente al IVA
                 <select style={input} value={form.condicionIvaId} onChange={cambiarForm('condicionIvaId')} disabled={form.docTipo !== '80'}>
                   {CONDICIONES_IVA.map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
                 </select>
               </label>
-              <label style={etiqueta}>Nombre / razón social<input style={input} value={form.nombre} onChange={cambiarForm('nombre')} /></label>
-              <label style={etiqueta}>Domicilio<input style={input} value={form.domicilio} onChange={cambiarForm('domicilio')} /></label>
+              <label style={etiqueta}>Nombre / razón social<input type="text" style={input} value={form.nombre} onChange={cambiarForm('nombre')} /></label>
+              <label style={etiqueta}>Domicilio<input type="text" style={input} value={form.domicilio} onChange={cambiarForm('domicilio')} /></label>
               <label style={etiqueta}>Email (opcional)<input style={input} type="email" value={form.email} onChange={cambiarForm('email')} /></label>
               <label style={etiqueta}>Concepto
                 <select style={input} value={form.concepto} onChange={cambiarForm('concepto')}>
@@ -284,13 +284,13 @@ export default function SeccionFacturacion({ showToast }) {
                   <label style={etiqueta}>Período hasta<input style={input} type="date" value={form.servicioHasta} onChange={cambiarForm('servicioHasta')} /></label>
                 </>
               )}
-              <label style={etiqueta}>Referencia interna (opcional)<input style={input} value={form.referencia} onChange={cambiarForm('referencia')} placeholder="Ej: pedido #123" /></label>
+              <label style={etiqueta}>Referencia interna (opcional)<input type="text" style={input} value={form.referencia} onChange={cambiarForm('referencia')} placeholder="Ej: pedido #123" /></label>
             </div>
 
             <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {form.items.map((it, i) => (
                 <div key={i} style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input style={{ ...input, flex: '1 1 220px' }} placeholder="Descripción" value={it.descripcion} onChange={cambiarItem(i, 'descripcion')} />
+                  <input type="text" style={{ ...input, flex: '1 1 220px' }} placeholder="Descripción" value={it.descripcion} onChange={cambiarItem(i, 'descripcion')} />
                   <input style={{ ...input, width: '70px' }} type="number" min="1" placeholder="Cant." value={it.cantidad} onChange={cambiarItem(i, 'cantidad')} />
                   <input style={{ ...input, width: '120px' }} type="number" min="0" step="0.01" placeholder="Precio unit." value={it.precioUnitario} onChange={cambiarItem(i, 'precioUnitario')} />
                   {form.items.length > 1 && (
