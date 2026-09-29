@@ -55,6 +55,53 @@ const filtrosVacios = { estado: 'todos', tipo: 'todos', origen: 'todos', desde: 
 // todavía no se emitió.
 const fechaDe = (f) => f.fecha || (f.creadoEl?.toDate ? f.creadoEl.toDate().toISOString().slice(0, 10).replace(/-/g, '') : '');
 
+// Columnas del Excel de comprobantes: las de "Mis Comprobantes" de ARCA
+// (fecha, tipo, punto de venta, número, CAE, receptor, importe) más el
+// estado y el origen en Manager3D.
+const TIPOS_CBTE = { 11: '11 - Factura C', 13: '13 - Nota de Crédito C' };
+const DOC_TIPOS = { 80: 'CUIT', 96: 'DNI', 99: 'Consumidor final' };
+const COLUMNAS_EXCEL = [
+  { titulo: 'Fecha', tipo: 'fecha', ancho: 12 },
+  { titulo: 'Tipo', ancho: 22 },
+  { titulo: 'Punto de Venta', tipo: 'numero', ancho: 14 },
+  { titulo: 'Número', tipo: 'numero', ancho: 12 },
+  { titulo: 'CAE', ancho: 17 },
+  { titulo: 'Vto. CAE', tipo: 'fecha', ancho: 12 },
+  { titulo: 'Tipo Doc. Receptor', ancho: 18 },
+  { titulo: 'Nro. Doc. Receptor', ancho: 16 },
+  { titulo: 'Denominación Receptor', ancho: 30 },
+  { titulo: 'Condición IVA Receptor', ancho: 24 },
+  { titulo: 'Moneda', ancho: 8 },
+  { titulo: 'Importe Total', tipo: 'moneda', ancho: 14 },
+  { titulo: 'Estado', ancho: 14 },
+  { titulo: 'Anulada por NC', ancho: 14 },
+  { titulo: 'Origen', ancho: 26 },
+  { titulo: 'Referencia', ancho: 24 },
+  { titulo: 'Email receptor', ancho: 26 },
+  { titulo: 'Entorno', ancho: 13 }
+];
+
+const filaExcel = (f) => [
+  f.fecha || fechaDe(f),
+  TIPOS_CBTE[f.tipoCbte] || f.tipoCbte,
+  f.ptoVta || '',
+  f.numero || '',
+  f.cae || '',
+  f.caeVto || '',
+  DOC_TIPOS[f.receptor?.docTipo] || '',
+  f.receptor?.docTipo !== 99 ? f.receptor?.docNro : '',
+  f.receptor?.nombre || '',
+  f.receptor?.condicionIvaTexto || '',
+  'PES',
+  Number(f.importeTotal) || 0,
+  f.estado,
+  f.notaCreditoId ? 'Sí' : '',
+  ORIGENES[f.origen?.tipo] || f.origen?.tipo || '',
+  f.origen?.referencia || '',
+  f.receptor?.email || '',
+  f.entorno === 'produccion' ? 'Producción' : 'Homologación'
+];
+
 function pasaFiltros(f, filtros) {
   if (filtros.estado === 'anulada' && !f.notaCreditoId) return false;
   if (filtros.estado === 'emitida' && (f.estado !== 'emitida' || f.notaCreditoId)) return false;
@@ -91,9 +138,26 @@ const IconoMail = () => (
 
 const llamar = (nombre, datos) => httpsCallable(functions, nombre, { timeout: 300000 })(datos).then((r) => r.data);
 
-// abiertaInicial: en su propia pestaña del panel arranca desplegada.
-export default function SeccionFacturacion({ showToast, abiertaInicial = false }) {
-  const [abierta, setAbierta] = useState(abiertaInicial);
+// Tarjeta desplegable: cada parte de la facturación se abre por separado.
+function Tarjeta({ titulo, extra, abierta, onAlternar, children }) {
+  return (
+    <div className="card">
+      <div style={{ cursor: 'pointer', marginBottom: abierta ? '14px' : 0 }} onClick={onAlternar}>
+        <div className="card-title" style={{ marginBottom: 0 }}>
+          {abierta ? '▾' : '▸'} {titulo}{extra}
+        </div>
+      </div>
+      {abierta && children}
+    </div>
+  );
+}
+
+// Vive en su propia pestaña del panel: se monta al entrar y carga todo.
+// Comprobantes arranca abierta; emisor y facturador, cerradas.
+export default function SeccionFacturacion({ showToast }) {
+  const [abiertas, setAbiertas] = useState({ emisor: false, facturador: false, comprobantes: true });
+  const alternar = (id) => setAbiertas((prev) => ({ ...prev, [id]: !prev[id] }));
+  const [exportando, setExportando] = useState(false);
   const [config, setConfig] = useState(configVacia);
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [probando, setProbando] = useState(false);
@@ -105,13 +169,14 @@ export default function SeccionFacturacion({ showToast, abiertaInicial = false }
   const [verTodos, setVerTodos] = useState(false);
 
   useEffect(() => {
-    if (!abierta) return undefined;
     getDoc(doc(db, 'configFacturacion', 'emisor')).then((s) => {
       if (s.exists()) setConfig({ ...configVacia, ...s.data(), ptoVta: String(s.data().ptoVta || '') });
+      // Sin configuración todavía: se abre para completarla.
+      else setAbiertas((prev) => ({ ...prev, emisor: true }));
     });
     const q = query(collection(db, 'facturas'), orderBy('creadoEl', 'desc'), limit(MAX_COMPROBANTES));
     return onSnapshot(q, (snap) => setFacturas(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  }, [abierta]);
+  }, []);
 
   const filtradas = facturas.filter((f) => pasaFiltros(f, filtros));
   const visibles = verTodos ? filtradas : filtradas.slice(0, VISIBLES_COLAPSADO);
@@ -120,6 +185,27 @@ export default function SeccionFacturacion({ showToast, abiertaInicial = false }
   const totalFiltrado = filtradas
     .filter((f) => f.estado === 'emitida')
     .reduce((s, f) => s + (f.tipoCbte === 13 ? -1 : 1) * (Number(f.importeTotal) || 0), 0);
+  // Exporta TODO lo filtrado (no sólo lo visible), con columnas parecidas a
+  // "Mis Comprobantes" de ARCA para poder cruzarlo.
+  const exportar = async () => {
+    setExportando(true);
+    try {
+      const { exportarExcel } = await import('../../utils/exportarExcel');
+      const hoy = new Date().toISOString().slice(0, 10);
+      await exportarExcel({
+        nombreArchivo: `comprobantes-${hoy}.xlsx`,
+        hoja: 'Comprobantes',
+        columnas: COLUMNAS_EXCEL,
+        filas: filtradas.map(filaExcel)
+      });
+    } catch (e) {
+      console.error('Error al exportar comprobantes:', e);
+      showToast('No se pudo generar el Excel.', 'error');
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const cambiarFiltro = (campo) => (e) => setFiltros((prev) => ({ ...prev, [campo]: e.target.value }));
 
   const cambiarConfig = (campo) => (e) => {
@@ -263,254 +349,246 @@ export default function SeccionFacturacion({ showToast, abiertaInicial = false }
 
   const input = { fontSize: '13px' };
   const etiqueta = { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text2)' };
-  const bloque = { padding: '12px', border: '1px dashed var(--border)', borderRadius: 'var(--radius2)', marginBottom: '14px' };
   const grilla = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' };
   const botonChico = { fontSize: '11px', padding: '4px 8px' };
   const botonIcono = { padding: '4px 6px' };
 
   return (
-    <div className="card">
-      <div
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: abierta ? '14px' : 0, cursor: 'pointer' }}
-        onClick={() => setAbierta((v) => !v)}
+    <>
+      <Tarjeta
+        titulo="Datos del emisor"
+        extra={config.entorno !== 'produccion' && <span className="badge badge-pending" style={{ marginLeft: '8px' }}>homologación</span>}
+        abierta={abiertas.emisor}
+        onAlternar={() => alternar('emisor')}
       >
-        <div className="card-title" style={{ marginBottom: 0 }}>
-          {abierta ? '▾' : '▸'} Facturación electrónica (ARCA)
-          {abierta && config.entorno !== 'produccion' && <span className="badge badge-pending" style={{ marginLeft: '8px' }}>homologación</span>}
-        </div>
-      </div>
-
-      {abierta && (
-        <>
-          <div style={bloque}>
-            <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Datos del emisor</div>
-            <div style={grilla}>
-              <label style={etiqueta}>CUIT<input type="text" style={input} value={config.cuit} onChange={cambiarConfig('cuit')} placeholder="20123456789" /></label>
-              <label style={etiqueta}>Punto de venta (Web Services)<input style={input} type="number" min="1" value={config.ptoVta} onChange={cambiarConfig('ptoVta')} /></label>
-              <label style={etiqueta}>Razón social / nombre<input type="text" style={input} value={config.razonSocial} onChange={cambiarConfig('razonSocial')} /></label>
-              <label style={etiqueta}>Domicilio comercial<input type="text" style={input} value={config.domicilio} onChange={cambiarConfig('domicilio')} /></label>
-              <label style={etiqueta}>Ingresos Brutos<input type="text" style={input} value={config.iibb} onChange={cambiarConfig('iibb')} placeholder="Nro. o Exento" /></label>
-              <label style={etiqueta}>Inicio de actividades<input style={input} type="date" value={config.inicioActividades} onChange={cambiarConfig('inicioActividades')} /></label>
-              <label style={etiqueta}>Entorno
-                <select style={input} value={config.entorno} onChange={cambiarConfig('entorno')}>
-                  <option value="homologacion">Homologación (pruebas)</option>
-                  <option value="produccion">Producción</option>
-                </select>
-              </label>
-            </div>
-            <label style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px', marginTop: '10px' }}>
-              <input type="checkbox" checked={!!config.facturarSuscripciones} onChange={cambiarConfig('facturarSuscripciones')} />
-              Facturar automáticamente cada cobro de suscripción por Mercado Pago (y mandarle el PDF al suscriptor)
+          <div style={grilla}>
+            <label style={etiqueta}>CUIT<input type="text" style={input} value={config.cuit} onChange={cambiarConfig('cuit')} placeholder="20123456789" /></label>
+            <label style={etiqueta}>Punto de venta (Web Services)<input style={input} type="number" min="1" value={config.ptoVta} onChange={cambiarConfig('ptoVta')} /></label>
+            <label style={etiqueta}>Razón social / nombre<input type="text" style={input} value={config.razonSocial} onChange={cambiarConfig('razonSocial')} /></label>
+            <label style={etiqueta}>Domicilio comercial<input type="text" style={input} value={config.domicilio} onChange={cambiarConfig('domicilio')} /></label>
+            <label style={etiqueta}>Ingresos Brutos<input type="text" style={input} value={config.iibb} onChange={cambiarConfig('iibb')} placeholder="Nro. o Exento" /></label>
+            <label style={etiqueta}>Inicio de actividades<input style={input} type="date" value={config.inicioActividades} onChange={cambiarConfig('inicioActividades')} /></label>
+            <label style={etiqueta}>Entorno
+              <select style={input} value={config.entorno} onChange={cambiarConfig('entorno')}>
+                <option value="homologacion">Homologación (pruebas)</option>
+                <option value="produccion">Producción</option>
+              </select>
             </label>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-              <button className="btn btn-primary" disabled={guardandoConfig} onClick={guardarConfig}>{guardandoConfig ? 'Guardando…' : 'Guardar'}</button>
-              <button className="btn" disabled={probando} onClick={probarConexion}>{probando ? 'Probando…' : 'Probar conexión'}</button>
-              <button className="btn" onClick={facturarPago}>Facturar un cobro de Mercado Pago</button>
-            </div>
+          </div>
+          <label style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px', marginTop: '10px' }}>
+            <input type="checkbox" checked={!!config.facturarSuscripciones} onChange={cambiarConfig('facturarSuscripciones')} />
+            Facturar automáticamente cada cobro de suscripción por Mercado Pago (y mandarle el PDF al suscriptor)
+          </label>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" disabled={guardandoConfig} onClick={guardarConfig}>{guardandoConfig ? 'Guardando…' : 'Guardar'}</button>
+            <button className="btn" disabled={probando} onClick={probarConexion}>{probando ? 'Probando…' : 'Probar conexión'}</button>
+            <button className="btn" onClick={facturarPago}>Facturar un cobro de Mercado Pago</button>
+          </div>
+      </Tarjeta>
+
+      <Tarjeta titulo="Facturador" abierta={abiertas.facturador} onAlternar={() => alternar('facturador')}>
+          <div style={grilla}>
+            <label style={etiqueta}>Documento
+              <select style={input} value={form.docTipo} onChange={cambiarForm('docTipo')}>
+                <option value="96">DNI</option>
+                <option value="80">CUIT</option>
+                <option value="99">Consumidor final sin identificar</option>
+              </select>
+            </label>
+            {form.docTipo !== '99' && (
+              <label style={etiqueta}>Número<input type="text" style={input} value={form.docNro} onChange={cambiarForm('docNro')} /></label>
+            )}
+            <label style={etiqueta}>Condición frente al IVA
+              <select style={input} value={form.condicionIvaId} onChange={cambiarForm('condicionIvaId')} disabled={form.docTipo !== '80'}>
+                {CONDICIONES_IVA.map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
+              </select>
+            </label>
+            <label style={etiqueta}>Nombre / razón social<input type="text" style={input} value={form.nombre} onChange={cambiarForm('nombre')} /></label>
+            <label style={etiqueta}>Domicilio<input type="text" style={input} value={form.domicilio} onChange={cambiarForm('domicilio')} /></label>
+            <label style={etiqueta}>Email (opcional)<input style={input} type="email" value={form.email} onChange={cambiarForm('email')} /></label>
+            <label style={etiqueta}>Concepto
+              <select style={input} value={form.concepto} onChange={cambiarForm('concepto')}>
+                <option value="productos">Productos</option>
+                <option value="servicios">Servicios</option>
+                <option value="productosYServicios">Productos y servicios</option>
+              </select>
+            </label>
+            {form.concepto !== 'productos' && (
+              <>
+                <label style={etiqueta}>Período desde<input style={input} type="date" value={form.servicioDesde} onChange={cambiarForm('servicioDesde')} /></label>
+                <label style={etiqueta}>Período hasta<input style={input} type="date" value={form.servicioHasta} onChange={cambiarForm('servicioHasta')} /></label>
+              </>
+            )}
+            <label style={etiqueta}>Referencia interna (opcional)<input type="text" style={input} value={form.referencia} onChange={cambiarForm('referencia')} placeholder="Ej: pedido #123" /></label>
           </div>
 
-          <div style={bloque}>
-            <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>Nueva Factura C</div>
-            <div style={grilla}>
-              <label style={etiqueta}>Documento
-                <select style={input} value={form.docTipo} onChange={cambiarForm('docTipo')}>
-                  <option value="96">DNI</option>
-                  <option value="80">CUIT</option>
-                  <option value="99">Consumidor final sin identificar</option>
-                </select>
-              </label>
-              {form.docTipo !== '99' && (
-                <label style={etiqueta}>Número<input type="text" style={input} value={form.docNro} onChange={cambiarForm('docNro')} /></label>
-              )}
-              <label style={etiqueta}>Condición frente al IVA
-                <select style={input} value={form.condicionIvaId} onChange={cambiarForm('condicionIvaId')} disabled={form.docTipo !== '80'}>
-                  {CONDICIONES_IVA.map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
-                </select>
-              </label>
-              <label style={etiqueta}>Nombre / razón social<input type="text" style={input} value={form.nombre} onChange={cambiarForm('nombre')} /></label>
-              <label style={etiqueta}>Domicilio<input type="text" style={input} value={form.domicilio} onChange={cambiarForm('domicilio')} /></label>
-              <label style={etiqueta}>Email (opcional)<input style={input} type="email" value={form.email} onChange={cambiarForm('email')} /></label>
-              <label style={etiqueta}>Concepto
-                <select style={input} value={form.concepto} onChange={cambiarForm('concepto')}>
-                  <option value="productos">Productos</option>
-                  <option value="servicios">Servicios</option>
-                  <option value="productosYServicios">Productos y servicios</option>
-                </select>
-              </label>
-              {form.concepto !== 'productos' && (
-                <>
-                  <label style={etiqueta}>Período desde<input style={input} type="date" value={form.servicioDesde} onChange={cambiarForm('servicioDesde')} /></label>
-                  <label style={etiqueta}>Período hasta<input style={input} type="date" value={form.servicioHasta} onChange={cambiarForm('servicioHasta')} /></label>
-                </>
-              )}
-              <label style={etiqueta}>Referencia interna (opcional)<input type="text" style={input} value={form.referencia} onChange={cambiarForm('referencia')} placeholder="Ej: pedido #123" /></label>
-            </div>
-
-            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {form.items.map((it, i) => (
-                <div key={i} style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input type="text" style={{ ...input, flex: '1 1 220px' }} placeholder="Descripción" value={it.descripcion} onChange={cambiarItem(i, 'descripcion')} />
-                  <input style={{ ...input, width: '70px' }} type="number" min="1" placeholder="Cant." value={it.cantidad} onChange={cambiarItem(i, 'cantidad')} />
-                  <input style={{ ...input, width: '120px' }} type="number" min="0" step="0.01" placeholder="Precio unit." value={it.precioUnitario} onChange={cambiarItem(i, 'precioUnitario')} />
-                  {form.items.length > 1 && (
-                    <button className="btn btn-ghost" style={botonChico} onClick={() => setForm((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}>Quitar</button>
-                  )}
-                </div>
-              ))}
-              <div>
-                <button className="btn btn-ghost" style={botonChico} onClick={() => setForm((p) => ({ ...p, items: [...p.items, itemVacio] }))}>+ Ítem</button>
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {form.items.map((it, i) => (
+              <div key={i} style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <input type="text" style={{ ...input, flex: '1 1 220px' }} placeholder="Descripción" value={it.descripcion} onChange={cambiarItem(i, 'descripcion')} />
+                <input style={{ ...input, width: '70px' }} type="number" min="1" placeholder="Cant." value={it.cantidad} onChange={cambiarItem(i, 'cantidad')} />
+                <input style={{ ...input, width: '120px' }} type="number" min="0" step="0.01" placeholder="Precio unit." value={it.precioUnitario} onChange={cambiarItem(i, 'precioUnitario')} />
+                {form.items.length > 1 && (
+                  <button className="btn btn-ghost" style={botonChico} onClick={() => setForm((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}>Quitar</button>
+                )}
               </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: '14px' }}>Total: {pesos(total)}</strong>
-              {form.email && (
-                <label style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}>
-                  <input type="checkbox" checked={form.enviarMail} onChange={cambiarForm('enviarMail')} /> Mandar el PDF por mail
-                </label>
-              )}
-              <button className="btn btn-primary" disabled={emitiendo || total <= 0} onClick={emitir}>{emitiendo ? 'Emitiendo…' : 'Emitir factura'}</button>
+            ))}
+            <div>
+              <button className="btn btn-ghost" style={botonChico} onClick={() => setForm((p) => ({ ...p, items: [...p.items, itemVacio] }))}>+ Ítem</button>
             </div>
           </div>
 
-          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Comprobantes</div>
-          {/* Anchos por filtro (no la grilla pareja del resto de la sección): el
-              selector de tipo es corto y el de fechas necesita lugar para el rango. */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
-            <label style={{ ...etiqueta, flex: '2 1 200px' }}>Buscar
-              <input type="text" style={input} value={filtros.texto} onChange={cambiarFiltro('texto')} placeholder="Cliente, documento, número, CAE…" />
-            </label>
-            <label style={{ ...etiqueta, flex: '1 1 150px' }}>Estado
-              <select style={input} value={filtros.estado} onChange={cambiarFiltro('estado')}>
-                <option value="todos">Todos</option>
-                <option value="emitida">Emitidas vigentes</option>
-                <option value="anulada">Anuladas</option>
-                <option value="error">Con error</option>
-                <option value="enCurso">Pendientes / emitiendo</option>
-                <option value="descartada">Descartadas</option>
-              </select>
-            </label>
-            <label style={{ ...etiqueta, flex: '0 1 120px' }}>Tipo
-              <select style={input} value={filtros.tipo} onChange={cambiarFiltro('tipo')}>
-                <option value="todos">Todos</option>
-                <option value="factura">Facturas</option>
-                <option value="notaCredito">Notas de crédito</option>
-              </select>
-            </label>
-            <label style={{ ...etiqueta, flex: '1 1 160px' }}>Origen
-              <select style={input} value={filtros.origen} onChange={cambiarFiltro('origen')}>
-                <option value="todos">Todos</option>
-                {Object.entries(ORIGENES).map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
-              </select>
-            </label>
-            <div style={{ ...etiqueta, flex: '1.5 1 240px' }}>Fechas
-              <SelectorRangoFechas
-                desde={filtros.desde}
-                hasta={filtros.hasta}
-                onChange={(desde, hasta) => setFiltros((prev) => ({ ...prev, desde, hasta }))}
-                style={{ ...input, width: '100%' }}
-              />
-            </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: '14px' }}>Total: {pesos(total)}</strong>
+            {form.email && (
+              <label style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}>
+                <input type="checkbox" checked={form.enviarMail} onChange={cambiarForm('enviarMail')} /> Mandar el PDF por mail
+              </label>
+            )}
+            <button className="btn btn-primary" disabled={emitiendo || total <= 0} onClick={emitir}>{emitiendo ? 'Emitiendo…' : 'Emitir factura'}</button>
           </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text2)', marginBottom: '10px' }}>
-            <span>{filtradas.length} comprobante{filtradas.length === 1 ? '' : 's'} · total facturado {pesos(totalFiltrado)}</span>
-            {hayFiltros && <button className="btn btn-ghost" style={botonChico} onClick={() => setFiltros(filtrosVacios)}>Limpiar filtros</button>}
+      </Tarjeta>
+
+      <Tarjeta titulo="Comprobantes" abierta={abiertas.comprobantes} onAlternar={() => alternar('comprobantes')}>
+        {/* Anchos por filtro (no la grilla pareja del resto de la sección): el
+            selector de tipo es corto y el de fechas necesita lugar para el rango. */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+          <label style={{ ...etiqueta, flex: '2 1 200px' }}>Buscar
+            <input type="text" style={input} value={filtros.texto} onChange={cambiarFiltro('texto')} placeholder="Cliente, documento, número, CAE…" />
+          </label>
+          <label style={{ ...etiqueta, flex: '1 1 150px' }}>Estado
+            <select style={input} value={filtros.estado} onChange={cambiarFiltro('estado')}>
+              <option value="todos">Todos</option>
+              <option value="emitida">Emitidas vigentes</option>
+              <option value="anulada">Anuladas</option>
+              <option value="error">Con error</option>
+              <option value="enCurso">Pendientes / emitiendo</option>
+              <option value="descartada">Descartadas</option>
+            </select>
+          </label>
+          <label style={{ ...etiqueta, flex: '0 1 120px' }}>Tipo
+            <select style={input} value={filtros.tipo} onChange={cambiarFiltro('tipo')}>
+              <option value="todos">Todos</option>
+              <option value="factura">Facturas</option>
+              <option value="notaCredito">Notas de crédito</option>
+            </select>
+          </label>
+          <label style={{ ...etiqueta, flex: '1 1 160px' }}>Origen
+            <select style={input} value={filtros.origen} onChange={cambiarFiltro('origen')}>
+              <option value="todos">Todos</option>
+              {Object.entries(ORIGENES).map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
+            </select>
+          </label>
+          <div style={{ ...etiqueta, flex: '1.5 1 240px' }}>Fechas
+            <SelectorRangoFechas
+              desde={filtros.desde}
+              hasta={filtros.hasta}
+              onChange={(desde, hasta) => setFiltros((prev) => ({ ...prev, desde, hasta }))}
+              style={{ ...input, width: '100%' }}
+            />
           </div>
-          {facturas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Todavía no hay comprobantes.</div>}
-          {facturas.length > 0 && filtradas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Ningún comprobante coincide con los filtros.</div>}
-          {filtradas.length > 0 && (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Tipo</th>
-                    <th>N° comp.</th>
-                    <th>Cliente</th>
-                    <th>N° documento</th>
-                    <th style={{ textAlign: 'right' }}>Monto</th>
-                    <th>CAE</th>
-                    <th>Estado</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibles.map((f) => {
-                    const [badge, textoEstado] = f.notaCreditoId
-                      ? ['badge-cancelled', 'anulada']
-                      : (BADGE_ESTADO[f.estado] || ['badge-pending', f.estado]);
-                    const esNC = f.tipoCbte === 13;
-                    // Errores y advertencias van en una fila aparte, debajo, para
-                    // no ensanchar la tabla.
-                    const notas = [
-                      ...(f.estado === 'error' ? (f.errores || []).map((e) => ({ error: true, texto: `${e.codigo}: ${e.mensaje}` })) : []),
-                      ...(f.advertencias || []).map((a) => ({ texto: `⚠ ${a}` })),
-                      ...(f.errorMail ? [{ texto: `⚠ El mail no salió: ${f.errorMail}` }] : [])
-                    ];
-                    const origen = [ORIGENES[f.origen?.tipo] || f.origen?.tipo, f.origen?.referencia].filter(Boolean).join(' · ');
-                    return (
-                      <React.Fragment key={f.id}>
-                        <tr title={origen}>
-                          <td>{fechaAR(f.fecha) || '—'}</td>
-                          <td>{esNC ? 'NC C' : 'Factura C'}</td>
-                          <td style={{ fontFamily: 'var(--mono)' }}>{numeroCbte(f)}</td>
-                          <td>
-                            {f.receptor?.nombre || 'Consumidor final'}
-                            {f.mailEnviadoEl && <span title="Mail enviado" style={{ marginLeft: '4px', color: 'var(--text3)' }}>✉</span>}
-                          </td>
-                          <td style={{ fontFamily: 'var(--mono)' }}>{f.receptor?.docTipo !== 99 ? f.receptor?.docNro : '—'}</td>
-                          <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>{pesos(f.importeTotal)}</td>
-                          <td style={{ fontFamily: 'var(--mono)' }}>{f.cae || '—'}</td>
-                          <td>
-                            <span className={`badge ${badge}`}>{textoEstado}</span>
-                            {f.entorno === 'homologacion' && <span className="badge badge-pending" style={{ marginLeft: '4px' }}>prueba</span>}
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                              {f.estado === 'emitida' && (
-                                <>
-                                  <button className="btn btn-ghost" style={botonIcono} disabled={ocupada === f.id} onClick={() => descargar(f)} title="Descargar PDF" aria-label="Descargar PDF">
-                                    <IconoPdf />
-                                  </button>
-                                  <button className="btn btn-ghost" style={botonIcono} disabled={ocupada === f.id} onClick={() => reenviar(f)} title="Mandar por mail" aria-label="Mandar por mail">
-                                    <IconoMail />
-                                  </button>
-                                  {!esNC && !f.notaCreditoId && (
-                                    <button className="btn btn-danger" style={botonChico} disabled={ocupada === f.id} onClick={() => anular(f)}>Anular</button>
-                                  )}
-                                </>
-                              )}
-                              {f.estado !== 'emitida' && f.estado !== 'descartada' && (
-                                <button className="btn btn-ghost" style={botonChico} disabled={ocupada === f.id} onClick={() => accion(f, 'reintentarFactura', {}, 'Comprobante emitido.')}>
-                                  {ocupada === f.id ? 'Emitiendo…' : 'Reintentar'}
+        </div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text2)', marginBottom: '10px' }}>
+          <span>{filtradas.length} comprobante{filtradas.length === 1 ? '' : 's'} · total facturado {pesos(totalFiltrado)}</span>
+          {hayFiltros && <button className="btn btn-ghost" style={botonChico} onClick={() => setFiltros(filtrosVacios)}>Limpiar filtros</button>}
+          <button className="btn" style={{ ...botonChico, marginLeft: 'auto' }} disabled={exportando || filtradas.length === 0} onClick={exportar}>
+            {exportando ? 'Exportando…' : `Exportar a Excel (${filtradas.length})`}
+          </button>
+        </div>
+        {facturas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Todavía no hay comprobantes.</div>}
+        {facturas.length > 0 && filtradas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Ningún comprobante coincide con los filtros.</div>}
+        {filtradas.length > 0 && (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>N° comp.</th>
+                  <th>Cliente</th>
+                  <th>N° documento</th>
+                  <th style={{ textAlign: 'right' }}>Monto</th>
+                  <th>CAE</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibles.map((f) => {
+                  const [badge, textoEstado] = f.notaCreditoId
+                    ? ['badge-cancelled', 'anulada']
+                    : (BADGE_ESTADO[f.estado] || ['badge-pending', f.estado]);
+                  const esNC = f.tipoCbte === 13;
+                  // Errores y advertencias van en una fila aparte, debajo, para
+                  // no ensanchar la tabla.
+                  const notas = [
+                    ...(f.estado === 'error' ? (f.errores || []).map((e) => ({ error: true, texto: `${e.codigo}: ${e.mensaje}` })) : []),
+                    ...(f.advertencias || []).map((a) => ({ texto: `⚠ ${a}` })),
+                    ...(f.errorMail ? [{ texto: `⚠ El mail no salió: ${f.errorMail}` }] : [])
+                  ];
+                  const origen = [ORIGENES[f.origen?.tipo] || f.origen?.tipo, f.origen?.referencia].filter(Boolean).join(' · ');
+                  return (
+                    <React.Fragment key={f.id}>
+                      <tr title={origen}>
+                        <td>{fechaAR(f.fecha) || '—'}</td>
+                        <td>{esNC ? 'NC C' : 'Factura C'}</td>
+                        <td style={{ fontFamily: 'var(--mono)' }}>{numeroCbte(f)}</td>
+                        <td>
+                          {f.receptor?.nombre || 'Consumidor final'}
+                          {f.mailEnviadoEl && <span title="Mail enviado" style={{ marginLeft: '4px', color: 'var(--text3)' }}>✉</span>}
+                        </td>
+                        <td style={{ fontFamily: 'var(--mono)' }}>{f.receptor?.docTipo !== 99 ? f.receptor?.docNro : '—'}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>{pesos(f.importeTotal)}</td>
+                        <td style={{ fontFamily: 'var(--mono)' }}>{f.cae || '—'}</td>
+                        <td>
+                          <span className={`badge ${badge}`}>{textoEstado}</span>
+                          {f.entorno === 'homologacion' && <span className="badge badge-pending" style={{ marginLeft: '4px' }}>prueba</span>}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                            {f.estado === 'emitida' && (
+                              <>
+                                <button className="btn btn-ghost" style={botonIcono} disabled={ocupada === f.id} onClick={() => descargar(f)} title="Descargar PDF" aria-label="Descargar PDF">
+                                  <IconoPdf />
                                 </button>
-                              )}
-                            </div>
+                                <button className="btn btn-ghost" style={botonIcono} disabled={ocupada === f.id} onClick={() => reenviar(f)} title="Mandar por mail" aria-label="Mandar por mail">
+                                  <IconoMail />
+                                </button>
+                                {!esNC && !f.notaCreditoId && (
+                                  <button className="btn btn-danger" style={botonChico} disabled={ocupada === f.id} onClick={() => anular(f)}>Anular</button>
+                                )}
+                              </>
+                            )}
+                            {f.estado !== 'emitida' && f.estado !== 'descartada' && (
+                              <button className="btn btn-ghost" style={botonChico} disabled={ocupada === f.id} onClick={() => accion(f, 'reintentarFactura', {}, 'Comprobante emitido.')}>
+                                {ocupada === f.id ? 'Emitiendo…' : 'Reintentar'}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {notas.length > 0 && (
+                        <tr>
+                          <td colSpan={9} style={{ whiteSpace: 'normal', paddingTop: 0 }}>
+                            {notas.map((n, i) => (
+                              <div key={i} style={{ fontSize: '11px', color: n.error ? 'var(--danger)' : 'var(--text2)' }}>{n.texto}</div>
+                            ))}
                           </td>
                         </tr>
-                        {notas.length > 0 && (
-                          <tr>
-                            <td colSpan={9} style={{ whiteSpace: 'normal', paddingTop: 0 }}>
-                              {notas.map((n, i) => (
-                                <div key={i} style={{ fontSize: '11px', color: n.error ? 'var(--danger)' : 'var(--text2)' }}>{n.texto}</div>
-                              ))}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {filtradas.length > VISIBLES_COLAPSADO && (
-            <button className="btn btn-ghost" style={{ ...botonChico, marginTop: '8px' }} onClick={() => setVerTodos((v) => !v)}>
-              {verTodos ? `Mostrar sólo los últimos ${VISIBLES_COLAPSADO}` : `Ver los ${filtradas.length - VISIBLES_COLAPSADO} restantes`}
-            </button>
-          )}
-        </>
-      )}
-    </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {filtradas.length > VISIBLES_COLAPSADO && (
+          <button className="btn btn-ghost" style={{ ...botonChico, marginTop: '8px' }} onClick={() => setVerTodos((v) => !v)}>
+            {verTodos ? `Mostrar sólo los últimos ${VISIBLES_COLAPSADO}` : `Ver los ${filtradas.length - VISIBLES_COLAPSADO} restantes`}
+          </button>
+        )}
+      </Tarjeta>
+    </>
   );
 }

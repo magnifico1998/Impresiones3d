@@ -1632,7 +1632,7 @@ export default function AdminPage({ modoRevendedor = false }) {
 
       {!modoRevendedor && pestana === 'revendedores' && <SeccionCodigosPromocionales planes={planes} showToast={showToast} />}
 
-      {!modoRevendedor && pestana === 'arca' && <SeccionFacturacion showToast={showToast} abiertaInicial />}
+      {!modoRevendedor && pestana === 'arca' && <SeccionFacturacion showToast={showToast} />}
 
       {/* ---- Plantillas de mail (sólo admin principal) ---- */}
       {!modoRevendedor && pestana === 'negocio' && <div className="card">
