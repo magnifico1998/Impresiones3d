@@ -73,6 +73,21 @@ function pasaFiltros(f, filtros) {
   return true;
 }
 
+// Íconos de las acciones de la tabla de comprobantes (mismo trazo que los
+// del menú lateral).
+const IconoPdf = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '16px', height: '16px' }}>
+    <path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z" />
+    <path d="M12 2v3h3M10 8v6M7.5 11.5L10 14l2.5-2.5" />
+  </svg>
+);
+const IconoMail = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '16px', height: '16px' }}>
+    <rect x="2.5" y="4.5" width="15" height="11" rx="1.5" />
+    <path d="M3 5.5l7 5 7-5" />
+  </svg>
+);
+
 const llamar = (nombre, datos) => httpsCallable(functions, nombre, { timeout: 300000 })(datos).then((r) => r.data);
 
 export default function SeccionFacturacion({ showToast }) {
@@ -249,6 +264,7 @@ export default function SeccionFacturacion({ showToast }) {
   const bloque = { padding: '12px', border: '1px dashed var(--border)', borderRadius: 'var(--radius2)', marginBottom: '14px' };
   const grilla = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' };
   const botonChico = { fontSize: '11px', padding: '4px 8px' };
+  const botonIcono = { padding: '4px 6px' };
 
   return (
     <div className="card">
@@ -443,8 +459,12 @@ export default function SeccionFacturacion({ showToast }) {
                             <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
                               {f.estado === 'emitida' && (
                                 <>
-                                  <button className="btn btn-ghost" style={botonChico} disabled={ocupada === f.id} onClick={() => descargar(f)}>PDF</button>
-                                  <button className="btn btn-ghost" style={botonChico} disabled={ocupada === f.id} onClick={() => reenviar(f)}>Mandar por mail</button>
+                                  <button className="btn btn-ghost" style={botonIcono} disabled={ocupada === f.id} onClick={() => descargar(f)} title="Descargar PDF" aria-label="Descargar PDF">
+                                    <IconoPdf />
+                                  </button>
+                                  <button className="btn btn-ghost" style={botonIcono} disabled={ocupada === f.id} onClick={() => reenviar(f)} title="Mandar por mail" aria-label="Mandar por mail">
+                                    <IconoMail />
+                                  </button>
                                   {!esNC && !f.notaCreditoId && (
                                     <button className="btn btn-danger" style={botonChico} disabled={ocupada === f.id} onClick={() => anular(f)}>Anular</button>
                                   )}
