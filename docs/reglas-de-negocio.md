@@ -398,6 +398,23 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   **Dar de baja** descuenta lo que se rompió o se vendió. Los **equipos** no
   se consumen ni se ajustan: sólo se dan de baja. Cada movimiento se puede
   deshacer desde el historial del artículo.
+- **Consumo de los pedidos:** al pasar un pedido a *completado* o *enviado*
+  (desde la lista o el detalle) se propone descontarlo; también hay un botón
+  en el bloque "Inventario" del detalle. Se estima el filamento por color:
+  gramos por unidad × cantidad de cada versión + desperdicio (en piezas
+  multicolor, los gramos de cada material del G-code). Los gramos salen de la
+  pieza (las piezas nuevas los guardan al crearse) o, en pedidos anteriores,
+  del producto de la Biblioteca con el mismo nombre. Para cada color se
+  sugiere el rollo del inventario con ese color (y tipo, si se conoce), el de
+  más stock; los insumos del pedido se buscan por nombre. Todo es editable.
+- Un pedido se descuenta **una sola vez**: los consumos quedan vinculados al
+  pedido (`pedidoId`), y para volver a descontarlo hay que deshacer primero.
+  Se puede descontar aunque no alcance el stock (queda en negativo, para
+  corregir con un ajuste).
+
+Código del consumo: `src/utils/consumoPedido.js`,
+`src/components/modals/ModalConsumoPedido.jsx`,
+`src/components/SeccionInventarioPedido.jsx`.
 
 Código: `src/utils/inventario.js`, `src/components/ComprasPage.jsx`,
 `src/components/modals/ModalCompra.jsx`.
