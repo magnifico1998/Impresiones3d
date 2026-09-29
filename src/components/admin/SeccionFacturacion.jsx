@@ -382,11 +382,16 @@ export default function SeccionFacturacion({ showToast }) {
           <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
             <button className="btn btn-primary" disabled={guardandoConfig} onClick={guardarConfig}>{guardandoConfig ? 'Guardando…' : 'Guardar'}</button>
             <button className="btn" disabled={probando} onClick={probarConexion}>{probando ? 'Probando…' : 'Probar conexión'}</button>
-            <button className="btn" onClick={facturarPago}>Facturar un cobro de Mercado Pago</button>
           </div>
       </Tarjeta>
 
       <Tarjeta titulo="Facturador" abierta={abiertas.facturador} onAlternar={() => alternar('facturador')}>
+          {/* Cobros de suscripciones acreditados antes de activar la facturación
+              automática (o que quedaron sin factura): se facturan por su id. */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text2)', paddingBottom: '12px', marginBottom: '12px', borderBottom: '1px solid var(--border)' }}>
+            <span>¿Un cobro de suscripción por Mercado Pago que no se facturó solo?</span>
+            <button className="btn btn-sm" onClick={facturarPago}>Facturar un cobro de Mercado Pago</button>
+          </div>
           <div style={grilla}>
             <label style={etiqueta}>Documento
               <select style={input} value={form.docTipo} onChange={cambiarForm('docTipo')}>
