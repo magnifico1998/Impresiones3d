@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
-import { CATEGORIAS_INVENTARIO, armarInventario, marcasUsadas, resumenFilamentos } from '../../utils/inventario';
+import { CATEGORIAS_INVENTARIO, armarInventario, juntarMarcas, marcasUsadas, resumenFilamentos } from '../../utils/inventario';
+import SelectorConAlta from '../SelectorConAlta';
 
 // Una compra puede ser de un solo producto (desc/precio/qty) o, en Insumos
 // del tipo Filamento, un "carrito" de líneas (tipo, marca, color, cantidad,
@@ -28,7 +29,7 @@ const formVacio = (inventarioHabilitado) => ({
 });
 
 export default function ModalCompra({ isOpen, onClose, editId }) {
-  const { compras, addCompra, updateCompra, getNewId, showToast, cfg } = useApp();
+  const { compras, addCompra, updateCompra, getNewId, showToast, cfg, setCfg } = useApp();
 
   const filamentos = (cfg.filamentos || []).map((f) => ({ nombre: nombreDe(f), precio: Number(f?.precio) || 0 })).filter((f) => f.nombre);
   const colores = (cfg.colores || []).map((c) => ({ nombre: nombreDe(c), hex: hexDe(c) })).filter((c) => c.nombre);
@@ -156,6 +157,14 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
       alInventario: !!form.alInventario && CATEGORIAS_INVENTARIO.includes(form.cat)
     };
 
+    // Las marcas nuevas quedan guardadas en la configuración: así se siguen
+    // sugiriendo aunque se borre la compra donde aparecieron.
+    if (esFilamento) {
+      const marcasCfg = cfg.marcasFilamento || [];
+      const todas = juntarMarcas(marcasCfg, c.items.map((it) => it.marca));
+      if (todas.length !== marcasCfg.length) setCfg((prev) => ({ ...prev, marcasFilamento: todas }));
+    }
+
     if (editId !== null) {
       updateCompra(editId, c);
       showToast('Compra actualizada con éxito');
@@ -173,7 +182,11 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
   // Sugerencias para la descripción: los artículos que ya están en el
   // inventario, así una compra nueva del mismo producto suma al mismo.
   const articulos = muestraInventario && !esFilamento ? armarInventario(compras).filter((a) => !a.filamento) : [];
-  const marcas = esFilamento ? marcasUsadas(compras) : [];
+  // Marcas para el selector: las guardadas en la configuración, las de
+  // compras anteriores y las de las OTRAS líneas de esta misma compra (la
+  // de la propia línea no, para no sugerir lo que se está escribiendo).
+  const marcasGuardadas = esFilamento ? juntarMarcas(cfg.marcasFilamento || [], marcasUsadas(compras)) : [];
+  const marcasParaLinea = (i) => juntarMarcas(marcasGuardadas, form.items.filter((_, j) => j !== i).map((it) => it.marca));
   const unidades = esFilamento ? form.items.reduce((s, it) => s + (parseInt(it.qty) || 0), 0) : (parseInt(form.qty) || 1);
   const fmtPesos = (n) => '$ ' + Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
@@ -215,9 +228,6 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                 No hay filamentos cargados en Configuración → Herramientas → Filamentos.
               </div>
             )}
-            <datalist id="marcas-filamento">
-              {marcas.map((m) => <option key={m} value={m} />)}
-            </datalist>
             <div style={{ overflowX: 'auto' }}>
               <table className="data-table tabla-lineas-compra" style={{ fontSize: '12px' }}>
                 <thead>
@@ -243,7 +253,7 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                           </select>
                         </td>
                         <td style={{ minWidth: '150px' }}>
-                          <input type="text" list="marcas-filamento" value={it.marca} placeholder="Marca" onChange={(e) => cambiarLinea(i, 'marca', e.target.value)} />
+                          <SelectorConAlta value={it.marca} opciones={marcasParaLinea(i)} placeholder="Marca" onChange={(v) => cambiarLinea(i, 'marca', v)} />
                         </td>
                         <td style={{ minWidth: '170px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

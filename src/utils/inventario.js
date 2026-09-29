@@ -23,6 +23,19 @@ export function resumenFilamentos(items) {
   return `Filamentos (${unidades} u.): ${items.map((it) => `${[it.tipo, it.color].filter(Boolean).join(' ')} x${it.qty}`).join(', ')}`;
 }
 
+// Une listas de marcas sin repetir (sin distinguir mayúsculas ni espacios),
+// conservando cómo se escribió la primera vez, y las ordena.
+export function juntarMarcas(...listas) {
+  const marcas = new Map();
+  for (const lista of listas) {
+    for (const m of lista || []) {
+      const limpia = limpiar(m);
+      if (limpia && !marcas.has(limpia.toLowerCase())) marcas.set(limpia.toLowerCase(), limpia);
+    }
+  }
+  return [...marcas.values()].sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 // Marcas de filamento ya cargadas en compras anteriores (para sugerirlas).
 export function marcasUsadas(compras) {
   const marcas = new Map();
