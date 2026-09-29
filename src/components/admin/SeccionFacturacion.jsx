@@ -3,6 +3,7 @@ import { db, functions } from '../../firebase';
 import { collection, doc, getDoc, limit, onSnapshot, orderBy, query, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { confirmar, avisar, pedirTexto } from '../Dialogos';
+import SelectorRangoFechas from '../SelectorRangoFechas';
 
 // Facturación electrónica con ARCA (fase 1: el admin factura como
 // monotributista, siempre Factura C). La emisión y los números los maneja
@@ -399,8 +400,14 @@ export default function SeccionFacturacion({ showToast }) {
                 {Object.entries(ORIGENES).map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
               </select>
             </label>
-            <label style={etiqueta}>Desde<input type="date" style={input} value={filtros.desde} onChange={cambiarFiltro('desde')} /></label>
-            <label style={etiqueta}>Hasta<input type="date" style={input} value={filtros.hasta} onChange={cambiarFiltro('hasta')} /></label>
+            <div style={etiqueta}>Fechas
+              <SelectorRangoFechas
+                desde={filtros.desde}
+                hasta={filtros.hasta}
+                onChange={(desde, hasta) => setFiltros((prev) => ({ ...prev, desde, hasta }))}
+                style={{ ...input, width: '100%' }}
+              />
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text2)', marginBottom: '10px' }}>
             <span>{filtradas.length} comprobante{filtradas.length === 1 ? '' : 's'} · total facturado {pesos(totalFiltrado)}</span>
