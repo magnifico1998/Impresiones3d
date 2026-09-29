@@ -350,6 +350,21 @@ Se guardan en `users/{uid}/presupuestos`. Código:
 - Cada apertura del catálogo suma al contador de aperturas del ciclo
   (`functions/http/registrarAperturaCatalogo.js`).
 
+### Inventario
+
+- Se prende por cuenta en Configuración → Aplicación → "Llevar inventario"
+  (`cfg.inventarioHabilitado`). Con eso aparece la pestaña "Inventario" en
+  Compras.
+- **Solo Insumos y Accesorios** se inventarían. En esas compras aparece
+  "Sumar al inventario": tildado por defecto en las compras nuevas; al editar
+  una compra se respeta lo que tenía (una compra vieja no entra sola).
+- El stock **se calcula a partir de las compras marcadas** (`alInventario`), no
+  se guarda aparte: editar o borrar una compra corrige el stock solo. Las
+  compras se agrupan por descripción, sin distinguir mayúsculas ni espacios.
+
+Código: `src/utils/inventario.js`, `src/components/ComprasPage.jsx`,
+`src/components/modals/ModalCompra.jsx`.
+
 ### Facturación electrónica de los pedidos
 
 Cada suscriptor puede emitir **Factura C** (monotributistas) de sus pedidos

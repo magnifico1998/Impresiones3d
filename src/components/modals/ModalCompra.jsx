@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
+import { CATEGORIAS_INVENTARIO, armarInventario } from '../../utils/inventario';
 
 export default function ModalCompra({ isOpen, onClose, editId }) {
-  const { compras, addCompra, updateCompra, getNewId, showToast } = useApp();
+  const { compras, addCompra, updateCompra, getNewId, showToast, cfg } = useApp();
 
   const [form, setForm] = useState({
     desc: '',
@@ -12,7 +13,8 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
     qty: 1,
     proveedor: '',
     fecha: '',
-    notas: ''
+    notas: '',
+    alInventario: false
   });
 
   useEffect(() => {
@@ -27,7 +29,10 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
             qty: c.qty || 1,
             proveedor: c.proveedor || '',
             fecha: c.fecha || '',
-            notas: c.notas || ''
+            notas: c.notas || '',
+            // Al editar se respeta lo que ya tenía: una compra vieja no pasa
+            // al inventario sólo por corregirle un dato.
+            alInventario: !!c.alInventario
           });
         }
       } else {
@@ -38,7 +43,9 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
           qty: 1,
           proveedor: '',
           fecha: fechaLocalHoy(),
-          notas: ''
+          notas: '',
+          // Compra nueva con el inventario habilitado: suma por defecto.
+          alInventario: !!cfg.inventarioHabilitado
         });
       }
     }
@@ -66,7 +73,9 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
       proveedor: form.proveedor,
       fecha: form.fecha,
       notas: form.notas,
-      total: precioNum * qtyNum
+      total: precioNum * qtyNum,
+      // Sólo Insumos y Accesorios se inventarían.
+      alInventario: !!form.alInventario && CATEGORIAS_INVENTARIO.includes(form.cat)
     };
 
     if (editId !== null) {
@@ -82,22 +91,33 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
 
   if (!isOpen) return null;
 
+  const muestraInventario = !!cfg.inventarioHabilitado && CATEGORIAS_INVENTARIO.includes(form.cat);
+  // Sugerencias para la descripción: los artículos que ya están en el
+  // inventario, así una compra nueva del mismo producto suma al mismo.
+  const articulos = muestraInventario ? armarInventario(compras) : [];
+
   return (
     <div className="modal-overlay open" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">
           {editId !== null ? 'Editar compra' : 'Nueva compra'}
         </div>
-        
+
         <label className="fl">Descripción del producto</label>
-        <input 
-          type="text" 
-          id="desc" 
-          value={form.desc} 
-          onChange={handleChange} 
-          placeholder="Ej: Rollo PLA 1kg blanco" 
+        <input
+          type="text"
+          id="desc"
+          value={form.desc}
+          onChange={handleChange}
+          placeholder="Ej: Rollo PLA 1kg blanco"
+          list={muestraInventario ? 'articulos-inventario' : undefined}
         />
-        
+        {muestraInventario && (
+          <datalist id="articulos-inventario">
+            {articulos.map((a) => <option key={a.clave} value={a.nombre} />)}
+          </datalist>
+        )}
+
         <label className="fl">Categoría</label>
         <select id="cat" value={form.cat} onChange={handleChange}>
           <option value="Insumos">Insumos</option>
@@ -106,58 +126,72 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
           <option value="Impuestos">Impuestos</option>
           <option value="Otros">Otros</option>
         </select>
-        
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           <div>
             <label className="fl">Precio unitario ($)</label>
-            <input 
-              type="number" 
-              id="precio" 
-              value={form.precio} 
-              onChange={handleChange} 
-              placeholder="0" 
-              step="100" 
+            <input
+              type="number"
+              id="precio"
+              value={form.precio}
+              onChange={handleChange}
+              placeholder="0"
+              step="100"
             />
           </div>
           <div>
             <label className="fl">Cantidad</label>
-            <input 
-              type="number" 
-              id="qty" 
-              value={form.qty} 
-              onChange={handleChange} 
-              min="1" 
-              step="1" 
+            <input
+              type="number"
+              id="qty"
+              value={form.qty}
+              onChange={handleChange}
+              min="1"
+              step="1"
             />
           </div>
         </div>
-        
+
         <label className="fl">Proveedor (opcional)</label>
-        <input 
-          type="text" 
-          id="proveedor" 
-          value={form.proveedor} 
-          onChange={handleChange} 
-          placeholder="Ej: MercadoLibre" 
+        <input
+          type="text"
+          id="proveedor"
+          value={form.proveedor}
+          onChange={handleChange}
+          placeholder="Ej: MercadoLibre"
         />
-        
+
         <label className="fl">Fecha de compra</label>
-        <input 
-          type="date" 
-          id="fecha" 
-          value={form.fecha} 
-          onChange={handleChange} 
+        <input
+          type="date"
+          id="fecha"
+          value={form.fecha}
+          onChange={handleChange}
         />
-        
+
         <label className="fl">Notas (opcional)</label>
-        <input 
-          type="text" 
-          id="notas" 
-          value={form.notas} 
-          onChange={handleChange} 
-          placeholder="Notas adicionales" 
+        <input
+          type="text"
+          id="notas"
+          value={form.notas}
+          onChange={handleChange}
+          placeholder="Notas adicionales"
         />
-        
+
+        {muestraInventario && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px' }}>
+            <input
+              type="checkbox"
+              id="alInventario"
+              checked={form.alInventario}
+              onChange={(e) => setForm(prev => ({ ...prev, alInventario: e.target.checked }))}
+            />
+            <label htmlFor="alInventario" style={{ fontSize: '13px' }}>
+              Sumar al inventario ({parseInt(form.qty) || 1} u.)
+            </label>
+          </div>
+        )}
+
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleSave}>Guardar compra</button>
