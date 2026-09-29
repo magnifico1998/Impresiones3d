@@ -166,7 +166,7 @@ Código: `functions/http/pagosMercadoPago.js`, `functions/cobrosMercadoPago.js`,
 
 El admin factura como **monotributista**: siempre **Factura C** (código 11)
 y, para anular, **Nota de Crédito C** (código 13), sin IVA discriminado. Se
-configura y se usa desde panel Admin → "Facturación electrónica (ARCA)".
+configura y se usa desde panel Admin → pestaña "Facturación ARCA".
 
 - **Cobros de suscripción:** si está tildado "Facturar automáticamente", cada
   cobro de Mercado Pago acreditado (`pagosMP/{paymentId}` con

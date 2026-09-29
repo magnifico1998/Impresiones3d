@@ -100,7 +100,7 @@ el que trae Git (en esta PC está instalado por usuario):
    ```
 
 4. Deployá functions y reglas (ver "Ramas y publicación").
-5. Panel Admin → "Facturación electrónica (ARCA)": completá los datos,
+5. Panel Admin → pestaña "Facturación ARCA": completá los datos,
    entorno **Homologación**, punto de venta cualquiera (ej. 1), **Guardar** y
    **Probar conexión**. Después emití una factura manual de prueba y bajá el PDF.
 

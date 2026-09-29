@@ -48,11 +48,13 @@ const tituloUltimoAcceso = (ts) => {
 };
 
 // Pestañas del panel del admin principal: la cartera (planes, suscriptores
-// y contactos), la red comercial (revendedores y códigos promocionales) y
-// la operación del negocio (facturación, mails y administradores).
+// y contactos), la red comercial (revendedores y códigos promocionales), la
+// facturación electrónica con ARCA (aparte porque va a seguir creciendo) y
+// la operación del negocio (mails y administradores).
 const PESTANAS_ADMIN = [
   { id: 'suscriptores', nombre: 'Planes y suscriptores' },
   { id: 'revendedores', nombre: 'Revendedores y promociones' },
+  { id: 'arca', nombre: 'Facturación ARCA' },
   { id: 'negocio', nombre: 'Negocio' }
 ];
 const CLAVE_PESTANA_ADMIN = 'admin.pestana';
@@ -1630,7 +1632,7 @@ export default function AdminPage({ modoRevendedor = false }) {
 
       {!modoRevendedor && pestana === 'revendedores' && <SeccionCodigosPromocionales planes={planes} showToast={showToast} />}
 
-      {!modoRevendedor && pestana === 'negocio' && <SeccionFacturacion showToast={showToast} />}
+      {!modoRevendedor && pestana === 'arca' && <SeccionFacturacion showToast={showToast} abiertaInicial />}
 
       {/* ---- Plantillas de mail (sólo admin principal) ---- */}
       {!modoRevendedor && pestana === 'negocio' && <div className="card">

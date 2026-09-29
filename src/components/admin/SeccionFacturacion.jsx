@@ -91,8 +91,9 @@ const IconoMail = () => (
 
 const llamar = (nombre, datos) => httpsCallable(functions, nombre, { timeout: 300000 })(datos).then((r) => r.data);
 
-export default function SeccionFacturacion({ showToast }) {
-  const [abierta, setAbierta] = useState(false);
+// abiertaInicial: en su propia pestaña del panel arranca desplegada.
+export default function SeccionFacturacion({ showToast, abiertaInicial = false }) {
+  const [abierta, setAbierta] = useState(abiertaInicial);
   const [config, setConfig] = useState(configVacia);
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [probando, setProbando] = useState(false);
