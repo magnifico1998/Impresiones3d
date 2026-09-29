@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useApp } from '../context/AppContext';
 import { precioNeto } from '../utils/precioNeto';
 import { ventasDePedido, pendienteDePedido } from '../utils/finanzasPedido';
@@ -8,8 +10,33 @@ import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
 import { useCapacidadProduccion } from '../hooks/useCapacidadProduccion';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
-  const { pedidos, clientes, cfg, updatePedido, showToast, fmt } = useApp();
+  const { pedidos, clientes, cfg, updatePedido, showToast, fmt, cuentaId, planContratado } = useApp();
   const capacidad = useCapacidadProduccion();
+
+  // Estado de la factura de cada pedido (users/{cuenta}/facturasPorPedido,
+  // lo mantiene el servidor). Sólo si el plan incluye la facturación.
+  const facturacionHabilitada = !!planContratado?.facturacionElectronica;
+  const [facturasPorPedido, setFacturasPorPedido] = useState({});
+  useEffect(() => {
+    if (!cuentaId || !facturacionHabilitada) {
+      setFacturasPorPedido({});
+      return undefined;
+    }
+    return onSnapshot(collection(db, 'users', cuentaId, 'facturasPorPedido'),
+      (snap) => setFacturasPorPedido(Object.fromEntries(snap.docs.map((d) => [d.id, d.data()]))),
+      (err) => console.error('Error al escuchar las facturas de los pedidos:', err));
+  }, [cuentaId, facturacionHabilitada]);
+
+  // Badge de facturación del pedido. Un pedido sin confirmar o cancelado no
+  // se factura, así que no muestra nada.
+  const badgeFactura = (p) => {
+    if (!facturacionHabilitada || ['cancelado', 'en_verificacion'].includes(p.estado)) return null;
+    const estado = facturasPorPedido[String(p.id)]?.estado;
+    if (estado === 'emitida') return ['badge-done', 'facturado'];
+    if (estado === 'error') return ['badge-cancelled', 'factura con error'];
+    if (estado === 'pendiente' || estado === 'emitiendo') return ['badge-progress', 'facturando'];
+    return ['badge-pending', 'sin facturar']; // nunca facturado, o anulado con nota de crédito
+  };
 
   // Los completados y cancelados quedan colapsados juntos por defecto: con
   // el tiempo se acumulan y ocupan espacio sin aportar nada al vistazo diario.
@@ -248,6 +275,15 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {p.desc || 'Sin descripción'}
+            </div>
+            {/* Número de pedido (el mismo del detalle) y si ya se facturó. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', minWidth: 0 }}>
+              <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                #{String(p.id).padStart(4, '0')}
+              </span>
+              {badgeFactura(p) && (
+                <span className={`badge ${badgeFactura(p)[0]}`} style={{ fontSize: '10px', flexShrink: 0 }}>{badgeFactura(p)[1]}</span>
+              )}
             </div>
           </div>
         </div>
