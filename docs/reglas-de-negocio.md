@@ -412,10 +412,12 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   Se puede descontar aunque no alcance el stock (queda en negativo, para
   corregir con un ajuste).
 
-- **Stock mínimo** por artículo (`cfg.inventarioMinimos`, en la unidad del
-  artículo; 0 = sin mínimo). Si el stock queda por debajo, la fila se
-  resalta y la solapa muestra "Inventario (N)" con la cantidad de artículos
-  bajo el mínimo. Los equipos no llevan mínimo.
+- **Stock mínimo:** hay un **mínimo por defecto** en Configuración →
+  Aplicación → Inventario (`cfg.inventarioMinimoDefault`: `g` para
+  filamento, `u` para el resto) y cada artículo puede tener uno **propio**
+  (`cfg.inventarioMinimos[clave]`: número = propio, 0 = sin mínimo, null o
+  ausente = usa el por defecto). Si el stock queda por debajo, la fila se
+  resalta y la solapa muestra "Inventario (N)". Los equipos no llevan mínimo.
 
 Código del consumo: `src/utils/consumoPedido.js`,
 `src/components/modals/ModalConsumoPedido.jsx`,

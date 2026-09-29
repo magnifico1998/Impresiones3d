@@ -291,6 +291,39 @@ export default function ConfiguracionPage() {
                 <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
                   Suma la pestaña "Inventario" en Compras, para controlar el stock de lo que comprás.
                 </p>
+                {cfg.inventarioHabilitado && (
+                  <>
+                    {/* Mínimo por defecto: lo usan los artículos que no tienen uno
+                        propio (Inventario → "Mínimo"). Vacío o 0 = sin mínimo. */}
+                    <div className="grid2" style={{ marginTop: '8px' }}>
+                      <div>
+                        <label className="fl">Mínimo por defecto filamento (g)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          placeholder="Ej: 500"
+                          value={cfg.inventarioMinimoDefault?.g ?? ''}
+                          onChange={(e) => setCfg(prev => ({ ...prev, inventarioMinimoDefault: { ...(prev.inventarioMinimoDefault || {}), g: e.target.value === '' ? null : Math.max(0, Number(e.target.value)) } }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="fl">Mínimo por defecto resto (u.)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="Ej: 1"
+                          value={cfg.inventarioMinimoDefault?.u ?? ''}
+                          onChange={(e) => setCfg(prev => ({ ...prev, inventarioMinimoDefault: { ...(prev.inventarioMinimoDefault || {}), u: e.target.value === '' ? null : Math.max(0, Number(e.target.value)) } }))}
+                        />
+                      </div>
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
+                      Se aplica a los artículos que no tienen un mínimo propio. Los equipos no llevan mínimo.
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Cómo se calculan los gastos en Resumen: es una preferencia de

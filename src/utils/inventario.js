@@ -166,12 +166,23 @@ export function armarInventario(compras, movimientos = []) {
     .sort((x, y) => (x.filamento === y.filamento ? x.nombre.localeCompare(y.nombre, 'es') : x.filamento ? -1 : 1));
 }
 
-// Stock mínimo por artículo (cfg.inventarioMinimos: { clave: cantidad }, en
-// la unidad del artículo). Un artículo está "bajo mínimo" cuando tiene
-// mínimo cargado y su stock quedó por debajo.
-export const minimoDe = (minimos, a) => Number((minimos || {})[a.clave]) || 0;
-export const estaBajoMinimo = (minimos, a) => {
-  const minimo = minimoDe(minimos, a);
+// Stock mínimo de un artículo, en su unidad:
+//  - propio: cfg.inventarioMinimos[clave] (0 = sin mínimo a propósito);
+//  - si no tiene propio (no está o es null): el mínimo por defecto de la
+//    configuración, cfg.inventarioMinimoDefault = { g: gramos para
+//    filamento, u: unidades para el resto }.
+// Los equipos no llevan mínimo. Devuelve { minimo, porDefecto }.
+export function minimoArticulo(cfg, a) {
+  if (a.cat === 'Equipos') return { minimo: 0, porDefecto: false };
+  const propio = (cfg?.inventarioMinimos || {})[a.clave];
+  if (propio !== undefined && propio !== null) return { minimo: Number(propio) || 0, porDefecto: false };
+  const defecto = Number((cfg?.inventarioMinimoDefault || {})[a.unidad === 'g' ? 'g' : 'u']) || 0;
+  return { minimo: defecto, porDefecto: defecto > 0 };
+}
+
+// Un artículo está "bajo mínimo" cuando tiene mínimo y su stock quedó por debajo.
+export const estaBajoMinimo = (cfg, a) => {
+  const { minimo } = minimoArticulo(cfg, a);
   return minimo > 0 && a.stock < minimo;
 };
 

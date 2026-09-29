@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { pedirTexto, confirmar } from './Dialogos';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
-import { armarInventario, estaBajoMinimo, formatoCantidad, minimoDe, TIPOS_MOVIMIENTO } from '../utils/inventario';
+import { armarInventario, estaBajoMinimo, formatoCantidad, minimoArticulo, TIPOS_MOVIMIENTO } from '../utils/inventario';
 
 // Pestaña "Inventario" de Compras: stock de cada artículo (lo comprado más
 // los movimientos), con ajuste por conteo, baja e historial. El filamento
@@ -21,7 +21,6 @@ const fechaCorta = (f) => (f ? f.split('-').reverse().join('/') : '—');
 
 export default function InventarioTab() {
   const { compras, fmt, cfg, setCfg } = useApp();
-  const minimos = cfg.inventarioMinimos || {};
   const [soloBajoMinimo, setSoloBajoMinimo] = useState(false);
   const { movimientos, agregarMovimiento, borrarMovimiento } = useMovimientosInventario();
   const [busqueda, setBusqueda] = useState('');
@@ -29,10 +28,10 @@ export default function InventarioTab() {
 
   const inventario = useMemo(() => armarInventario(compras, movimientos), [compras, movimientos]);
   const texto = busqueda.trim().toLowerCase();
-  const bajoMinimo = inventario.filter((a) => estaBajoMinimo(minimos, a));
+  const bajoMinimo = inventario.filter((a) => estaBajoMinimo(cfg, a));
   const visibles = inventario
     .filter((a) => !texto || a.nombre.toLowerCase().includes(texto) || a.cat.toLowerCase().includes(texto))
-    .filter((a) => !soloBajoMinimo || estaBajoMinimo(minimos, a));
+    .filter((a) => !soloBajoMinimo || estaBajoMinimo(cfg, a));
   const valorTotal = visibles.reduce((s, a) => s + a.valorStock, 0);
 
   // Número escrito a mano ("1.250", "1250,5") a número.
@@ -68,21 +67,24 @@ export default function InventarioTab() {
     });
   };
 
-  // Mínimo del artículo (vacío o 0 lo saca).
+  // Mínimo propio del artículo. Vacío = volver al mínimo por defecto
+  // (se guarda null: la configuración se guarda con merge y una clave
+  // borrada del mapa volvería a aparecer al recargar); 0 = sin mínimo.
   const definirMinimo = async (a) => {
     const unidad = a.unidad === 'g' ? 'gramos' : 'unidades';
-    const actual = minimoDe(minimos, a);
-    const respuesta = await pedirTexto(`Stock mínimo de "${a.nombre}" (en ${unidad}). Dejalo vacío para quitarlo.`, {
-      titulo: 'Stock mínimo', valorInicial: actual ? String(actual) : '', placeholder: a.unidad === 'g' ? 'Ej: 500' : 'Ej: 2', tipoInput: 'text'
+    const { minimo: actual, porDefecto } = minimoArticulo(cfg, a);
+    const defecto = Number((cfg.inventarioMinimoDefault || {})[a.unidad === 'g' ? 'g' : 'u']) || 0;
+    const ayuda = defecto
+      ? `Vacío = usar el mínimo por defecto (${formatoCantidad(defecto, a.unidad)}); 0 = sin mínimo.`
+      : 'Vacío o 0 = sin mínimo.';
+    const respuesta = await pedirTexto(`Stock mínimo de "${a.nombre}" (en ${unidad}). ${ayuda}`, {
+      titulo: 'Stock mínimo', valorInicial: !porDefecto && actual ? String(actual) : '', placeholder: defecto ? String(defecto) : (a.unidad === 'g' ? 'Ej: 500' : 'Ej: 2'), tipoInput: 'text'
     });
     if (respuesta === null) return;
-    const minimo = leerNumero(respuesta);
-    // Quitarlo guarda 0 (= sin mínimo) en vez de borrar la clave: la
-    // configuración se guarda con merge y una clave borrada del mapa
-    // volvería a aparecer al recargar.
+    const minimo = respuesta.trim() === '' ? null : leerNumero(respuesta);
     setCfg((prev) => ({
       ...prev,
-      inventarioMinimos: { ...(prev.inventarioMinimos || {}), [a.clave]: Number.isFinite(minimo) && minimo > 0 ? minimo : 0 }
+      inventarioMinimos: { ...(prev.inventarioMinimos || {}), [a.clave]: minimo === null || !Number.isFinite(minimo) ? null : Math.max(0, minimo) }
     }));
   };
 
@@ -142,8 +144,8 @@ export default function InventarioTab() {
             {visibles.map((a) => {
               const esEquipo = a.cat === 'Equipos';
               const sinStock = a.stock <= 0;
-              const minimo = minimoDe(minimos, a);
-              const bajo = estaBajoMinimo(minimos, a);
+              const { minimo, porDefecto } = minimoArticulo(cfg, a);
+              const bajo = estaBajoMinimo(cfg, a);
               // Bajo el mínimo se resalta (aunque esté en cero); sin stock y
               // sin mínimo, se atenúa.
               const estiloFila = bajo ? { background: 'var(--dangerDim)' } : sinStock ? { opacity: 0.55 } : undefined;
@@ -162,7 +164,7 @@ export default function InventarioTab() {
                       {formatoCantidad(a.stock, a.unidad)}
                       {minimo > 0 && (
                         <div style={{ fontSize: '11px', fontWeight: 400, color: bajo ? 'var(--danger)' : 'var(--text3)' }}>
-                          {bajo ? 'bajo mínimo · ' : ''}mín. {formatoCantidad(minimo, a.unidad)}
+                          {bajo ? 'bajo mínimo · ' : ''}mín. {formatoCantidad(minimo, a.unidad)}{porDefecto ? ' (por defecto)' : ''}
                         </div>
                       )}
                       {a.unidad === 'g' && (

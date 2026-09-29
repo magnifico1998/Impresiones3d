@@ -31,8 +31,8 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
   const { movimientos } = useMovimientosInventario();
   const cantidadBajoMinimo = useMemo(() => {
     if (!cfg.inventarioHabilitado) return 0;
-    return armarInventario(compras, movimientos).filter((a) => estaBajoMinimo(cfg.inventarioMinimos, a)).length;
-  }, [compras, movimientos, cfg.inventarioHabilitado, cfg.inventarioMinimos]);
+    return armarInventario(compras, movimientos).filter((a) => estaBajoMinimo(cfg, a)).length;
+  }, [compras, movimientos, cfg]);
   const elegirPestana = (id) => {
     setPestana(id);
     try {
