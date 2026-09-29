@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { paletas, paletasList } from '../utils/paletas';
 
-// La configuración se divide en dos pestañas: lo que hace a la app en sí
-// (apariencia, envíos) y lo que hace a las herramientas de trabajo del taller
-// (materiales, impresoras, costos y capacidad).
+// La configuración se divide en dos pestañas: las herramientas de trabajo
+// del taller (materiales, impresoras, costos de la Calculadora) y cómo
+// funciona la app (apariencia, envíos, gastos en Resumen, capacidad).
 const SECCIONES = [
-  { id: 'aplicacion', nombre: 'Aplicación', descripcion: 'Apariencia de la app y métodos de envío.' },
-  { id: 'herramientas', nombre: 'Herramientas', descripcion: 'Filamentos, impresoras, colores, insumos, costos por defecto y capacidad de producción.' }
+  { id: 'herramientas', nombre: 'Herramientas', descripcion: 'Filamentos, impresoras, colores, insumos y costos por defecto.' },
+  { id: 'aplicacion', nombre: 'Aplicación', descripcion: 'Apariencia, métodos de envío, cálculo de gastos y capacidad de producción.' }
 ];
 const CLAVE_SECCION = 'configuracion.seccion';
 
@@ -281,6 +281,120 @@ export default function ConfiguracionPage() {
                   + Agregar
                 </button>
               </div>
+
+              {/* Cómo se calculan los gastos en Resumen: es una preferencia de
+                  cómo mostrar los números, no un valor de la Calculadora. */}
+              <div className="card">
+                <div className="card-title">Cálculo de gastos</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    id="costoCompletoActivo"
+                    checked={!!cfg.costoCompletoActivo}
+                    onChange={(e) => setCfg(prev => ({ ...prev, costoCompletoActivo: e.target.checked }))}
+                  />
+                  <label htmlFor="costoCompletoActivo" style={{ fontSize: '13px' }}>
+                    Calcular gastos con el costo completo del producto
+                  </label>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
+                  Por defecto, "Gastos" en Resumen solo suma electricidad y mano de obra, y las compras
+                  de materiales/insumos se restan aparte en "Gastos compras". Si activás esta opción,
+                  "Gastos" pasa a sumar todos los ítems de costo del producto (filamento, insumos,
+                  mantenimiento, electricidad y mano de obra) y la rentabilidad deja de restar
+                  "Gastos compras", para no contar el mismo gasto dos veces.
+                </p>
+              </div>
+
+              {/* Capacidad de producción instalada -- etapa 1 de la estimación
+                  de ETA de pedidos (ver AppContext.jsx). Por ahora sólo define
+                  la capacidad; el cálculo de fechas estimadas se suma en una
+                  etapa aparte, después de verificar que estos datos se guardan
+                  y leen bien. */}
+              <div className="card">
+                <div className="card-title">Capacidad de producción</div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    id="capacidadHabilitada"
+                    checked={!!cfg.capacidadProduccion?.habilitado}
+                    onChange={(e) => handleCapacidadChange('habilitado', e.target.checked)}
+                  />
+                  <label htmlFor="capacidadHabilitada" style={{ fontSize: '13px' }}>
+                    Activar estimación de capacidad de producción
+                  </label>
+                </div>
+
+                {cfg.capacidadProduccion?.habilitado && (
+                  <>
+                    <div className="sep"></div>
+
+                    <label className="fl">Cantidad de impresoras</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={cfg.capacidadProduccion?.cantidadImpresoras ?? 1}
+                      onChange={(e) => handleCapacidadChange('cantidadImpresoras', parseInt(e.target.value) || 1)}
+                    />
+
+                    <label className="fl">Horas de trabajo por día</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="24"
+                      step="1"
+                      value={cfg.capacidadProduccion?.horasPorDia ?? 8}
+                      onChange={(e) => handleCapacidadChange('horasPorDia', parseInt(e.target.value) || 1)}
+                    />
+
+                    <label className="fl">Hora de inicio de la jornada</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="23"
+                      step="1"
+                      value={cfg.capacidadProduccion?.horaInicio ?? 9}
+                      onChange={(e) => handleCapacidadChange('horaInicio', parseInt(e.target.value) || 0)}
+                    />
+
+                    <label className="fl">Días laborables</label>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                      {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((letra, dia) => {
+                        const activo = (cfg.capacidadProduccion?.diasLaborables || []).includes(dia);
+                        return (
+                          <button
+                            key={dia}
+                            type="button"
+                            className="btn btn-sm"
+                            style={{
+                              padding: '4px 10px',
+                              background: activo ? 'var(--accentDim)' : undefined,
+                              color: activo ? 'var(--accent)' : undefined,
+                              borderColor: activo ? 'rgba(110,231,183,.3)' : undefined
+                            }}
+                            onClick={() => {
+                              const actuales = cfg.capacidadProduccion?.diasLaborables || [];
+                              const nuevos = activo
+                                ? actuales.filter(d => d !== dia)
+                                : [...actuales, dia].sort((a, b) => a - b);
+                              handleCapacidadChange('diasLaborables', nuevos);
+                            }}
+                          >
+                            {letra}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '8px' }}>
+                      Cantidad de impresoras y horario de trabajo disponibles para producir pedidos. Todavía
+                      no se usa para calcular nada en Pedidos -- eso se agrega en un próximo paso.
+                    </p>
+                  </>
+                )}
+              </div>
           </div>
         </div>
       )}
@@ -540,118 +654,6 @@ export default function ConfiguracionPage() {
                   step="1"
                   onChange={(e) => handleDefaultValueChange('desperdicio', e.target.value)}
                 />
-
-                <div className="sep"></div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                  <input
-                    type="checkbox"
-                    id="costoCompletoActivo"
-                    checked={!!cfg.costoCompletoActivo}
-                    onChange={(e) => setCfg(prev => ({ ...prev, costoCompletoActivo: e.target.checked }))}
-                  />
-                  <label htmlFor="costoCompletoActivo" style={{ fontSize: '13px' }}>
-                    Calcular gastos con el costo completo del producto
-                  </label>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
-                  Por defecto, "Gastos" en Resumen solo suma electricidad y mano de obra, y las compras
-                  de materiales/insumos se restan aparte en "Gastos compras". Si activás esta opción,
-                  "Gastos" pasa a sumar todos los ítems de costo del producto (filamento, insumos,
-                  mantenimiento, electricidad y mano de obra) y la rentabilidad deja de restar
-                  "Gastos compras", para no contar el mismo gasto dos veces.
-                </p>
-
-              </div>
-
-              {/* Capacidad de producción instalada -- etapa 1 de la estimación
-                  de ETA de pedidos (ver AppContext.jsx). Por ahora sólo define
-                  la capacidad; el cálculo de fechas estimadas se suma en una
-                  etapa aparte, después de verificar que estos datos se guardan
-                  y leen bien. */}
-              <div className="card">
-                <div className="card-title">Capacidad de producción</div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                  <input
-                    type="checkbox"
-                    id="capacidadHabilitada"
-                    checked={!!cfg.capacidadProduccion?.habilitado}
-                    onChange={(e) => handleCapacidadChange('habilitado', e.target.checked)}
-                  />
-                  <label htmlFor="capacidadHabilitada" style={{ fontSize: '13px' }}>
-                    Activar estimación de capacidad de producción
-                  </label>
-                </div>
-
-                {cfg.capacidadProduccion?.habilitado && (
-                  <>
-                    <div className="sep"></div>
-
-                    <label className="fl">Cantidad de impresoras</label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={cfg.capacidadProduccion?.cantidadImpresoras ?? 1}
-                      onChange={(e) => handleCapacidadChange('cantidadImpresoras', parseInt(e.target.value) || 1)}
-                    />
-
-                    <label className="fl">Horas de trabajo por día</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="24"
-                      step="1"
-                      value={cfg.capacidadProduccion?.horasPorDia ?? 8}
-                      onChange={(e) => handleCapacidadChange('horasPorDia', parseInt(e.target.value) || 1)}
-                    />
-
-                    <label className="fl">Hora de inicio de la jornada</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="23"
-                      step="1"
-                      value={cfg.capacidadProduccion?.horaInicio ?? 9}
-                      onChange={(e) => handleCapacidadChange('horaInicio', parseInt(e.target.value) || 0)}
-                    />
-
-                    <label className="fl">Días laborables</label>
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                      {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((letra, dia) => {
-                        const activo = (cfg.capacidadProduccion?.diasLaborables || []).includes(dia);
-                        return (
-                          <button
-                            key={dia}
-                            type="button"
-                            className="btn btn-sm"
-                            style={{
-                              padding: '4px 10px',
-                              background: activo ? 'var(--accentDim)' : undefined,
-                              color: activo ? 'var(--accent)' : undefined,
-                              borderColor: activo ? 'rgba(110,231,183,.3)' : undefined
-                            }}
-                            onClick={() => {
-                              const actuales = cfg.capacidadProduccion?.diasLaborables || [];
-                              const nuevos = activo
-                                ? actuales.filter(d => d !== dia)
-                                : [...actuales, dia].sort((a, b) => a - b);
-                              handleCapacidadChange('diasLaborables', nuevos);
-                            }}
-                          >
-                            {letra}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '8px' }}>
-                      Cantidad de impresoras y horario de trabajo disponibles para producir pedidos. Todavía
-                      no se usa para calcular nada en Pedidos -- eso se agrega en un próximo paso.
-                    </p>
-                  </>
-                )}
               </div>
           </div>
         </div>
