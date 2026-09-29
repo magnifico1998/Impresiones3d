@@ -344,87 +344,87 @@ export default function EmpresaPage() {
               onChange={handleChange} 
             />
           </div>
+
+          {/* ---- Plan contratado y consumo: debajo de Contacto, en la misma columna, para compactar la pantalla ---- */}
+          <div className="card">
+            <div className="card-title">Tu plan y consumo</div>
+
+            {!suscripcion && (
+              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No se pudo cargar la información de tu suscripción.</div>
+            )}
+
+            {suscripcion?.estado === 'trial' && (
+              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+                Estás en versión de prueba — todavía no tenés un plan contratado.
+              </div>
+            )}
+
+            {suscripcion && suscripcion.estado !== 'trial' && !planContratado && (
+              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no tenés un plan asignado.</div>
+            )}
+
+            {planContratado && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600 }}>{planContratado.nombre}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>{fmtMoneda(planContratado.precioMensual)}/mes</div>
+                </div>
+
+                <BarraConsumo
+                  etiqueta="Pedidos este ciclo"
+                  usado={consumoActual?.pedidosCreados}
+                  limite={planContratado.limites?.pedidosMes}
+                />
+                <BarraConsumo
+                  etiqueta="Aperturas del catálogo web"
+                  usado={consumoActual?.aperturasCatalogo}
+                  limite={planContratado.limites?.aperturasCatalogoMes}
+                />
+                <BarraConsumo
+                  etiqueta="Monto facturado este ciclo"
+                  usado={consumoActual?.montoFacturado}
+                  limite={planContratado.limites?.montoFacturadoMes}
+                  formatear={fmtMoneda}
+                />
+                <BarraConsumo
+                  etiqueta="Usuarios"
+                  usado={1 + miembrosActivos.length}
+                  limite={planContratado.limites?.usuarios}
+                />
+                <BarraConsumo
+                  etiqueta="Productos en biblioteca"
+                  usado={biblioteca.length}
+                  limite={planContratado.limites?.productosBiblioteca}
+                />
+              </>
+            )}
+
+            {/* Pago del plan: sólo el dueño contrata (un miembro invitado usa el plan del dueño). */}
+            {suscripcion && !esMiembro && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{textoDebito(suscripcion)}</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className="btn btn-sm"
+                    disabled={verificandoPago}
+                    onClick={handleVerificarPago}
+                    title="Consulta a Mercado Pago si tu pago ya se acreditó y actualiza tu plan"
+                  >
+                    {verificandoPago ? 'Verificando...' : 'Verificar pago'}
+                  </button>
+                  {debitoActivo && (
+                    <button className="btn btn-sm" disabled={cancelandoDebito} onClick={handleCancelarDebito}>
+                      {cancelandoDebito ? 'Cancelando...' : 'Cancelar débito'}
+                    </button>
+                  )}
+                  <button className="btn btn-primary btn-sm" onClick={() => setModalSuscribirseOpen(true)}>
+                    {debitoActivo ? 'Cambiar plan' : 'Contratar plan'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* ---- Plan contratado y consumo del ciclo actual ---- */}
-      <div className="card">
-        <div className="card-title">Tu plan y consumo</div>
-
-        {!suscripcion && (
-          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No se pudo cargar la información de tu suscripción.</div>
-        )}
-
-        {suscripcion?.estado === 'trial' && (
-          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
-            Estás en versión de prueba — todavía no tenés un plan contratado.
-          </div>
-        )}
-
-        {suscripcion && suscripcion.estado !== 'trial' && !planContratado && (
-          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Todavía no tenés un plan asignado.</div>
-        )}
-
-        {planContratado && (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 600 }}>{planContratado.nombre}</div>
-              <div style={{ fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>{fmtMoneda(planContratado.precioMensual)}/mes</div>
-            </div>
-
-            <BarraConsumo
-              etiqueta="Pedidos este ciclo"
-              usado={consumoActual?.pedidosCreados}
-              limite={planContratado.limites?.pedidosMes}
-            />
-            <BarraConsumo
-              etiqueta="Aperturas del catálogo web"
-              usado={consumoActual?.aperturasCatalogo}
-              limite={planContratado.limites?.aperturasCatalogoMes}
-            />
-            <BarraConsumo
-              etiqueta="Monto facturado este ciclo"
-              usado={consumoActual?.montoFacturado}
-              limite={planContratado.limites?.montoFacturadoMes}
-              formatear={fmtMoneda}
-            />
-            <BarraConsumo
-              etiqueta="Usuarios"
-              usado={1 + miembrosActivos.length}
-              limite={planContratado.limites?.usuarios}
-            />
-            <BarraConsumo
-              etiqueta="Productos en biblioteca"
-              usado={biblioteca.length}
-              limite={planContratado.limites?.productosBiblioteca}
-            />
-          </>
-        )}
-
-        {/* Pago del plan: sólo el dueño contrata (un miembro invitado usa el plan del dueño). */}
-        {suscripcion && !esMiembro && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{textoDebito(suscripcion)}</div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="btn btn-sm"
-                disabled={verificandoPago}
-                onClick={handleVerificarPago}
-                title="Consulta a Mercado Pago si tu pago ya se acreditó y actualiza tu plan"
-              >
-                {verificandoPago ? 'Verificando...' : 'Verificar pago'}
-              </button>
-              {debitoActivo && (
-                <button className="btn btn-sm" disabled={cancelandoDebito} onClick={handleCancelarDebito}>
-                  {cancelandoDebito ? 'Cancelando...' : 'Cancelar débito'}
-                </button>
-              )}
-              <button className="btn btn-primary btn-sm" onClick={() => setModalSuscribirseOpen(true)}>
-                {debitoActivo ? 'Cambiar plan' : 'Contratar plan'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ---- Contacto del revendedor (si esta cuenta fue activada por uno) ---- */}
