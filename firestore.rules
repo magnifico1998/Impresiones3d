@@ -209,6 +209,12 @@ service cloud.firestore {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
       allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
     }
+    // Movimientos del inventario (consumos, ajustes, bajas): datos de
+    // trabajo de la cuenta, mismo criterio que compras.
+    match /users/{uid}/inventarioMovimientos/{docId} {
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+    }
     // Presupuestos guardados (sección Presupuestos). A diferencia de los
     // pedidos sí se pueden borrar: todavía no son una venta. Aprobar uno
     // crea el pedido por la regla de pedidos de abajo, así que los límites

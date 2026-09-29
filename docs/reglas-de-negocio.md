@@ -384,10 +384,20 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   se sabe que se tienen) de las compras marcadas "Sumar al inventario"
   (`alInventario`): tildado por defecto en las compras nuevas; al editar se
   respeta lo que tenía (una compra vieja no entra sola).
-- El stock **se calcula a partir de las compras**, no se guarda aparte:
-  editar o borrar una compra lo corrige solo. Cada artículo es la
+- El stock **se calcula**: lo comprado más los movimientos
+  (\`users/{uid}/inventarioMovimientos\`: **consumo**, **ajuste** por conteo
+  físico y **baja**, con signo). No se guarda un stock aparte: editar o
+  borrar una compra o un movimiento lo corrige solo. Cada artículo es la
   combinación de categoría (o filamento) + nombre + marca + color, sin
   distinguir mayúsculas ni espacios.
+- **El filamento se lleva en gramos:** cada rollo comprado suma su peso
+  (\`pesoRollo\` de la línea, 1000 g si no se cargó) y los consumos
+  descuentan gramos. El costo promedio se muestra por kg. El resto de los
+  artículos va en unidades.
+- **Ajustar** registra la diferencia entre lo contado y el stock calculado;
+  **Dar de baja** descuenta lo que se rompió o se vendió. Los **equipos** no
+  se consumen ni se ajustan: sólo se dan de baja. Cada movimiento se puede
+  deshacer desde el historial del artículo.
 
 Código: `src/utils/inventario.js`, `src/components/ComprasPage.jsx`,
 `src/components/modals/ModalCompra.jsx`.

@@ -80,26 +80,43 @@ export function marcasUsadas(compras) {
   return juntarMarcas((compras || []).flatMap((c) => lineasDeCompra(c).map((l) => l.marca)));
 }
 
-// Movimiento de entrada al inventario de una línea. El artículo es la
-// combinación de categoría (o filamento) + nombre + marca + color.
+// Peso de un rollo cuando la compra no lo dice (compras anteriores al
+// inventario en gramos).
+export const PESO_ROLLO_DEFAULT = 1000;
+
+// Entrada al inventario de una línea. El artículo es la combinación de
+// categoría (o filamento) + nombre + marca + color. El filamento se lleva
+// en gramos (rollos x peso por rollo); el resto, en unidades.
 function entrada(l) {
   const filamento = esLineaFilamento(l);
+  const pesoRollo = filamento ? (Number(l.pesoRollo) || PESO_ROLLO_DEFAULT) : 1;
   return {
     clave: [filamento ? 'filamento' : claveArticulo(l.cat), claveArticulo(nombreBaseLinea(l)), claveArticulo(l.marca), claveArticulo(l.color)].join('|'),
     base: nombreBaseLinea(l),
     nombre: nombreArticulo(l),
     cat: filamento ? 'Filamento' : l.cat,
     filamento,
+    unidad: filamento ? 'g' : 'u',
+    pesoRollo,
     colorHex: l.colorHex || '',
-    qty: Number(l.qty) || 0,
+    qty: (Number(l.qty) || 0) * pesoRollo,
     total: subtotalLinea(l)
   };
 }
 
-// Artículos con su stock acumulado, ordenados: primero filamentos y después
-// el resto, cada grupo por nombre.
-//   { clave, nombre, cat, filamento, colorHex, cantidad, costoTotal, costoPromedio, ultimaCompra, compras }
-export function armarInventario(compras) {
+// Movimientos de inventario (users/{uid}/inventarioMovimientos): salidas y
+// correcciones que no vienen de compras. `cantidad` va con signo y en la
+// unidad del artículo (gramos para filamento, unidades para el resto).
+//   tipo: 'consumo' (de un pedido) | 'ajuste' (conteo físico) | 'baja'
+export const TIPOS_MOVIMIENTO = { consumo: 'Consumo', ajuste: 'Ajuste', baja: 'Baja' };
+
+// Artículos del inventario con su stock, ordenados: primero filamentos y
+// después el resto, cada grupo por nombre.
+//   { clave, nombre, cat, filamento, unidad, pesoRollo, colorHex,
+//     comprado, movido, stock, costoTotal, costoPromedio (por unidad),
+//     valorStock, ultimaCompra, compras, historial }
+// historial: entradas por compra y movimientos, del más nuevo al más viejo.
+export function armarInventario(compras, movimientos = []) {
   const articulos = new Map();
   for (const c of compras || []) {
     if (!c.alInventario) continue;
@@ -107,21 +124,47 @@ export function armarInventario(compras) {
       if (!CATEGORIAS_INVENTARIO.includes(l.cat)) continue;
       const e = entrada(l);
       if (!e.base) continue;
-      const a = articulos.get(e.clave) || { ...e, cantidad: 0, costoTotal: 0, ultimaCompra: '', compras: 0 };
-      a.cantidad += e.qty;
+      const a = articulos.get(e.clave) || { ...e, comprado: 0, movido: 0, costoTotal: 0, ultimaCompra: '', compras: 0, historial: [] };
+      a.comprado += e.qty;
       a.costoTotal += e.total;
       a.compras += 1;
-      // Nombre, categoría y color de la compra más reciente.
+      a.historial.push({ tipo: 'compra', fecha: c.fecha || '', cantidad: e.qty, nota: c.proveedor || '', compraId: c.id });
+      // Nombre, categoría, color y peso de rollo de la compra más reciente.
       if ((c.fecha || '') >= a.ultimaCompra) {
         a.ultimaCompra = c.fecha || a.ultimaCompra;
         a.nombre = e.nombre;
         a.cat = e.cat;
         a.colorHex = e.colorHex || a.colorHex;
+        a.pesoRollo = e.pesoRollo;
       }
       articulos.set(e.clave, a);
     }
   }
+  // Los movimientos de un artículo que ya no tiene compras (se borraron)
+  // no crean un artículo nuevo: sin compras no hay de dónde descontar.
+  for (const m of movimientos || []) {
+    const a = articulos.get(m.clave);
+    if (!a) continue;
+    a.movido += Number(m.cantidad) || 0;
+    a.historial.push({ tipo: m.tipo, fecha: m.fecha || '', cantidad: Number(m.cantidad) || 0, nota: m.nota || '', pedidoId: m.pedidoId || null, id: m.id });
+  }
   return [...articulos.values()]
-    .map((a) => ({ ...a, costoPromedio: a.cantidad ? a.costoTotal / a.cantidad : 0 }))
+    .map((a) => {
+      const costoPromedio = a.comprado ? a.costoTotal / a.comprado : 0;
+      const stock = a.comprado + a.movido;
+      return {
+        ...a,
+        stock,
+        costoPromedio,
+        valorStock: Math.max(0, stock) * costoPromedio,
+        historial: a.historial.sort((x, y) => (y.fecha || '').localeCompare(x.fecha || ''))
+      };
+    })
     .sort((x, y) => (x.filamento === y.filamento ? x.nombre.localeCompare(y.nombre, 'es') : x.filamento ? -1 : 1));
+}
+
+// Cantidad con su unidad: "2.350 g" o "3 u.".
+export function formatoCantidad(cantidad, unidad) {
+  const n = Math.round((Number(cantidad) || 0) * 10) / 10;
+  return `${n.toLocaleString('es-AR')} ${unidad === 'g' ? 'g' : 'u.'}`;
 }

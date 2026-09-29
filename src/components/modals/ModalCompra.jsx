@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import {
-  CATEGORIAS_INVENTARIO, esLineaFilamento, juntarMarcas, lineasDeCompra, marcasUsadas, resumenCompra, subtotalLinea
+  CATEGORIAS_INVENTARIO, PESO_ROLLO_DEFAULT, esLineaFilamento, juntarMarcas, lineasDeCompra, marcasUsadas, resumenCompra, subtotalLinea
 } from '../../utils/inventario';
 import SelectorConAlta from '../SelectorConAlta';
 
@@ -42,7 +42,9 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
     const f = filamentos[0];
     return {
       clase, tipo: clase === 'Filamento' ? (f?.nombre || '') : '', marca: '', color: '', colorHex: '', desc: '',
-      qty: '1', precio: clase === 'Filamento' && f ? String(f.precio) : ''
+      qty: '1', precio: clase === 'Filamento' && f ? String(f.precio) : '',
+      // Peso de cada rollo: el inventario lleva el filamento en gramos.
+      pesoRollo: String(PESO_ROLLO_DEFAULT)
     };
   };
 
@@ -64,7 +66,8 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
         setForm({
           lineas: lineasDeCompra(c).map((l) => ({
             clase: claseDe(l), tipo: l.tipo || '', marca: l.marca || '', color: l.color || '', colorHex: l.colorHex || '',
-            desc: l.desc || '', qty: String(l.qty ?? 1), precio: String(l.precio ?? '')
+            desc: l.desc || '', qty: String(l.qty ?? 1), precio: String(l.precio ?? ''),
+            pesoRollo: String(l.pesoRollo || PESO_ROLLO_DEFAULT)
           })),
           proveedor: c.proveedor || '',
           fecha: c.fecha || '',
@@ -142,7 +145,7 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
         precio: parseFloat(l.precio) || 0
       };
       return clase.subtipo === 'Filamento'
-        ? { ...base, tipo: (l.tipo || '').trim() }
+        ? { ...base, tipo: (l.tipo || '').trim(), pesoRollo: parseFloat(l.pesoRollo) || PESO_ROLLO_DEFAULT }
         : { ...base, desc: (l.desc || '').trim() };
     });
 
@@ -311,7 +314,12 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                     <td>
                       {/* Mismos datos en todas las categorías: nombre (tipo de filamento o
                           descripción), marca y color. Marca y color son opcionales. */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1.4fr) minmax(120px, 1fr) minmax(150px, 1.1fr)', gap: '6px' }}>
+                      <div style={{
+                        display: 'grid',
+                        // Filamento suma una columna chica con el peso por rollo.
+                        gridTemplateColumns: 'minmax(150px, 1.4fr) minmax(120px, 1fr) minmax(150px, 1.1fr)' + (l.clase === 'Filamento' ? ' 90px' : ''),
+                        gap: '6px'
+                      }}>
                           {l.clase === 'Filamento' ? (
                             <SelectorConAlta value={l.tipo} opciones={filamentos.map((f) => f.nombre)} placeholder="Tipo de filamento" onChange={(v) => cambiarLinea(i, 'tipo', v)} />
                           ) : (
@@ -345,6 +353,12 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                               )}
                             />
                           </div>
+                          {l.clase === 'Filamento' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title="Peso de cada rollo (el inventario lleva el filamento en gramos)">
+                              <input type="number" min="1" step="50" value={l.pesoRollo} onChange={(e) => cambiarLinea(i, 'pesoRollo', e.target.value)} />
+                              <span style={{ color: 'var(--text3)' }}>g</span>
+                            </div>
+                          )}
                       </div>
                     </td>
                     <td><input type="number" min="1" step="1" value={l.qty} onChange={(e) => cambiarLinea(i, 'qty', e.target.value)} /></td>

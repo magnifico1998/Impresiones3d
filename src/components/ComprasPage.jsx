@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
-import { armarInventario, categoriasDeCompra, lineasDeCompra, subtotalLinea, totalCompra } from '../utils/inventario';
+import { categoriasDeCompra, lineasDeCompra, subtotalLinea, totalCompra } from '../utils/inventario';
+import InventarioTab from './InventarioTab';
 
 // Pestañas de Compras. "Inventario" existe sólo si está habilitado en
 // Configuración → Aplicación. La elegida se recuerda en el navegador.
@@ -24,8 +25,6 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
   const { compras, removeCompra, showToast, fmt, cfg } = useApp();
   const [pestana, setPestana] = useState(pestanaComprasGuardada);
   const pestanaVisible = cfg.inventarioHabilitado ? pestana : 'compras';
-  const [busquedaInventario, setBusquedaInventario] = useState('');
-  const inventario = useMemo(() => armarInventario(compras), [compras]);
   const elegirPestana = (id) => {
     setPestana(id);
     try {
@@ -231,72 +230,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
         </>
       )}
 
-      {pestanaVisible === 'inventario' && (() => {
-        const texto = busquedaInventario.trim().toLowerCase();
-        const visibles = inventario.filter((a) => !texto || a.nombre.toLowerCase().includes(texto));
-        const valorTotal = visibles.reduce((s, a) => s + a.costoTotal, 0);
-        return (
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
-              <div className="card-title" style={{ marginBottom: 0 }}>Inventario</div>
-              <input
-                type="text"
-                value={busquedaInventario}
-                onChange={(e) => setBusquedaInventario(e.target.value)}
-                placeholder="Buscar artículo…"
-                style={{ maxWidth: '260px' }}
-              />
-            </div>
-            {inventario.length === 0 ? (
-              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
-                Todavía no hay artículos. Las compras de Insumos y Accesorios marcadas "Sumar al inventario" aparecen acá.
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
-                  {visibles.length} artículo{visibles.length === 1 ? '' : 's'} · valor comprado {fmt(valorTotal)}
-                </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Artículo</th>
-                        <th>Categoría</th>
-                        <th style={{ textAlign: 'right' }}>Cantidad</th>
-                        <th style={{ textAlign: 'right' }}>Costo promedio</th>
-                        <th style={{ textAlign: 'right' }}>Valor</th>
-                        <th>Última compra</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibles.map((a) => (
-                        <tr key={a.clave}>
-                          <td>
-                            {a.colorHex && (
-                              <span
-                                style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '6px', verticalAlign: '-1px', border: '1px solid var(--border2)', background: a.colorHex || 'transparent' }}
-                              />
-                            )}
-                            {a.nombre}
-                          </td>
-                          <td><span className={`badge ${catBadgeClass(a.cat)}`}>{a.cat}</span></td>
-                          <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600 }}>{a.cantidad}</td>
-                          <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>{fmt(a.costoPromedio)}</td>
-                          <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>{fmt(a.costoTotal)}</td>
-                          <td style={{ fontFamily: 'var(--mono)' }}>
-                            {a.ultimaCompra ? a.ultimaCompra.split('-').reverse().join('/') : '—'}
-                            <span style={{ color: 'var(--text3)', marginLeft: '6px' }}>({a.compras} compra{a.compras === 1 ? '' : 's'})</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })()}
+      {pestanaVisible === 'inventario' && <InventarioTab />}
     </div>
   );
 }
