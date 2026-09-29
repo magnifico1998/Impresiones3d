@@ -361,24 +361,32 @@ Se guardan en `users/{uid}/presupuestos`. Código:
 - **Las métricas y el filtro de Compras van por línea:** el total de una
   compra se reparte entre las categorías de sus líneas, y la compra aparece
   en cada categoría que tenga.
-- **Filamento** es una línea de Insumos con tipo (Configuración →
-  Filamentos), marca y color (Configuración → Colores). Si el tipo o el color
-  no existen se pueden agregar desde la línea y, al guardar la compra, se
-  suman a la configuración (el tipo con el precio de la línea, el color con
-  el tono elegido). Las marcas nuevas quedan en `cfg.marcasFilamento`.
+- **Todas las líneas tienen los mismos datos:** nombre, marca, color,
+  cantidad y precio (marca y color son opcionales). En **filamento** (línea
+  de Insumos con subtipo) el nombre es el tipo, de Configuración →
+  Filamentos; en el resto es una descripción, de la lista de artículos de
+  esa categoría (`cfg.articulosCompra`). El color sale de Configuración →
+  Colores y las marcas son una sola lista para todas las categorías
+  (`cfg.marcasFilamento`).
+- **Lo que no existe se agrega desde la línea:** al guardar la compra, los
+  tipos de filamento nuevos se suman a Filamentos (con el precio de la
+  línea), los colores a Colores (con el tono elegido), y las marcas y los
+  artículos nuevos a sus listas. También se sugieren dentro de la misma
+  compra, en las otras líneas.
 - Compras anteriores a las líneas se siguen leyendo igual: una compra común
   es una línea, y las de filamento con `items` son varias líneas de
   filamento (`lineasDeCompra`). Al editarlas y guardarlas pasan al formato
   nuevo.
 - **Inventario:** se prende en Configuración → Aplicación → "Llevar
   inventario" (`cfg.inventarioHabilitado`) y suma la pestaña "Inventario"
-  en Compras. Solo entran las líneas de **Insumos (incluido filamento) y
-  Accesorios** de las compras marcadas "Sumar al inventario"
+  en Compras. Entran **todas las líneas salvo Impuestos** (filamentos,
+  insumos, accesorios, equipos y otros: algunos se consumen y otros no, pero
+  se sabe que se tienen) de las compras marcadas "Sumar al inventario"
   (`alInventario`): tildado por defecto en las compras nuevas; al editar se
   respeta lo que tenía (una compra vieja no entra sola).
 - El stock **se calcula a partir de las compras**, no se guarda aparte:
-  editar o borrar una compra lo corrige solo. Cada combinación tipo + marca +
-  color de filamento es un artículo; el resto se agrupa por descripción, sin
+  editar o borrar una compra lo corrige solo. Cada artículo es la
+  combinación de categoría (o filamento) + nombre + marca + color, sin
   distinguir mayúsculas ni espacios.
 
 Código: `src/utils/inventario.js`, `src/components/ComprasPage.jsx`,
