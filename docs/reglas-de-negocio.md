@@ -350,23 +350,36 @@ Se guardan en `users/{uid}/presupuestos`. Código:
 - Cada apertura del catálogo suma al contador de aperturas del ciclo
   (`functions/http/registrarAperturaCatalogo.js`).
 
-### Inventario
+### Compras e inventario
 
-- Se prende por cuenta en Configuración → Aplicación → "Llevar inventario"
-  (`cfg.inventarioHabilitado`). Con eso aparece la pestaña "Inventario" en
-  Compras.
-- **Solo Insumos y Accesorios** se inventarían. En esas compras aparece
-  "Sumar al inventario": tildado por defecto en las compras nuevas; al editar
-  una compra se respeta lo que tenía (una compra vieja no entra sola).
-- El stock **se calcula a partir de las compras marcadas** (`alInventario`), no
-  se guarda aparte: editar o borrar una compra corrige el stock solo. Las
-  compras se agrupan por descripción, sin distinguir mayúsculas ni espacios.
-- **Filamento:** en Insumos, el tipo de insumo "Filamento" carga varias líneas
-  en una misma compra (tipo de Configuración → Filamentos, marca, color de
-  Configuración → Colores, cantidad y precio). Cada combinación tipo + marca +
-  color es un artículo propio del inventario. La compra guarda las líneas en
-  `items` (`subtipo: 'Filamento'`) y además un resumen en desc/qty/precio/total
-  para el listado y los totales de Compras.
+- **Una compra es un ingreso tipo carrito:** varias líneas, cada una con su
+  categoría (Filamento, Insumo, Accesorio, Equipo, Impuesto u Otro). Así un
+  mismo pedido al proveedor con filamentos y boquillas es un solo ingreso.
+  Las líneas se guardan en `lineas`; la compra además guarda un resumen
+  (`desc`, `cat` = la única categoría o "Varios", `qty`, `precio` promedio,
+  `total`) para los listados y el Resumen.
+- **Las métricas y el filtro de Compras van por línea:** el total de una
+  compra se reparte entre las categorías de sus líneas, y la compra aparece
+  en cada categoría que tenga.
+- **Filamento** es una línea de Insumos con tipo (Configuración →
+  Filamentos), marca y color (Configuración → Colores). Si el tipo o el color
+  no existen se pueden agregar desde la línea y, al guardar la compra, se
+  suman a la configuración (el tipo con el precio de la línea, el color con
+  el tono elegido). Las marcas nuevas quedan en `cfg.marcasFilamento`.
+- Compras anteriores a las líneas se siguen leyendo igual: una compra común
+  es una línea, y las de filamento con `items` son varias líneas de
+  filamento (`lineasDeCompra`). Al editarlas y guardarlas pasan al formato
+  nuevo.
+- **Inventario:** se prende en Configuración → Aplicación → "Llevar
+  inventario" (`cfg.inventarioHabilitado`) y suma la pestaña "Inventario"
+  en Compras. Solo entran las líneas de **Insumos (incluido filamento) y
+  Accesorios** de las compras marcadas "Sumar al inventario"
+  (`alInventario`): tildado por defecto en las compras nuevas; al editar se
+  respeta lo que tenía (una compra vieja no entra sola).
+- El stock **se calcula a partir de las compras**, no se guarda aparte:
+  editar o borrar una compra lo corrige solo. Cada combinación tipo + marca +
+  color de filamento es un artículo; el resto se agrupa por descripción, sin
+  distinguir mayúsculas ni espacios.
 
 Código: `src/utils/inventario.js`, `src/components/ComprasPage.jsx`,
 `src/components/modals/ModalCompra.jsx`.

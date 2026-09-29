@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
-import { armarInventario } from '../utils/inventario';
+import { armarInventario, categoriasDeCompra, lineasDeCompra, subtotalLinea, totalCompra } from '../utils/inventario';
 
 // Pestañas de Compras. "Inventario" existe sólo si está habilitado en
 // Configuración → Aplicación. La elegida se recuerda en el navegador.
@@ -45,13 +45,17 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
     let accesorios = 0;
     let impuestos = 0;
 
+    // Por línea: una compra con filamentos y boquillas reparte su total
+    // entre Insumos y Accesorios.
     compras.forEach(c => {
-      const sum = c.total || (c.precio * c.qty) || 0;
-      total += sum;
-      if (c.cat === 'Insumos') insumos += sum;
-      else if (c.cat === 'Equipos') equipos += sum;
-      else if (c.cat === 'Accesorios') accesorios += sum;
-      else if (c.cat === 'Impuestos') impuestos += sum;
+      total += totalCompra(c);
+      lineasDeCompra(c).forEach((l) => {
+        const sum = subtotalLinea(l);
+        if (l.cat === 'Insumos') insumos += sum;
+        else if (l.cat === 'Equipos') equipos += sum;
+        else if (l.cat === 'Accesorios') accesorios += sum;
+        else if (l.cat === 'Impuestos') impuestos += sum;
+      });
     });
 
     return { total, insumos, equipos, accesorios, impuestos };
@@ -59,7 +63,8 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
 
   // Filter list by category
   const filteredList = useMemo(() => {
-    const list = filtroCat === 'todas' ? compras : compras.filter(c => c.cat === filtroCat);
+    // Una compra aparece en cada categoría que tenga alguna de sus líneas.
+    const list = filtroCat === 'todas' ? compras : compras.filter(c => categoriasDeCompra(c).includes(filtroCat));
     // Sort by date descending
     return [...list].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
   }, [compras, filtroCat]);
@@ -198,15 +203,17 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
                         {c.desc}
                       </td>
                       <td>
-                        <span className={`badge ${catBadgeClass(c.cat)}`}>
-                          {c.cat || 'Otros'}
-                        </span>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {(categoriasDeCompra(c).length ? categoriasDeCompra(c) : ['Otros']).map((cat) => (
+                            <span key={cat} className={`badge ${catBadgeClass(cat)}`}>{cat}</span>
+                          ))}
+                        </div>
                       </td>
                       <td style={{ fontFamily: 'var(--mono)', color: 'var(--text2)' }}>{c.proveedor || '—'}</td>
                       <td style={{ fontFamily: 'var(--mono)', textAlign: 'center' }}>{c.qty || 1}</td>
                       <td style={{ fontFamily: 'var(--mono)', textAlign: 'right' }}>{fmt(c.precio || 0)}</td>
                       <td style={{ fontFamily: 'var(--mono)', textAlign: 'right', fontWeight: 600, color: 'var(--danger)' }}>
-                        {fmt(c.total || (c.precio * c.qty))}
+                        {fmt(totalCompra(c))}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
