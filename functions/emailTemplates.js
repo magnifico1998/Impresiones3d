@@ -167,6 +167,16 @@ const DEFAULTS = {
     `.trim(),
     variables: { nombre: 'Juana', comprobante: 'Factura C 00003-00000012', importe: '$ 15.000,00' },
   },
+  facturaEmprendimiento: {
+    label: 'Factura de un emprendimiento a su cliente (con el PDF adjunto)',
+    subject: '{{emprendimiento}}: tu {{comprobante}}',
+    bodyHtml: `
+      <h2 style="${TITULO}">Tu comprobante de {{emprendimiento}}</h2>
+      <p>Hola {{nombre}}, te adjuntamos la <strong>{{comprobante}}</strong> por <strong>{{importe}}</strong>.</p>
+      <p>Si tenés alguna consulta, respondé este mail y le llega directamente a {{emprendimiento}}.</p>
+    `.trim(),
+    variables: { nombre: 'Juana', comprobante: 'Factura C 00002-00000015', importe: '$ 45.000,00', emprendimiento: 'Impresiones Lucas' },
+  },
 };
 
 // Los valores de este formulario los tipea cualquier cuenta autenticada

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { CONDICIONES_IVA } from '../../utils/facturacion';
 
 export default function ModalCliente({ isOpen, onClose, editId }) {
   const { clientes, addCliente, updateCliente, updatePedidosBulk, getNewId, showToast } = useApp();
@@ -9,6 +10,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
     tel: '',
     email: '',
     documento: '',
+    condicionIva: '5',
     prov: '',
     loc: '',
     cp: '',
@@ -29,6 +31,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
             tel: c.tel || '',
             email: c.email || '',
             documento: c.documento || '',
+            condicionIva: c.condicionIva || '5',
             prov: c.prov || '',
             loc: c.loc || '',
             cp: c.cp || '',
@@ -45,6 +48,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           tel: '',
           email: '',
           documento: '',
+          condicionIva: '5',
           prov: '',
           loc: '',
           cp: '',
@@ -80,6 +84,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
       tel: form.tel,
       email: form.email,
       documento: form.documento,
+      condicionIva: form.condicionIva,
       prov: form.prov,
       loc: form.loc,
       cp: form.cp,
@@ -147,6 +152,13 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           <div>
             <label className="fl">N° de documento</label>
             <input type="text" id="documento" value={form.documento} onChange={handleChange} />
+          </div>
+          <div>
+            {/* Para facturarle: con CUIT (11 dígitos) se informa esta condición; con DNI o sin documento, siempre consumidor final. */}
+            <label className="fl">Condición frente al IVA</label>
+            <select id="condicionIva" value={form.condicionIva} onChange={handleChange}>
+              {CONDICIONES_IVA.map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
+            </select>
           </div>
           <div>
             <label className="fl">Provincia</label>

@@ -199,6 +199,22 @@ async function ultimoAutorizado(emisor, tipoCbte) {
   return Number(r.CbteNro);
 }
 
+// Puntos de venta habilitados para Web Services del CUIT emisor (los del
+// facturador online no aparecen). Lista vacía si no tiene ninguno (602).
+async function puntosDeVenta(emisor) {
+  const r = await llamarWsfe(emisor, 'FEParamGetPtosVenta', {});
+  const errores = erroresDe(r);
+  if (errores.some((e) => e.codigo === '602')) return [];
+  if (errores.length) throw new ErrorArca(`ARCA: ${errores[0].mensaje}`, { errores });
+  const lista = r.ResultGet?.PtoVenta;
+  return (Array.isArray(lista) ? lista : lista ? [lista] : []).map((p) => ({
+    numero: Number(p.Nro),
+    tipo: p.EmisionTipo,
+    bloqueado: p.Bloqueado === 'S',
+    baja: p.FchBaja && p.FchBaja !== 'NULL' ? p.FchBaja : null
+  }));
+}
+
 // Devuelve el comprobante emitido o null si ARCA no lo tiene (código 602).
 async function consultarComprobante(emisor, tipoCbte, numero) {
   const r = await llamarWsfe(emisor, 'FECompConsultar', {
@@ -248,5 +264,5 @@ async function probarConexion(emisor) {
 
 module.exports = {
   arcaCert, arcaKey, ErrorArca,
-  ultimoAutorizado, consultarComprobante, solicitarCae, probarConexion
+  ultimoAutorizado, puntosDeVenta, consultarComprobante, solicitarCae, probarConexion
 };

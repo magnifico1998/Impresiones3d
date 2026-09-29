@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-28 (facturación electrónica con ARCA para el admin).
+Última revisión: 2026-09-29 (facturación electrónica de los pedidos de cada suscriptor).
 
 ---
 
@@ -349,6 +349,44 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   los miembros de la cuenta (`functions/triggers/onNuevaSolicitudCatalogo.js`).
 - Cada apertura del catálogo suma al contador de aperturas del ciclo
   (`functions/http/registrarAperturaCatalogo.js`).
+
+### Facturación electrónica de los pedidos
+
+Cada suscriptor puede emitir **Factura C** (monotributistas) de sus pedidos
+con **su propio CUIT**, desde el detalle del pedido.
+
+- **Quién la tiene:** solo las cuentas cuyo plan tiene activado
+  "Facturación electrónica" (`planes/{id}.facturacionElectronica`, se prende
+  por plan desde el panel admin, también en planes gratuitos o especiales).
+  La prueba de 7 días no tiene plan, así que no factura. Una cuenta en modo
+  lectura o bloqueada no puede emitir (sí ver y bajar las que ya tiene).
+- **Cómo se habilita:** el suscriptor, en ARCA, **delega el servicio
+  "Facturación Electrónica" al CUIT de Manager3D** (20262375065) y crea un
+  punto de venta "Web Services". En "Mi emprendimiento" carga CUIT, punto de
+  venta y datos del emisor; el servidor lo verifica contra ARCA (delegación y
+  punto de venta). Solo el dueño configura; el dueño y los miembros facturan.
+- **Un CUIT, una cuenta:** la primera cuenta que configura un CUIT se lo
+  reserva (`cuitsFacturacion/{cuit}`). Como la delegación es a Manager3D y
+  no a una cuenta, sin esto otra cuenta podría facturar con un CUIT ajeno.
+  Liberarlo es manual (ver operacion.md).
+- **Una factura vigente por pedido.** Se puede volver a facturar solo si la
+  anterior se anuló con nota de crédito, o si quedó con error y se descartó.
+  No se descarta una factura "incierta" (ARCA pudo haberla autorizado): hay
+  que reintentar, que primero lo consulta.
+- No se factura un pedido cancelado ni uno "en verificación".
+- La factura se precarga con las piezas del pedido, la **bonificación**
+  (diferencia entre la suma de las piezas y el precio neto) y el **envío**
+  como ítem; todo es editable (por ejemplo, facturar solo la seña). El
+  receptor sale de la ficha del cliente: con CUIT se informa su condición
+  frente al IVA; con DNI o sin documento, consumidor final.
+- **El mail** con el PDF sale de la casilla de Manager3D con el nombre del
+  emprendimiento, y las respuestas le llegan al suscriptor (plantilla
+  `facturaEmprendimiento`).
+
+Código: `functions/http/facturacionCuenta.js`, `functions/facturacion.js`,
+`src/components/SeccionFacturaPedido.jsx`,
+`src/components/modals/ModalFacturarPedido.jsx`,
+`src/components/TarjetaFacturacionCuenta.jsx`.
 
 ---
 

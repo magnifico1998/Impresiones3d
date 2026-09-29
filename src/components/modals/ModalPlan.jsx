@@ -9,6 +9,7 @@ const FORM_VACIO = {
   orden: '1',
   activo: true,
   gratuito: false,
+  facturacionElectronica: false,
   limites: { usuarios: '', productosBiblioteca: '', pedidosMes: '', aperturasCatalogoMes: '', montoFacturadoMes: '' }
 };
 
@@ -29,6 +30,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
         orden: plan.orden ?? '1',
         activo: plan.activo !== false,
         gratuito: !!plan.gratuito,
+        facturacionElectronica: !!plan.facturacionElectronica,
         limites: {
           usuarios: plan.limites?.usuarios ?? '',
           productosBiblioteca: plan.limites?.productosBiblioteca ?? '',
@@ -67,6 +69,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
         orden: Number(form.orden) || 1,
         activo: !!form.activo,
         gratuito: !!form.gratuito,
+        facturacionElectronica: !!form.facturacionElectronica,
         limites: {
           usuarios: aNumeroONull(form.limites.usuarios),
           productosBiblioteca: aNumeroONull(form.limites.productosBiblioteca),
@@ -113,6 +116,12 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
             <input type="checkbox" id="gratuito" checked={form.gratuito} onChange={(e) => setForm(prev => ({ ...prev, gratuito: e.target.checked }))} />
             <label htmlFor="gratuito" style={{ fontSize: '13px' }}>
               Plan gratuito (ej. Boceto): no vence a fecha fija, se extiende sola 30 días con cada ingreso del dueño
+            </label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+            <input type="checkbox" id="facturacionElectronica" checked={form.facturacionElectronica} onChange={(e) => setForm(prev => ({ ...prev, facturacionElectronica: e.target.checked }))} />
+            <label htmlFor="facturacionElectronica" style={{ fontSize: '13px' }}>
+              Facturación electrónica: las cuentas con este plan pueden emitir Factura C de sus pedidos (ARCA)
             </label>
           </div>
         </div>

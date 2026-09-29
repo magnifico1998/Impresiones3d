@@ -6,6 +6,7 @@ import { paisesList, PAIS_DEFAULT } from '../utils/paises';
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import ModalSuscribirse from './modals/ModalSuscribirse';
+import TarjetaFacturacionCuenta from './TarjetaFacturacionCuenta';
 import { sincronizarPagoMP } from '../utils/pagosMP';
 
 // Texto del estado del débito automático de Mercado Pago
@@ -443,6 +444,8 @@ export default function EmpresaPage() {
           </div>
         </div>
       )}
+
+      <TarjetaFacturacionCuenta />
 
       {/* ---- Usuarios con acceso a la cuenta ---- */}
       <div className="card">

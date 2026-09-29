@@ -170,6 +170,16 @@ emisor, ficha del suscriptor) y tocá **Reintentar**: es seguro, si ARCA ya la
 había autorizado se toma esa, no se duplica. Log:
 `firebase functions:log --only onPagoMPRegistrado`.
 
+**Un suscriptor no puede verificar la facturación.**
+El mensaje de la tarjeta de "Mi emprendimiento" dice qué falta. Lo más común:
+no delegó "Facturación Electrónica" al CUIT 20262375065, o el punto de venta
+no es del tipo Web Services. La delegación puede tardar unos minutos.
+
+**"Ese CUIT ya está configurado en otra cuenta".**
+Firestore → `cuitsFacturacion/{cuit}` dice qué cuenta lo tiene (`uid`).
+Verificá quién es el dueño real del CUIT; si corresponde, borrá ese doc a
+mano y que el suscriptor vuelva a tocar "Guardar y verificar".
+
 **ARCA dice que ya hay un ticket vigente ("alreadyAuthenticated").**
 Se perdió el ticket guardado en `arcaTickets` (o se pidió uno desde otro
 sistema con el mismo certificado). Hay que esperar a que venza, hasta 12
@@ -188,5 +198,7 @@ la contraseña de la cuenta) y los logs de la función que manda el mail.
 - **Cambiar precios o límites:** panel Admin → Planes. Ojo: las suscripciones de
   Mercado Pago que ya existen pueden seguir cobrando el precio anterior; la
   comisión del revendedor se calcula sobre lo realmente cobrado.
+- **Habilitar la facturación de pedidos a un plan:** panel Admin → Planes →
+  editar → tildar "Facturación electrónica".
 - **Facturar a revendedores:** después del día 1, en panel Admin → revendedor
   → historial: descargar el PDF del mes y marcarlo como "Facturado".

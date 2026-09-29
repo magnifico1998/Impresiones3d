@@ -27,6 +27,7 @@ const { habilitarRevendedor, deshabilitarRevendedor, borrarRevendedor, actualiza
 const { cierreMensualRevendedores } = require('./scheduled/cierreMensualRevendedores');
 const { onPagoMPRegistrado } = require('./triggers/onPagoMPRegistrado');
 const { probarConexionArca, emitirFacturaManual, facturarPagoMP, reintentarFactura, anularFactura, descargarFacturaPDF, reenviarFacturaMail } = require('./http/facturacion');
+const { configurarFacturacionCuenta, facturarPedido, reintentarFacturaCuenta, descartarFacturaCuenta, anularFacturaCuenta, descargarFacturaCuentaPDF, enviarFacturaCuentaMail } = require('./http/facturacionCuenta');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
 module.exports = {
@@ -70,5 +71,12 @@ module.exports = {
   reintentarFactura,
   anularFactura,
   descargarFacturaPDF,
-  reenviarFacturaMail
+  reenviarFacturaMail,
+  configurarFacturacionCuenta,
+  facturarPedido,
+  reintentarFacturaCuenta,
+  descartarFacturaCuenta,
+  anularFacturaCuenta,
+  descargarFacturaCuentaPDF,
+  enviarFacturaCuentaMail
 };

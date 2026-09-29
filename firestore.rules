@@ -182,6 +182,25 @@ service cloud.firestore {
       allow create: if tieneAcceso(uid);
       allow update, delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
     }
+    // ---- Facturación electrónica de la cuenta (ARCA) ----
+    // Las facturas, el vínculo pedido -> factura y la configuración del
+    // emisor los escribe sólo el servidor (functions/http/
+    // facturacionCuenta.js): el número y el CAE vienen de ARCA, y el CUIT
+    // queda reservado a esta cuenta (cuitsFacturacion, sin acceso desde la
+    // app). El dueño y los miembros los pueden leer.
+    match /users/{uid}/facturas/{docId} {
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow write: if false;
+    }
+    match /users/{uid}/facturasPorPedido/{pedidoId} {
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow write: if false;
+    }
+    match /users/{uid}/facturacion/{docId} {
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow write: if false;
+    }
+
     match /users/{uid}/clientes/{docId} {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
       allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);

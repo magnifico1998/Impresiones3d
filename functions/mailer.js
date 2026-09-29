@@ -25,14 +25,20 @@ function crearTransporter() {
 // `secrets: [gmailAppPassword]` en sus opciones (v2), si no
 // gmailAppPassword.value() viene vacío en producción.
 // attachments: formato de nodemailer ([{ filename, content: Buffer }]).
-async function enviarEmail({ to, subject, html, attachments }) {
+// fromName / replyTo: para mails que se mandan en nombre de un suscriptor
+// (ej. sus facturas): la casilla sigue siendo la de Manager3D (Gmail no deja
+// mandar como otra dirección), pero se ve su nombre y las respuestas le
+// llegan a él.
+async function enviarEmail({ to, subject, html, attachments, fromName, replyTo }) {
   const transporter = crearTransporter();
+  const nombre = String(fromName || 'Manager3D').replace(/["<>\r\n]/g, '');
   await transporter.sendMail({
-    from: `"Manager3D" <${GMAIL_USER}>`,
+    from: `"${nombre}" <${GMAIL_USER}>`,
     to,
     subject,
     html,
     attachments,
+    replyTo,
   });
 }
 

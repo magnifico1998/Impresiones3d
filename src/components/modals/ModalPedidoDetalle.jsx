@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
 import { buildWaLink, findClientePedido } from '../../utils/whatsapp';
+import SeccionFacturaPedido from '../SeccionFacturaPedido';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
   const {
@@ -1342,6 +1343,13 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             </div>
           </div>
         </div>
+
+        <SeccionFacturaPedido
+          pedido={draft}
+          cliente={clienteDelPedido}
+          precioVentaNeto={precioVentaNeto}
+          persistirBorrador={persistDraft}
+        />
 
         <div className="sep"></div>
 

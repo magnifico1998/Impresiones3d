@@ -1021,6 +1021,7 @@ export default function AdminPage({ modoRevendedor = false }) {
                       <div style={{ fontSize: '13px', fontWeight: 600 }}>
                         {p.nombre} <span style={{ color: 'var(--text2)', fontWeight: 400 }}>— ${Number(p.precioMensual || 0).toLocaleString('es-AR')}/mes</span>
                         {p.activo === false && <span className="badge badge-cancelled" style={{ marginLeft: '8px' }}>inactivo</span>}
+                        {p.facturacionElectronica && <span className="badge badge-done" style={{ marginLeft: '8px' }}>factura electrónica</span>}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px', fontFamily: 'var(--mono)' }}>
                         {p.limites?.usuarios ?? '∞'} usuarios · {p.limites?.productosBiblioteca ?? '∞'} productos en biblioteca · {p.limites?.pedidosMes ?? '∞'} pedidos/mes · {p.limites?.aperturasCatalogoMes ?? '∞'} aperturas/mes · ${Number(p.limites?.montoFacturadoMes ?? 0).toLocaleString('es-AR')}/mes facturado

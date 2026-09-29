@@ -122,9 +122,26 @@ function receptorDesdeFicha(ficha, emailCuenta) {
 // ---------------------------------------------------------- configuración
 
 // configFacturacion/emisor: la edita el admin desde el panel.
-async function obtenerEmisor() {
+// Dónde viven las facturas y la configuración de cada emisor:
+//   - admin (cuentaUid null): facturas/ y configFacturacion/emisor.
+//   - suscriptor: users/{uid}/facturas y users/{uid}/facturacion/config.
+function refsCuenta(cuentaUid) {
+  return cuentaUid
+    ? { facturas: db.collection(`users/${cuentaUid}/facturas`), config: db.doc(`users/${cuentaUid}/facturacion/config`) }
+    : { facturas: db.collection('facturas'), config: db.doc('configFacturacion/emisor') };
+}
+
+// Entorno de ARCA en uso: lo define la configuración del admin, porque el
+// certificado cargado (ARCA_CERT) es uno solo y firma por todos los
+// emisores (los suscriptores delegan el servicio al CUIT del admin).
+async function entornoArca() {
   const snap = await db.doc('configFacturacion/emisor').get();
-  const c = snap.exists ? snap.data() : {};
+  return snap.exists && snap.data().entorno === 'produccion' ? 'produccion' : 'homologacion';
+}
+
+// Valida y devuelve los datos de un emisor. `c` puede venir ya leído
+// (configurarFacturacionCuenta lo valida antes de guardarlo).
+function validarEmisor(c) {
   const faltan = [];
   if (!/^\d{11}$/.test(String(c.cuit || ''))) faltan.push('CUIT');
   if (!(Number(c.ptoVta) > 0)) faltan.push('punto de venta');
@@ -134,12 +151,13 @@ async function obtenerEmisor() {
   if (faltan.length) {
     throw new ErrorArca(`Falta completar la configuración de facturación: ${faltan.join(', ')}.`);
   }
-  return {
-    ...c,
-    cuit: String(c.cuit),
-    ptoVta: Number(c.ptoVta),
-    entorno: c.entorno === 'produccion' ? 'produccion' : 'homologacion'
-  };
+  return { ...c, cuit: String(c.cuit), ptoVta: Number(c.ptoVta) };
+}
+
+async function obtenerEmisor(cuentaUid = null) {
+  const snap = await refsCuenta(cuentaUid).config.get();
+  const emisor = validarEmisor(snap.exists ? snap.data() : {});
+  return { ...emisor, entorno: await entornoArca() };
 }
 
 // ---------------------------------------------------------------- candado
@@ -173,9 +191,11 @@ async function soltarCandado(clave, facturaId) {
 // Crea el doc de la factura en estado "pendiente". Si ya existe (por
 // ejemplo, el mismo pago procesado dos veces) no hace nada: el id es el
 // candado de idempotencia. Devuelve true si la creó.
-async function crearFactura(id, datos) {
+// datos.cuentaUid: null para el admin, uid de la cuenta para un suscriptor.
+async function crearFactura(ref, datos) {
   try {
-    await db.doc(`facturas/${id}`).create({
+    await ref.create({
+      cuentaUid: null,
       ...datos,
       importeTotal: redondear(datos.importeTotal),
       estado: 'pendiente',
@@ -232,10 +252,10 @@ const coincide = (cbte, f) =>
   Math.abs(cbte.importeTotal - f.importeTotal) < 0.01 &&
   String(Number(cbte.docNro)) === String(Number(f.receptor.docNro));
 
-// Emite (o reintenta) la factura facturas/{id}. No tira errores de ARCA:
+// Emite (o reintenta) la factura del doc `ref`. No tira errores de ARCA:
 // los deja registrados en el doc (estado "error"). Devuelve el doc final.
-async function emitirFactura(id) {
-  const ref = db.doc(`facturas/${id}`);
+async function emitirFactura(ref) {
+  const id = ref.path;
   const inicial = await ref.get();
   if (!inicial.exists) throw new Error(`No existe la factura ${id}.`);
   if (inicial.data().estado === 'emitida') return inicial.data();
@@ -244,14 +264,17 @@ async function emitirFactura(id) {
   let emisor;
   let clave;
   try {
-    emisor = await obtenerEmisor();
-    clave = `${emisor.entorno}_${emisor.ptoVta}_${tipoCbte}`;
+    emisor = await obtenerEmisor(inicial.data().cuentaUid || null);
+    // Por CUIT: cada emisor numera por su cuenta en ARCA.
+    clave = `${emisor.entorno}_${emisor.cuit}_${emisor.ptoVta}_${tipoCbte}`;
     await tomarCandado(clave, id);
   } catch (e) {
     // Todavía no se tocó ARCA: queda en error para reintentar, sin número.
     await ref.update({ estado: 'error', errores: [{ codigo: 'local', mensaje: e.message }] });
     logger.error(`facturacion: no se pudo empezar a emitir ${id}`, e.message);
-    return (await ref.get()).data();
+    const conError = (await ref.get()).data();
+    await actualizarResumenPedido(ref, conError);
+    return conError;
   }
   try {
     // Se relee con el candado tomado: otra ejecución pudo haberla emitido.
@@ -260,7 +283,7 @@ async function emitirFactura(id) {
     const fEmisor = { ...f, emisor: f.emisor || emisor };
 
     // Intento anterior incierto: primero ver si ARCA ya lo autorizó.
-    if (f.numero && f.entorno === emisor.entorno && f.ptoVta === emisor.ptoVta) {
+    if (f.numero && f.entorno === emisor.entorno && f.ptoVta === emisor.ptoVta && (!f.emisor || f.emisor.cuit === emisor.cuit)) {
       const previo = await consultarComprobante(emisor, tipoCbte, f.numero);
       if (coincide(previo, fEmisor)) {
         await ref.update({
@@ -280,7 +303,8 @@ async function emitirFactura(id) {
       estado: 'emitiendo', numero, fecha, ptoVta: emisor.ptoVta, entorno: emisor.entorno,
       emisor: {
         cuit: emisor.cuit, razonSocial: emisor.razonSocial, domicilio: emisor.domicilio,
-        iibb: emisor.iibb || '', inicioActividades: emisor.inicioActividades
+        iibb: emisor.iibb || '', inicioActividades: emisor.inicioActividades,
+        nombreFantasia: emisor.nombreFantasia || '', emailRespuesta: emisor.emailRespuesta || ''
       },
       intentos: FieldValue.increment(1)
     });
@@ -309,31 +333,67 @@ async function emitirFactura(id) {
   }
 
   const final = (await ref.get()).data();
+  await actualizarResumenPedido(ref, final);
   if (final.estado === 'emitida' && final.enviarMail && final.receptor.email) {
-    await enviarFacturaPorMail(id, final);
+    await enviarFacturaPorMail(ref, final);
   }
   return final;
 }
 
-async function enviarFacturaPorMail(id, f) {
+// Facturas de pedidos de un suscriptor: se refleja el estado en
+// users/{uid}/facturasPorPedido/{pedidoId}, que es lo que muestra la app en
+// el pedido. Va en un doc aparte y no en el pedido porque el detalle del
+// pedido guarda su borrador completo y podría pisar este dato.
+async function actualizarResumenPedido(ref, f) {
+  if (!f.cuentaUid) return;
+  const base = `users/${f.cuentaUid}/facturasPorPedido`;
+  if (f.origen?.tipo === 'pedido') {
+    await db.doc(`${base}/${f.origen.pedidoId}`).set({
+      facturaId: ref.id, estado: f.estado, numero: f.numero || null, ptoVta: f.ptoVta || null,
+      importeTotal: f.importeTotal, errores: f.errores || null, actualizadoEl: Timestamp.now()
+    }, { merge: true });
+  } else if (f.origen?.tipo === 'notaCredito' && f.origen.pedidoId) {
+    // La factura queda "anulada" recién cuando ARCA autoriza la nota; si
+    // la nota falla, se ve su error para reintentarla.
+    await db.doc(`${base}/${f.origen.pedidoId}`).set({
+      notaCreditoId: ref.id, notaCreditoEstado: f.estado, notaCreditoNumero: f.numero || null,
+      notaCreditoErrores: f.errores || null,
+      ...(f.estado === 'emitida' ? { estado: 'anulada' } : {}),
+      actualizadoEl: Timestamp.now()
+    }, { merge: true });
+  }
+}
+
+const formatoPesos = (n) => '$ ' + n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+async function enviarFacturaPorMail(ref, f) {
   try {
     const nombreCbte = `${f.tipoCbte === TIPO_NC_C ? 'Nota de Crédito' : 'Factura'} C ${numeroCompleto(f.ptoVta, f.numero)}`;
-    const { subject, html } = renderPlantilla('facturaEmitida', {
-      nombre: f.receptor.nombre || '',
-      comprobante: nombreCbte,
-      importe: '$ ' + f.importeTotal.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    }, await obtenerOverridesPlantillas());
-    await enviarEmail({
-      to: f.receptor.email,
-      subject,
-      html,
-      attachments: [{ filename: nombreArchivoFactura(f), content: generarFacturaPDF(f) }]
-    });
-    await db.doc(`facturas/${id}`).update({ mailEnviadoEl: Timestamp.now(), errorMail: FieldValue.delete() });
+    const overrides = await obtenerOverridesPlantillas();
+    const adjunto = [{ filename: nombreArchivoFactura(f), content: generarFacturaPDF(f) }];
+    if (f.cuentaUid) {
+      // Factura de un suscriptor a su cliente: sale de la casilla de
+      // Manager3D con el nombre del emprendimiento, y las respuestas le
+      // llegan al suscriptor.
+      const emprendimiento = f.emisor.nombreFantasia || f.emisor.razonSocial;
+      const { subject, html } = renderPlantilla('facturaEmprendimiento', {
+        nombre: f.receptor.nombre || '', comprobante: nombreCbte, importe: formatoPesos(f.importeTotal), emprendimiento
+      }, overrides);
+      await enviarEmail({
+        to: f.receptor.email, subject, html, attachments: adjunto,
+        fromName: `${emprendimiento} vía Manager3D`, replyTo: f.emisor.emailRespuesta || undefined
+      });
+    } else {
+      const { subject, html } = renderPlantilla('facturaEmitida', {
+        nombre: f.receptor.nombre || '', comprobante: nombreCbte, importe: formatoPesos(f.importeTotal)
+      }, overrides);
+      await enviarEmail({ to: f.receptor.email, subject, html, attachments: adjunto });
+    }
+    await ref.update({ mailEnviadoEl: Timestamp.now(), errorMail: FieldValue.delete() });
   } catch (e) {
     // La factura ya es válida; un mail fallido no la invalida.
-    logger.error(`facturacion: no se pudo mandar el mail de ${id}`, e.message);
-    await db.doc(`facturas/${id}`).update({ errorMail: e.message });
+    logger.error(`facturacion: no se pudo mandar el mail de ${ref.path}`, e.message);
+    await ref.update({ errorMail: e.message });
   }
 }
 
@@ -342,7 +402,7 @@ async function enviarFacturaPorMail(id, f) {
 // Factura de un cobro de suscripción acreditado por Mercado Pago
 // (pagosMP/{paymentId} con aplicado = true). Id fijo "mp_{paymentId}".
 async function facturarPagoSuscripcion(paymentId, pago) {
-  const id = `mp_${paymentId}`;
+  const ref = db.doc(`facturas/mp_${paymentId}`);
   const [fichaSnap, subSnap, planSnap] = await Promise.all([
     db.doc(`datosSuscriptor/${pago.uid}`).get(),
     db.doc(`users/${pago.uid}/suscripcion/actual`).get(),
@@ -361,7 +421,7 @@ async function facturarPagoSuscripcion(paymentId, pago) {
   const servicioHasta = yyyymmddAR(Math.max(cicloInicio, cicloFin - 24 * 60 * 60 * 1000));
   const nombrePlan = planSnap.exists ? planSnap.data().nombre : pago.planId;
 
-  const creada = await crearFactura(id, {
+  const creada = await crearFactura(ref, {
     tipoCbte: TIPO_FACTURA_C,
     concepto: CONCEPTOS.servicios,
     servicioDesde,
@@ -374,13 +434,14 @@ async function facturarPagoSuscripcion(paymentId, pago) {
     enviarMail: true
   });
   if (!creada) return null;
-  return emitirFactura(id);
+  return emitirFactura(ref);
 }
 
-// Nota de crédito C por el total de una factura emitida (anulación).
-async function crearNotaCredito(facturaId) {
-  const origenRef = db.doc(`facturas/${facturaId}`);
-  const ncRef = db.collection('facturas').doc();
+// Nota de crédito C por el total de una factura emitida (anulación). La
+// nota va en la misma colección que la factura (del admin o de la cuenta).
+async function crearNotaCredito(origenRef) {
+  const facturaId = origenRef.id;
+  const ncRef = origenRef.parent.doc();
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(origenRef);
     if (!snap.exists) throw new ErrorArca('No existe la factura.');
@@ -388,26 +449,28 @@ async function crearNotaCredito(facturaId) {
     if (f.estado !== 'emitida' || f.tipoCbte !== TIPO_FACTURA_C) throw new ErrorArca('Sólo se puede anular una factura emitida.');
     if (f.notaCreditoId) throw new ErrorArca('Esa factura ya tiene una nota de crédito.');
     tx.set(ncRef, {
+      cuentaUid: f.cuentaUid || null,
       tipoCbte: TIPO_NC_C,
       concepto: f.concepto,
       servicioDesde: f.servicioDesde || null,
       servicioHasta: f.servicioHasta || null,
       receptor: f.receptor,
       items: f.items,
+      descuento: f.descuento || 0,
       importeTotal: f.importeTotal,
       asociada: { facturaId, tipoCbte: f.tipoCbte, ptoVta: f.ptoVta, numero: f.numero, fecha: f.fecha },
-      origen: { tipo: 'notaCredito', facturaId },
+      origen: { tipo: 'notaCredito', facturaId, pedidoId: f.origen?.pedidoId || null },
       enviarMail: !!f.enviarMail,
       estado: 'pendiente',
       creadoEl: Timestamp.now()
     });
     tx.update(origenRef, { notaCreditoId: ncRef.id });
   });
-  return emitirFactura(ncRef.id);
+  return emitirFactura(ncRef);
 }
 
 module.exports = {
   TIPO_FACTURA_C, TIPO_NC_C, CONCEPTOS, CONDICIONES_IVA,
-  yyyymmddAR, redondear, normalizarReceptor, obtenerEmisor,
+  yyyymmddAR, redondear, normalizarReceptor, refsCuenta, entornoArca, validarEmisor, obtenerEmisor,
   crearFactura, emitirFactura, enviarFacturaPorMail, facturarPagoSuscripcion, crearNotaCredito
 };

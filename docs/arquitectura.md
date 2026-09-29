@@ -43,6 +43,7 @@ React 19 + Vite, sin router: la navegación es por estado.
 | `components/admin/`, `components/modals/` | Paneles y modales |
 | `components/Dialogos.jsx` | Confirmaciones y avisos propios (reemplazan a `alert`/`confirm`) |
 | `utils/` | Cálculos (finanzas del pedido, precio neto, capacidad), PDFs (`presupuestoPDF.js`, `listadoPDF.js`), armado de piezas de pedido (`piezaPedido.js`), WhatsApp, paletas |
+| `SeccionFacturaPedido.jsx`, `modals/ModalFacturarPedido.jsx`, `TarjetaFacturacionCuenta.jsx`, `utils/facturacion.js` | Facturación de pedidos: bloque en el detalle del pedido, modal para emitir y configuración en "Mi emprendimiento" |
 | `index.css` | Estilos globales y variables de color |
 
 ## Vercel (`api/` y `vercel.json`)
@@ -75,6 +76,8 @@ con un máximo de 10 instancias por función.
 | `crearCodigoPromocional`, `actualizarCodigoPromocional`, `desactivarCodigoPromocional` | Gestión de códigos | Admin |
 | `listarPlantillasEmail`, `guardarPlantillaEmail`, `restablecerPlantillaEmail` | Textos de los mails | Admin |
 | `probarConexionArca`, `emitirFacturaManual`, `facturarPagoMP`, `reintentarFactura`, `anularFactura`, `descargarFacturaPDF`, `reenviarFacturaMail` | Facturación electrónica con ARCA | Admin |
+| `configurarFacturacionCuenta` | Configura y verifica contra ARCA el CUIT y punto de venta de una cuenta; reserva el CUIT | Dueño de la cuenta |
+| `facturarPedido`, `reintentarFacturaCuenta`, `descartarFacturaCuenta`, `anularFacturaCuenta`, `descargarFacturaCuentaPDF`, `enviarFacturaCuentaMail` | Factura C de los pedidos de una cuenta | Dueño y miembros (plan con facturación) |
 
 ### Automáticas
 
@@ -119,6 +122,8 @@ con un máximo de 10 instancias por función.
 | `pagosMP/{paymentId}` | Registro de cobros de Mercado Pago (candado anti duplicados) | Solo Cloud Functions |
 | `credencialesMP` | Tokens de revendedores (opción C, sin usar) | Solo Cloud Functions |
 | `facturas/{id}` | Comprobantes emitidos a ARCA (`mp_{paymentId}` para los de suscripciones) | Solo Cloud Functions; lee el admin |
+| `users/{uid}/facturas`, `facturasPorPedido/{pedidoId}`, `facturacion/config` | Facturas de la cuenta, estado de la factura de cada pedido y datos del emisor | Solo Cloud Functions; leen el dueño y los miembros |
+| `cuitsFacturacion/{cuit}` | Qué cuenta tiene reservado cada CUIT | Solo Cloud Functions (sin acceso desde la app) |
 | `configFacturacion/emisor` | Datos del emisor, entorno y si se factura automático | Admin |
 | `arcaTickets`, `arcaNumeracion` | Ticket de acceso a ARCA y candado de numeración | Solo Cloud Functions (sin acceso desde la app) |
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |

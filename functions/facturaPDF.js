@@ -71,6 +71,8 @@ function generarFacturaPDF(f) {
 
   doc.setFontSize(14).text(e.razonSocial || '', M + 3, yCab + 10, { maxWidth: 80 });
   doc.setFont('helvetica', 'normal').setFontSize(9);
+  // Nombre del emprendimiento, si es distinto de la razón social.
+  if (e.nombreFantasia && e.nombreFantasia !== e.razonSocial) doc.text(e.nombreFantasia, M + 3, yCab + 16, { maxWidth: 80 });
   doc.text(`Domicilio comercial: ${e.domicilio || ''}`, M + 3, yCab + 24, { maxWidth: 85 });
   doc.text('Condición frente al IVA: Responsable Monotributo', M + 3, yCab + 34);
 
@@ -116,6 +118,11 @@ function generarFacturaPDF(f) {
   doc.setFont('helvetica', 'normal');
   y += 12;
   for (const item of f.items) {
+    // Muchos ítems: siguen en otra hoja, así no se pisan con el pie.
+    if (y > 200) {
+      doc.addPage();
+      y = 20;
+    }
     const lineas = doc.splitTextToSize(item.descripcion, 95);
     doc.text(lineas, M + 2, y);
     doc.text(String(item.cantidad), 130, y, { align: 'right' });
@@ -126,9 +133,14 @@ function generarFacturaPDF(f) {
 
   // Totales y CAE al pie.
   const yPie = 230;
-  doc.rect(M, yPie - 18, ancho, 14);
-  doc.text('Subtotal:', 160, yPie - 12, { align: 'right' });
-  doc.text(pesos(f.importeTotal), 196, yPie - 12, { align: 'right' });
+  const descuento = Number(f.descuento) || 0;
+  doc.rect(M, yPie - 23, ancho, 19);
+  doc.text('Subtotal:', 160, yPie - 17, { align: 'right' });
+  doc.text(pesos(f.importeTotal + descuento), 196, yPie - 17, { align: 'right' });
+  if (descuento > 0) {
+    doc.text('Bonificación:', 160, yPie - 12, { align: 'right' });
+    doc.text('- ' + pesos(descuento), 196, yPie - 12, { align: 'right' });
+  }
   doc.setFont('helvetica', 'bold');
   doc.text('Importe total:', 160, yPie - 6.5, { align: 'right' });
   doc.text(pesos(f.importeTotal), 196, yPie - 6.5, { align: 'right' });

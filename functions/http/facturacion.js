@@ -87,7 +87,7 @@ exports.emitirFacturaManual = onCall(OPCIONES, async (request) => {
   }
 
   const id = db.collection('facturas').doc().id;
-  await crearFactura(id, {
+  await crearFactura(db.doc(`facturas/${id}`), {
     tipoCbte: TIPO_FACTURA_C,
     concepto,
     servicioDesde,
@@ -98,7 +98,7 @@ exports.emitirFacturaManual = onCall(OPCIONES, async (request) => {
     origen: { tipo: 'manual', referencia: String(d.referencia || '').trim().slice(0, 200) || null },
     enviarMail: !!d.enviarMail && !!receptor.email
   });
-  const final = await envolver(() => emitirFactura(id));
+  const final = await envolver(() => emitirFactura(db.doc(`facturas/${id}`)));
   return { id, ...resumen(final) };
 });
 
@@ -123,14 +123,14 @@ exports.reintentarFactura = onCall(OPCIONES, async (request) => {
   if (!['error', 'pendiente', 'emitiendo'].includes(snap.data().estado)) {
     throw new HttpsError('failed-precondition', 'Esa factura ya está emitida.');
   }
-  return resumen(await envolver(() => emitirFactura(id)));
+  return resumen(await envolver(() => emitirFactura(db.doc(`facturas/${id}`))));
 });
 
 exports.anularFactura = onCall(OPCIONES, async (request) => {
   await exigirAdmin(request);
   const id = String(request.data?.id || '');
   if (!id) throw new HttpsError('invalid-argument', 'Falta la factura.');
-  return resumen(await envolver(() => crearNotaCredito(id)));
+  return resumen(await envolver(() => crearNotaCredito(db.doc(`facturas/${id}`))));
 });
 
 exports.descargarFacturaPDF = onCall(async (request) => {
@@ -150,7 +150,7 @@ exports.reenviarFacturaMail = onCall({ secrets: [gmailAppPassword] }, async (req
   const email = String(request.data?.email || snap.data().receptor.email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpsError('invalid-argument', 'Falta un email válido.');
   if (email !== snap.data().receptor.email) await ref.update({ 'receptor.email': email });
-  await enviarFacturaPorMail(id, { ...snap.data(), receptor: { ...snap.data().receptor, email } });
+  await enviarFacturaPorMail(ref, { ...snap.data(), receptor: { ...snap.data().receptor, email } });
   const final = (await ref.get()).data();
   if (final.errorMail) throw new HttpsError('unavailable', `No se pudo enviar: ${final.errorMail}`);
   return { ok: true };
