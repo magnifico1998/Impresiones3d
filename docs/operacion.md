@@ -72,9 +72,10 @@ apuntando a la función `webhookMercadoPago`.
 ## Facturación electrónica (ARCA): puesta en marcha
 
 Hace falta clave fiscal nivel 3. La clave privada y el certificado **nunca van
-al repo**: generalos en una carpeta fuera del proyecto (ej. `C:\arca`). Si el
-PowerShell no encuentra `openssl`, usá el que trae Git:
-`& "C:\Program Files\Git\usr\bin\openssl.exe"`.
+al repo**: generalos en una carpeta fuera del proyecto (ej. `C:\arca`, que hay
+que crear con `mkdir C:\arca`). Si el PowerShell no encuentra `openssl`, usá
+el que trae Git (en esta PC está instalado por usuario):
+`& "$env:LOCALAPPDATA\Programs\Git\mingw64\bin\openssl.exe"`.
 
 ### 1. Homologación (pruebas)
 
@@ -83,7 +84,7 @@ PowerShell no encuentra `openssl`, usá el que trae Git:
    ```powershell
    cd C:\arca
    openssl genrsa -out arca_homo.key 2048
-   openssl req -new -key arca_homo.key -subj "/C=AR/O=Manager3D/CN=manager3d/serialNumber=CUIT 20123456789" -out arca_homo.csr
+   openssl req -new -key arca_homo.key -subj "/C=AR/O=Manager3D/CN=manager3d/serialNumber=CUIT 20262375065" -out arca_homo.csr
    ```
 
 2. En ARCA, adherí el servicio **"WSASS - Autogestión Certificados
