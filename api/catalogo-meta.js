@@ -36,8 +36,8 @@ const FIRESTORE_PROJECT_ID = 'print3d-manager-73846';
 // ahí seguimos usando VERCEL_URL (ambos los define Vercel, nunca el
 // cliente, así que no reabre el SSRF).
 const APP_URL = process.env.VERCEL_ENV === 'production'
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'manager3d.vercel.app'}`
-  : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://manager3d.vercel.app');
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'manager3d.com.ar'}`
+  : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://manager3d.com.ar');
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({

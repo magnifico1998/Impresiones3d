@@ -6,7 +6,7 @@ compras, biblioteca de productos y un catálogo web público por tienda. Se
 cobra por suscripción mensual (Mercado Pago) y se vende también a través de
 revendedores.
 
-- **Producción:** https://manager3d.vercel.app
+- **Producción:** https://manager3d.com.ar
 - **Stack:** React 19 + Vite (Vercel) · Firebase Auth, Firestore, Storage y
   Cloud Functions (Node 22) · Mercado Pago · Gmail
 

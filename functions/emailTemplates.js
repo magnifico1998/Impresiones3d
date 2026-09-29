@@ -1,6 +1,9 @@
 const { db } = require('./admin');
 
-const APP_URL = 'https://manager3d.vercel.app/';
+// Dominio de la app: lo usan el botón de los mails y la vuelta del checkout
+// de Mercado Pago (back_url en pagosMercadoPago.js). Si cambia, también hay
+// que autorizarlo en Firebase Authentication (ver docs/operacion.md).
+const APP_URL = 'https://manager3d.com.ar/';
 
 // Wrapper HTML común a todos los mails: nada de dependencias externas,
 // estilos inline (los clientes de mail ignoran <style> en muchos casos).

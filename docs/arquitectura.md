@@ -19,8 +19,9 @@ Navegador ──► Vercel (frontend React + /api/catalogo-meta)
 ```
 
 - **Proyecto Firebase:** `print3d-manager-73846`.
-- **Frontend en producción:** https://manager3d.vercel.app (Vercel publica la
-  rama `main`).
+- **Frontend en producción:** https://manager3d.com.ar (Vercel publica la
+  rama `main`; https://manager3d.vercel.app sigue siendo el dominio interno
+  de Vercel).
 - **Regla de oro:** todo lo que toca plata, estado de suscripción, permisos o
   límites **pasa por una Cloud Function**. El cliente solo escribe sus datos
   operativos (pedidos, clientes, biblioteca, etc.), y las reglas de Firestore

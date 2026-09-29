@@ -52,6 +52,26 @@ npm run build
 **Ojo:** en local la app usa el **Firebase real** (no hay emuladores). Lo que
 guardes en local queda en producción. Para probar, usá una cuenta de prueba.
 
+## Dominio
+
+La app se publica en **https://manager3d.com.ar** (dominio principal en
+Vercel; `manager3d.vercel.app` sigue funcionando). Si el dominio cambia:
+
+1. **Firebase Console → Authentication → Settings → Authorized domains:**
+   agregar el dominio nuevo (y `www.` si se usa). Sin esto falla el login con
+   Google y con link por mail. Hacerlo antes de apuntar el dominio.
+2. **Vercel → Domains:** conectar el dominio y dejarlo como principal (la
+   vista previa del catálogo, `api/catalogo-meta.js`, toma ese dominio).
+3. **`APP_URL` en `functions/emailTemplates.js`:** es el botón de los mails
+   y la vuelta del checkout de Mercado Pago. Cambiarlo y redesplegar las
+   functions.
+4. Generar un PDF de pedido con logo desde el dominio nuevo, para confirmar
+   que Storage deja descargar el logo.
+
+El webhook de Mercado Pago y ARCA no dependen del dominio (van a las Cloud
+Functions). Los usuarios tienen que volver a iniciar sesión en el dominio
+nuevo: la sesión del navegador queda atada a cada dominio.
+
 ## Secrets y configuración
 
 Se cargan una vez y quedan en Firebase; nunca van en el repo:
