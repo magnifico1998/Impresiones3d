@@ -47,7 +47,37 @@ const tituloUltimoAcceso = (ts) => {
   return `Último acceso: ${relativo} (${fechaStr})`;
 };
 
+// Pestañas del panel del admin principal: la cartera (planes, suscriptores
+// y contactos), la red comercial (revendedores y códigos promocionales) y
+// la operación del negocio (facturación, mails y administradores).
+const PESTANAS_ADMIN = [
+  { id: 'suscriptores', nombre: 'Planes y suscriptores' },
+  { id: 'revendedores', nombre: 'Revendedores y promociones' },
+  { id: 'negocio', nombre: 'Negocio' }
+];
+const CLAVE_PESTANA_ADMIN = 'admin.pestana';
+
+// La pestaña elegida se recuerda en este navegador; si no hay
+// almacenamiento disponible, arranca en la primera.
+function pestanaAdminGuardada() {
+  try {
+    const guardada = localStorage.getItem(CLAVE_PESTANA_ADMIN);
+    return PESTANAS_ADMIN.some((p) => p.id === guardada) ? guardada : PESTANAS_ADMIN[0].id;
+  } catch {
+    return PESTANAS_ADMIN[0].id;
+  }
+}
+
 export default function AdminPage({ modoRevendedor = false }) {
+  const [pestana, setPestana] = useState(pestanaAdminGuardada);
+  const elegirPestana = (id) => {
+    setPestana(id);
+    try {
+      localStorage.setItem(CLAVE_PESTANA_ADMIN, id);
+    } catch {
+      // Sin almacenamiento: la pestaña sólo dura mientras la página está abierta.
+    }
+  };
   const { user, showToast, suscripcion } = useApp();
   // Código propio si esta cuenta es un revendedor (independientemente de
   // si además es admin) -- lo usamos para filtrar "mi cartera" en modo
@@ -850,140 +880,25 @@ export default function AdminPage({ modoRevendedor = false }) {
           : 'Panel visible sólo para administradores.'}
       </div>
 
-      {/* ---- Solicitudes de contacto ---- */}
-      <div className="card">
-        <div
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaSolicitudesAbierta ? '14px' : 0, cursor: 'pointer' }}
-          onClick={() => setListaSolicitudesAbierta(v => !v)}
-        >
-          <div className="card-title" style={{ marginBottom: 0 }}>
-            {listaSolicitudesAbierta ? '▾' : '▸'} Solicitudes de contacto {!loadingSolicitudes && `(${solicitudesPendientes.length})`}
-          </div>
-          <button
-            className="btn"
-            style={{ fontSize: '11px', padding: '5px 10px' }}
-            onClick={(e) => { e.stopPropagation(); exportarContactosTxt(); }}
-          >
-            ⬇ Exportar contactos (.txt)
-          </button>
+      {/* Pestañas del panel (sólo admin principal; el revendedor ve directo
+          sus contactos y suscriptores). */}
+      {!modoRevendedor && (
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {PESTANAS_ADMIN.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`btn btn-sm periodo-btn ${pestana === p.id ? 'active' : ''}`}
+              onClick={() => elegirPestana(p.id)}
+            >
+              {p.nombre}
+            </button>
+          ))}
         </div>
-
-        {listaSolicitudesAbierta && (
-          <>
-            {loadingSolicitudes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
-
-            {!loadingSolicitudes && solicitudesPendientes.length === 0 && (
-              <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No hay solicitudes pendientes — las que ya se activaron pasaron a Suscriptores.</div>
-            )}
-
-            {!loadingSolicitudes && solicitudesPendientes.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {solicitudesPendientes.map((s) => (
-                  <div key={s.uid} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{s.nombre} {s.apellido}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{s.localidad} · {s.telefono} · {s.email}</div>
-                        {s.resena && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>{s.resena}</div>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span className={`badge ${s.estado === 'contactado' ? 'badge-done' : 'badge-pending'}`}>{s.estado || 'pendiente'}</span>
-                        {s.estado !== 'contactado' && (
-                          <button className="btn" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => marcarContactado(s.uid)}>
-                            Marcar contactado
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Activar la suscripción de este solicitante directo desde acá:
-                        su "uid" es el mismo ID de este documento, así no hace
-                        falta ir a buscarlo a la tabla de Suscriptores (y si es
-                        una cuenta vieja sin suscripcion/actual, esto se la crea). */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
-                      <select
-                        value={planSeleccionadoPorSolicitud[s.uid] || ''}
-                        onChange={(e) => setPlanSeleccionadoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
-                        style={{ fontSize: '12px' }}
-                      >
-                        <option value="">Elegir plan…</option>
-                        {planes.map(p => (
-                          <option key={p.id} value={p.id}>{p.nombre}</option>
-                        ))}
-                      </select>
-                      {s.codigoRevendedor && (() => {
-                        const revFila = revendedores.find(r => r.codigo === s.codigoRevendedor);
-                        const defaultPct = revFila?.descuentosPorPlan?.[planSeleccionadoPorSolicitud[s.uid]];
-                        return (
-                          <>
-                            <span className="badge badge-progress" title="Código de revendedor de esta solicitud">
-                              {s.codigoRevendedor}
-                            </span>
-                            <input
-                              type="number" min="0" max="100"
-                              value={descuentoPorSolicitud[s.uid] ?? ''}
-                              onChange={(e) => setDescuentoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
-                              disabled={modoRevendedor}
-                              placeholder={defaultPct != null ? `${defaultPct}%` : '% com.'}
-                              aria-label="Comisión del revendedor (%)"
-                              title={modoRevendedor
-                                ? 'El % de comisión del revendedor lo fija el administrador, no se puede editar desde acá.'
-                                : (defaultPct != null
-                                  ? `Comisión del revendedor (%). Si lo dejás vacío, se usa la de este plan para ${s.codigoRevendedor}: ${defaultPct}%`
-                                  : 'Comisión del revendedor (%) para esta venta: la parte del precio que se lleva él')}
-                              style={{ fontSize: '12px', width: '70px' }}
-                            />
-                          </>
-                        );
-                      })()}
-                      {/* Si trae código de revendedor, sólo ÉL puede activarla -- el admin
-                          general ya no puede, para que el % de descuento acordado se
-                          aplique siempre y no haya diferencias a la hora de facturar. */}
-                      {(modoRevendedor || !s.codigoRevendedor) && (
-                        <button
-                          className="btn btn-primary"
-                          style={{ fontSize: '11px', padding: '4px 8px' }}
-                          disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
-                          onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid], descuentoPorSolicitud[s.uid] === '' || descuentoPorSolicitud[s.uid] == null ? null : Number(descuentoPorSolicitud[s.uid]))}
-                        >
-                          {accionEnCurso === `${s.uid}:activar` ? 'Activando...' : 'Activar suscripción'}
-                        </button>
-                      )}
-                      {!modoRevendedor && s.codigoRevendedor && (
-                        <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
-                          Sólo {s.codigoRevendedor} puede activar esta cuenta.
-                        </span>
-                      )}
-                      {!modoRevendedor && !s.codigoRevendedor && (
-                        <>
-                          <input
-                            type="text"
-                            value={codigoManualPorSolicitud[s.uid] || ''}
-                            onChange={(e) => setCodigoManualPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value.toUpperCase() }))}
-                            placeholder="Código revendedor…"
-                            style={{ fontSize: '12px', width: '130px' }}
-                          />
-                          <button
-                            className="btn"
-                            style={{ fontSize: '11px', padding: '4px 8px' }}
-                            disabled={!codigoManualPorSolicitud[s.uid] || guardandoCodigoUid === s.uid}
-                            onClick={() => guardarCodigoRevendedorManual(s.uid)}
-                          >
-                            {guardandoCodigoUid === s.uid ? 'Guardando...' : 'Guardar código'}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      )}
 
       {/* ---- Planes (sólo admin principal: un revendedor no gestiona planes) ---- */}
-      {!modoRevendedor && <div className="card">
+      {!modoRevendedor && pestana === 'suscriptores' && <div className="card">
         <div
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaPlanesAbierta ? '14px' : 0, cursor: 'pointer' }}
           onClick={() => setListaPlanesAbierta(v => !v)}
@@ -1052,313 +967,449 @@ export default function AdminPage({ modoRevendedor = false }) {
       </div>}
 
       {/* ---- Suscriptores (agrupados por plan, colapsados por defecto) ---- */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>
-            Suscriptores {!loadingCuentas && `(${cuentasFiltradas.length})`}
-          </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button className="btn" style={{ fontSize: '11px', padding: '5px 10px' }} onClick={expandirTodo}>
-              Expandir todo
-            </button>
-            <button className="btn" style={{ fontSize: '11px', padding: '5px 10px' }} onClick={colapsarTodo}>
-              Colapsar todo
-            </button>
-            <button
-              className="btn"
-              style={{ fontSize: '11px', padding: '5px 10px' }}
-              onClick={exportarSuscriptoresTxt}
-              title="Exporta email + nombre/apellido de los suscriptores que queden con el filtro actual"
-            >
-              ⬇ Exportar suscriptores (.txt)
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
-          <input
-            type="text"
-            value={busquedaSuscriptores}
-            onChange={(e) => setBusquedaSuscriptores(e.target.value)}
-            placeholder="Buscar por email, nombre, teléfono o localidad..."
-            style={{ fontSize: '13px', flex: 1, minWidth: '220px' }}
-          />
-          <select
-            value={filtroEstadoSuscriptores}
-            onChange={(e) => setFiltroEstadoSuscriptores(e.target.value)}
-            style={{ fontSize: '13px', width: '160px' }}
-          >
-            <option value="todos">Todos los estados</option>
-            <option value="trial">Trial</option>
-            <option value="activa">Activa</option>
-            <option value="lectura">Modo lectura</option>
-            <option value="suspendida">Suspendida</option>
-          </select>
-        </div>
-
-        {loadingCuentas && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
-
-        {!loadingCuentas && cuentasFiltradas.length === 0 && (
-          <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
-            {hayBusquedaActiva ? 'Ningún suscriptor coincide con la búsqueda.' : 'Todavía no hay cuentas con suscripción.'}
-          </div>
-        )}
-
-        {!loadingCuentas && gruposDeSuscriptores.map((grupo) => {
-          const abierto = hayBusquedaActiva || gruposAbiertos.has(grupo.key);
-          return (
-            <div key={grupo.key} style={{ marginBottom: '10px', border: '1px solid var(--border)', borderRadius: 'var(--radius2)', overflow: 'hidden' }}>
-              <div
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', cursor: 'pointer', background: 'var(--bg)' }}
-                onClick={() => toggleGrupo(grupo.key)}
+      {(modoRevendedor || pestana === 'suscriptores') && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>
+              Suscriptores {!loadingCuentas && `(${cuentasFiltradas.length})`}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button className="btn" style={{ fontSize: '11px', padding: '5px 10px' }} onClick={expandirTodo}>
+                Expandir todo
+              </button>
+              <button className="btn" style={{ fontSize: '11px', padding: '5px 10px' }} onClick={colapsarTodo}>
+                Colapsar todo
+              </button>
+              <button
+                className="btn"
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+                onClick={exportarSuscriptoresTxt}
+                title="Exporta email + nombre/apellido de los suscriptores que queden con el filtro actual"
               >
-                <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{abierto ? '−' : '+'}</span>
-                  {grupo.nombre}
-                  <span style={{ color: 'var(--text3)', fontWeight: 400, fontFamily: 'var(--mono)' }}>({grupo.cuentas.length})</span>
-                </div>
-              </div>
+                ⬇ Exportar suscriptores (.txt)
+              </button>
+            </div>
+          </div>
 
-              {abierto && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="data-table" style={{ width: '100%' }}>
-                    <thead>
-                      <tr>
-                        <th>Cuenta</th>
-                        <th>Estado</th>
-                        <th
-                          onClick={() => toggleOrden('vencimiento')}
-                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                          title="Ordenar por fecha de vencimiento"
-                        >
-                          Vence{flechaOrden('vencimiento')}
-                        </th>
-                        <th
-                          onClick={() => toggleOrden('ultimoAcceso')}
-                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                          title="Ordenar por último acceso"
-                        >
-                          PLAN / Ult. Conexión{flechaOrden('ultimoAcceso')}
-                        </th>
-                        <th>Consumo del ciclo</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {grupo.cuentas.map((c) => {
-                        const vence = c.estado === 'trial' ? fmtFecha(c.trialFin)
-                          : c.estado === 'activa' ? fmtFecha(c.cicloFin)
-                          : c.estado === 'lectura' ? fmtFecha(c.fechaLimiteLectura)
-                          : c.estado === 'suspendida' ? `Bloqueada: ${fmtFecha(c.fechaLimiteLectura)}`
-                          : '—';
-                        const planElegido = planSeleccionadoPorCuenta[c.uid] ?? c.planId ?? '';
-                        const planDeLaCuenta = planes.find(p => p.id === c.planId);
-                        const contador = contadoresPorUid[c.uid];
-                        const solicitud = solicitudPorUid[c.uid];
-                        const periodos = c.estado === 'activa' ? periodosPorDelante(c.cicloFin) : 0;
-                        return (
-                          <tr key={c.uid}>
-                            <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
-                            <td>
-                              {badgeEstado(c.estado)}
-                              {c.cobro?.estado === 'authorized' && (
-                                <span className="badge badge-done" style={{ marginLeft: '6px' }} title="Paga con débito automático de Mercado Pago">💳 MP</span>
-                              )}
-                            </td>
-                            <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>
-                              {vence}
-                              {periodos > 1 && (
-                                <span
-                                  className="badge badge-done"
-                                  style={{ marginLeft: '6px' }}
-                                  title={`Tiene ${periodos} períodos por delante (renovaciones ya pagadas de más).`}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
+            <input
+              type="text"
+              value={busquedaSuscriptores}
+              onChange={(e) => setBusquedaSuscriptores(e.target.value)}
+              placeholder="Buscar por email, nombre, teléfono o localidad..."
+              style={{ fontSize: '13px', flex: 1, minWidth: '220px' }}
+            />
+            <select
+              value={filtroEstadoSuscriptores}
+              onChange={(e) => setFiltroEstadoSuscriptores(e.target.value)}
+              style={{ fontSize: '13px', width: '160px' }}
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="trial">Trial</option>
+              <option value="activa">Activa</option>
+              <option value="lectura">Modo lectura</option>
+              <option value="suspendida">Suspendida</option>
+            </select>
+          </div>
+
+          {loadingCuentas && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+
+          {!loadingCuentas && cuentasFiltradas.length === 0 && (
+            <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+              {hayBusquedaActiva ? 'Ningún suscriptor coincide con la búsqueda.' : 'Todavía no hay cuentas con suscripción.'}
+            </div>
+          )}
+
+          {!loadingCuentas && gruposDeSuscriptores.map((grupo) => {
+            const abierto = hayBusquedaActiva || gruposAbiertos.has(grupo.key);
+            return (
+              <div key={grupo.key} style={{ marginBottom: '10px', border: '1px solid var(--border)', borderRadius: 'var(--radius2)', overflow: 'hidden' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', cursor: 'pointer', background: 'var(--bg)' }}
+                  onClick={() => toggleGrupo(grupo.key)}
+                >
+                  <div style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{abierto ? '−' : '+'}</span>
+                    {grupo.nombre}
+                    <span style={{ color: 'var(--text3)', fontWeight: 400, fontFamily: 'var(--mono)' }}>({grupo.cuentas.length})</span>
+                  </div>
+                </div>
+
+                {abierto && (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="data-table" style={{ width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th>Cuenta</th>
+                          <th>Estado</th>
+                          <th
+                            onClick={() => toggleOrden('vencimiento')}
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                            title="Ordenar por fecha de vencimiento"
+                          >
+                            Vence{flechaOrden('vencimiento')}
+                          </th>
+                          <th
+                            onClick={() => toggleOrden('ultimoAcceso')}
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                            title="Ordenar por último acceso"
+                          >
+                            PLAN / Ult. Conexión{flechaOrden('ultimoAcceso')}
+                          </th>
+                          <th>Consumo del ciclo</th>
+                          <th>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grupo.cuentas.map((c) => {
+                          const vence = c.estado === 'trial' ? fmtFecha(c.trialFin)
+                            : c.estado === 'activa' ? fmtFecha(c.cicloFin)
+                            : c.estado === 'lectura' ? fmtFecha(c.fechaLimiteLectura)
+                            : c.estado === 'suspendida' ? `Bloqueada: ${fmtFecha(c.fechaLimiteLectura)}`
+                            : '—';
+                          const planElegido = planSeleccionadoPorCuenta[c.uid] ?? c.planId ?? '';
+                          const planDeLaCuenta = planes.find(p => p.id === c.planId);
+                          const contador = contadoresPorUid[c.uid];
+                          const solicitud = solicitudPorUid[c.uid];
+                          const periodos = c.estado === 'activa' ? periodosPorDelante(c.cicloFin) : 0;
+                          return (
+                            <tr key={c.uid}>
+                              <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
+                              <td>
+                                {badgeEstado(c.estado)}
+                                {c.cobro?.estado === 'authorized' && (
+                                  <span className="badge badge-done" style={{ marginLeft: '6px' }} title="Paga con débito automático de Mercado Pago">💳 MP</span>
+                                )}
+                              </td>
+                              <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>
+                                {vence}
+                                {periodos > 1 && (
+                                  <span
+                                    className="badge badge-done"
+                                    style={{ marginLeft: '6px' }}
+                                    title={`Tiene ${periodos} períodos por delante (renovaciones ya pagadas de más).`}
+                                  >
+                                    +{periodos}
+                                  </span>
+                                )}
+                              </td>
+                              <td>
+                                <select
+                                  value={planElegido}
+                                  onChange={(e) => setPlanSeleccionadoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
+                                  style={{ fontSize: '12px', width: '130px', boxSizing: 'border-box' }}
                                 >
-                                  +{periodos}
-                                </span>
-                              )}
-                            </td>
-                            <td>
-                              <select
-                                value={planElegido}
-                                onChange={(e) => setPlanSeleccionadoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
-                                style={{ fontSize: '12px', width: '130px', boxSizing: 'border-box' }}
-                              >
-                                <option value="">Sin plan</option>
-                                {planes.map(p => (
-                                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                                ))}
-                              </select>
-                              <div
-                                style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--text2)', marginTop: '3px', textAlign: 'center' }}
-                                title={tituloUltimoAcceso(c.ultimoAcceso)}
-                              >
-                                {fmtUltimoAcceso(c.ultimoAcceso)}
-                              </div>
-                            </td>
-                            <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap', width: '160px' }}>
-                              <div>biblioteca: {c.bibliotecaCount || 0}{planDeLaCuenta?.limites?.productosBiblioteca != null ? `/${planDeLaCuenta.limites.productosBiblioteca}` : ''}</div>
-                              {!c.cicloId && <span>—</span>}
-                              {c.cicloId && !contador && (
-                                <button
-                                  className="btn"
-                                  style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                  disabled={cargandoConsumoUid === c.uid}
-                                  onClick={() => verConsumo(c.uid, c.cicloId)}
+                                  <option value="">Sin plan</option>
+                                  {planes.map(p => (
+                                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                                  ))}
+                                </select>
+                                <div
+                                  style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--text2)', marginTop: '3px', textAlign: 'center' }}
+                                  title={tituloUltimoAcceso(c.ultimoAcceso)}
                                 >
-                                  {cargandoConsumoUid === c.uid ? 'Cargando...' : 'Ver consumo'}
-                                </button>
-                              )}
-                              {c.cicloId && contador && (
-                                <div>
-                                  <div>pedidos: {contador.pedidosCreados || 0}{planDeLaCuenta?.limites?.pedidosMes != null ? `/${planDeLaCuenta.limites.pedidosMes}` : ''}</div>
-                                  <div>catálogo: {contador.aperturasCatalogo || 0}{planDeLaCuenta?.limites?.aperturasCatalogoMes != null ? `/${planDeLaCuenta.limites.aperturasCatalogoMes}` : ''}</div>
-                                  <div>facturado: ${Math.round(contador.montoFacturado || 0).toLocaleString('es-AR')}{planDeLaCuenta?.limites?.montoFacturadoMes != null ? ` / $${Number(planDeLaCuenta.limites.montoFacturadoMes).toLocaleString('es-AR')}` : ''}</div>
+                                  {fmtUltimoAcceso(c.ultimoAcceso)}
+                                </div>
+                              </td>
+                              <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap', width: '160px' }}>
+                                <div>biblioteca: {c.bibliotecaCount || 0}{planDeLaCuenta?.limites?.productosBiblioteca != null ? `/${planDeLaCuenta.limites.productosBiblioteca}` : ''}</div>
+                                {!c.cicloId && <span>—</span>}
+                                {c.cicloId && !contador && (
                                   <button
                                     className="btn"
-                                    style={{ fontSize: '10px', padding: '2px 6px', marginTop: '4px', width: '130px', boxSizing: 'border-box' }}
+                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
                                     disabled={cargandoConsumoUid === c.uid}
                                     onClick={() => verConsumo(c.uid, c.cicloId)}
                                   >
-                                    ↻ actualizar
+                                    {cargandoConsumoUid === c.uid ? 'Cargando...' : 'Ver consumo'}
                                   </button>
-                                </div>
-                              )}
-                            </td>
-                            <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                              {(c.revendedorCodigo || solicitud?.codigoRevendedor) && (() => {
-                                const codigoFila = c.revendedorCodigo || solicitud.codigoRevendedor;
-                                const revFila = revendedores.find(r => r.codigo === codigoFila);
-                                const defaultPct = revFila?.descuentosPorPlan?.[planElegido];
-                                return (
-                                  <>
-                                    <span className="badge badge-progress" title="Código de revendedor de esta cuenta">
-                                      {codigoFila}
-                                    </span>
-                                    <input
-                                      type="number" min="0" max="100"
-                                      value={descuentoPorCuenta[c.uid] ?? ''}
-                                      onChange={(e) => setDescuentoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
-                                      disabled={modoRevendedor}
-                                      placeholder={defaultPct != null ? `${defaultPct}%` : '% com.'}
-                                      aria-label="Comisión del revendedor (%)"
-                                      title={modoRevendedor
-                                        ? 'El % de comisión del revendedor lo fija el administrador, no se puede editar desde acá.'
-                                        : (defaultPct != null
-                                          ? `Comisión del revendedor (%). Si lo dejás vacío, se usa la de este plan para ${codigoFila}: ${defaultPct}%`
-                                          : 'Comisión del revendedor (%) para esta renovación: la parte del precio que se lleva él')}
-                                      style={{ fontSize: '12px', width: '60px' }}
-                                    />
-                                  </>
-                                );
-                              })()}
-                              {/* Vincular a mano una cuenta ya existente a un revendedor --
-                                  para suscriptores que el revendedor ya traía de antes de
-                                  este sistema de códigos (nunca van a pasar por una
-                                  solicitud de contacto con el código cargado). Sólo
-                                  admin: un revendedor no puede reasignarse suscriptores. */}
-                              {!modoRevendedor && (
-                                <select
-                                  value={c.revendedorCodigo || ''}
-                                  onChange={(e) => vincularRevendedorACuenta(c.uid, e.target.value)}
-                                  title="Vincular esta cuenta a un revendedor (o desvincularla)"
-                                  style={{ fontSize: '12px', width: '130px', boxSizing: 'border-box' }}
-                                >
-                                  <option value="">— Sin revendedor —</option>
-                                  {revendedores.map(rev => (
-                                    <option key={rev.codigo} value={rev.codigo}>{rev.codigo}</option>
-                                  ))}
-                                </select>
-                              )}
-                              {/* Cuenta de un revendedor vista desde el admin general: el día a
-                                  día (renovar, trial, modo lectura, marcar contactado) queda
-                                  100% en manos del revendedor, para que el % de descuento
-                                  acordado se aplique siempre y no haya diferencias al facturar.
-                                  El admin conserva vincular/desvincular (arriba) y borrar cuenta
-                                  (abajo). */}
-                              {(modoRevendedor || !c.revendedorCodigo) ? (
-                                <>
-                                  <button
-                                    className="btn"
-                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                    disabled={accionEnCurso === `${c.uid}:activar`}
-                                    onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null, descuentoPorCuenta[c.uid] === '' || descuentoPorCuenta[c.uid] == null ? null : Number(descuentoPorCuenta[c.uid]))}
-                                    title="Si la cuenta ya venció (lectura/suspendida), la reactiva desde hoy. Si todavía está vigente, prorroga un ciclo desde el vencimiento actual."
+                                )}
+                                {c.cicloId && contador && (
+                                  <div>
+                                    <div>pedidos: {contador.pedidosCreados || 0}{planDeLaCuenta?.limites?.pedidosMes != null ? `/${planDeLaCuenta.limites.pedidosMes}` : ''}</div>
+                                    <div>catálogo: {contador.aperturasCatalogo || 0}{planDeLaCuenta?.limites?.aperturasCatalogoMes != null ? `/${planDeLaCuenta.limites.aperturasCatalogoMes}` : ''}</div>
+                                    <div>facturado: ${Math.round(contador.montoFacturado || 0).toLocaleString('es-AR')}{planDeLaCuenta?.limites?.montoFacturadoMes != null ? ` / $${Number(planDeLaCuenta.limites.montoFacturadoMes).toLocaleString('es-AR')}` : ''}</div>
+                                    <button
+                                      className="btn"
+                                      style={{ fontSize: '10px', padding: '2px 6px', marginTop: '4px', width: '130px', boxSizing: 'border-box' }}
+                                      disabled={cargandoConsumoUid === c.uid}
+                                      onClick={() => verConsumo(c.uid, c.cicloId)}
+                                    >
+                                      ↻ actualizar
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                {(c.revendedorCodigo || solicitud?.codigoRevendedor) && (() => {
+                                  const codigoFila = c.revendedorCodigo || solicitud.codigoRevendedor;
+                                  const revFila = revendedores.find(r => r.codigo === codigoFila);
+                                  const defaultPct = revFila?.descuentosPorPlan?.[planElegido];
+                                  return (
+                                    <>
+                                      <span className="badge badge-progress" title="Código de revendedor de esta cuenta">
+                                        {codigoFila}
+                                      </span>
+                                      <input
+                                        type="number" min="0" max="100"
+                                        value={descuentoPorCuenta[c.uid] ?? ''}
+                                        onChange={(e) => setDescuentoPorCuenta(prev => ({ ...prev, [c.uid]: e.target.value }))}
+                                        disabled={modoRevendedor}
+                                        placeholder={defaultPct != null ? `${defaultPct}%` : '% com.'}
+                                        aria-label="Comisión del revendedor (%)"
+                                        title={modoRevendedor
+                                          ? 'El % de comisión del revendedor lo fija el administrador, no se puede editar desde acá.'
+                                          : (defaultPct != null
+                                            ? `Comisión del revendedor (%). Si lo dejás vacío, se usa la de este plan para ${codigoFila}: ${defaultPct}%`
+                                            : 'Comisión del revendedor (%) para esta renovación: la parte del precio que se lleva él')}
+                                        style={{ fontSize: '12px', width: '60px' }}
+                                      />
+                                    </>
+                                  );
+                                })()}
+                                {/* Vincular a mano una cuenta ya existente a un revendedor --
+                                    para suscriptores que el revendedor ya traía de antes de
+                                    este sistema de códigos (nunca van a pasar por una
+                                    solicitud de contacto con el código cargado). Sólo
+                                    admin: un revendedor no puede reasignarse suscriptores. */}
+                                {!modoRevendedor && (
+                                  <select
+                                    value={c.revendedorCodigo || ''}
+                                    onChange={(e) => vincularRevendedorACuenta(c.uid, e.target.value)}
+                                    title="Vincular esta cuenta a un revendedor (o desvincularla)"
+                                    style={{ fontSize: '12px', width: '130px', boxSizing: 'border-box' }}
                                   >
-                                    Renovar suscripción
-                                  </button>
-                                  {!modoRevendedor && (
+                                    <option value="">— Sin revendedor —</option>
+                                    {revendedores.map(rev => (
+                                      <option key={rev.codigo} value={rev.codigo}>{rev.codigo}</option>
+                                    ))}
+                                  </select>
+                                )}
+                                {/* Cuenta de un revendedor vista desde el admin general: el día a
+                                    día (renovar, trial, modo lectura, marcar contactado) queda
+                                    100% en manos del revendedor, para que el % de descuento
+                                    acordado se aplique siempre y no haya diferencias al facturar.
+                                    El admin conserva vincular/desvincular (arriba) y borrar cuenta
+                                    (abajo). */}
+                                {(modoRevendedor || !c.revendedorCodigo) ? (
+                                  <>
                                     <button
                                       className="btn"
                                       style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                      disabled={accionEnCurso === `${c.uid}:extenderTrial`}
-                                      onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
+                                      disabled={accionEnCurso === `${c.uid}:activar`}
+                                      onClick={() => ejecutarAccion(c.uid, 'activar', planElegido || null, descuentoPorCuenta[c.uid] === '' || descuentoPorCuenta[c.uid] == null ? null : Number(descuentoPorCuenta[c.uid]))}
+                                      title="Si la cuenta ya venció (lectura/suspendida), la reactiva desde hoy. Si todavía está vigente, prorroga un ciclo desde el vencimiento actual."
                                     >
-                                      +7 días trial
+                                      Renovar suscripción
                                     </button>
-                                  )}
-                                  <button
-                                    className="btn"
-                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                    disabled={accionEnCurso === `${c.uid}:suspender`}
-                                    onClick={() => ejecutarAccion(c.uid, 'suspender')}
-                                    title="Pasa la cuenta a modo lectura por 30 días. Recién si no se reactiva en ese plazo queda bloqueada del todo (automático)."
-                                  >
-                                    Modo Lectura (30 ds)
-                                  </button>
-                                  {c.estado === 'suspendida' && (
+                                    {!modoRevendedor && (
+                                      <button
+                                        className="btn"
+                                        style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                        disabled={accionEnCurso === `${c.uid}:extenderTrial`}
+                                        onClick={() => ejecutarAccion(c.uid, 'extenderTrial')}
+                                      >
+                                        +7 días trial
+                                      </button>
+                                    )}
                                     <button
                                       className="btn"
-                                      style={{
-                                        fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box',
-                                        color: c.contactadoPostBloqueo ? 'var(--accent)' : undefined,
-                                        borderColor: c.contactadoPostBloqueo ? 'var(--accent)' : undefined
-                                      }}
-                                      disabled={accionEnCurso === `${c.uid}:toggleContactadoPostBloqueo`}
-                                      onClick={() => ejecutarAccion(c.uid, 'toggleContactadoPostBloqueo')}
-                                      title={c.contactadoPostBloqueoFecha ? `Marcado el ${fmtFecha(c.contactadoPostBloqueoFecha)}` : 'Todavía no se marcó'}
+                                      style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                      disabled={accionEnCurso === `${c.uid}:suspender`}
+                                      onClick={() => ejecutarAccion(c.uid, 'suspender')}
+                                      title="Pasa la cuenta a modo lectura por 30 días. Recién si no se reactiva en ese plazo queda bloqueada del todo (automático)."
                                     >
-                                      {c.contactadoPostBloqueo ? '✓ Contactado' : 'Marcar contactado'}
+                                      Modo Lectura (30 ds)
                                     </button>
-                                  )}
-                                </>
-                              ) : (
-                                <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
-                                  Sólo {c.revendedorCodigo} puede operar esta cuenta.
-                                </span>
-                              )}
-                              <button
-                                className="btn"
-                                style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                onClick={() => setCuentaDatosAbierta({ uid: c.uid, email: c.email, solicitudInicial: solicitud || null })}
-                              >
-                                Consultar datos
-                              </button>
-                              {!modoRevendedor && (
+                                    {c.estado === 'suspendida' && (
+                                      <button
+                                        className="btn"
+                                        style={{
+                                          fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box',
+                                          color: c.contactadoPostBloqueo ? 'var(--accent)' : undefined,
+                                          borderColor: c.contactadoPostBloqueo ? 'var(--accent)' : undefined
+                                        }}
+                                        disabled={accionEnCurso === `${c.uid}:toggleContactadoPostBloqueo`}
+                                        onClick={() => ejecutarAccion(c.uid, 'toggleContactadoPostBloqueo')}
+                                        title={c.contactadoPostBloqueoFecha ? `Marcado el ${fmtFecha(c.contactadoPostBloqueoFecha)}` : 'Todavía no se marcó'}
+                                      >
+                                        {c.contactadoPostBloqueo ? '✓ Contactado' : 'Marcar contactado'}
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                                    Sólo {c.revendedorCodigo} puede operar esta cuenta.
+                                  </span>
+                                )}
                                 <button
-                                  className="btn btn-danger"
+                                  className="btn"
                                   style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
-                                  disabled={borrandoUid === c.uid}
-                                  onClick={() => borrarCuentaDefinitivamente(c.uid, c.email, c.estado)}
-                                  title={c.estado !== 'suspendida' ? 'Esta cuenta todavía no está bloqueada -- se puede borrar igual, pero pide confirmar el email a mano.' : undefined}
+                                  onClick={() => setCuentaDatosAbierta({ uid: c.uid, email: c.email, solicitudInicial: solicitud || null })}
                                 >
-                                  {borrandoUid === c.uid ? 'Borrando...' : '✕ Borrar cuenta'}
+                                  Consultar datos
                                 </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                {!modoRevendedor && (
+                                  <button
+                                    className="btn btn-danger"
+                                    style={{ fontSize: '11px', padding: '4px 8px', width: '130px', boxSizing: 'border-box' }}
+                                    disabled={borrandoUid === c.uid}
+                                    onClick={() => borrarCuentaDefinitivamente(c.uid, c.email, c.estado)}
+                                    title={c.estado !== 'suspendida' ? 'Esta cuenta todavía no está bloqueada -- se puede borrar igual, pero pide confirmar el email a mano.' : undefined}
+                                  >
+                                    {borrandoUid === c.uid ? 'Borrando...' : '✕ Borrar cuenta'}
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ---- Solicitudes de contacto ---- */}
+      {(modoRevendedor || pestana === 'suscriptores') && (
+        <div className="card">
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaSolicitudesAbierta ? '14px' : 0, cursor: 'pointer' }}
+            onClick={() => setListaSolicitudesAbierta(v => !v)}
+          >
+            <div className="card-title" style={{ marginBottom: 0 }}>
+              {listaSolicitudesAbierta ? '▾' : '▸'} Solicitudes de contacto {!loadingSolicitudes && `(${solicitudesPendientes.length})`}
+            </div>
+            <button
+              className="btn"
+              style={{ fontSize: '11px', padding: '5px 10px' }}
+              onClick={(e) => { e.stopPropagation(); exportarContactosTxt(); }}
+            >
+              ⬇ Exportar contactos (.txt)
+            </button>
+          </div>
+
+          {listaSolicitudesAbierta && (
+            <>
+              {loadingSolicitudes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
+
+              {!loadingSolicitudes && solicitudesPendientes.length === 0 && (
+                <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No hay solicitudes pendientes — las que ya se activaron pasaron a Suscriptores.</div>
+              )}
+
+              {!loadingSolicitudes && solicitudesPendientes.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {solicitudesPendientes.map((s) => (
+                    <div key={s.uid} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: 600 }}>{s.nombre} {s.apellido}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{s.localidad} · {s.telefono} · {s.email}</div>
+                          {s.resena && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>{s.resena}</div>}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span className={`badge ${s.estado === 'contactado' ? 'badge-done' : 'badge-pending'}`}>{s.estado || 'pendiente'}</span>
+                          {s.estado !== 'contactado' && (
+                            <button className="btn" style={{ fontSize: '11px', padding: '4px 8px' }} onClick={() => marcarContactado(s.uid)}>
+                              Marcar contactado
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Activar la suscripción de este solicitante directo desde acá:
+                          su "uid" es el mismo ID de este documento, así no hace
+                          falta ir a buscarlo a la tabla de Suscriptores (y si es
+                          una cuenta vieja sin suscripcion/actual, esto se la crea). */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                        <select
+                          value={planSeleccionadoPorSolicitud[s.uid] || ''}
+                          onChange={(e) => setPlanSeleccionadoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
+                          style={{ fontSize: '12px' }}
+                        >
+                          <option value="">Elegir plan…</option>
+                          {planes.map(p => (
+                            <option key={p.id} value={p.id}>{p.nombre}</option>
+                          ))}
+                        </select>
+                        {s.codigoRevendedor && (() => {
+                          const revFila = revendedores.find(r => r.codigo === s.codigoRevendedor);
+                          const defaultPct = revFila?.descuentosPorPlan?.[planSeleccionadoPorSolicitud[s.uid]];
+                          return (
+                            <>
+                              <span className="badge badge-progress" title="Código de revendedor de esta solicitud">
+                                {s.codigoRevendedor}
+                              </span>
+                              <input
+                                type="number" min="0" max="100"
+                                value={descuentoPorSolicitud[s.uid] ?? ''}
+                                onChange={(e) => setDescuentoPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value }))}
+                                disabled={modoRevendedor}
+                                placeholder={defaultPct != null ? `${defaultPct}%` : '% com.'}
+                                aria-label="Comisión del revendedor (%)"
+                                title={modoRevendedor
+                                  ? 'El % de comisión del revendedor lo fija el administrador, no se puede editar desde acá.'
+                                  : (defaultPct != null
+                                    ? `Comisión del revendedor (%). Si lo dejás vacío, se usa la de este plan para ${s.codigoRevendedor}: ${defaultPct}%`
+                                    : 'Comisión del revendedor (%) para esta venta: la parte del precio que se lleva él')}
+                                style={{ fontSize: '12px', width: '70px' }}
+                              />
+                            </>
+                          );
+                        })()}
+                        {/* Si trae código de revendedor, sólo ÉL puede activarla -- el admin
+                            general ya no puede, para que el % de descuento acordado se
+                            aplique siempre y no haya diferencias a la hora de facturar. */}
+                        {(modoRevendedor || !s.codigoRevendedor) && (
+                          <button
+                            className="btn btn-primary"
+                            style={{ fontSize: '11px', padding: '4px 8px' }}
+                            disabled={!planSeleccionadoPorSolicitud[s.uid] || accionEnCurso === `${s.uid}:activar`}
+                            onClick={() => ejecutarAccion(s.uid, 'activar', planSeleccionadoPorSolicitud[s.uid], descuentoPorSolicitud[s.uid] === '' || descuentoPorSolicitud[s.uid] == null ? null : Number(descuentoPorSolicitud[s.uid]))}
+                          >
+                            {accionEnCurso === `${s.uid}:activar` ? 'Activando...' : 'Activar suscripción'}
+                          </button>
+                        )}
+                        {!modoRevendedor && s.codigoRevendedor && (
+                          <span style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                            Sólo {s.codigoRevendedor} puede activar esta cuenta.
+                          </span>
+                        )}
+                        {!modoRevendedor && !s.codigoRevendedor && (
+                          <>
+                            <input
+                              type="text"
+                              value={codigoManualPorSolicitud[s.uid] || ''}
+                              onChange={(e) => setCodigoManualPorSolicitud(prev => ({ ...prev, [s.uid]: e.target.value.toUpperCase() }))}
+                              placeholder="Código revendedor…"
+                              style={{ fontSize: '12px', width: '130px' }}
+                            />
+                            <button
+                              className="btn"
+                              style={{ fontSize: '11px', padding: '4px 8px' }}
+                              disabled={!codigoManualPorSolicitud[s.uid] || guardandoCodigoUid === s.uid}
+                              onClick={() => guardarCodigoRevendedorManual(s.uid)}
+                            >
+                              {guardandoCodigoUid === s.uid ? 'Guardando...' : 'Guardar código'}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-            </div>
-          );
-        })}
-      </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ---- Revendedores (sólo admin principal) ---- */}
-      {!modoRevendedor && <div className="card">
+      {!modoRevendedor && pestana === 'revendedores' && <div className="card">
         <div
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaRevendedoresAbierta ? '14px' : 0, cursor: 'pointer' }}
           onClick={() => setListaRevendedoresAbierta(v => !v)}
@@ -1577,12 +1628,12 @@ export default function AdminPage({ modoRevendedor = false }) {
         )}
       </div>}
 
-      {!modoRevendedor && <SeccionCodigosPromocionales planes={planes} showToast={showToast} />}
+      {!modoRevendedor && pestana === 'revendedores' && <SeccionCodigosPromocionales planes={planes} showToast={showToast} />}
 
-      {!modoRevendedor && <SeccionFacturacion showToast={showToast} />}
+      {!modoRevendedor && pestana === 'negocio' && <SeccionFacturacion showToast={showToast} />}
 
       {/* ---- Plantillas de mail (sólo admin principal) ---- */}
-      {!modoRevendedor && <div className="card">
+      {!modoRevendedor && pestana === 'negocio' && <div className="card">
         <div
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: listaPlantillasAbierta ? '14px' : 0, cursor: 'pointer' }}
           onClick={() => setListaPlantillasAbierta(v => !v)}
@@ -1629,7 +1680,7 @@ export default function AdminPage({ modoRevendedor = false }) {
       </div>}
 
       {/* ---- Administradores actuales (sólo admin principal) ---- */}
-      {!modoRevendedor && <div className="card">
+      {!modoRevendedor && pestana === 'negocio' && <div className="card">
         <div className="card-title">Administradores actuales</div>
 
         {loadingAdmins && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
