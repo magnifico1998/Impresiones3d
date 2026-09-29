@@ -91,8 +91,9 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
     ...prev,
     lineas: prev.lineas.map((l, j) => {
       if (j !== i) return l;
-      // Cambiar de categoría conserva la cantidad; lo demás se adapta.
-      if (campo === 'clase') return { ...lineaVacia(valor), qty: l.qty };
+      // Cambiar de categoría conserva cantidad, marca y color; el nombre se
+      // vuelve a elegir porque sale de otra lista.
+      if (campo === 'clase') return { ...lineaVacia(valor), qty: l.qty, marca: l.marca, color: l.color, colorHex: l.colorHex };
       const nueva = { ...l, [campo]: valor };
       // Al elegir un tipo existente se propone su precio de la configuración.
       if (campo === 'tipo') {
@@ -126,20 +127,23 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
   const total = form.lineas.reduce((s, l) => s + (parseFloat(l.qty) || 0) * (parseFloat(l.precio) || 0), 0);
 
   const handleSave = () => {
+    // Todas las líneas guardan marca y color; el nombre va en `tipo` para
+    // filamento y en `desc` para el resto.
     const lineas = form.lineas.map((l) => {
       const clase = datosClase(l.clase);
-      const base = { cat: clase.cat, subtipo: clase.subtipo, qty: parseInt(l.qty) || 0, precio: parseFloat(l.precio) || 0 };
-      if (clase.subtipo === 'Filamento') {
-        const color = (l.color || '').trim();
-        return {
-          ...base,
-          tipo: (l.tipo || '').trim(),
-          marca: (l.marca || '').trim(),
-          color,
-          colorHex: colores.find((c) => igual(c.nombre, color))?.hex || l.colorHex || ''
-        };
-      }
-      return { ...base, desc: (l.desc || '').trim() };
+      const color = (l.color || '').trim();
+      const base = {
+        cat: clase.cat,
+        subtipo: clase.subtipo,
+        marca: (l.marca || '').trim(),
+        color,
+        colorHex: color ? (colores.find((c) => igual(c.nombre, color))?.hex || l.colorHex || '') : '',
+        qty: parseInt(l.qty) || 0,
+        precio: parseFloat(l.precio) || 0
+      };
+      return clase.subtipo === 'Filamento'
+        ? { ...base, tipo: (l.tipo || '').trim() }
+        : { ...base, desc: (l.desc || '').trim() };
     });
 
     const incompleta = lineas.findIndex((l) => !(l.qty > 0) || (esLineaFilamento(l) ? !l.tipo : !l.desc));
@@ -172,37 +176,49 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
       alInventario: !!form.alInventario && lineas.some((l) => CATEGORIAS_INVENTARIO.includes(l.cat))
     };
 
-    // Lo nuevo que se cargó en líneas de filamento queda en la
-    // configuración: las marcas (para seguir sugiriéndolas aunque se borre
-    // la compra), los tipos en Filamentos (con el precio de la línea como
-    // referencia) y los colores en Colores (con el color elegido).
-    const lineasFil = lineas.filter(esLineaFilamento);
-    if (lineasFil.length) {
-      const marcasCfg = cfg.marcasFilamento || [];
-      const marcasNuevas = juntarMarcas(marcasCfg, lineasFil.map((l) => l.marca));
-      const tiposNuevos = [];
-      const coloresNuevos = [];
-      for (const l of lineasFil) {
-        if (!filamentos.some((f) => igual(f.nombre, l.tipo)) && !tiposNuevos.some((t) => igual(t.nombre, l.tipo))) {
-          tiposNuevos.push({ nombre: l.tipo, precio: l.precio });
-        }
-        if (l.color && !colores.some((x) => igual(x.nombre, l.color)) && !coloresNuevos.some((x) => igual(x.nombre, l.color))) {
-          coloresNuevos.push({ nombre: l.color, hex: l.colorHex || COLOR_NUEVO_DEFAULT, secundario: false });
-        }
+    // Artículos nuevos de las demás líneas (accesorios, insumos, etc.):
+    // quedan en la configuración por categoría (cfg.articulosCompra), así se
+    // siguen sugiriendo aunque se borre la compra donde aparecieron.
+    const articulosCfg = cfg.articulosCompra || {};
+    const articulosNuevos = {};
+    for (const l of lineas.filter((x) => !esLineaFilamento(x))) {
+      const lista = articulosNuevos[l.cat] || articulosCfg[l.cat] || [];
+      const junta = juntarMarcas(lista, [l.desc]);
+      if (junta.length !== lista.length) articulosNuevos[l.cat] = junta;
+    }
+    if (Object.keys(articulosNuevos).length) {
+      setCfg((prev) => ({ ...prev, articulosCompra: { ...(prev.articulosCompra || {}), ...articulosNuevos } }));
+    }
+
+    // Lo nuevo de cualquier línea queda en la configuración: las marcas
+    // (cfg.marcasFilamento, compartidas por todas las categorías, para
+    // seguir sugiriéndolas aunque se borre la compra), los tipos de
+    // filamento en Filamentos (con el precio de la línea como referencia) y
+    // los colores en Colores (con el tono elegido).
+    const marcasCfg = cfg.marcasFilamento || [];
+    const marcasNuevas = juntarMarcas(marcasCfg, lineas.map((l) => l.marca));
+    const tiposNuevos = [];
+    const coloresNuevos = [];
+    for (const l of lineas) {
+      if (esLineaFilamento(l) && !filamentos.some((f) => igual(f.nombre, l.tipo)) && !tiposNuevos.some((t) => igual(t.nombre, l.tipo))) {
+        tiposNuevos.push({ nombre: l.tipo, precio: l.precio });
       }
-      if (marcasNuevas.length !== marcasCfg.length || tiposNuevos.length || coloresNuevos.length) {
-        setCfg((prev) => ({
-          ...prev,
-          marcasFilamento: marcasNuevas,
-          filamentos: [...(prev.filamentos || []), ...tiposNuevos],
-          colores: [...(prev.colores || []), ...coloresNuevos]
-        }));
-        const agregados = [
-          tiposNuevos.length && `${tiposNuevos.length} filamento${tiposNuevos.length === 1 ? '' : 's'}`,
-          coloresNuevos.length && `${coloresNuevos.length} color${coloresNuevos.length === 1 ? '' : 'es'}`
-        ].filter(Boolean);
-        if (agregados.length) showToast(`Se agregaron a la configuración: ${agregados.join(' y ')}.`);
+      if (l.color && !colores.some((x) => igual(x.nombre, l.color)) && !coloresNuevos.some((x) => igual(x.nombre, l.color))) {
+        coloresNuevos.push({ nombre: l.color, hex: l.colorHex || COLOR_NUEVO_DEFAULT, secundario: false });
       }
+    }
+    if (marcasNuevas.length !== marcasCfg.length || tiposNuevos.length || coloresNuevos.length) {
+      setCfg((prev) => ({
+        ...prev,
+        marcasFilamento: marcasNuevas,
+        filamentos: [...(prev.filamentos || []), ...tiposNuevos],
+        colores: [...(prev.colores || []), ...coloresNuevos]
+      }));
+      const agregados = [
+        tiposNuevos.length && `${tiposNuevos.length} filamento${tiposNuevos.length === 1 ? '' : 's'}`,
+        coloresNuevos.length && `${coloresNuevos.length} color${coloresNuevos.length === 1 ? '' : 'es'}`
+      ].filter(Boolean);
+      if (agregados.length) showToast(`Se agregaron a la configuración: ${agregados.join(' y ')}.`);
     }
 
     if (editId !== null) {
@@ -222,16 +238,23 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
   //  - marcas: las guardadas en la configuración, las de compras anteriores
   //    y las de las OTRAS líneas de esta compra (la propia no, para no
   //    sugerir lo que se está escribiendo);
-  //  - descripciones: las ya usadas en líneas de la misma categoría, así una
-  //    compra nueva del mismo producto suma al mismo artículo del inventario.
+  //  - descripciones: las guardadas en la configuración para esa categoría,
+  //    las ya usadas en compras anteriores y las de las OTRAS líneas de esta
+  //    compra, así el mismo producto suma siempre al mismo artículo del
+  //    inventario.
   const marcasGuardadas = juntarMarcas(cfg.marcasFilamento || [], marcasUsadas(compras));
   const marcasParaLinea = (i) => juntarMarcas(
     marcasGuardadas,
-    form.lineas.filter((l, j) => j !== i && l.clase === 'Filamento').map((l) => l.marca)
+    form.lineas.filter((l, j) => j !== i).map((l) => l.marca)
   );
-  const descripcionesDe = (cat) => juntarMarcas(
-    compras.flatMap((c) => lineasDeCompra(c).filter((l) => l.cat === cat && !esLineaFilamento(l)).map((l) => l.desc))
-  );
+  const descripcionesPara = (i) => {
+    const cat = datosClase(form.lineas[i].clase).cat;
+    return juntarMarcas(
+      (cfg.articulosCompra || {})[cat] || [],
+      compras.flatMap((c) => lineasDeCompra(c).filter((l) => l.cat === cat && !esLineaFilamento(l)).map((l) => l.desc)),
+      form.lineas.filter((l, j) => j !== i && l.clase !== 'Filamento' && datosClase(l.clase).cat === cat).map((l) => l.desc)
+    );
+  };
 
   const inventariables = form.lineas.filter((l) => CATEGORIAS_INVENTARIO.includes(datosClase(l.clase).cat));
   const muestraInventario = !!cfg.inventarioHabilitado && inventariables.length > 0;
@@ -286,9 +309,14 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                       </select>
                     </td>
                     <td>
-                      {l.clase === 'Filamento' ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) minmax(120px, 1fr) minmax(150px, 1.2fr)', gap: '6px' }}>
-                          <SelectorConAlta value={l.tipo} opciones={filamentos.map((f) => f.nombre)} placeholder="Tipo" onChange={(v) => cambiarLinea(i, 'tipo', v)} />
+                      {/* Mismos datos en todas las categorías: nombre (tipo de filamento o
+                          descripción), marca y color. Marca y color son opcionales. */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 1.4fr) minmax(120px, 1fr) minmax(150px, 1.1fr)', gap: '6px' }}>
+                          {l.clase === 'Filamento' ? (
+                            <SelectorConAlta value={l.tipo} opciones={filamentos.map((f) => f.nombre)} placeholder="Tipo de filamento" onChange={(v) => cambiarLinea(i, 'tipo', v)} />
+                          ) : (
+                            <SelectorConAlta value={l.desc} opciones={descripcionesPara(i)} placeholder="Descripción (ej: Boquilla 0.4 mm)" onChange={(v) => cambiarLinea(i, 'desc', v)} />
+                          )}
                           <SelectorConAlta value={l.marca} opciones={marcasParaLinea(i)} placeholder="Marca" onChange={(v) => cambiarLinea(i, 'marca', v)} />
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {colorNuevo ? (
@@ -317,15 +345,7 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                               )}
                             />
                           </div>
-                        </div>
-                      ) : (
-                        <SelectorConAlta
-                          value={l.desc}
-                          opciones={descripcionesDe(datosClase(l.clase).cat)}
-                          placeholder="Descripción (ej: Boquilla 0.4 mm)"
-                          onChange={(v) => cambiarLinea(i, 'desc', v)}
-                        />
-                      )}
+                      </div>
                     </td>
                     <td><input type="number" min="1" step="1" value={l.qty} onChange={(e) => cambiarLinea(i, 'qty', e.target.value)} /></td>
                     <td><input type="number" min="0" step="100" value={l.precio} placeholder="0" onChange={(e) => cambiarLinea(i, 'precio', e.target.value)} /></td>
@@ -365,7 +385,7 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
               onChange={(e) => setForm(prev => ({ ...prev, alInventario: e.target.checked }))}
             />
             <label htmlFor="alInventario" style={{ fontSize: '13px' }}>
-              Sumar al inventario los filamentos, insumos y accesorios ({unidadesInventario} u.)
+              Sumar al inventario ({unidadesInventario} u.; los impuestos no suman)
             </label>
           </div>
         )}

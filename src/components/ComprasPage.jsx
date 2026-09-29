@@ -272,9 +272,8 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
                       {visibles.map((a) => (
                         <tr key={a.clave}>
                           <td>
-                            {a.filamento && (
+                            {a.colorHex && (
                               <span
-                                title={a.nombre.split(' · ')[2]}
                                 style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', marginRight: '6px', verticalAlign: '-1px', border: '1px solid var(--border2)', background: a.colorHex || 'transparent' }}
                               />
                             )}
