@@ -168,14 +168,16 @@ export default function SelectorRangoFechas({ desde, hasta, onChange, style }) {
       <button
         type="button"
         className="btn"
-        style={{ justifyContent: 'flex-start', gap: '8px', ...style }}
+        style={{ justifyContent: 'flex-start', gap: '8px', minWidth: 0, ...style }}
+        title={textoRango(desde, hasta)}
         onClick={() => setAbierto(true)}
       >
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px', flexShrink: 0 }}>
           <rect x="3" y="4" width="14" height="13" rx="1.5" />
           <path d="M3 8h14M7 2.5v3M13 2.5v3" />
         </svg>
-        {textoRango(desde, hasta)}
+        {/* Si igual no entra, se corta con "…" en vez de salirse del botón. */}
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{textoRango(desde, hasta)}</span>
       </button>
       {abierto && (
         <ModalRango desde={desde} hasta={hasta} onAplicar={onChange} onCerrar={() => setAbierto(false)} />

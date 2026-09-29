@@ -373,11 +373,13 @@ export default function SeccionFacturacion({ showToast }) {
           </div>
 
           <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Comprobantes</div>
-          <div style={{ ...grilla, marginBottom: '10px' }}>
-            <label style={etiqueta}>Buscar
+          {/* Anchos por filtro (no la grilla pareja del resto de la sección): el
+              selector de tipo es corto y el de fechas necesita lugar para el rango. */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+            <label style={{ ...etiqueta, flex: '2 1 200px' }}>Buscar
               <input type="text" style={input} value={filtros.texto} onChange={cambiarFiltro('texto')} placeholder="Cliente, documento, número, CAE…" />
             </label>
-            <label style={etiqueta}>Estado
+            <label style={{ ...etiqueta, flex: '1 1 150px' }}>Estado
               <select style={input} value={filtros.estado} onChange={cambiarFiltro('estado')}>
                 <option value="todos">Todos</option>
                 <option value="emitida">Emitidas vigentes</option>
@@ -387,20 +389,20 @@ export default function SeccionFacturacion({ showToast }) {
                 <option value="descartada">Descartadas</option>
               </select>
             </label>
-            <label style={etiqueta}>Tipo
+            <label style={{ ...etiqueta, flex: '0 1 120px' }}>Tipo
               <select style={input} value={filtros.tipo} onChange={cambiarFiltro('tipo')}>
                 <option value="todos">Todos</option>
                 <option value="factura">Facturas</option>
                 <option value="notaCredito">Notas de crédito</option>
               </select>
             </label>
-            <label style={etiqueta}>Origen
+            <label style={{ ...etiqueta, flex: '1 1 160px' }}>Origen
               <select style={input} value={filtros.origen} onChange={cambiarFiltro('origen')}>
                 <option value="todos">Todos</option>
                 {Object.entries(ORIGENES).map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
               </select>
             </label>
-            <div style={etiqueta}>Fechas
+            <div style={{ ...etiqueta, flex: '1.5 1 240px' }}>Fechas
               <SelectorRangoFechas
                 desde={filtros.desde}
                 hasta={filtros.hasta}
