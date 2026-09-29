@@ -11,19 +11,23 @@ import { createPortal } from 'react-dom';
 
 const normal = (t) => String(t || '').trim().toLowerCase();
 
-export default function SelectorConAlta({ value, onChange, opciones, placeholder, style }) {
+// antesDeOpcion(valor): contenido opcional antes del texto de cada opción
+// (ej. la muestra de un color).
+export default function SelectorConAlta({ value, onChange, opciones, placeholder, style, antesDeOpcion }) {
   const inputRef = useRef(null);
   const [abierto, setAbierto] = useState(false);
   const [resaltada, setResaltada] = useState(0);
   const [pos, setPos] = useState(null);
+  // Al entrar al campo se ven todas las opciones; se filtra recién al escribir.
+  const [filtrando, setFiltrando] = useState(false);
 
   const texto = normal(value);
-  const filtradas = opciones.filter((o) => !texto || normal(o).includes(texto));
+  const filtradas = filtrando && texto ? opciones.filter((o) => normal(o).includes(texto)) : opciones;
   const existe = opciones.some((o) => normal(o) === texto);
   // Lista final: coincidencias y, si lo escrito es nuevo, la opción de agregarlo.
   const items = [
     ...filtradas.map((o) => ({ valor: o, texto: o })),
-    ...(texto && !existe ? [{ valor: value.trim(), texto: `+ Agregar «${value.trim()}»`, nueva: true }] : [])
+    ...(filtrando && texto && !existe ? [{ valor: value.trim(), texto: `+ Agregar «${value.trim()}»`, nueva: true }] : [])
   ];
 
   // Posición del desplegable pegada al campo (se recalcula al abrir y al
@@ -63,8 +67,8 @@ export default function SelectorConAlta({ value, onChange, opciones, placeholder
         value={value}
         placeholder={placeholder}
         style={style}
-        onChange={(e) => { onChange(e.target.value); setAbierto(true); setResaltada(0); }}
-        onFocus={() => { setAbierto(true); setResaltada(0); }}
+        onChange={(e) => { onChange(e.target.value); setAbierto(true); setFiltrando(true); setResaltada(0); }}
+        onFocus={() => { setAbierto(true); setFiltrando(false); setResaltada(0); }}
         // Demora para que el clic en una opción llegue antes de cerrar.
         onBlur={() => setTimeout(() => setAbierto(false), 150)}
         onKeyDown={teclado}
@@ -88,9 +92,11 @@ export default function SelectorConAlta({ value, onChange, opciones, placeholder
                 padding: '7px 10px', fontSize: '13px', cursor: 'pointer', borderRadius: '6px',
                 background: i === resaltada ? 'var(--bg3)' : 'transparent',
                 color: item.nueva ? 'var(--accent)' : 'var(--text)',
-                fontWeight: item.nueva ? 600 : 400
+                fontWeight: item.nueva ? 600 : 400,
+                display: 'flex', alignItems: 'center', gap: '8px'
               }}
             >
+              {!item.nueva && antesDeOpcion?.(item.valor)}
               {item.texto}
             </div>
           ))}
