@@ -16,6 +16,8 @@ import { descargarPdfBase64 } from '../utils/facturacion';
 //   referenciaDe(f): texto de referencia de cada comprobante (ej. "Pedido #0012").
 //   funciones: nombres de las callables { pdf, mail, anular, reintentar }.
 //   nombreExcel: prefijo del archivo exportado.
+//   columnaExtra: { titulo, valor(f) } opcional, se muestra después de la
+//     fecha y se exporta al Excel (ej. el número de pedido).
 
 const VISIBLES_COLAPSADO = 5;
 const filtrosVacios = { estado: 'todos', tipo: 'todos', origen: 'todos', desde: '', hasta: '', texto: '' };
@@ -80,7 +82,7 @@ const IconoMail = () => (
 const llamar = (nombre, datos) => httpsCallable(functions, nombre, { timeout: 300000 })(datos).then((r) => r.data);
 const textoErrores = (r) => (r?.errores || []).map((e) => `${e.codigo}: ${e.mensaje}`).join('\n');
 
-export default function TablaComprobantes({ facturas, origenes, referenciaDe = (f) => f.origen?.referencia || '', funciones, nombreExcel = 'comprobantes', showToast }) {
+export default function TablaComprobantes({ facturas, origenes, referenciaDe = (f) => f.origen?.referencia || '', funciones, nombreExcel = 'comprobantes', columnaExtra, showToast }) {
   const [filtros, setFiltros] = useState(filtrosVacios);
   const [verTodos, setVerTodos] = useState(false);
   const [ocupada, setOcupada] = useState(null); // id de la factura con una acción en curso
@@ -157,9 +159,12 @@ export default function TablaComprobantes({ facturas, origenes, referenciaDe = (
       await exportarExcel({
         nombreArchivo: `${nombreExcel}-${hoy}.xlsx`,
         hoja: 'Comprobantes',
-        columnas: COLUMNAS_EXCEL,
+        columnas: columnaExtra
+          ? [COLUMNAS_EXCEL[0], { titulo: columnaExtra.titulo, ancho: 12 }, ...COLUMNAS_EXCEL.slice(1)]
+          : COLUMNAS_EXCEL,
         filas: filtradas.map((f) => [
           fechaDe(f),
+          ...(columnaExtra ? [columnaExtra.valor(f) || ''] : []),
           TIPOS_CBTE[f.tipoCbte] || f.tipoCbte,
           f.ptoVta || '',
           f.numero || '',
@@ -246,6 +251,7 @@ export default function TablaComprobantes({ facturas, origenes, referenciaDe = (
             <thead>
               <tr>
                 <th>Fecha</th>
+                {columnaExtra && <th>{columnaExtra.titulo}</th>}
                 <th>Tipo</th>
                 <th>N° comp.</th>
                 <th>Cliente</th>
@@ -274,6 +280,7 @@ export default function TablaComprobantes({ facturas, origenes, referenciaDe = (
                   <React.Fragment key={f.id}>
                     <tr title={origen}>
                       <td>{fechaAR(fechaDe(f)) || '—'}</td>
+                      {columnaExtra && <td style={{ fontFamily: 'var(--mono)' }}>{columnaExtra.valor(f) || '—'}</td>}
                       <td>{esNC ? 'NC C' : 'Factura C'}</td>
                       <td style={{ fontFamily: 'var(--mono)' }}>{numeroCbte(f)}</td>
                       <td>
@@ -312,7 +319,7 @@ export default function TablaComprobantes({ facturas, origenes, referenciaDe = (
                     </tr>
                     {notas.length > 0 && (
                       <tr>
-                        <td colSpan={9} style={{ whiteSpace: 'normal', paddingTop: 0 }}>
+                        <td colSpan={columnaExtra ? 10 : 9} style={{ whiteSpace: 'normal', paddingTop: 0 }}>
                           {notas.map((n, i) => (
                             <div key={i} style={{ fontSize: '11px', color: n.error ? 'var(--danger)' : 'var(--text2)' }}>{n.texto}</div>
                           ))}

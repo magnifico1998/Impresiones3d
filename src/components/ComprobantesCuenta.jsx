@@ -29,6 +29,12 @@ const referenciaDe = (f) => {
   return [`Pedido #${String(pedidoId).padStart(4, '0')}`, f.origen?.cliente].filter(Boolean).join(' · ');
 };
 
+// Columna "Pedido" de la tabla y del Excel.
+const COLUMNA_PEDIDO = {
+  titulo: 'Pedido',
+  valor: (f) => (f.origen?.pedidoId ? `#${String(f.origen.pedidoId).padStart(4, '0')}` : '')
+};
+
 export default function ComprobantesCuenta() {
   const { cuentaId, showToast } = useApp();
   const [facturas, setFacturas] = useState([]);
@@ -50,6 +56,7 @@ export default function ComprobantesCuenta() {
         referenciaDe={referenciaDe}
         funciones={FUNCIONES}
         nombreExcel="comprobantes"
+        columnaExtra={COLUMNA_PEDIDO}
         showToast={showToast}
       />
     </div>
