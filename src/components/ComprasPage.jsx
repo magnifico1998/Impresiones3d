@@ -97,8 +97,12 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
     <div className="page active">
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="page-title">Compras</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>Registrá gastos en insumos, equipos, accesorios e impuestos.</div>
+          <div className="page-title">{cfg.inventarioHabilitado ? 'Compras / Inventario' : 'Compras'}</div>
+          <div className="page-sub" style={{ marginBottom: 0 }}>
+            {cfg.inventarioHabilitado
+              ? 'Registrá gastos en insumos, equipos, accesorios e impuestos, y controlá el stock de lo que tenés.'
+              : 'Registrá gastos en insumos, equipos, accesorios e impuestos.'}
+          </div>
         </div>
         {pestanaVisible === 'compras' && <button className="btn btn-primary" onClick={onOpenNewCompra}>
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">

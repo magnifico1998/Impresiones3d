@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { activePage, setActivePage, isAdmin, esRevendedor } = useApp();
+  const { activePage, setActivePage, isAdmin, esRevendedor, cfg } = useApp();
 
   const handleNavigate = (id) => {
     setActivePage(id);
@@ -67,7 +67,8 @@ export default function Sidebar({ isOpen, onClose }) {
         },
         {
           id: 'compras',
-          name: 'Compras',
+          // Con el control de inventario habilitado, la sección suma la pestaña Inventario.
+          name: cfg?.inventarioHabilitado ? 'Compras / Inventario' : 'Compras',
           icon: (
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="8" cy="16" r="1.5" />
