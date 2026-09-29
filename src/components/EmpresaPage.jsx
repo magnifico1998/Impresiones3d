@@ -7,6 +7,7 @@ import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import ModalSuscribirse from './modals/ModalSuscribirse';
 import TarjetaFacturacionCuenta from './TarjetaFacturacionCuenta';
+import ComprobantesCuenta from './ComprobantesCuenta';
 import { PESTANAS_EMPRESA, pestanaEmpresaGuardada, guardarPestanaEmpresa } from '../utils/facturacion';
 import { sincronizarPagoMP } from '../utils/pagosMP';
 
@@ -552,7 +553,12 @@ export default function EmpresaPage() {
         </>
       )}
 
-      {pestanaVisible === 'arca' && <TarjetaFacturacionCuenta />}
+      {pestanaVisible === 'arca' && (
+        <>
+          <TarjetaFacturacionCuenta />
+          <ComprobantesCuenta />
+        </>
+      )}
 
       <ModalSuscribirse isOpen={modalSuscribirseOpen} onClose={() => setModalSuscribirseOpen(false)} />
     </div>

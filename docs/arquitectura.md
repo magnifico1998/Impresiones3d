@@ -44,6 +44,7 @@ React 19 + Vite, sin router: la navegación es por estado.
 | `components/Dialogos.jsx` | Confirmaciones y avisos propios (reemplazan a `alert`/`confirm`) |
 | `utils/` | Cálculos (finanzas del pedido, precio neto, capacidad), PDFs (`presupuestoPDF.js`, `listadoPDF.js`), armado de piezas de pedido (`piezaPedido.js`), WhatsApp, paletas |
 | `SeccionFacturaPedido.jsx`, `modals/ModalFacturarPedido.jsx`, `TarjetaFacturacionCuenta.jsx`, `utils/facturacion.js` | Facturación de pedidos: bloque en el detalle del pedido, modal para emitir y configuración en "Mi emprendimiento" |
+| `TablaComprobantes.jsx`, `ComprobantesCuenta.jsx`, `SelectorRangoFechas.jsx`, `utils/exportarExcel.js` | Listado de comprobantes con filtros, rango de fechas y exportación a Excel; lo usan el panel admin y la pestaña "Facturación ARCA" de cada emprendimiento |
 | `index.css` | Estilos globales y variables de color |
 
 ## Vercel (`api/` y `vercel.json`)
