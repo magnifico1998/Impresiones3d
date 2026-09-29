@@ -166,6 +166,15 @@ export function armarInventario(compras, movimientos = []) {
     .sort((x, y) => (x.filamento === y.filamento ? x.nombre.localeCompare(y.nombre, 'es') : x.filamento ? -1 : 1));
 }
 
+// Stock mínimo por artículo (cfg.inventarioMinimos: { clave: cantidad }, en
+// la unidad del artículo). Un artículo está "bajo mínimo" cuando tiene
+// mínimo cargado y su stock quedó por debajo.
+export const minimoDe = (minimos, a) => Number((minimos || {})[a.clave]) || 0;
+export const estaBajoMinimo = (minimos, a) => {
+  const minimo = minimoDe(minimos, a);
+  return minimo > 0 && a.stock < minimo;
+};
+
 // Cantidad con su unidad: "2.350 g" o "3 u.".
 export function formatoCantidad(cantidad, unidad) {
   const n = Math.round((Number(cantidad) || 0) * 10) / 10;

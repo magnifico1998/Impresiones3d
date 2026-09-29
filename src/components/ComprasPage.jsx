@@ -3,6 +3,8 @@ import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 import { categoriasDeCompra, lineasDeCompra, subtotalLinea, totalCompra } from '../utils/inventario';
 import InventarioTab from './InventarioTab';
+import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
+import { armarInventario, estaBajoMinimo } from '../utils/inventario';
 
 // Pestañas de Compras. "Inventario" existe sólo si está habilitado en
 // Configuración → Aplicación. La elegida se recuerda en el navegador.
@@ -25,6 +27,12 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
   const { compras, removeCompra, showToast, fmt, cfg } = useApp();
   const [pestana, setPestana] = useState(pestanaComprasGuardada);
   const pestanaVisible = cfg.inventarioHabilitado ? pestana : 'compras';
+  // Artículos bajo el mínimo, para mostrarlos en la solapa "Inventario (N)".
+  const { movimientos } = useMovimientosInventario();
+  const cantidadBajoMinimo = useMemo(() => {
+    if (!cfg.inventarioHabilitado) return 0;
+    return armarInventario(compras, movimientos).filter((a) => estaBajoMinimo(cfg.inventarioMinimos, a)).length;
+  }, [compras, movimientos, cfg.inventarioHabilitado, cfg.inventarioMinimos]);
   const elegirPestana = (id) => {
     setPestana(id);
     try {
@@ -112,6 +120,9 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
               onClick={() => elegirPestana(p.id)}
             >
               {p.nombre}
+              {p.id === 'inventario' && cantidadBajoMinimo > 0 && (
+                <span style={{ marginLeft: '6px', color: 'var(--danger)', fontWeight: 700 }} title="Artículos bajo el stock mínimo">({cantidadBajoMinimo})</span>
+              )}
             </button>
           ))}
         </div>

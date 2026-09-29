@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { pedirTexto, confirmar } from './Dialogos';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
-import { armarInventario, formatoCantidad, TIPOS_MOVIMIENTO } from '../utils/inventario';
+import { armarInventario, estaBajoMinimo, formatoCantidad, minimoDe, TIPOS_MOVIMIENTO } from '../utils/inventario';
 
 // Pestaña "Inventario" de Compras: stock de cada artículo (lo comprado más
 // los movimientos), con ajuste por conteo, baja e historial. El filamento
@@ -20,14 +20,19 @@ const BADGE_CAT = {
 const fechaCorta = (f) => (f ? f.split('-').reverse().join('/') : '—');
 
 export default function InventarioTab() {
-  const { compras, fmt } = useApp();
+  const { compras, fmt, cfg, setCfg } = useApp();
+  const minimos = cfg.inventarioMinimos || {};
+  const [soloBajoMinimo, setSoloBajoMinimo] = useState(false);
   const { movimientos, agregarMovimiento, borrarMovimiento } = useMovimientosInventario();
   const [busqueda, setBusqueda] = useState('');
   const [abierto, setAbierto] = useState(null); // clave del artículo con el historial desplegado
 
   const inventario = useMemo(() => armarInventario(compras, movimientos), [compras, movimientos]);
   const texto = busqueda.trim().toLowerCase();
-  const visibles = inventario.filter((a) => !texto || a.nombre.toLowerCase().includes(texto) || a.cat.toLowerCase().includes(texto));
+  const bajoMinimo = inventario.filter((a) => estaBajoMinimo(minimos, a));
+  const visibles = inventario
+    .filter((a) => !texto || a.nombre.toLowerCase().includes(texto) || a.cat.toLowerCase().includes(texto))
+    .filter((a) => !soloBajoMinimo || estaBajoMinimo(minimos, a));
   const valorTotal = visibles.reduce((s, a) => s + a.valorStock, 0);
 
   // Número escrito a mano ("1.250", "1250,5") a número.
@@ -63,6 +68,24 @@ export default function InventarioTab() {
     });
   };
 
+  // Mínimo del artículo (vacío o 0 lo saca).
+  const definirMinimo = async (a) => {
+    const unidad = a.unidad === 'g' ? 'gramos' : 'unidades';
+    const actual = minimoDe(minimos, a);
+    const respuesta = await pedirTexto(`Stock mínimo de "${a.nombre}" (en ${unidad}). Dejalo vacío para quitarlo.`, {
+      titulo: 'Stock mínimo', valorInicial: actual ? String(actual) : '', placeholder: a.unidad === 'g' ? 'Ej: 500' : 'Ej: 2', tipoInput: 'text'
+    });
+    if (respuesta === null) return;
+    const minimo = leerNumero(respuesta);
+    // Quitarlo guarda 0 (= sin mínimo) en vez de borrar la clave: la
+    // configuración se guarda con merge y una clave borrada del mapa
+    // volvería a aparecer al recargar.
+    setCfg((prev) => ({
+      ...prev,
+      inventarioMinimos: { ...(prev.inventarioMinimos || {}), [a.clave]: Number.isFinite(minimo) && minimo > 0 ? minimo : 0 }
+    }));
+  };
+
   const deshacer = async (m) => {
     if (!(await confirmar(`¿Borrar este movimiento (${TIPOS_MOVIMIENTO[m.tipo]} de ${formatoCantidad(m.cantidad, '')})? El stock vuelve a como estaba antes.`, { titulo: 'Borrar movimiento', peligro: true }))) return;
     await borrarMovimiento(m.id);
@@ -93,8 +116,14 @@ export default function InventarioTab() {
           style={{ maxWidth: '260px' }}
         />
       </div>
-      <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
-        {visibles.length} artículo{visibles.length === 1 ? '' : 's'} · valor en stock {fmt(valorTotal)}
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
+        <span>{visibles.length} artículo{visibles.length === 1 ? '' : 's'} · valor en stock {fmt(valorTotal)}</span>
+        {bajoMinimo.length > 0 && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={soloBajoMinimo} onChange={(e) => setSoloBajoMinimo(e.target.checked)} />
+            {bajoMinimo.length} bajo el mínimo · ver sólo esos
+          </label>
+        )}
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table className="data-table">
@@ -113,9 +142,14 @@ export default function InventarioTab() {
             {visibles.map((a) => {
               const esEquipo = a.cat === 'Equipos';
               const sinStock = a.stock <= 0;
+              const minimo = minimoDe(minimos, a);
+              const bajo = estaBajoMinimo(minimos, a);
+              // Bajo el mínimo se resalta (aunque esté en cero); sin stock y
+              // sin mínimo, se atenúa.
+              const estiloFila = bajo ? { background: 'var(--dangerDim)' } : sinStock ? { opacity: 0.55 } : undefined;
               return (
                 <React.Fragment key={a.clave}>
-                  <tr style={sinStock ? { opacity: 0.55 } : undefined}>
+                  <tr style={estiloFila}>
                     <td style={{ cursor: 'pointer' }} onClick={() => setAbierto(abierto === a.clave ? null : a.clave)} title="Ver movimientos">
                       <span style={{ color: 'var(--text3)', marginRight: '6px' }}>{abierto === a.clave ? '▾' : '▸'}</span>
                       {a.colorHex && (
@@ -124,8 +158,13 @@ export default function InventarioTab() {
                       {a.nombre}
                     </td>
                     <td><span className={`badge ${BADGE_CAT[a.cat] || ''}`}>{a.cat}</span></td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600, whiteSpace: 'nowrap', color: bajo ? 'var(--danger)' : undefined }}>
                       {formatoCantidad(a.stock, a.unidad)}
+                      {minimo > 0 && (
+                        <div style={{ fontSize: '11px', fontWeight: 400, color: bajo ? 'var(--danger)' : 'var(--text3)' }}>
+                          {bajo ? 'bajo mínimo · ' : ''}mín. {formatoCantidad(minimo, a.unidad)}
+                        </div>
+                      )}
                       {a.unidad === 'g' && (
                         <div style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text3)' }}>
                           ≈ {(Math.round((a.stock / (a.pesoRollo || 1000)) * 10) / 10).toLocaleString('es-AR')} rollos
@@ -140,6 +179,7 @@ export default function InventarioTab() {
                     <td>
                       <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
                         {/* Los equipos no se consumen: sólo se dan de baja. */}
+                        {!esEquipo && <button className="btn btn-sm" style={botonChico} onClick={() => definirMinimo(a)} title="Stock mínimo">Mínimo</button>}
                         {!esEquipo && <button className="btn btn-sm" style={botonChico} onClick={() => ajustar(a)}>Ajustar</button>}
                         <button className="btn btn-sm" style={botonChico} disabled={sinStock} onClick={() => darDeBaja(a)}>Dar de baja</button>
                       </div>
