@@ -392,56 +392,88 @@ export default function SeccionFacturacion({ showToast }) {
           </div>
           {facturas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Todavía no hay comprobantes.</div>}
           {facturas.length > 0 && filtradas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Ningún comprobante coincide con los filtros.</div>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {visibles.map((f) => {
-              const [badge, textoEstado] = BADGE_ESTADO[f.estado] || ['badge-pending', f.estado];
-              const esNC = f.tipoCbte === 13;
-              return (
-                <div key={f.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '10px 12px', background: 'var(--bg)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>
-                        {esNC ? 'Nota de Crédito C' : 'Factura C'} {numeroCbte(f)}
-                        <span className={`badge ${badge}`} style={{ marginLeft: '8px' }}>{textoEstado}</span>
-                        {f.entorno === 'homologacion' && <span className="badge badge-pending" style={{ marginLeft: '6px' }}>prueba</span>}
-                        {f.notaCreditoId && <span className="badge badge-cancelled" style={{ marginLeft: '6px' }}>anulada</span>}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>
-                        {fechaAR(f.fecha)} · {f.receptor?.nombre || 'Sin nombre'}
-                        {f.receptor?.docTipo !== 99 ? ` (${f.receptor?.docNro})` : ''} · {pesos(f.importeTotal)}
-                        {' '}· {ORIGENES[f.origen?.tipo] || f.origen?.tipo}{f.origen?.referencia ? ` · ${f.origen.referencia}` : ''}
-                        {f.cae ? ` · CAE ${f.cae}` : ''}
-                        {f.mailEnviadoEl ? ' · mail enviado' : ''}
-                      </div>
-                      {f.estado === 'error' && (f.errores || []).map((e, i) => (
-                        <div key={i} style={{ fontSize: '11px', color: 'var(--danger, #c0392b)', marginTop: '2px' }}>{e.codigo}: {e.mensaje}</div>
-                      ))}
-                      {(f.advertencias || []).map((a, i) => (
-                        <div key={i} style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>⚠ {a}</div>
-                      ))}
-                      {f.errorMail && <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>⚠ El mail no salió: {f.errorMail}</div>}
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {f.estado === 'emitida' && (
-                        <>
-                          <button className="btn" style={botonChico} disabled={ocupada === f.id} onClick={() => descargar(f)}>PDF</button>
-                          <button className="btn" style={botonChico} disabled={ocupada === f.id} onClick={() => reenviar(f)}>Mandar por mail</button>
-                          {!esNC && !f.notaCreditoId && (
-                            <button className="btn btn-danger" style={botonChico} disabled={ocupada === f.id} onClick={() => anular(f)}>Anular</button>
-                          )}
-                        </>
-                      )}
-                      {f.estado !== 'emitida' && (
-                        <button className="btn" style={botonChico} disabled={ocupada === f.id} onClick={() => accion(f, 'reintentarFactura', {}, 'Comprobante emitido.')}>
-                          {ocupada === f.id ? 'Emitiendo…' : 'Reintentar'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {filtradas.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>N° comp.</th>
+                    <th>Cliente</th>
+                    <th>N° documento</th>
+                    <th style={{ textAlign: 'right' }}>Monto</th>
+                    <th>CAE</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibles.map((f) => {
+                    const [badge, textoEstado] = f.notaCreditoId
+                      ? ['badge-cancelled', 'anulada']
+                      : (BADGE_ESTADO[f.estado] || ['badge-pending', f.estado]);
+                    const esNC = f.tipoCbte === 13;
+                    // Errores y advertencias van en una fila aparte, debajo, para
+                    // no ensanchar la tabla.
+                    const notas = [
+                      ...(f.estado === 'error' ? (f.errores || []).map((e) => ({ error: true, texto: `${e.codigo}: ${e.mensaje}` })) : []),
+                      ...(f.advertencias || []).map((a) => ({ texto: `⚠ ${a}` })),
+                      ...(f.errorMail ? [{ texto: `⚠ El mail no salió: ${f.errorMail}` }] : [])
+                    ];
+                    const origen = [ORIGENES[f.origen?.tipo] || f.origen?.tipo, f.origen?.referencia].filter(Boolean).join(' · ');
+                    return (
+                      <React.Fragment key={f.id}>
+                        <tr title={origen}>
+                          <td>{fechaAR(f.fecha) || '—'}</td>
+                          <td>{esNC ? 'NC C' : 'Factura C'}</td>
+                          <td style={{ fontFamily: 'var(--mono)' }}>{numeroCbte(f)}</td>
+                          <td>
+                            {f.receptor?.nombre || 'Consumidor final'}
+                            {f.mailEnviadoEl && <span title="Mail enviado" style={{ marginLeft: '4px', color: 'var(--text3)' }}>✉</span>}
+                          </td>
+                          <td style={{ fontFamily: 'var(--mono)' }}>{f.receptor?.docTipo !== 99 ? f.receptor?.docNro : '—'}</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--mono)' }}>{pesos(f.importeTotal)}</td>
+                          <td style={{ fontFamily: 'var(--mono)' }}>{f.cae || '—'}</td>
+                          <td>
+                            <span className={`badge ${badge}`}>{textoEstado}</span>
+                            {f.entorno === 'homologacion' && <span className="badge badge-pending" style={{ marginLeft: '4px' }}>prueba</span>}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                              {f.estado === 'emitida' && (
+                                <>
+                                  <button className="btn btn-ghost" style={botonChico} disabled={ocupada === f.id} onClick={() => descargar(f)}>PDF</button>
+                                  <button className="btn btn-ghost" style={botonChico} disabled={ocupada === f.id} onClick={() => reenviar(f)}>Mandar por mail</button>
+                                  {!esNC && !f.notaCreditoId && (
+                                    <button className="btn btn-danger" style={botonChico} disabled={ocupada === f.id} onClick={() => anular(f)}>Anular</button>
+                                  )}
+                                </>
+                              )}
+                              {f.estado !== 'emitida' && f.estado !== 'descartada' && (
+                                <button className="btn btn-ghost" style={botonChico} disabled={ocupada === f.id} onClick={() => accion(f, 'reintentarFactura', {}, 'Comprobante emitido.')}>
+                                  {ocupada === f.id ? 'Emitiendo…' : 'Reintentar'}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                        {notas.length > 0 && (
+                          <tr>
+                            <td colSpan={9} style={{ whiteSpace: 'normal', paddingTop: 0 }}>
+                              {notas.map((n, i) => (
+                                <div key={i} style={{ fontSize: '11px', color: n.error ? 'var(--danger)' : 'var(--text2)' }}>{n.texto}</div>
+                              ))}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
           {filtradas.length > VISIBLES_COLAPSADO && (
             <button className="btn btn-ghost" style={{ ...botonChico, marginTop: '8px' }} onClick={() => setVerTodos((v) => !v)}>
               {verTodos ? `Mostrar sólo los últimos ${VISIBLES_COLAPSADO}` : `Ver los ${filtradas.length - VISIBLES_COLAPSADO} restantes`}
