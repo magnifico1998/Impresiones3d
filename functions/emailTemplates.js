@@ -89,7 +89,7 @@ const DEFAULTS = {
       <p>Pero lo más importante es que Manager3D sigue creciendo gracias a los aportes de su comunidad. Por eso me gusta mantener un contacto directo con quienes usan la plataforma. Si tenés dudas, sugerencias, necesidades específicas o ideas para mejorar alguna funcionalidad, no dudes en escribirme:</p>
       <p>
         📱 WhatsApp: <a href="https://wa.me/5493516617091" style="color: #1a1a1a;"><strong>351 661-7091</strong></a><br>
-        📧 Email: <a href="mailto:Manager3d@gmail.com" style="color: #1a1a1a;"><strong>Manager3d@gmail.com</strong></a>
+        📧 Email: <a href="mailto:manager3d.app@gmail.com" style="color: #1a1a1a;"><strong>manager3d.app@gmail.com</strong></a>
       </p>
       <p>Gracias a las sugerencias de los usuarios ya incorporamos mejoras muy importantes, entre ellas:</p>
       <p>
