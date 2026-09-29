@@ -11,6 +11,7 @@ import { useCapacidadProduccion } from '../hooks/useCapacidadProduccion';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { consumosDelPedido, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
 import ModalConsumoPedido from './modals/ModalConsumoPedido';
+import { ESTADOS_PEDIDO, textoEstadoPedido } from '../utils/estadosPedido';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, clientes, cfg, updatePedido, showToast, fmt, cuentaId, planContratado } = useApp();
@@ -213,17 +214,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
       return { ...p, estado: newStatus, fechaCompletado };
     });
 
-    const badgeText = {
-      en_verificacion: 'En verificación',
-      pendiente: 'Pendiente',
-      progreso: 'En progreso',
-      listo: 'Listo p/ entregar',
-      enviado: 'Enviado',
-      completado: 'Completado',
-      cancelado: 'Cancelado'
-    }[newStatus] || newStatus;
-
-    showToast('Estado actualizado a: ' + badgeText);
+    showToast('Estado actualizado a: ' + textoEstadoPedido(newStatus));
 
     if (cfg.inventarioHabilitado && ESTADOS_QUE_CONSUMEN.includes(newStatus) && consumosDelPedido(movimientos, id).length === 0) {
       setPedidoAConsumir(id);
@@ -267,7 +258,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
         className={`pedido-card ${urgente ? 'urgente' : ''}`}
         onClick={() => onOpenOrderDetail(p.id)}
       >
-        <div style={{ flex: '0 0 30%', minWidth: 0, maxWidth: '30%', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ flex: '1 1 22%', minWidth: 0, maxWidth: '26%', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {prioridad && (
             <div
               title="Prioridad de producción"
@@ -437,19 +428,17 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
               }
               style={{
                 height: '28px',
-                width: '110px',
-                padding: '3px 8px',
+                width: '168px',
+                flexShrink: 0,
+                padding: '3px 22px 3px 10px',
                 fontSize: '11px',
-                minWidth: 'auto'
+                minWidth: 'auto',
+                textAlign: 'left'
               }}
             >
-              <option value="en_verificacion">En verificación</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="progreso">En progreso</option>
-              <option value="listo">Listo p/ entregar</option>
-              <option value="enviado">Enviado</option>
-              <option value="completado">Completado</option>
-              <option value="cancelado">Cancelado</option>
+              {ESTADOS_PEDIDO.map((e) => (
+                <option key={e.id} value={e.id}>{e.icono} {e.nombre}</option>
+              ))}
             </select>
           </div>
         </div>

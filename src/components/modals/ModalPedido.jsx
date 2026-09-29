@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ESTADOS_PEDIDO } from '../../utils/estadosPedido';
 import { useApp } from '../../context/AppContext';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
 
@@ -160,13 +161,9 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved, datosIni
 
         <label className="fl">Estado</label>
         <select id="estado" value={form.estado} onChange={handleChange}>
-          <option value="en_verificacion">En verificación</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="progreso">En progreso</option>
-          <option value="listo">Listo para entregar</option>
-          <option value="enviado">Enviado</option>
-          <option value="completado">Completado / Entregado</option>
-          <option value="cancelado">Cancelado</option>
+          {ESTADOS_PEDIDO.map((e) => (
+            <option key={e.id} value={e.id}>{e.icono} {e.nombre}</option>
+          ))}
         </select>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
