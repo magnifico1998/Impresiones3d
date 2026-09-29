@@ -43,6 +43,36 @@ const BADGE_ESTADO = {
 
 const ORIGENES = { suscripcionMP: 'Suscripción (Mercado Pago)', manual: 'Manual', notaCredito: 'Anulación' };
 
+// Filtros de "Comprobantes". Se trabaja sobre los últimos
+// MAX_COMPROBANTES (más que suficiente para el volumen de un admin) y se
+// filtra acá, sin índices compuestos en Firestore.
+const MAX_COMPROBANTES = 500;
+const VISIBLES_COLAPSADO = 5;
+const filtrosVacios = { estado: 'todos', tipo: 'todos', origen: 'todos', desde: '', hasta: '', texto: '' };
+
+// Fecha del comprobante (YYYYMMDD): la de emisión, o la de creación si
+// todavía no se emitió.
+const fechaDe = (f) => f.fecha || (f.creadoEl?.toDate ? f.creadoEl.toDate().toISOString().slice(0, 10).replace(/-/g, '') : '');
+
+function pasaFiltros(f, filtros) {
+  if (filtros.estado === 'anulada' && !f.notaCreditoId) return false;
+  if (filtros.estado === 'emitida' && (f.estado !== 'emitida' || f.notaCreditoId)) return false;
+  if (filtros.estado === 'enCurso' && !['pendiente', 'emitiendo'].includes(f.estado)) return false;
+  if (['error', 'descartada'].includes(filtros.estado) && f.estado !== filtros.estado) return false;
+  if (filtros.tipo === 'factura' && f.tipoCbte !== 11) return false;
+  if (filtros.tipo === 'notaCredito' && f.tipoCbte !== 13) return false;
+  if (filtros.origen !== 'todos' && f.origen?.tipo !== filtros.origen) return false;
+  const fecha = fechaDe(f);
+  if (filtros.desde && fecha < filtros.desde.replace(/-/g, '')) return false;
+  if (filtros.hasta && fecha > filtros.hasta.replace(/-/g, '')) return false;
+  const texto = filtros.texto.trim().toLowerCase();
+  if (texto) {
+    const campos = [f.receptor?.nombre, f.receptor?.docNro, f.receptor?.email, f.origen?.referencia, f.cae, f.numero && String(f.numero)];
+    if (!campos.some((c) => c && String(c).toLowerCase().includes(texto))) return false;
+  }
+  return true;
+}
+
 const llamar = (nombre, datos) => httpsCallable(functions, nombre, { timeout: 300000 })(datos).then((r) => r.data);
 
 export default function SeccionFacturacion({ showToast }) {
@@ -54,15 +84,26 @@ export default function SeccionFacturacion({ showToast }) {
   const [emitiendo, setEmitiendo] = useState(false);
   const [facturas, setFacturas] = useState([]);
   const [ocupada, setOcupada] = useState(null); // id de la factura con una acción en curso
+  const [filtros, setFiltros] = useState(filtrosVacios);
+  const [verTodos, setVerTodos] = useState(false);
 
   useEffect(() => {
     if (!abierta) return undefined;
     getDoc(doc(db, 'configFacturacion', 'emisor')).then((s) => {
       if (s.exists()) setConfig({ ...configVacia, ...s.data(), ptoVta: String(s.data().ptoVta || '') });
     });
-    const q = query(collection(db, 'facturas'), orderBy('creadoEl', 'desc'), limit(50));
+    const q = query(collection(db, 'facturas'), orderBy('creadoEl', 'desc'), limit(MAX_COMPROBANTES));
     return onSnapshot(q, (snap) => setFacturas(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
   }, [abierta]);
+
+  const filtradas = facturas.filter((f) => pasaFiltros(f, filtros));
+  const visibles = verTodos ? filtradas : filtradas.slice(0, VISIBLES_COLAPSADO);
+  const hayFiltros = JSON.stringify(filtros) !== JSON.stringify(filtrosVacios);
+  // Total facturado de lo filtrado: facturas emitidas menos sus notas de crédito.
+  const totalFiltrado = filtradas
+    .filter((f) => f.estado === 'emitida')
+    .reduce((s, f) => s + (f.tipoCbte === 13 ? -1 : 1) * (Number(f.importeTotal) || 0), 0);
+  const cambiarFiltro = (campo) => (e) => setFiltros((prev) => ({ ...prev, [campo]: e.target.value }));
 
   const cambiarConfig = (campo) => (e) => {
     const valor = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -314,10 +355,45 @@ export default function SeccionFacturacion({ showToast }) {
             </div>
           </div>
 
-          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Últimos comprobantes</div>
+          <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px' }}>Comprobantes</div>
+          <div style={{ ...grilla, marginBottom: '10px' }}>
+            <label style={etiqueta}>Buscar
+              <input type="text" style={input} value={filtros.texto} onChange={cambiarFiltro('texto')} placeholder="Cliente, documento, número, CAE…" />
+            </label>
+            <label style={etiqueta}>Estado
+              <select style={input} value={filtros.estado} onChange={cambiarFiltro('estado')}>
+                <option value="todos">Todos</option>
+                <option value="emitida">Emitidas vigentes</option>
+                <option value="anulada">Anuladas</option>
+                <option value="error">Con error</option>
+                <option value="enCurso">Pendientes / emitiendo</option>
+                <option value="descartada">Descartadas</option>
+              </select>
+            </label>
+            <label style={etiqueta}>Tipo
+              <select style={input} value={filtros.tipo} onChange={cambiarFiltro('tipo')}>
+                <option value="todos">Todos</option>
+                <option value="factura">Facturas</option>
+                <option value="notaCredito">Notas de crédito</option>
+              </select>
+            </label>
+            <label style={etiqueta}>Origen
+              <select style={input} value={filtros.origen} onChange={cambiarFiltro('origen')}>
+                <option value="todos">Todos</option>
+                {Object.entries(ORIGENES).map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
+              </select>
+            </label>
+            <label style={etiqueta}>Desde<input type="date" style={input} value={filtros.desde} onChange={cambiarFiltro('desde')} /></label>
+            <label style={etiqueta}>Hasta<input type="date" style={input} value={filtros.hasta} onChange={cambiarFiltro('hasta')} /></label>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text2)', marginBottom: '10px' }}>
+            <span>{filtradas.length} comprobante{filtradas.length === 1 ? '' : 's'} · total facturado {pesos(totalFiltrado)}</span>
+            {hayFiltros && <button className="btn btn-ghost" style={botonChico} onClick={() => setFiltros(filtrosVacios)}>Limpiar filtros</button>}
+          </div>
           {facturas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Todavía no hay comprobantes.</div>}
+          {facturas.length > 0 && filtradas.length === 0 && <div style={{ fontSize: '12px', color: 'var(--text2)' }}>Ningún comprobante coincide con los filtros.</div>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {facturas.map((f) => {
+            {visibles.map((f) => {
               const [badge, textoEstado] = BADGE_ESTADO[f.estado] || ['badge-pending', f.estado];
               const esNC = f.tipoCbte === 13;
               return (
@@ -366,6 +442,11 @@ export default function SeccionFacturacion({ showToast }) {
               );
             })}
           </div>
+          {filtradas.length > VISIBLES_COLAPSADO && (
+            <button className="btn btn-ghost" style={{ ...botonChico, marginTop: '8px' }} onClick={() => setVerTodos((v) => !v)}>
+              {verTodos ? `Mostrar sólo los últimos ${VISIBLES_COLAPSADO}` : `Ver los ${filtradas.length - VISIBLES_COLAPSADO} restantes`}
+            </button>
+          )}
         </>
       )}
     </div>
