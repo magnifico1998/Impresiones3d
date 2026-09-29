@@ -222,6 +222,10 @@ select option{background:var(--bg3)}
 .data-table tbody tr:hover{background:var(--bg3)}
 /* Tabla de comprobantes: muchas columnas, celdas un poco más juntas. */
 .tabla-comprobantes th,.tabla-comprobantes td{padding:8px 7px}
+/* Líneas de una compra de filamentos: celdas con inputs, más juntas y sin fondo al pasar el mouse. */
+.tabla-lineas-compra th,.tabla-lineas-compra td{padding:6px 5px}
+.tabla-lineas-compra tbody tr:hover{background:none}
+.tabla-lineas-compra input,.tabla-lineas-compra select{padding:7px 8px}
 @media(max-width:700px){
   .hamburger-btn{display:flex}
   .header{padding:14px 16px;gap:10px}

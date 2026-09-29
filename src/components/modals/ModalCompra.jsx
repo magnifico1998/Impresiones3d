@@ -179,7 +179,8 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
 
   return (
     <div className="modal-overlay open" onClick={onClose}>
-      <div className={`modal ${esFilamento ? 'modal-wide' : ''}`} onClick={(e) => e.stopPropagation()}>
+      {/* Con filamentos el modal se ensancha para que entre la tabla de líneas completa. */}
+      <div className={`modal ${esFilamento ? 'modal-wide' : ''}`} style={esFilamento ? { maxWidth: '980px' } : undefined} onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">
           {editId !== null ? 'Editar compra' : 'Nueva compra'}
         </div>
@@ -218,14 +219,14 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
               {marcas.map((m) => <option key={m} value={m} />)}
             </datalist>
             <div style={{ overflowX: 'auto' }}>
-              <table className="data-table" style={{ fontSize: '12px' }}>
+              <table className="data-table tabla-lineas-compra" style={{ fontSize: '12px' }}>
                 <thead>
                   <tr>
                     <th>Tipo</th>
                     <th>Marca</th>
                     <th>Color</th>
-                    <th style={{ width: '70px' }}>Cant.</th>
-                    <th style={{ width: '110px' }}>Precio unit.</th>
+                    <th style={{ minWidth: '80px' }}>Cant.</th>
+                    <th style={{ minWidth: '130px', whiteSpace: 'nowrap' }}>Precio unit.</th>
                     <th style={{ textAlign: 'right' }}>Subtotal</th>
                     <th></th>
                   </tr>
@@ -235,16 +236,16 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                     const hex = colores.find((c) => c.nombre === it.color)?.hex;
                     return (
                       <tr key={i}>
-                        <td style={{ minWidth: '130px' }}>
+                        <td style={{ minWidth: '150px' }}>
                           <select value={it.tipo} onChange={(e) => cambiarLinea(i, 'tipo', e.target.value)}>
                             {!filamentos.some((f) => f.nombre === it.tipo) && it.tipo && <option value={it.tipo}>{it.tipo}</option>}
                             {filamentos.map((f) => <option key={f.nombre} value={f.nombre}>{f.nombre}</option>)}
                           </select>
                         </td>
-                        <td style={{ minWidth: '120px' }}>
+                        <td style={{ minWidth: '150px' }}>
                           <input type="text" list="marcas-filamento" value={it.marca} placeholder="Marca" onChange={(e) => cambiarLinea(i, 'marca', e.target.value)} />
                         </td>
-                        <td style={{ minWidth: '140px' }}>
+                        <td style={{ minWidth: '170px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span
                               title={it.color || 'Sin color'}
