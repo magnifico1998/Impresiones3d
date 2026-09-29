@@ -145,167 +145,6 @@ export default function ConfiguracionPage() {
       {seccion === 'aplicacion' && (
         <div className="grid2" style={{ alignItems: 'flex-start' }}>
           <div>
-              <div className="card">
-                <div className="card-title">Paletas de colores</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
-                  {paletasList.map((paleta) => {
-                    const paletaColores = paletas[paleta.id];
-                    const previewColors = [paletaColores.bg, paletaColores.accent, paletaColores.accent2, paletaColores.text, paletaColores.bg3];
-                    const isSelected = cfg.palette === paleta.id;
-                    return (
-                      <button
-                        key={paleta.id}
-                        type="button"
-                        onClick={() => handlePaletteSelect(paleta.id)}
-                        style={{
-                          border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
-                          borderRadius: '14px',
-                          padding: '10px',
-                          background: 'var(--bg3)',
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
-                          gap: '6px',
-                          minHeight: '80px',
-                          cursor: 'pointer',
-                          transition: 'transform .15s ease, border-color .15s ease',
-                          transform: isSelected ? 'scale(1.02)' : 'none'
-                        }}
-                      >
-                        {previewColors.map((color, index) => (
-                          <div key={index} style={{ background: color, borderRadius: '999px', minHeight: '14px' }} />
-                        ))}
-                        <span style={{ gridColumn: '1 / -1', fontSize: '11px', fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text2)', marginTop: '4px', textAlign: 'center' }}>
-                          {paleta.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Paleta personalizada: arranca con los 5 colores de la paleta
-                  elegida arriba y se puede retocar color por color. Cada
-                  cuadrito es un <input type="color"> nativo escondido detrás
-                  del swatch -- clickearlo abre el selector de color del
-                  sistema operativo/navegador ("despliega una paleta"). */}
-              <div className="card">
-                <div className="card-title">Paleta personalizada</div>
-                <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
-                  Toca los colores de la paleta elegida arriba. Al elegir otra paleta, se reinicia con sus colores.
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px' }}>
-                  {[
-                    { key: 'bg', label: 'Fondo' },
-                    { key: 'bg3', label: 'Tarjetas' },
-                    { key: 'accent', label: 'Acento 1' },
-                    { key: 'accent2', label: 'Acento 2' },
-                    { key: 'text', label: 'Texto' }
-                  ].map(({ key, label }) => {
-                    const base = paletas[cfg.palette] || paletas.lagoon;
-                    const valor = cfg.paletaCustom?.[key] ?? base[key];
-                    return (
-                      <label
-                        key={key}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                        title={`Editar ${label.toLowerCase()}`}
-                      >
-                        <span
-                          style={{
-                            display: 'block',
-                            width: '100%',
-                            maxHeight: '38px',
-                            aspectRatio: '1',
-                            borderRadius: '10px',
-                            border: '1px solid var(--border)',
-                            background: valor
-                          }}
-                        />
-                        <input
-                          type="color"
-                          value={valor}
-                          onChange={(e) => handleCustomColorChange(key, e.target.value)}
-                          style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
-                          tabIndex={-1}
-                        />
-                        <span style={{ fontSize: '11px', color: 'var(--text2)', textAlign: 'center' }}>{label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-          </div>
-          <div>
-              {/* Shipping config card */}
-              <div className="card">
-                <div className="card-title">Métodos de envío</div>
-                <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px', fontFamily: 'var(--mono)' }}>
-                  Opciones del envío en cada pedido. La URL de seguimiento se usa para armar el link cuando marcás un pedido como "Enviado" — poné <code>{'{codigo}'}</code> donde debería ir el número de seguimiento. Destildá "Incluir código" para transportes (ej. Correo Argentino) donde el link va solo a la página de seguimiento y el código se envía aparte.
-                </div>
-                <div id="cfg-envios">
-                  {(cfg.metodosEnvio || []).map((raw, i) => {
-                    const m = typeof raw === 'string' ? { nombre: raw, urlSeguimiento: '' } : raw;
-                    const incluirCodigo = m.incluirCodigo !== false;
-                    return (
-                      <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr 1fr auto auto', gap: '6px', alignItems: 'center' }}>
-                        <input
-                          type="text"
-                          value={m.nombre}
-                          placeholder="Nombre del método"
-                          onChange={(e) => handleUpdateField('metodosEnvio', i, 'nombre', e.target.value)}
-                        />
-                        <input
-                          type="text"
-                          value={m.urlSeguimiento || ''}
-                          placeholder="https://.../seguimiento?codigo={codigo}"
-                          onChange={(e) => handleUpdateField('metodosEnvio', i, 'urlSeguimiento', e.target.value)}
-                        />
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>
-                          <input
-                            type="checkbox"
-                            checked={incluirCodigo}
-                            title="Incluir el código de seguimiento en el link generado"
-                            onChange={(e) => handleUpdateField('metodosEnvio', i, 'incluirCodigo', e.target.checked)}
-                          />
-                          Incluir código
-                        </label>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('metodosEnvio', i)}>✕</button>
-                      </div>
-                    );
-                  })}
-                </div>
-                <button
-                  className="btn btn-sm"
-                  style={{ marginTop: '10px', width: '100%' }}
-                  onClick={() => handleAddItem('metodosEnvio', { nombre: 'Nuevo método', urlSeguimiento: '', incluirCodigo: true })}
-                >
-                  + Agregar
-                </button>
-              </div>
-
-              {/* Cómo se calculan los gastos en Resumen: es una preferencia de
-                  cómo mostrar los números, no un valor de la Calculadora. */}
-              <div className="card">
-                <div className="card-title">Cálculo de gastos</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                  <input
-                    type="checkbox"
-                    id="costoCompletoActivo"
-                    checked={!!cfg.costoCompletoActivo}
-                    onChange={(e) => setCfg(prev => ({ ...prev, costoCompletoActivo: e.target.checked }))}
-                  />
-                  <label htmlFor="costoCompletoActivo" style={{ fontSize: '13px' }}>
-                    Calcular gastos con el costo completo del producto
-                  </label>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
-                  Por defecto, "Gastos" en Resumen solo suma electricidad y mano de obra, y las compras
-                  de materiales/insumos se restan aparte en "Gastos compras". Si activás esta opción,
-                  "Gastos" pasa a sumar todos los ítems de costo del producto (filamento, insumos,
-                  mantenimiento, electricidad y mano de obra) y la rentabilidad deja de restar
-                  "Gastos compras", para no contar el mismo gasto dos veces.
-                </p>
-              </div>
-
               {/* Capacidad de producción instalada -- etapa 1 de la estimación
                   de ETA de pedidos (ver AppContext.jsx). Por ahora sólo define
                   la capacidad; el cálculo de fechas estimadas se suma en una
@@ -394,6 +233,167 @@ export default function ConfiguracionPage() {
                     </p>
                   </>
                 )}
+              </div>
+
+              <div className="card">
+                <div className="card-title">Paletas de colores</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
+                  {paletasList.map((paleta) => {
+                    const paletaColores = paletas[paleta.id];
+                    const previewColors = [paletaColores.bg, paletaColores.accent, paletaColores.accent2, paletaColores.text, paletaColores.bg3];
+                    const isSelected = cfg.palette === paleta.id;
+                    return (
+                      <button
+                        key={paleta.id}
+                        type="button"
+                        onClick={() => handlePaletteSelect(paleta.id)}
+                        style={{
+                          border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                          borderRadius: '14px',
+                          padding: '10px',
+                          background: 'var(--bg3)',
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '6px',
+                          minHeight: '80px',
+                          cursor: 'pointer',
+                          transition: 'transform .15s ease, border-color .15s ease',
+                          transform: isSelected ? 'scale(1.02)' : 'none'
+                        }}
+                      >
+                        {previewColors.map((color, index) => (
+                          <div key={index} style={{ background: color, borderRadius: '999px', minHeight: '14px' }} />
+                        ))}
+                        <span style={{ gridColumn: '1 / -1', fontSize: '11px', fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text2)', marginTop: '4px', textAlign: 'center' }}>
+                          {paleta.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+          </div>
+          <div>
+              {/* Cómo se calculan los gastos en Resumen: es una preferencia de
+                  cómo mostrar los números, no un valor de la Calculadora. */}
+              <div className="card">
+                <div className="card-title">Cálculo de gastos</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    id="costoCompletoActivo"
+                    checked={!!cfg.costoCompletoActivo}
+                    onChange={(e) => setCfg(prev => ({ ...prev, costoCompletoActivo: e.target.checked }))}
+                  />
+                  <label htmlFor="costoCompletoActivo" style={{ fontSize: '13px' }}>
+                    Calcular gastos con el costo completo del producto
+                  </label>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
+                  Por defecto, "Gastos" en Resumen solo suma electricidad y mano de obra, y las compras
+                  de materiales/insumos se restan aparte en "Gastos compras". Si activás esta opción,
+                  "Gastos" pasa a sumar todos los ítems de costo del producto (filamento, insumos,
+                  mantenimiento, electricidad y mano de obra) y la rentabilidad deja de restar
+                  "Gastos compras", para no contar el mismo gasto dos veces.
+                </p>
+              </div>
+
+              {/* Shipping config card */}
+              <div className="card">
+                <div className="card-title">Métodos de envío</div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px', fontFamily: 'var(--mono)' }}>
+                  Opciones del envío en cada pedido. La URL de seguimiento se usa para armar el link cuando marcás un pedido como "Enviado" — poné <code>{'{codigo}'}</code> donde debería ir el número de seguimiento. Destildá "Incluir código" para transportes (ej. Correo Argentino) donde el link va solo a la página de seguimiento y el código se envía aparte.
+                </div>
+                <div id="cfg-envios">
+                  {(cfg.metodosEnvio || []).map((raw, i) => {
+                    const m = typeof raw === 'string' ? { nombre: raw, urlSeguimiento: '' } : raw;
+                    const incluirCodigo = m.incluirCodigo !== false;
+                    return (
+                      <div key={i} className="cfg-row" style={{ gridTemplateColumns: '1fr 1fr auto auto', gap: '6px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          value={m.nombre}
+                          placeholder="Nombre del método"
+                          onChange={(e) => handleUpdateField('metodosEnvio', i, 'nombre', e.target.value)}
+                        />
+                        <input
+                          type="text"
+                          value={m.urlSeguimiento || ''}
+                          placeholder="https://.../seguimiento?codigo={codigo}"
+                          onChange={(e) => handleUpdateField('metodosEnvio', i, 'urlSeguimiento', e.target.value)}
+                        />
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>
+                          <input
+                            type="checkbox"
+                            checked={incluirCodigo}
+                            title="Incluir el código de seguimiento en el link generado"
+                            onChange={(e) => handleUpdateField('metodosEnvio', i, 'incluirCodigo', e.target.checked)}
+                          />
+                          Incluir código
+                        </label>
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteItem('metodosEnvio', i)}>✕</button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  className="btn btn-sm"
+                  style={{ marginTop: '10px', width: '100%' }}
+                  onClick={() => handleAddItem('metodosEnvio', { nombre: 'Nuevo método', urlSeguimiento: '', incluirCodigo: true })}
+                >
+                  + Agregar
+                </button>
+              </div>
+
+              {/* Paleta personalizada: arranca con los 5 colores de la paleta
+                  elegida en "Paletas de colores" y se puede retocar color por color. Cada
+                  cuadrito es un <input type="color"> nativo escondido detrás
+                  del swatch -- clickearlo abre el selector de color del
+                  sistema operativo/navegador ("despliega una paleta"). */}
+              <div className="card">
+                <div className="card-title">Paleta personalizada</div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
+                  Retocá los colores de la paleta elegida en "Paletas de colores". Al elegir otra paleta, se reinicia con sus colores.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px' }}>
+                  {[
+                    { key: 'bg', label: 'Fondo' },
+                    { key: 'bg3', label: 'Tarjetas' },
+                    { key: 'accent', label: 'Acento 1' },
+                    { key: 'accent2', label: 'Acento 2' },
+                    { key: 'text', label: 'Texto' }
+                  ].map(({ key, label }) => {
+                    const base = paletas[cfg.palette] || paletas.lagoon;
+                    const valor = cfg.paletaCustom?.[key] ?? base[key];
+                    return (
+                      <label
+                        key={key}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                        title={`Editar ${label.toLowerCase()}`}
+                      >
+                        <span
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            maxHeight: '38px',
+                            aspectRatio: '1',
+                            borderRadius: '10px',
+                            border: '1px solid var(--border)',
+                            background: valor
+                          }}
+                        />
+                        <input
+                          type="color"
+                          value={valor}
+                          onChange={(e) => handleCustomColorChange(key, e.target.value)}
+                          style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                          tabIndex={-1}
+                        />
+                        <span style={{ fontSize: '11px', color: 'var(--text2)', textAlign: 'center' }}>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
           </div>
         </div>
