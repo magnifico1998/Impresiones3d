@@ -274,6 +274,25 @@ export default function ConfiguracionPage() {
               </div>
           </div>
           <div>
+              {/* Inventario: prende la pestaña "Inventario" en Compras. */}
+              <div className="card">
+                <div className="card-title">Inventario</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    id="inventarioHabilitado"
+                    checked={!!cfg.inventarioHabilitado}
+                    onChange={(e) => setCfg(prev => ({ ...prev, inventarioHabilitado: e.target.checked }))}
+                  />
+                  <label htmlFor="inventarioHabilitado" style={{ fontSize: '13px' }}>
+                    Llevar inventario
+                  </label>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
+                  Suma la pestaña "Inventario" en Compras, para controlar el stock de lo que comprás.
+                </p>
+              </div>
+
               {/* Cómo se calculan los gastos en Resumen: es una preferencia de
                   cómo mostrar los números, no un valor de la Calculadora. */}
               <div className="card">
