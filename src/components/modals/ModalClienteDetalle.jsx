@@ -112,7 +112,8 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
             <div className="empty" style={{ padding: '20px' }}>No hay pedidos para este cliente.</div>
           ) : (
             <div className="res-tabla-wrap">
-              <table className="data-table" style={{ width: '100%' }}>
+              {/* El min-width de 700px de .res-tabla-wrap no entra en este modal (700px con padding) y dejaba el Total afuera: acá alcanza con 480px, la descripción se acomoda en varias líneas. */}
+              <table className="data-table" style={{ width: '100%', minWidth: '480px' }}>
                 <thead>
                   <tr>
                     <th>Fecha</th>
@@ -145,7 +146,7 @@ export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit,
                             {badgeText(p.estado)}
                           </span>
                         </td>
-                        <td style={{ fontFamily: 'var(--mono)', textAlign: 'right', fontWeight: 600, color: 'var(--accent)' }}>
+                        <td style={{ fontFamily: 'var(--mono)', textAlign: 'right', fontWeight: 600, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
                           {fmt(precioNeto(p))}
                         </td>
                       </tr>
