@@ -286,11 +286,12 @@ export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
               )}
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label className="fl">¿Qué harías con la aplicación?</label>
+              <label className="fl">Dejanos tu comentario (opcional)</label>
               <textarea
                 id="resena"
                 rows={3}
                 maxLength={600}
+                placeholder="Contanos qué imprimís, qué te gustaría resolver con Manager3D o cualquier consulta."
                 value={form.resena}
                 onChange={handleChange}
                 style={{ width: '100%', resize: 'vertical' }}

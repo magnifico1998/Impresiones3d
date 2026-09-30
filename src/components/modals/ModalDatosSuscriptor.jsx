@@ -24,7 +24,7 @@ const FORM_VACIO = {
 // (solicitudInicial) -- pero a partir de ahí guarda siempre acá, nunca en
 // solicitudesContacto.
 //
-// A propósito NO se pide acá "¿Qué harías con la aplicación?" (resena):
+// A propósito NO se pide acá el comentario del formulario de contacto (resena):
 // sirve para el primer contacto, pero una vez que el admin ya está
 // gestionando al suscriptor no aporta nada.
 export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta, solicitudInicial }) {

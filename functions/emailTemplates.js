@@ -250,7 +250,7 @@ function filasTablaContacto(datos) {
     ['Teléfono', datos.telefono || ''],
     ['Email', datos.email || ''],
     ['Cómo nos conoció', datos.comoNosConociste || ''],
-    ['¿Qué haría con la app?', datos.resena || ''],
+    ['Comentario', datos.resena || ''],
   ];
   return filas
     .map(([label, valor]) => `<tr><td style="padding: 4px 12px 4px 0; color: #666;">${label}</td><td style="padding: 4px 0;">${escapeHtml(valor || '-')}</td></tr>`)
