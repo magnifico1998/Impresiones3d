@@ -1,5 +1,9 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { version } from '../../package.json';
+
+// Versión visible: mayor.menor de package.json (ver "Versión" en CLAUDE.md).
+const VERSION = version.split('.').slice(0, 2).join('.');
 
 export default function Header({ onToggleMenu }) {
   const { user, logout, empresa, syncError } = useApp();
@@ -23,7 +27,7 @@ export default function Header({ onToggleMenu }) {
         </svg>
       </div>
       <span className="header-title">Manager3D</span>
-      <span className="header-version" style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px' }}>v4.0</span>
+      <span className="header-version" style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px' }}>v{VERSION}</span>
       
       {(empresa.nombre || empresa.logo) && (
         <div id="header-empresa" style={{

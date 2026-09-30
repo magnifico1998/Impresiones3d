@@ -36,6 +36,22 @@ Si agregás o sacás una Cloud Function o una colección, actualizá
 `docs/operacion.md`. Al final de la respuesta, avisale al usuario qué
 sección de la documentación cambió.
 
+## Versión (obligatorio)
+
+La versión visible en el encabezado sale de `version` en `package.json`
+(se muestra como `vMAYOR.MENOR`). **Cada cambio que se publica sube la
+versión**, en el mismo commit (o en el último commit de la rama antes de
+pasarla a producción):
+
+- **Cambio funcional o de negocio** (una función nueva, una regla de negocio,
+  un flujo distinto): sube el **mayor** y el menor vuelve a 0.
+  `5.3` → `6.0` (`package.json`: `6.0.0`).
+- **Correctivo o menor** (un error, un texto, estilos, ajustes chicos): sube
+  el **menor**. `5.0` → `5.1` (`package.json`: `5.1.0`).
+
+Si una rama junta de los dos tipos, manda el funcional. Al final de la
+respuesta, avisale al usuario a qué versión quedó.
+
 ## Cómo trabaja el usuario
 
 - Escribile en español rioplatense.
