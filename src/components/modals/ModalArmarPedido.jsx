@@ -237,7 +237,9 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
         creadoTs: Date.now()
       };
 
-      addPedido(nuevo);
+      // Si no se guardó (límite del plan, ya avisado, o error de la nube)
+      // no se sigue: nada de cliente nuevo ni de "pedido armado".
+      if (!(await addPedido(nuevo))) return;
       pedidoDestinoId = newIdVal;
 
       // Mismo criterio que ModalPedido.jsx / ModalAgregarPieza.jsx: si el

@@ -135,7 +135,9 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
         creado: new Date().toLocaleDateString('es-AR'),
         creadoTs: Date.now()
       };
-      addPedido(nuevo);
+      // Si no se guardó (límite del plan, ya avisado, o error de la nube)
+      // no se sigue: nada de cliente nuevo ni de "agregado al pedido".
+      if (!(await addPedido(nuevo))) return;
       pedidoDestinoId = newIdVal;
 
       // Mismo criterio que ModalPedido.jsx: si el nombre de cliente no

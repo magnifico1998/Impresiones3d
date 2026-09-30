@@ -1704,7 +1704,9 @@ export const AppProvider = ({ children }) => {
           creado: new Date().toLocaleDateString('es-AR'),
           creadoTs: Date.now()
         };
-        await addPedido(nuevo);
+        // Si no se guardó (límite del plan, ya avisado, o error de la
+        // nube), la solicitud queda sin importar para reintentar después.
+        if (!(await addPedido(nuevo))) return null;
         pedidoDestinoId = newIdVal;
       } else {
         const targetId = parseInt(destino, 10);

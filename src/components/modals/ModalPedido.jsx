@@ -5,6 +5,8 @@ import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaComplet
 
 export default function ModalPedido({ isOpen, onClose, editId, onSaved, datosIniciales }) {
   const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast } = useApp();
+  // Mientras se guarda un pedido nuevo: evita el doble clic en "Guardar".
+  const [guardando, setGuardando] = useState(false);
 
   const [form, setForm] = useState({
     cliente: '',
@@ -59,7 +61,8 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved, datosIni
     setForm(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (guardando) return;
     const clienteInput = form.cliente.trim();
     const clienteName = clienteInput || 'Sin nombre';
     const clienteTrim = clienteInput;
@@ -94,7 +97,14 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved, datosIni
         creadoTs: Date.now(),
         fechaCompletado: calcularFechaCompletado(null, null, form.estado)
       };
-      addPedido(nuevo);
+      // addPedido devuelve false si no se guardó (límite del plan, que ya
+      // avisa con su propio mensaje, o error de la nube). En ese caso el
+      // formulario queda abierto con lo cargado y no se da de alta el
+      // cliente: nada de "creado con éxito" para un pedido que no existe.
+      setGuardando(true);
+      const guardado = await addPedido(nuevo);
+      setGuardando(false);
+      if (!guardado) return;
       savedId = newIdVal;
       showToast('Pedido creado con éxito');
     }
@@ -212,7 +222,7 @@ export default function ModalPedido({ isOpen, onClose, editId, onSaved, datosIni
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleSave}>Guardar pedido</button>
+          <button className="btn btn-primary" disabled={guardando} onClick={handleSave}>{guardando ? 'Guardando…' : 'Guardar pedido'}</button>
         </div>
       </div>
     </div>
