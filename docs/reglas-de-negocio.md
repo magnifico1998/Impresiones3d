@@ -341,6 +341,12 @@ Se guardan en `users/{uid}/presupuestos`. Código:
 
 - **Los pedidos no se borran, solo se cancelan.** Las reglas de Firestore no
   permiten borrarlos, ni siquiera al dueño.
+- **Semáforo de la ETA de producción** (con la capacidad de producción
+  activada): compara la fecha estimada con la fecha de entrega del pedido.
+  Verde "en fecha" con 2 días o más de margen, amarillo "ajustado" con 0 o 1
+  día, rojo "no llega" si la estimada cae después, y gris si el pedido no
+  tiene fecha de entrega (sólo informativo). Colores fijos, iguales en todas
+  las paletas (`etaEstado` en `src/components/PedidosPage.jsx`).
 - **Catálogo web público:** cada tienda tiene su catálogo en
   `/catalogo/{uid}`, que se ve sin login. Solo se publica lo que el dueño
   elige: nunca costos ni pedidos. Los visitantes pueden mandar solicitudes solo

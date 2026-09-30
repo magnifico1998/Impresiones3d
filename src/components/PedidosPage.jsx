@@ -102,24 +102,29 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   };
 
   // Semáforo de la ETA estimada por la simulación de capacidad contra la
-  // fechaEntrega comprometida: sin fechaEntrega no hay contra qué comparar,
-  // así que sólo se informa (estado neutro). Si la ETA cae en la fecha de
-  // entrega o antes, verde (en fecha); si cae después, rojo (no llega).
-  // Verde fijo (no var(--accent)): el acento de la paleta elegida no
-  // siempre es verde -- varía entre paletas (rosa, naranja, celeste...) --
-  // y un semáforo tiene que significar lo mismo sin importar la paleta.
-  // Mismo criterio que el verde fijo de WhatsApp más abajo.
+  // fechaEntrega comprometida, según los días de margen (entrega − ETA):
+  //   - verde (en fecha): 2 días o más;
+  //   - amarillo (ajustado): 0 o 1 día, llega pero justo;
+  //   - rojo (no llega): la ETA cae después de la entrega;
+  //   - gris: sin fechaEntrega no hay contra qué comparar, sólo se informa.
+  // Colores fijos (no los de la paleta): el acento y los colores de alerta
+  // cambian entre paletas (rosa, naranja, celeste...) y un semáforo tiene
+  // que significar lo mismo en todas. Mismo criterio que el verde fijo de
+  // WhatsApp más abajo.
   const ETA_VERDE = '#22c55e';
+  const ETA_AMARILLO = '#eab308';
+  const ETA_ROJO = '#ef4444';
 
   const etaEstado = (p, etaEstimada) => {
-    if (!p.fechaEntrega) return { color: 'var(--text2)', texto: 'sin fecha ref.' };
+    if (!p.fechaEntrega) return { color: 'var(--text3)', texto: 'sin fecha de entrega' };
 
     const diaEta = new Date(etaEstimada);
     diaEta.setHours(0, 0, 0, 0);
     const diaEntrega = new Date(p.fechaEntrega + 'T00:00:00');
     const margenDias = Math.round((diaEntrega - diaEta) / (1000 * 60 * 60 * 24));
 
-    if (margenDias < 0) return { color: 'var(--danger)', texto: 'no llega' };
+    if (margenDias < 0) return { color: ETA_ROJO, texto: 'no llega' };
+    if (margenDias <= 1) return { color: ETA_AMARILLO, texto: 'ajustado' };
     return { color: ETA_VERDE, texto: 'en fecha' };
   };
 
