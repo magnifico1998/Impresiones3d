@@ -5,8 +5,9 @@ const { enviarEmail, gmailAppPassword } = require('../mailer');
 const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
 
 // Días del ciclo nuevo que se le habilita a un plan marcado `gratuito`
-// (ej. "Boceto") cuando lo reactiva un ingreso.
-const DIAS_EXTENSION_PLAN_GRATUITO = 30;
+// (ej. "Boceto") cuando lo reactiva un ingreso (mismo valor que al entrar
+// al plan, ver planGratuito.js).
+const { DIAS_PLAN_GRATUITO: DIAS_EXTENSION_PLAN_GRATUITO } = require('../planGratuito');
 
 // Si la cuenta tiene asignado un plan marcado `gratuito: true` en
 // planes/{planId} (ver ModalPlan.jsx) Y ya cayó en modo lectura (por no
@@ -50,7 +51,8 @@ const COOLDOWN_DIAS_AVISO_PLAN_GRATUITO = 10;
 // menos de N días" que tenía el botón: acá se sabe que ingresó AHORA MISMO.
 async function avisarPlanGratuitoSiCorresponde(subRef, data) {
   const elegible = data.estado === 'trial' || (!data.planId && data.estado === 'lectura');
-  if (!elegible || !data.email) return;
+  // Quien ya completó el perfil ya tiene (o va a tener) el plan gratuito.
+  if (!elegible || !data.email || data.perfilCompleto) return;
 
   const ultimoEnvioMs = data.avisoPlanGratuitoEnviadoEl?.toMillis?.();
   const cooldownDesde = Date.now() - COOLDOWN_DIAS_AVISO_PLAN_GRATUITO * DIA_MS;

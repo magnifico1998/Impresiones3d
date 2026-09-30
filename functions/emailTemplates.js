@@ -49,6 +49,7 @@ const DEFAULTS = {
       <h2 style="${TITULO}">Tu cuenta pasó a modo solo lectura</h2>
       <p>Tu plan venció y tu cuenta pasó a <strong>modo solo lectura</strong>: podés seguir viendo tus datos, pero no cargar ni modificar nada.</p>
       <p>Tenés <strong>30 días</strong> para reactivar tu plan sin perder el acceso completo. Pasado ese plazo, la cuenta se bloquea.</p>
+      <p>¿No querés pagar por ahora? <strong>Completá tu perfil</strong> desde la app y seguí usando Manager3D gratis con el <strong>plan Boceto</strong>.</p>
       ${BOTON}
     `.trim(),
     variables: {},
@@ -111,7 +112,7 @@ const DEFAULTS = {
     bodyHtml: `
       <h2 style="${TITULO}">Seguí usando Manager3D sin costo</h2>
       <p>Notamos que tu cuenta está en período de prueba o en modo solo lectura. Antes de que se venza o se bloquee, queremos contarte que tenemos un <strong>plan gratuito llamado Boceto</strong>, pensado para que sigas usando la plataforma sin necesidad de abonar.</p>
-      <p>Para activarlo, sólo tenés que entrar a la app, completar el formulario de "Contactate con el área comercial" y pedirnos el <strong>plan Boceto</strong>. Nosotros nos encargamos del resto.</p>
+      <p>Para tenerlo, sólo tenés que entrar a la app y <strong>completar tu perfil</strong> (nombre, teléfono y localidad). Si estás en prueba, pasás a Boceto automáticamente cuando termine; si tu cuenta está en modo lectura o bloqueada, se activa en el momento.</p>
       ${BOTON}
     `.trim(),
     variables: {},
@@ -137,6 +138,35 @@ const DEFAULTS = {
       <p><strong>{{email}}</strong></p>
     `.trim(),
     variables: { email: 'usuario@ejemplo.com' },
+  },
+  planGratuitoActivado: {
+    label: 'Plan gratuito Boceto activado',
+    subject: 'Ya tenés el plan Boceto de Manager3D',
+    bodyHtml: `
+      <h2 style="${TITULO}">Seguís usando Manager3D gratis</h2>
+      <p>Tu cuenta pasó al <strong>plan Boceto</strong>: podés seguir cargando presupuestos, pedidos y clientes sin costo, dentro de los límites del plan.</p>
+      <p>El plan se renueva solo cada vez que entrás a la app. Si en algún momento necesitás más, podés pasarte a un plan pago desde <strong>Mi emprendimiento</strong>.</p>
+      ${BOTON}
+    `.trim(),
+    variables: {},
+  },
+  perfilCompletado: {
+    label: 'Aviso interno: un usuario completó su perfil (a admin)',
+    subject: 'Perfil completo: {{nombre}} {{apellido}}',
+    bodyHtml: `
+      <h2 style="${TITULO}">Un usuario completó su perfil</h2>
+      <table style="border-collapse: collapse;">{{filasTabla}}</table>
+    `.trim(),
+    // Mismo criterio que nuevaSolicitudContacto: {{filasTabla}} se arma
+    // siempre desde los datos reales (ver filasTablaPerfil más abajo).
+    variables: {
+      nombre: 'Juana',
+      apellido: 'Pérez',
+      filasTabla: filasTablaPerfil({
+        nombre: 'Juana', apellido: 'Pérez', telefono: '3511234567', localidad: 'Córdoba',
+        emprendimiento: 'Impresiones Juana', comoNosConociste: 'Instagram', email: 'juana@ejemplo.com'
+      }),
+    },
   },
   nuevaSolicitudContacto: {
     label: 'Aviso interno: nueva solicitud de contacto (a admin)',
@@ -225,6 +255,22 @@ function filasTablaContacto(datos) {
     .join('');
 }
 
+// Datos del perfil (http/perfil.js): los tipea el usuario, así que se
+// escapan acá igual que en filasTablaContacto.
+function filasTablaPerfil(datos) {
+  const filas = [
+    ['Nombre', `${datos.nombre || ''} ${datos.apellido || ''}`.trim()],
+    ['Emprendimiento', datos.emprendimiento || ''],
+    ['Localidad', datos.localidad || ''],
+    ['Teléfono', datos.telefono || ''],
+    ['Email', datos.email || ''],
+    ['Cómo nos conoció', datos.comoNosConociste || ''],
+  ];
+  return filas
+    .map(([label, valor]) => `<tr><td style="padding: 4px 12px 4px 0; color: #666;">${label}</td><td style="padding: 4px 0;">${escapeHtml(valor || '-')}</td></tr>`)
+    .join('');
+}
+
 // La solicitud de catálogo la carga cualquier visitante sin login
 // (CatalogoPublico.jsx) -- mismo motivo que filasTablaContacto para
 // escapar cada valor acá adentro en vez de dejarlo como variable de texto
@@ -291,4 +337,5 @@ module.exports = {
   renderPlantilla,
   filasTablaContacto,
   filasTablaPedidoCatalogo,
+  filasTablaPerfil,
 };

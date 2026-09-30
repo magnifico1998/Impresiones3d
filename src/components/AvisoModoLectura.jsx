@@ -16,11 +16,17 @@ export default function AvisoModoLectura({ titulo = 'Función no disponible en m
         <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔒</div>
         <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '8px' }}>{titulo}</div>
         <div style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '18px', lineHeight: 1.5 }}>
-          Tu cuenta está en <strong>modo lectura</strong> por falta de pago. Activá el plan gratuito <strong>Boceto</strong> para seguir usando Manager3D sin costo.
+          Tu cuenta está en <strong>modo lectura</strong> por falta de pago. Completá tu perfil y activá el plan gratuito <strong>Boceto</strong> para seguir usando Manager3D sin costo.
         </div>
-        <button className="btn btn-primary" onClick={() => setModalContactoOpen(true)}>
-          Contactar
-        </button>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {/* Abre "Completá tu perfil" (lo monta App.jsx). */}
+          <button className="btn btn-primary" onClick={() => window.dispatchEvent(new CustomEvent('abrir-completar-perfil'))}>
+            Seguir gratis con Boceto
+          </button>
+          <button className="btn" onClick={() => setModalContactoOpen(true)}>
+            Contactar
+          </button>
+        </div>
       </div>
       <ModalContacto isOpen={modalContactoOpen} onClose={() => setModalContactoOpen(false)} />
     </div>

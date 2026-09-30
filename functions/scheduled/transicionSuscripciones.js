@@ -5,6 +5,7 @@ const { enviarEmail, gmailAppPassword } = require('../mailer');
 const { mpAccessToken } = require('../mercadopago');
 const { sincronizarPreapproval } = require('../cobrosMercadoPago');
 const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
+const { perfilCompleto, planGratuitoId, camposActivacionGratuito } = require('../planGratuito');
 
 // Manda un mail por cada doc de una lista, sin dejar que un fallo de mail
 // tire abajo nada más (nunca debe afectar la transición de estados real,
@@ -46,16 +47,31 @@ exports.transicionSuscripciones = onSchedule(
     const batch = db.batch();
     let cambios = 0;
 
-    // 1) Trials vencidos -> modo lectura
+    // 1) Trials vencidos -> plan gratuito (si completó el perfil) o modo
+    //    lectura. Ver planGratuito.js: el perfil completo (marca
+    //    perfilCompleto de http/perfil.js, o una ficha datosSuscriptor que
+    //    ya tenía los datos) es lo que da acceso al plan gratuito.
     const trialsVencidos = await db.collectionGroup('suscripcion')
       .where('estado', '==', 'trial')
       .where('trialFin', '<=', ahora)
       .get();
 
-    trialsVencidos.forEach((doc) => {
-      const fechaLimiteLectura = Timestamp.fromMillis(ahora.toMillis() + DURACION_LECTURA_DIAS * DIA_MS);
-      batch.update(doc.ref, { estado: 'lectura', fechaLimiteLectura });
-      batch.set(doc.ref.collection('eventos').doc(), { tipo: 'trial_vencido_a_lectura', fecha: ahora });
+    const planGratuito = trialsVencidos.empty ? null : await planGratuitoId();
+    const fichas = await Promise.all(trialsVencidos.docs.map((doc) => db.doc(`datosSuscriptor/${doc.ref.parent.parent.id}`).get()));
+    const trialsABoceto = [];
+    const trialsALectura = [];
+    trialsVencidos.docs.forEach((doc, i) => {
+      const conPerfil = doc.data().perfilCompleto || perfilCompleto(fichas[i].exists ? fichas[i].data() : null);
+      if (planGratuito && conPerfil) {
+        batch.update(doc.ref, camposActivacionGratuito(planGratuito, ahora));
+        batch.set(doc.ref.collection('eventos').doc(), { tipo: 'trial_vencido_a_plan_gratuito', fecha: ahora, detalle: { planId: planGratuito } });
+        trialsABoceto.push(doc);
+      } else {
+        const fechaLimiteLectura = Timestamp.fromMillis(ahora.toMillis() + DURACION_LECTURA_DIAS * DIA_MS);
+        batch.update(doc.ref, { estado: 'lectura', fechaLimiteLectura });
+        batch.set(doc.ref.collection('eventos').doc(), { tipo: 'trial_vencido_a_lectura', fecha: ahora });
+        trialsALectura.push(doc);
+      }
       cambios++;
     });
 
@@ -238,7 +254,8 @@ exports.transicionSuscripciones = onSchedule(
       const overrides = await obtenerOverridesPlantillas();
       const sinVars = () => ({});
       await Promise.all([
-        mandarEnLote(trialsVencidos.docs, 'modoLectura', sinVars, overrides),
+        mandarEnLote(trialsALectura, 'modoLectura', sinVars, overrides),
+        mandarEnLote(trialsABoceto, 'planGratuitoActivado', sinVars, overrides),
         mandarEnLote(ciclosVencidosSinPromo, 'modoLectura', sinVars, overrides),
         mandarEnLote(lecturaVencida.docs, 'cuentaBloqueada', sinVars, overrides),
         mandarEnLote(trialsPorVencerAAvisar, 'avisoVencimiento', (doc) => ({ fecha: formatearFecha(doc.data().trialFin) }), overrides),
@@ -251,7 +268,7 @@ exports.transicionSuscripciones = onSchedule(
     }
 
     logger.info(
-      `transicionSuscripciones: ${trialsVencidos.size} trial->lectura, ${ciclosVencidosSinPromo.length} activa->lectura, ${promosRenovadas} promo renovada, ${enGraciaDebito} esperando débito MP, ${renovadasPorSincronizacion} renovadas por sincronización MP, ` +
+      `transicionSuscripciones: ${trialsALectura.length} trial->lectura, ${trialsABoceto.length} trial->plan gratuito,${ciclosVencidosSinPromo.length} activa->lectura, ${promosRenovadas} promo renovada, ${enGraciaDebito} esperando débito MP, ${renovadasPorSincronizacion} renovadas por sincronización MP, ` +
       `${lecturaVencida.size} lectura->suspendida, ${trialsPorVencerAAvisar.length + ciclosPorVencerAAvisar.length} avisos de vencimiento, ` +
       `${bloqueo10dAAvisar.length} avisos de bloqueo (10d), ${bloqueo5dAAvisar.length} avisos de bloqueo (5d)`
     );

@@ -33,6 +33,7 @@ import ModalBibUsar from './components/modals/ModalBibUsar';
 import ModalArmarPedido from './components/modals/ModalArmarPedido';
 import ModalContacto from './components/modals/ModalContacto';
 import ModalSuscribirse from './components/modals/ModalSuscribirse';
+import ModalCompletarPerfil from './components/modals/ModalCompletarPerfil';
 import { sincronizarPagoMP } from './utils/pagosMP';
 import ModalFaqGuardar from './components/modals/ModalFaqGuardar';
 
@@ -64,6 +65,30 @@ function App() {
   // de la app bloqueada.
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
   const [modalSuscribirseOpen, setModalSuscribirseOpen] = useState(false);
+
+  // "Completá tu perfil" (acceso al plan gratuito Boceto). Cualquier parte
+  // de la app lo abre con el evento 'abrir-completar-perfil' (carteles de
+  // Resumen, modo lectura). Además se ofrece solo durante la prueba, como
+  // mucho una vez por día y por navegador, hasta que lo completa.
+  const [modalPerfilOpen, setModalPerfilOpen] = useState(false);
+  useEffect(() => {
+    const abrir = () => setModalPerfilOpen(true);
+    window.addEventListener('abrir-completar-perfil', abrir);
+    return () => window.removeEventListener('abrir-completar-perfil', abrir);
+  }, []);
+  useEffect(() => {
+    if (!user || !suscripcion || esMiembro || isAdmin) return;
+    if (suscripcion.estado !== 'trial' || suscripcion.perfilCompleto) return;
+    const clave = `perfil.ofrecido.${user.uid}`;
+    try {
+      const ultimo = Number(localStorage.getItem(clave)) || 0;
+      if (Date.now() - ultimo < 24 * 60 * 60 * 1000) return;
+      localStorage.setItem(clave, String(Date.now()));
+    } catch {
+      // Sin almacenamiento: se ofrece igual (una vez por carga de la app).
+    }
+    setModalPerfilOpen(true);
+  }, [user, suscripcion, esMiembro, isAdmin]);
 
   // Vuelta del checkout de Mercado Pago (back_url con ?pagoMP=1): se
   // sincroniza el pago al toque en vez de esperar el aviso del webhook, y se
@@ -235,9 +260,23 @@ function App() {
           <h1 style={{ fontFamily: 'var(--sans)', fontSize: '24px', fontWeight: 600, color: 'var(--text)', letterSpacing: '-.5px', marginBottom: '6px' }}>
             Manager3D - Todo para emprender en 3D
           </h1>
-          <p style={{ fontFamily: 'var(--sans)', fontSize: '13px', color: 'var(--text2)' }}>
-            Ingresá con tu cuenta para sincronizar tus datos en la nube
+          <p style={{ fontFamily: 'var(--sans)', fontSize: '14px', color: 'var(--text2)', maxWidth: '440px', margin: '0 auto', lineHeight: 1.5 }}>
+            Presupuestos, pedidos, costos, catálogo web, inventario y facturación de tu emprendimiento de impresión 3D, en un solo lugar.
           </p>
+        </div>
+        {/* Por qué registrarse: la prueba completa y el plan gratuito. */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', maxWidth: '520px' }}>
+          {['Gratis para siempre con el plan Boceto', '7 días con todas las funciones', 'Sin tarjeta de crédito'].map((t) => (
+            <span
+              key={t}
+              style={{
+                fontFamily: 'var(--sans)', fontSize: '12px', color: 'var(--text)', background: 'var(--accentDim)',
+                border: '1px solid var(--accent)', borderRadius: '99px', padding: '5px 12px', whiteSpace: 'nowrap'
+              }}
+            >
+              ✓ {t}
+            </span>
+          ))}
         </div>
         <button 
           onClick={loginWithGoogle}
@@ -258,7 +297,7 @@ function App() {
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
           </svg>
-          Iniciar sesión con Google
+          Registrate o ingresá con Google
         </button>
 
         {emailLinkEnviado ? (
@@ -360,14 +399,24 @@ function App() {
             Tu cuenta está bloqueada
           </h1>
           <p style={{ fontFamily: 'var(--sans)', fontSize: '13px', color: 'var(--text2)', maxWidth: '380px', lineHeight: 1.5 }}>
-            Pasaron los 30 días de modo lectura sin que se reactivara la suscripción, así que ya no podés acceder a tu información. Contactate con el área comercial para regularizar tu situación y recuperar el acceso — tus datos siguen guardados.
+            Pasaron los 30 días de modo lectura sin que se reactivara la suscripción, así que ya no podés acceder a tu información. Tus datos siguen guardados:
+            {!esMiembro ? ' completá tu perfil y recuperá el acceso gratis con el plan Boceto, o reactivá un plan pago.' : ' pedile al dueño de la cuenta que la reactive.'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {!esMiembro && (
             <button
-              onClick={() => setModalSuscribirseOpen(true)}
+              onClick={() => setModalPerfilOpen(true)}
               className="btn btn-primary"
+              style={{ fontSize: '14px', padding: '10px 20px', borderRadius: 'var(--radius2)' }}
+            >
+              Seguir gratis con Boceto
+            </button>
+          )}
+          {!esMiembro && (
+            <button
+              onClick={() => setModalSuscribirseOpen(true)}
+              className="btn"
               style={{ fontSize: '14px', padding: '10px 20px', borderRadius: 'var(--radius2)' }}
             >
               Pagar plan y reactivar
@@ -390,6 +439,7 @@ function App() {
         </div>
         <ModalContacto isOpen={modalContactoOpen} onClose={() => setModalContactoOpen(false)} />
         <ModalSuscribirse isOpen={modalSuscribirseOpen} onClose={() => setModalSuscribirseOpen(false)} />
+        <ModalCompletarPerfil isOpen={modalPerfilOpen} onClose={() => setModalPerfilOpen(false)} />
       </div>
     );
   }
@@ -795,6 +845,8 @@ function App() {
         presupuestoActual={modalPresupuestoSinCalculo ? null : (window._currentPresupuesto || null)}
         presupuestoEditar={modalPresupuestoEditar}
       />
+
+      <ModalCompletarPerfil isOpen={modalPerfilOpen} onClose={() => setModalPerfilOpen(false)} />
     </>
   );
 }

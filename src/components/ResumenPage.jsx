@@ -18,8 +18,12 @@ const diasHasta = (timestamp) => {
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 };
 
-function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbrirPromo, onAbrirSuscribirse, contactoEnviado }) {
+// Abre "Completá tu perfil" (lo monta App.jsx): acceso al plan gratuito Boceto.
+const abrirCompletarPerfil = () => window.dispatchEvent(new CustomEvent('abrir-completar-perfil'));
+
+function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbrirPromo, onAbrirSuscribirse, contactoEnviado, esMiembro }) {
   if (!suscripcion) return null;
+  const perfilCompleto = !!suscripcion.perfilCompleto;
 
   if (suscripcion.estado === 'activa') {
     const dias = diasHasta(suscripcion.cicloFin);
@@ -40,9 +44,17 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
       <div className="card" style={{ background: 'var(--infoDim)', border: '1px solid var(--info)', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ fontSize: '13px', color: 'var(--text)' }}>
-            🕐 Estás en una <strong>versión de prueba</strong>{dias !== null ? ` — te quedan ${dias} día${dias === 1 ? '' : 's'}` : ''}. Contactate con el área comercial para ver las opciones de contratación.
+            🕐 Te quedan <strong>{dias !== null ? `${dias} día${dias === 1 ? '' : 's'}` : 'unos días'} con todas las funciones</strong>.{' '}
+            {perfilCompleto
+              ? <>Tu perfil está completo: cuando termine la prueba seguís <strong>gratis con el plan Boceto</strong>, o podés contratar un plan para mantener todo.</>
+              : <>Completá tu perfil y, cuando termine la prueba, seguís <strong>gratis con el plan Boceto</strong>.</>}
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {!perfilCompleto && !esMiembro && (
+              <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={abrirCompletarPerfil}>
+                Completar perfil
+              </button>
+            )}
             <button
               className="btn"
               style={{ fontSize: '12px', padding: '6px 12px' }}
@@ -56,7 +68,7 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
               Contactar
             </button>
             {onAbrirSuscribirse && (
-              <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirSuscribirse}>
+              <button className={`btn ${perfilCompleto ? 'btn-primary' : ''}`} style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirSuscribirse}>
                 Contratar plan
               </button>
             )}
@@ -78,14 +90,20 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ fontSize: '13px', color: 'var(--text)' }}>
             ⚠ Tu cuenta está en <strong>modo lectura</strong> por falta de pago
-            {dias !== null ? ` — si no se regulariza en ${dias} día${dias === 1 ? '' : 's'}, tu información se elimina` : ', tu información se eliminará si no se regulariza'}.
+            {dias !== null ? ` — si no se regulariza en ${dias} día${dias === 1 ? '' : 's'}, se bloquea` : ', se bloquea si no se regulariza'}.
+            {!esMiembro && <> Completá tu perfil y seguí usando Manager3D <strong>gratis con el plan Boceto</strong>.</>}
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {!esMiembro && (
+              <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={abrirCompletarPerfil}>
+                Seguir gratis con Boceto
+              </button>
+            )}
             <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirContacto}>
               Contactar
             </button>
             {onAbrirSuscribirse && (
-              <button className="btn btn-primary" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirSuscribirse}>
+              <button className="btn" style={{ fontSize: '12px', padding: '6px 12px' }} onClick={onAbrirSuscribirse}>
                 Pagar plan
               </button>
             )}
@@ -529,7 +547,7 @@ export default function ResumenPage() {
 
   return (
     <div className="page active">
-      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} onAbrirSuscribirse={esMiembro ? null : () => setModalSuscribirseOpen(true)} contactoEnviado={contactoEnviado} />
+      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} onAbrirSuscribirse={esMiembro ? null : () => setModalSuscribirseOpen(true)} contactoEnviado={contactoEnviado} esMiembro={esMiembro} />
       <div className="page-title">Resumen</div>
       <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
       

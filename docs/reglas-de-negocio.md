@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-29 (facturación electrónica de los pedidos de cada suscriptor).
+Última revisión: 2026-09-30 (plan gratuito Boceto automático al completar el perfil).
 
 ---
 
@@ -19,10 +19,10 @@ Function y queda registrado en la subcolección `eventos`.
 
 | Estado | Qué puede hacer la cuenta | Cómo entra | Cómo sale |
 |---|---|---|---|
-| `trial` | Todo | Al registrarse por primera vez | Vence a los **7 días** → `lectura` |
+| `trial` | Todo | Al registrarse por primera vez | Vence a los **7 días** → `activa` en el plan gratuito si completó el perfil; si no, → `lectura` |
 | `activa` | Todo (dentro de los límites del plan) | Pago por Mercado Pago, o activación desde el panel | Vence el ciclo sin renovar → `lectura` |
-| `lectura` | Ve sus datos, **no puede editar ni crear** | Vencimiento de trial o de ciclo, o botón "Suspender" | Si renueva → `activa`. A los **30 días** → `suspendida` |
-| `suspendida` | **No ve ni edita nada** (bloqueada) | 30 días en `lectura` sin regularizar | Si renueva → `activa` |
+| `lectura` | Ve sus datos, **no puede editar ni crear** | Vencimiento de trial o de ciclo, o botón "Suspender" | Si renueva o completa el perfil → `activa`. A los **30 días** → `suspendida` |
+| `suspendida` | **No ve ni edita nada** (bloqueada) | 30 días en `lectura` sin regularizar | Si renueva o completa el perfil → `activa` |
 
 Reglas clave:
 
@@ -62,6 +62,8 @@ Admin → plantillas (defaults en `functions/emailTemplates.js`).
 | Al registrarse | `bienvenida` (al usuario) y `nuevoSuscriptor` (al admin) |
 | 5 días antes de que venza el trial o el ciclo | `avisoVencimiento` (no se manda si tiene débito automático) |
 | Pasa a modo lectura | `modoLectura` |
+| Pasa al plan gratuito (al vencer la prueba o al completar el perfil) | `planGratuitoActivado` (al usuario) |
+| Completa el perfil por primera vez | `perfilCompletado` (al admin, con los datos) |
 | Faltan 10 y 5 días para el bloqueo | `avisoBloqueo` |
 | Se bloquea | `cuentaBloqueada` |
 | 10 días sin ingresar (máximo uno cada 30 días) | `reactivacion` (cron `reactivacionInactivos`, 04:00 UTC) |
@@ -117,11 +119,35 @@ para contratar), `gratuito`, y `limites`:
 
 ### Plan gratuito (ej. "Boceto")
 
-Un plan con `gratuito: true` se renueva solo: cuando una cuenta con ese plan
-está en `lectura` y vuelve a entrar, recibe **30 días nuevos** sin intervención
-del admin. No revive una cuenta `suspendida`. A las cuentas en prueba, o en
-lectura sin plan, se les avisa por mail que existe el plan gratuito (como
-máximo cada 10 días). `functions/http/registrarUltimoAcceso.js`.
+El plan con `gratuito: true` (si hay más de uno, el de menor orden; no importa si está visible para contratar) es
+la salida gratis de toda cuenta que no paga, **a cambio de completar el
+perfil**: nombre, apellido, teléfono y localidad (el emprendimiento y cómo nos
+conoció se piden pero son opcionales). El perfil se completa desde la app
+("Completá tu perfil y seguí gratis", función `completarPerfil`), queda en
+`datosSuscriptor/{uid}` y marca `perfilCompleto` en la suscripción. Al admin
+le llega un mail con los datos (sólo la primera vez).
+
+- **En prueba:** la prueba de 7 días sigue con todas las funciones. Al vencer,
+  si completó el perfil (o su ficha ya tenía esos datos, por ejemplo del
+  checkout), pasa a `activa` en el plan gratuito en vez de a `lectura`. Sin
+  perfil, cae a `lectura` como siempre.
+- **En `lectura` o `suspendida`:** al completar el perfil pasa al plan
+  gratuito en el momento. Es la vía para recuperar cuentas que dejaron de pagar
+  o nunca se registraron del todo.
+- Cada entrada al plan gratuito arranca un ciclo nuevo de **30 días**
+  (`DIAS_PLAN_GRATUITO`, `functions/planGratuito.js`).
+- **Se renueva solo:** cuando una cuenta con ese plan está en `lectura` y
+  vuelve a entrar, recibe 30 días nuevos. No revive una cuenta `suspendida`
+  (para eso, completar el perfil). `functions/http/registrarUltimoAcceso.js`.
+- La app ofrece completar el perfil durante la prueba (como mucho una vez por
+  día) y en los carteles de modo lectura y de cuenta bloqueada. A las cuentas
+  en prueba, o en lectura sin plan, que todavía no completaron el perfil se
+  les avisa por mail que existe el plan gratuito (como máximo cada 10 días).
+- Sólo el dueño de la cuenta completa el perfil; los miembros invitados no.
+
+Código: `functions/planGratuito.js`, `functions/http/perfil.js`,
+`functions/scheduled/transicionSuscripciones.js`,
+`src/components/modals/ModalCompletarPerfil.jsx`.
 
 ---
 

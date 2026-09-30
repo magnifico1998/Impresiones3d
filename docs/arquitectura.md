@@ -69,6 +69,7 @@ con un máximo de 10 instancias por función.
 | `crearSuscripcionMP`, `sincronizarSuscripcionMP`, `cancelarSuscripcionMP` | Contratar, verificar y cancelar el débito de Mercado Pago | Dueño de la cuenta |
 | `webhookMercadoPago` | Recibe los avisos de Mercado Pago (valida la firma) | Mercado Pago |
 | `registrarUltimoAcceso` | Guarda el último ingreso; renueva el plan gratuito | La app, una vez por sesión |
+| `completarPerfil` | Guarda el perfil del dueño (ficha `datosSuscriptor`) y le da acceso al plan gratuito: al vencer la prueba, o en el momento si está en lectura o bloqueada | Dueño de la cuenta |
 | `registrarAperturaCatalogo` | Cuenta las aperturas del catálogo y responde si la tienda todavía acepta pedidos (límite del plan) | Catálogo público |
 | `agregarMiembro`, `quitarMiembro`, `responderInvitacion` | Usuarios adicionales ("equipo") | Dueño / invitado |
 | `borrarCuenta` | Borrado definitivo de una cuenta | Admin |
@@ -103,6 +104,7 @@ con un máximo de 10 instancias por función.
 | `ledgerRevendedor.js` | Comisión y registro de ventas del revendedor |
 | `cobrosMercadoPago.js` | Aplicación idempotente de cobros (la usan el webhook y la sincronización) |
 | `mercadopago.js` | Cliente de la API de Mercado Pago, validación de firma, secrets |
+| `planGratuito.js` | Plan gratuito (Boceto): cuál es, perfil completo, activación de un ciclo de 30 días |
 | `mailer.js` | Envío por Gmail (`manager3d.app@gmail.com`); admin = `gustavokimmel@gmail.com` |
 | `emailTemplates.js` | Plantillas de mail por defecto |
 | `arca.js` | Cliente SOAP de ARCA: ticket de WSAA (firmado con el certificado) y WSFEv1 (CAE, último número, consulta) |
