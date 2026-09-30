@@ -1,40 +1,8 @@
 import React from 'react';
-import { avisar, confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 
 export default function Header({ onToggleMenu }) {
-  const { user, logout, empresa, exportarBackupData, restaurarBackupData, syncError } = useApp();
-
-  const handleImportarBackup = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          if (!data.pedidos || !data.cfg) {
-            await avisar('El archivo elegido no es un backup de Manager3D.', { titulo: 'Archivo de backup inválido' });
-            return;
-          }
-          const exportLabel = data.exportado
-            ? new Date(data.exportado).toLocaleDateString('es-AR')
-            : '?';
-          if (!(await confirmar('Se reemplazan todos los datos actuales por los del backup.', { titulo: `¿Restaurar el backup del ${exportLabel}?`, textoConfirmar: 'Restaurar', peligro: true }))) {
-            return;
-          }
-          await restaurarBackupData(data);
-        } catch (err) {
-          await avisar(err.message, { titulo: 'Error al leer el archivo' });
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
+  const { user, logout, empresa, syncError } = useApp();
 
   return (
     <header className="header">
@@ -116,39 +84,6 @@ export default function Header({ onToggleMenu }) {
       )}
 
       <div className="header-actions" style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
-        <button 
-          onClick={exportarBackupData} 
-          style={{
-            fontSize: '11px',
-            padding: '4px 10px',
-            borderRadius: '6px',
-            border: '1px solid var(--border2)',
-            background: 'none',
-            color: 'var(--text2)',
-            cursor: 'pointer',
-            fontFamily: 'var(--mono)'
-          }}
-          title="Exportar backup JSON"
-        >
-          ⬇<span className="header-action-label"> backup</span>
-        </button>
-        <button 
-          onClick={handleImportarBackup} 
-          style={{
-            fontSize: '11px',
-            padding: '4px 10px',
-            borderRadius: '6px',
-            border: '1px solid var(--border2)',
-            background: 'none',
-            color: 'var(--text2)',
-            cursor: 'pointer',
-            fontFamily: 'var(--mono)'
-          }}
-          title="Importar backup JSON"
-        >
-          ⬆<span className="header-action-label"> restaurar</span>
-        </button>
-        
         {user && (
           <button 
             onClick={logout} 
