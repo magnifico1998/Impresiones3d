@@ -26,6 +26,9 @@ exports.completarPerfil = onCall({ secrets: [gmailAppPassword] }, async (request
     }
   }
 
+  // Mismos datos que el formulario de contacto (ModalContacto.jsx, que es
+  // el formulario de este perfil). Obligatorios: los de perfilCompleto; el
+  // resto se guarda si viene.
   const d = request.data || {};
   const texto = (v, max) => String(v || '').trim().slice(0, max);
   const datos = {
@@ -34,12 +37,26 @@ exports.completarPerfil = onCall({ secrets: [gmailAppPassword] }, async (request
     telefono: String(d.telefono || '').replace(/\D/g, ''),
     localidad: texto(d.localidad, 100),
     emprendimiento: texto(d.emprendimiento, 120),
-    comoNosConociste: texto(d.comoNosConociste, 80)
+    comoNosConociste: texto(d.comoNosConociste, 80),
+    tipoDocumento: ['DNI', 'CUIT'].includes(d.tipoDocumento) ? d.tipoDocumento : '',
+    numeroDocumento: String(d.numeroDocumento || '').replace(/\D/g, ''),
+    condicionImpositiva: texto(d.condicionImpositiva, 60),
+    emailContacto: texto(d.email, 120).toLowerCase()
   };
   if (!datos.nombre) throw new HttpsError('invalid-argument', 'Falta el nombre.');
   if (!datos.apellido) throw new HttpsError('invalid-argument', 'Falta el apellido.');
   if (!/^\d{6,15}$/.test(datos.telefono)) throw new HttpsError('invalid-argument', 'El teléfono no es válido.');
   if (!datos.localidad) throw new HttpsError('invalid-argument', 'Falta la localidad.');
+  if (datos.numeroDocumento) {
+    const ok = datos.tipoDocumento === 'CUIT' ? /^\d{11}$/.test(datos.numeroDocumento) : /^\d{7,8}$/.test(datos.numeroDocumento);
+    if (!ok) throw new HttpsError('invalid-argument', datos.tipoDocumento === 'CUIT' ? 'El CUIT tiene que tener 11 dígitos.' : 'El DNI tiene que tener 7 u 8 dígitos.');
+  }
+  if (datos.emailContacto && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.emailContacto)) {
+    throw new HttpsError('invalid-argument', 'El email no es válido.');
+  }
+  // Desde el formulario de contacto el admin ya recibe su propio aviso
+  // (onNuevaSolicitudContacto): ahí no se manda el de perfil completo.
+  const avisarAdmin = d.avisarAdmin !== false;
 
   const subRef = db.doc(`users/${uid}/suscripcion/actual`);
   const datosRef = db.doc(`datosSuscriptor/${uid}`);
@@ -52,12 +69,18 @@ exports.completarPerfil = onCall({ secrets: [gmailAppPassword] }, async (request
     const sub = subSnap.data();
     const previos = datosSnap.exists ? datosSnap.data() : {};
 
-    // No se pisan con vacío los datos opcionales que ya estaban.
+    // No se pisan con vacío los datos opcionales que ya estaban (por
+    // ejemplo el documento que cargó al contratar por Mercado Pago).
+    const { emailContacto, ...campos } = datos;
+    const opcional = (campo) => campos[campo] || previos[campo] || '';
     const nuevos = {
-      ...datos,
-      emprendimiento: datos.emprendimiento || previos.emprendimiento || '',
-      comoNosConociste: datos.comoNosConociste || previos.comoNosConociste || '',
-      email: previos.email || sub.email || email || null,
+      ...campos,
+      emprendimiento: opcional('emprendimiento'),
+      comoNosConociste: opcional('comoNosConociste'),
+      tipoDocumento: campos.numeroDocumento ? campos.tipoDocumento : (previos.tipoDocumento || ''),
+      numeroDocumento: opcional('numeroDocumento'),
+      condicionImpositiva: opcional('condicionImpositiva'),
+      email: emailContacto || previos.email || sub.email || email || null,
       actualizadoEl: ahora,
       actualizadoDesde: 'perfil',
       ...(datosSnap.exists ? {} : { creadoEl: ahora })
@@ -83,7 +106,7 @@ exports.completarPerfil = onCall({ secrets: [gmailAppPassword] }, async (request
   // si pasó al plan gratuito, el aviso al usuario.
   try {
     const overrides = await obtenerOverridesPlantillas();
-    if (resultado.primeraVez) {
+    if (resultado.primeraVez && avisarAdmin) {
       const { subject, html } = renderPlantilla('perfilCompletado', {
         nombre: resultado.datos.nombre, apellido: resultado.datos.apellido, filasTabla: filasTablaPerfil(resultado.datos)
       }, overrides);

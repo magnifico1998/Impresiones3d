@@ -5,17 +5,30 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { validarTelefono } from '../../utils/paises';
 
-// Formulario de "contactate con el admin". Se guarda en
-// solicitudesContacto/{uid} — un doc por cuenta, así que enviarlo de nuevo
-// simplemente actualiza el mismo registro (ver definición de Fase 0: se
-// manda una vez, después se puede editar).
-export default function ModalContacto({ isOpen, onClose }) {
-  const { user, cuentaId, showToast, paisActual } = useApp();
+// Formulario de contacto, que es también el "perfil" que da acceso al plan
+// gratuito Boceto. Dos modos, mismo formulario:
+//   - 'contacto': "Contactate con el área comercial".
+//   - 'boceto': "Completá tu perfil y seguí gratis" (se abre desde los
+//     carteles de prueba, modo lectura y cuenta bloqueada).
+// En los dos se guarda:
+//   - solicitudesContacto/{uid}: el lead comercial (un doc por cuenta; al
+//     crearse le avisa al admin, ver onNuevaSolicitudContacto);
+//   - la ficha del suscriptor, vía completarPerfil (functions/http/
+//     perfil.js): deja el perfil completo y, según el estado de la cuenta,
+//     la pasa al plan Boceto ahora o al vencer la prueba.
 
-  const [form, setForm] = useState({
-    nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '', condicionImpositiva: '',
-    localidad: '', telefono: '', email: '', resena: '', codigoRevendedor: ''
-  });
+const COMO_NOS_CONOCISTE = ['Instagram', 'Facebook', 'Google', 'YouTube', 'Recomendación', 'Grupo o comunidad maker', 'Revendedor', 'Otro'];
+
+const formVacio = {
+  nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '', condicionImpositiva: '',
+  localidad: '', telefono: '', email: '', emprendimiento: '', comoNosConociste: '', resena: '', codigoRevendedor: ''
+};
+
+export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
+  const { user, cuentaId, showToast, paisActual, empresa, setEmpresa, suscripcion } = useApp();
+  const esBoceto = modo === 'boceto';
+
+  const [form, setForm] = useState(formVacio);
   const [yaEnviado, setYaEnviado] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -54,34 +67,38 @@ export default function ModalContacto({ isOpen, onClose }) {
     return () => clearTimeout(idTimeout);
   }, [form.codigoRevendedor]);
 
+  // Precarga: la solicitud de contacto previa y la ficha del suscriptor
+  // (datos del checkout o del admin). De cada campo, el primero que tenga
+  // valor; así no se pide dos veces lo mismo.
   useEffect(() => {
     if (!isOpen || !cuentaId) return;
     setCargando(true);
-    getDoc(doc(db, 'solicitudesContacto', cuentaId))
-      .then((snap) => {
-        if (snap.exists()) {
-          const d = snap.data();
-          setForm({
-            nombre: d.nombre || '',
-            apellido: d.apellido || '',
-            tipoDocumento: d.tipoDocumento || 'DNI',
-            numeroDocumento: d.numeroDocumento || '',
-            condicionImpositiva: d.condicionImpositiva || '',
-            localidad: d.localidad || '',
-            telefono: d.telefono || '',
-            email: d.email || user.email || '',
-            resena: d.resena || '',
-            codigoRevendedor: d.codigoRevendedor || ''
-          });
-          setYaEnviado(true);
-        } else {
-          setForm(prev => ({ ...prev, email: user.email || '' }));
-          setYaEnviado(false);
-        }
+    const leer = (ruta) => getDoc(doc(db, ...ruta)).then((s) => (s.exists() ? s.data() : null)).catch(() => null);
+    Promise.all([leer(['solicitudesContacto', cuentaId]), leer(['datosSuscriptor', cuentaId])])
+      .then(([solicitud, ficha]) => {
+        const s = solicitud || {};
+        const f = ficha || {};
+        const primero = (...valores) => valores.find((v) => v) || '';
+        setForm({
+          nombre: primero(s.nombre, f.nombre),
+          apellido: primero(s.apellido, f.apellido),
+          tipoDocumento: primero(s.numeroDocumento && s.tipoDocumento, f.tipoDocumento, 'DNI'),
+          numeroDocumento: primero(s.numeroDocumento, f.numeroDocumento),
+          condicionImpositiva: primero(s.condicionImpositiva, f.condicionImpositiva),
+          localidad: primero(s.localidad, f.localidad),
+          telefono: primero(s.telefono, f.telefono),
+          email: primero(s.email, f.email, user?.email),
+          emprendimiento: primero(s.emprendimiento, f.emprendimiento, empresa?.nombre),
+          comoNosConociste: primero(s.comoNosConociste, f.comoNosConociste),
+          resena: s.resena || '',
+          codigoRevendedor: s.codigoRevendedor || ''
+        });
+        setYaEnviado(!!solicitud);
       })
-      .catch(() => showToast('No se pudo cargar tu solicitud previa.', 'error'))
       .finally(() => setCargando(false));
-  }, [isOpen, cuentaId, user, showToast]);
+    // A propósito sin empresa en las dependencias: sólo al abrir.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, cuentaId, user]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -103,6 +120,10 @@ export default function ModalContacto({ isOpen, onClose }) {
     if (!form.localidad.trim()) return 'Falta la localidad.';
     if (!validarTelefono(form.telefono, paisActual.id)) return paisActual.mensajeTelefono;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) return 'El email no es válido.';
+    const docLimpio = form.numeroDocumento.replace(/\D/g, '');
+    if (docLimpio && !(form.tipoDocumento === 'CUIT' ? /^\d{11}$/.test(docLimpio) : /^\d{7,8}$/.test(docLimpio))) {
+      return form.tipoDocumento === 'CUIT' ? 'El CUIT tiene que tener 11 dígitos.' : 'El DNI tiene que tener 7 u 8 dígitos.';
+    }
     if (form.codigoRevendedor && !/^[A-Z0-9]{4,12}$/.test(form.codigoRevendedor)) {
       return 'El código de revendedor debe tener entre 4 y 12 letras/números.';
     }
@@ -115,19 +136,48 @@ export default function ModalContacto({ isOpen, onClose }) {
 
     setGuardando(true);
     try {
+      const solicitudNueva = !yaEnviado;
       await setDoc(doc(db, 'solicitudesContacto', cuentaId), {
         ...form,
         codigoRevendedor: form.codigoRevendedor.trim() || null,
         estado: 'pendiente',
+        origen: esBoceto ? 'boceto' : 'contacto',
         actualizadoEl: serverTimestamp(),
-        ...(yaEnviado ? {} : { creadoEl: serverTimestamp() })
+        ...(solicitudNueva ? { creadoEl: serverTimestamp() } : {})
       }, { merge: true });
       setYaEnviado(true);
-      showToast(yaEnviado ? 'Solicitud actualizada' : 'Solicitud enviada, pronto nos contactaremos');
+
+      // Ficha del suscriptor y plan Boceto. Si la solicitud es nueva, el
+      // admin ya recibe el aviso de contacto: no hace falta el de perfil.
+      let resultado = null;
+      try {
+        const r = await httpsCallable(functions, 'completarPerfil')({ ...form, avisarAdmin: !solicitudNueva });
+        resultado = r.data;
+      } catch (e) {
+        // Un miembro invitado puede escribir al área comercial pero no
+        // completar el perfil del dueño: en modo contacto no es un error.
+        if (esBoceto) throw e;
+        console.warn('No se completó el perfil desde el contacto:', e?.message);
+      }
+
+      // El nombre del emprendimiento también completa "Mi emprendimiento".
+      if (form.emprendimiento.trim() && !empresa?.nombre) {
+        setEmpresa((prev) => ({ ...prev, nombre: form.emprendimiento.trim() }));
+      }
+
+      if (resultado?.pasoAPlanGratuito) {
+        showToast('¡Listo! Tu cuenta pasó al plan Boceto: seguí usando Manager3D gratis.', 'success', 8000);
+      } else if (esBoceto && resultado?.planGratuitoAlVencer) {
+        showToast('¡Perfil completo! Cuando termine la prueba seguís gratis con el plan Boceto.', 'success', 8000);
+      } else if (esBoceto) {
+        showToast('Perfil guardado.');
+      } else {
+        showToast(solicitudNueva ? 'Solicitud enviada, pronto nos contactaremos' : 'Solicitud actualizada');
+      }
       onClose();
     } catch (e) {
-      console.error('Error al guardar la solicitud de contacto:', e);
-      showToast('No se pudo enviar la solicitud. Probá de nuevo.', 'error');
+      console.error('Error al guardar el formulario de contacto:', e);
+      showToast(e?.message || 'No se pudo enviar. Probá de nuevo.', 'error');
     } finally {
       setGuardando(false);
     }
@@ -135,14 +185,26 @@ export default function ModalContacto({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const enPrueba = suscripcion?.estado === 'trial';
+  const titulo = esBoceto
+    ? 'Completá tu perfil y seguí gratis'
+    : (yaEnviado ? 'Tu solicitud de contratación' : 'Contactate con el área comercial');
+  const textoBoton = esBoceto
+    ? (enPrueba ? 'Completar perfil' : 'Completar y activar Boceto')
+    : (yaEnviado ? 'Actualizar solicitud' : 'Enviar solicitud');
+
   return (
     <div className="modal-overlay open" onClick={onClose}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-title">
-          {yaEnviado ? 'Tu solicitud de contratación' : 'Contactate con el área comercial'}
-        </div>
+        <div className="modal-title">{titulo}</div>
 
-        {yaEnviado && (
+        {esBoceto ? (
+          <p style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '14px', lineHeight: 1.5 }}>
+            {enPrueba
+              ? <>Tenés <strong>7 días con todas las funciones</strong>. Completá tu perfil y, cuando termine la prueba, seguís usando Manager3D <strong>gratis</strong> con el <strong>plan Boceto</strong>.</>
+              : <>Completá tu perfil y tu cuenta pasa ahora mismo al <strong>plan Boceto</strong>: seguís usando Manager3D <strong>gratis</strong>, con tus datos de siempre.</>}
+          </p>
+        ) : yaEnviado && (
           <p style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '14px', lineHeight: 1.5 }}>
             Ya recibimos tu solicitud, pronto nos contactaremos. Si algún dato cambió, lo podés actualizar acá abajo.
           </p>
@@ -159,6 +221,20 @@ export default function ModalContacto({ isOpen, onClose }) {
             <div>
               <label className="fl">Apellido</label>
               <input type="text" id="apellido" value={form.apellido} onChange={handleChange} />
+            </div>
+            <div>
+              <label className="fl">Nombre del emprendimiento (opcional)</label>
+              <input type="text" id="emprendimiento" placeholder="Ej: Impresiones Juana" value={form.emprendimiento} onChange={handleChange} />
+            </div>
+            <div>
+              <label className="fl">¿Cómo nos conociste? (opcional)</label>
+              <select id="comoNosConociste" value={form.comoNosConociste} onChange={handleChange}>
+                <option value="">— Elegí una opción —</option>
+                {COMO_NOS_CONOCISTE.map((o) => <option key={o} value={o}>{o}</option>)}
+                {form.comoNosConociste && !COMO_NOS_CONOCISTE.includes(form.comoNosConociste) && (
+                  <option value={form.comoNosConociste}>{form.comoNosConociste}</option>
+                )}
+              </select>
             </div>
             <div>
               <label className="fl">Tipo de documento</label>
@@ -224,9 +300,9 @@ export default function ModalContacto({ isOpen, onClose }) {
         )}
 
         <div className="modal-footer">
-          <button className="btn" onClick={onClose}>Cancelar</button>
+          <button className="btn" onClick={onClose}>{esBoceto ? 'Más tarde' : 'Cancelar'}</button>
           <button className="btn btn-primary" onClick={handleGuardar} disabled={guardando || cargando}>
-            {guardando ? 'Enviando...' : (yaEnviado ? 'Actualizar solicitud' : 'Enviar solicitud')}
+            {guardando ? 'Enviando...' : textoBoton}
           </button>
         </div>
       </div>

@@ -121,11 +121,17 @@ para contratar), `gratuito`, y `limites`:
 
 El plan con `gratuito: true` (si hay más de uno, el de menor orden; no importa si está visible para contratar) es
 la salida gratis de toda cuenta que no paga, **a cambio de completar el
-perfil**: nombre, apellido, teléfono y localidad (el emprendimiento y cómo nos
-conoció se piden pero son opcionales). El perfil se completa desde la app
-("Completá tu perfil y seguí gratis", función `completarPerfil`), queda en
-`datosSuscriptor/{uid}` y marca `perfilCompleto` en la suscripción. Al admin
-le llega un mail con los datos (sólo la primera vez).
+perfil**: nombre, apellido, teléfono y localidad (emprendimiento, cómo nos
+conoció, documento y condición impositiva se piden pero son opcionales). El
+perfil es **el mismo formulario de contacto** (`ModalContacto.jsx`), en dos
+modos: "Contactate con el área comercial" y "Completá tu perfil y seguí
+gratis" (Boceto). En los dos se guarda la solicitud en
+`solicitudesContacto/{uid}` (con `origen`: contacto o boceto) y la ficha en
+`datosSuscriptor/{uid}` vía `completarPerfil`, que marca `perfilCompleto` en
+la suscripción. Al admin le llega un solo mail por persona: el de nueva
+solicitud de contacto o, si la solicitud ya existía, el de perfil completo.
+El panel muestra en "Solicitudes de contacto" el resumen de "cómo nos
+conocieron" sobre todas las solicitudes.
 
 - **En prueba:** la prueba de 7 días sigue con todas las funciones. Al vencer,
   si completó el perfil (o su ficha ya tenía esos datos, por ejemplo del
@@ -147,7 +153,7 @@ le llega un mail con los datos (sólo la primera vez).
 
 Código: `functions/planGratuito.js`, `functions/http/perfil.js`,
 `functions/scheduled/transicionSuscripciones.js`,
-`src/components/modals/ModalCompletarPerfil.jsx`.
+`src/components/modals/ModalContacto.jsx`.
 
 ---
 

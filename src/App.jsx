@@ -33,7 +33,6 @@ import ModalBibUsar from './components/modals/ModalBibUsar';
 import ModalArmarPedido from './components/modals/ModalArmarPedido';
 import ModalContacto from './components/modals/ModalContacto';
 import ModalSuscribirse from './components/modals/ModalSuscribirse';
-import ModalCompletarPerfil from './components/modals/ModalCompletarPerfil';
 import { sincronizarPagoMP } from './utils/pagosMP';
 import ModalFaqGuardar from './components/modals/ModalFaqGuardar';
 
@@ -439,7 +438,7 @@ function App() {
         </div>
         <ModalContacto isOpen={modalContactoOpen} onClose={() => setModalContactoOpen(false)} />
         <ModalSuscribirse isOpen={modalSuscribirseOpen} onClose={() => setModalSuscribirseOpen(false)} />
-        <ModalCompletarPerfil isOpen={modalPerfilOpen} onClose={() => setModalPerfilOpen(false)} />
+        <ModalContacto modo="boceto" isOpen={modalPerfilOpen} onClose={() => setModalPerfilOpen(false)} />
       </div>
     );
   }
@@ -846,7 +845,7 @@ function App() {
         presupuestoEditar={modalPresupuestoEditar}
       />
 
-      <ModalCompletarPerfil isOpen={modalPerfilOpen} onClose={() => setModalPerfilOpen(false)} />
+      <ModalContacto modo="boceto" isOpen={modalPerfilOpen} onClose={() => setModalPerfilOpen(false)} />
     </>
   );
 }

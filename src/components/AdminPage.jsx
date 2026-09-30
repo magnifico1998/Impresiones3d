@@ -1299,6 +1299,27 @@ export default function AdminPage({ modoRevendedor = false }) {
             <>
               {loadingSolicitudes && <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Cargando...</div>}
 
+              {/* Estadística de "¿Cómo nos conociste?" sobre TODAS las
+                  solicitudes (también las ya activadas, que salen de la lista). */}
+              {!loadingSolicitudes && solicitudesVisibles.length > 0 && (() => {
+                const conteo = {};
+                solicitudesVisibles.forEach((s) => {
+                  const origen = s.comoNosConociste || 'Sin dato';
+                  conteo[origen] = (conteo[origen] || 0) + 1;
+                });
+                const orden = Object.entries(conteo).sort((a, b) => b[1] - a[1]);
+                return (
+                  <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text3)' }}>Cómo nos conocieron ({solicitudesVisibles.length}):</span>
+                    {orden.map(([origen, cantidad]) => (
+                      <span key={origen} className="badge" style={{ background: 'var(--bg3)', color: origen === 'Sin dato' ? 'var(--text3)' : 'var(--text)' }}>
+                        {origen} · {cantidad}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {!loadingSolicitudes && solicitudesPendientes.length === 0 && (
                 <div style={{ fontSize: '13px', color: 'var(--text2)' }}>No hay solicitudes pendientes — las que ya se activaron pasaron a Suscriptores.</div>
               )}
@@ -1309,8 +1330,15 @@ export default function AdminPage({ modoRevendedor = false }) {
                     <div key={s.uid} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius2)', padding: '12px', background: 'var(--bg)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
                         <div>
-                          <div style={{ fontSize: '13px', fontWeight: 600 }}>{s.nombre} {s.apellido}</div>
-                          <div style={{ fontSize: '12px', color: 'var(--text2)' }}>{s.localidad} · {s.telefono} · {s.email}</div>
+                          <div style={{ fontSize: '13px', fontWeight: 600 }}>
+                            {s.nombre} {s.apellido}
+                            {s.emprendimiento && <span style={{ fontWeight: 400, color: 'var(--text2)' }}> · {s.emprendimiento}</span>}
+                            {s.origen === 'boceto' && <span className="badge badge-ok" style={{ marginLeft: '8px' }}>pidió Boceto</span>}
+                          </div>
+                          <div style={{ fontSize: '12px', color: 'var(--text2)' }}>
+                            {s.localidad} · {s.telefono} · {s.email}
+                            {s.comoNosConociste && <span style={{ color: 'var(--text3)' }}> · nos conoció por {s.comoNosConociste}</span>}
+                          </div>
                           {s.resena && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>{s.resena}</div>}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

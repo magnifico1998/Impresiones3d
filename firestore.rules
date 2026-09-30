@@ -341,13 +341,18 @@ service cloud.firestore {
       // Cloud Functions y el panel admin.
       allow create: if tieneAcceso(uid) &&
         request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
-        request.resource.data.keys().hasOnly(['nombre','apellido','tipoDocumento','numeroDocumento','condicionImpositiva','localidad','telefono','email','resena','codigoRevendedor','estado','actualizadoEl','creadoEl']) &&
+        request.resource.data.keys().hasOnly(['nombre','apellido','tipoDocumento','numeroDocumento','condicionImpositiva','localidad','telefono','email','resena','codigoRevendedor','estado','actualizadoEl','creadoEl','emprendimiento','comoNosConociste','origen']) &&
         request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() < 100 &&
         request.resource.data.apellido is string && request.resource.data.apellido.size() > 0 && request.resource.data.apellido.size() < 100 &&
         request.resource.data.localidad is string && request.resource.data.localidad.size() > 0 && request.resource.data.localidad.size() < 100 &&
         request.resource.data.telefono is string && request.resource.data.telefono.matches('^[0-9]{10}$') &&
         request.resource.data.email is string && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
         request.resource.data.resena is string && request.resource.data.resena.size() < 600 &&
+        // Campos opcionales del formulario (emprendimiento, cómo nos conoció) y
+        // desde qué modo se mandó (contacto o plan gratuito Boceto).
+        (!('emprendimiento' in request.resource.data) || (request.resource.data.emprendimiento is string && request.resource.data.emprendimiento.size() < 120)) &&
+        (!('comoNosConociste' in request.resource.data) || (request.resource.data.comoNosConociste is string && request.resource.data.comoNosConociste.size() < 80)) &&
+        (!('origen' in request.resource.data) || request.resource.data.origen in ['contacto', 'boceto']) &&
         (!('estado' in request.resource.data) || request.resource.data.estado == 'pendiente') &&
         (!('codigoRevendedor' in request.resource.data) ||
           request.resource.data.codigoRevendedor == null ||
@@ -358,13 +363,18 @@ service cloud.firestore {
           request.resource.data.keys().hasAll(['nombre','apellido','localidad','telefono','email','resena']) &&
           // Sobre las claves que cambian (no sobre el doc entero): docs
           // viejos pueden traer campos legacy que no hay que romper.
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre','apellido','tipoDocumento','numeroDocumento','condicionImpositiva','localidad','telefono','email','resena','codigoRevendedor','estado','actualizadoEl','creadoEl']) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre','apellido','tipoDocumento','numeroDocumento','condicionImpositiva','localidad','telefono','email','resena','codigoRevendedor','estado','actualizadoEl','creadoEl','emprendimiento','comoNosConociste','origen']) &&
           request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() < 100 &&
           request.resource.data.apellido is string && request.resource.data.apellido.size() > 0 && request.resource.data.apellido.size() < 100 &&
           request.resource.data.localidad is string && request.resource.data.localidad.size() > 0 && request.resource.data.localidad.size() < 100 &&
           request.resource.data.telefono.matches('^[0-9]{10}$') &&
           request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$') &&
           request.resource.data.resena is string && request.resource.data.resena.size() < 600 &&
+        // Campos opcionales del formulario (emprendimiento, cómo nos conoció) y
+        // desde qué modo se mandó (contacto o plan gratuito Boceto).
+        (!('emprendimiento' in request.resource.data) || (request.resource.data.emprendimiento is string && request.resource.data.emprendimiento.size() < 120)) &&
+        (!('comoNosConociste' in request.resource.data) || (request.resource.data.comoNosConociste is string && request.resource.data.comoNosConociste.size() < 80)) &&
+        (!('origen' in request.resource.data) || request.resource.data.origen in ['contacto', 'boceto']) &&
           (!('estado' in request.resource.data) || request.resource.data.estado == 'pendiente') &&
           (!('codigoRevendedor' in request.resource.data) ||
             request.resource.data.codigoRevendedor == null ||

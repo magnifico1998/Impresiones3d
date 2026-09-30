@@ -243,11 +243,13 @@ function escapeHtml(valor) {
 function filasTablaContacto(datos) {
   const filas = [
     ['Nombre', `${datos.nombre || ''} ${datos.apellido || ''}`.trim()],
+    ['Emprendimiento', datos.emprendimiento || ''],
     ['Documento', `${datos.tipoDocumento || ''} ${datos.numeroDocumento || ''}`.trim()],
     ['Condición impositiva', datos.condicionImpositiva || ''],
     ['Localidad', datos.localidad || ''],
     ['Teléfono', datos.telefono || ''],
     ['Email', datos.email || ''],
+    ['Cómo nos conoció', datos.comoNosConociste || ''],
     ['¿Qué haría con la app?', datos.resena || ''],
   ];
   return filas
@@ -261,6 +263,8 @@ function filasTablaPerfil(datos) {
   const filas = [
     ['Nombre', `${datos.nombre || ''} ${datos.apellido || ''}`.trim()],
     ['Emprendimiento', datos.emprendimiento || ''],
+    ['Documento', `${datos.tipoDocumento || ''} ${datos.numeroDocumento || ''}`.trim()],
+    ['Condición impositiva', datos.condicionImpositiva || ''],
     ['Localidad', datos.localidad || ''],
     ['Teléfono', datos.telefono || ''],
     ['Email', datos.email || ''],
