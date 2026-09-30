@@ -652,7 +652,7 @@ export default function CalculadoraPage({
     setManoObra(prod.moHora || cfg.mo);
     setHorasTrabajo(prod.horasTrab || 0);
     setExtras(prod.extras || 0);
-    setMargen(prod.margen || cfg.margen);
+    setMargen(prod.margen ?? cfg.margen);
     setDesperdicio(prod.desperdicio || cfg.desperdicio);
     setCantidad(prod.cantidad || 1);
     setAplicaMargen(prod.aplicaMargen || { elec: true, mant: true, mo: true, ins: true, extras: true });

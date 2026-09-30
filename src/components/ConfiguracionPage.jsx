@@ -699,6 +699,17 @@ export default function ConfiguracionPage() {
                   onChange={(e) => handleDefaultValueChange('mo', e.target.value)} 
                 />
                 
+                {/* Margen con el que arranca la Calculadora: lo que se cambie allá vale
+                    sólo para ese cálculo (o el producto que se guarde), no pisa éste. */}
+                <label className="fl">Margen de ganancia (%)</label>
+                <input
+                  type="number"
+                  value={cfg.margen}
+                  step="5"
+                  min="0"
+                  onChange={(e) => handleDefaultValueChange('margen', e.target.value)}
+                />
+
                 <label className="fl">Desperdicio (%)</label>
                 <input
                   type="number"
