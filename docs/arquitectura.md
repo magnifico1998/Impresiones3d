@@ -128,7 +128,7 @@ con un máximo de 10 instancias por función.
 | `facturas/{id}` | Comprobantes emitidos a ARCA (`mp_{paymentId}` para los de suscripciones) | Solo Cloud Functions; lee el admin |
 | `users/{uid}/facturas`, `facturasPorPedido/{pedidoId}`, `facturacion/config` | Facturas de la cuenta, estado de la factura de cada pedido y datos del emisor | Solo Cloud Functions; leen el dueño y los miembros |
 | `cuitsFacturacion/{cuit}` | Qué cuenta tiene reservado cada CUIT | Solo Cloud Functions (sin acceso desde la app) |
-| `users/{uid}/inventarioMovimientos` | Consumos, ajustes y bajas del inventario (el stock se calcula con las compras) | Dueño y miembros |
+| `users/{uid}/inventarioMovimientos` | Consumos, ajustes, bajas y carga inicial (importada de CSV) del inventario (el stock se calcula con las compras) | Dueño y miembros |
 | `configFacturacion/emisor` | Datos del emisor, entorno y si se factura automático | Admin |
 | `arcaTickets`, `arcaNumeracion` | Ticket de acceso a ARCA y candado de numeración | Solo Cloud Functions (sin acceso desde la app) |
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |

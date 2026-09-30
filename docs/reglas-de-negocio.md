@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-30 (plan gratuito Boceto automático al completar el perfil).
+Última revisión: 2026-09-30 (carga inicial del inventario desde CSV).
 
 ---
 
@@ -441,6 +441,16 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   **Dar de baja** descuenta lo que se rompió o se vendió. Los **equipos** no
   se consumen ni se ajustan: sólo se dan de baja. Cada movimiento se puede
   deshacer desde el historial del artículo.
+- **Carga inicial:** lo que ya se tenía antes de cargar compras se importa
+  de un CSV (botón "Importar CSV" en el Inventario; formato y plantilla en
+  `src/utils/importarInventario.js`). Cada fila válida es un movimiento
+  **inicial** que trae la línea del artículo (`linea`, como una línea de
+  compra) y **crea el artículo con su costo, como una compra, pero no es un
+  gasto**: no aparece en Compras ni en las finanzas. Si el artículo ya
+  existe, la cantidad se suma. Las filas con error no se importan. Todas las
+  filas de una importación comparten un `lote` y se deshacen juntas desde el
+  mismo modal (o de a una desde el historial). Opcionalmente suma a la
+  configuración los tipos de filamento, colores, marcas y artículos nuevos.
 - **Consumo de los pedidos:** al pasar un pedido a *completado* o *enviado*
   (desde la lista o el detalle) se propone descontarlo; también hay un botón
   en el bloque "Inventario" del detalle. Se estima el filamento por color:
@@ -467,7 +477,8 @@ Código del consumo: `src/utils/consumoPedido.js`,
 `src/components/SeccionInventarioPedido.jsx`.
 
 Código: `src/utils/inventario.js`, `src/components/ComprasPage.jsx`,
-`src/components/modals/ModalCompra.jsx`.
+`src/components/modals/ModalCompra.jsx`,
+`src/components/modals/ModalImportarInventario.jsx`.
 
 ### Facturación electrónica de los pedidos
 

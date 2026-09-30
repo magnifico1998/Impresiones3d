@@ -15,6 +15,10 @@
 // inventario" (alInventario), con todas las líneas salvo impuestos: algunas
 // cosas se consumen y otras no, pero sirve saber que se tienen. No se
 // guarda aparte: si se edita o borra una compra, el stock se corrige solo.
+//
+// La otra entrada es la carga inicial (movimiento 'inicial', importado de un
+// CSV): lo que ya se tenía antes de empezar a cargar compras. Crea el
+// artículo como una compra, pero no es un gasto, así que no va en Compras.
 
 export const CATEGORIAS = ['Insumos', 'Equipos', 'Accesorios', 'Impuestos', 'Otros'];
 export const CATEGORIAS_INVENTARIO = ['Insumos', 'Accesorios', 'Equipos', 'Otros'];
@@ -87,7 +91,7 @@ export const PESO_ROLLO_DEFAULT = 1000;
 // Entrada al inventario de una línea. El artículo es la combinación de
 // categoría (o filamento) + nombre + marca + color. El filamento se lleva
 // en gramos (rollos x peso por rollo); el resto, en unidades.
-function entrada(l) {
+export function entrada(l) {
   const filamento = esLineaFilamento(l);
   const pesoRollo = filamento ? (Number(l.pesoRollo) || PESO_ROLLO_DEFAULT) : 1;
   return {
@@ -111,7 +115,10 @@ function entrada(l) {
 // correcciones que no vienen de compras. `cantidad` va con signo y en la
 // unidad del artículo (gramos para filamento, unidades para el resto).
 //   tipo: 'consumo' (de un pedido) | 'ajuste' (conteo físico) | 'baja'
-export const TIPOS_MOVIMIENTO = { consumo: 'Consumo', ajuste: 'Ajuste', baja: 'Baja' };
+//         | 'inicial' (carga inicial: trae la línea del artículo en `linea`,
+//           con el mismo formato que una línea de compra, y un `lote` por
+//           importación)
+export const TIPOS_MOVIMIENTO = { consumo: 'Consumo', ajuste: 'Ajuste', baja: 'Baja', inicial: 'Carga inicial' };
 
 // Artículos del inventario con su stock, ordenados: primero filamentos y
 // después el resto, cada grupo por nombre.
@@ -121,31 +128,37 @@ export const TIPOS_MOVIMIENTO = { consumo: 'Consumo', ajuste: 'Ajuste', baja: 'B
 // historial: entradas por compra y movimientos, del más nuevo al más viejo.
 export function armarInventario(compras, movimientos = []) {
   const articulos = new Map();
+  // Suma una entrada (línea de compra o de carga inicial) a su artículo.
+  const sumarEntrada = (l, fecha, item) => {
+    if (!CATEGORIAS_INVENTARIO.includes(l.cat)) return;
+    const e = entrada(l);
+    if (!e.base) return;
+    const a = articulos.get(e.clave) || { ...e, comprado: 0, movido: 0, costoTotal: 0, ultimaCompra: '', compras: 0, historial: [] };
+    a.comprado += e.qty;
+    a.costoTotal += e.total;
+    a.compras += 1;
+    a.historial.push({ ...item, fecha, cantidad: e.qty });
+    // Nombre, categoría, color y peso de rollo de la entrada más reciente.
+    if (fecha >= a.ultimaCompra) {
+      a.ultimaCompra = fecha || a.ultimaCompra;
+      a.nombre = e.nombre;
+      a.cat = e.cat;
+      a.colorHex = e.colorHex || a.colorHex;
+      a.pesoRollo = e.pesoRollo;
+    }
+    articulos.set(e.clave, a);
+  };
   for (const c of compras || []) {
     if (!c.alInventario) continue;
-    for (const l of lineasDeCompra(c)) {
-      if (!CATEGORIAS_INVENTARIO.includes(l.cat)) continue;
-      const e = entrada(l);
-      if (!e.base) continue;
-      const a = articulos.get(e.clave) || { ...e, comprado: 0, movido: 0, costoTotal: 0, ultimaCompra: '', compras: 0, historial: [] };
-      a.comprado += e.qty;
-      a.costoTotal += e.total;
-      a.compras += 1;
-      a.historial.push({ tipo: 'compra', fecha: c.fecha || '', cantidad: e.qty, nota: c.proveedor || '', compraId: c.id });
-      // Nombre, categoría, color y peso de rollo de la compra más reciente.
-      if ((c.fecha || '') >= a.ultimaCompra) {
-        a.ultimaCompra = c.fecha || a.ultimaCompra;
-        a.nombre = e.nombre;
-        a.cat = e.cat;
-        a.colorHex = e.colorHex || a.colorHex;
-        a.pesoRollo = e.pesoRollo;
-      }
-      articulos.set(e.clave, a);
-    }
+    for (const l of lineasDeCompra(c)) sumarEntrada(l, c.fecha || '', { tipo: 'compra', nota: c.proveedor || '', compraId: c.id });
+  }
+  for (const m of movimientos || []) {
+    if (m.tipo === 'inicial' && m.linea) sumarEntrada(m.linea, m.fecha || '', { tipo: 'inicial', nota: m.nota || '', id: m.id });
   }
   // Los movimientos de un artículo que ya no tiene compras (se borraron)
   // no crean un artículo nuevo: sin compras no hay de dónde descontar.
   for (const m of movimientos || []) {
+    if (m.tipo === 'inicial') continue;
     const a = articulos.get(m.clave);
     if (!a) continue;
     a.movido += Number(m.cantidad) || 0;

@@ -4,10 +4,12 @@ import { pedirTexto, confirmar } from './Dialogos';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { armarInventario, estaBajoMinimo, formatoCantidad, minimoArticulo, TIPOS_MOVIMIENTO } from '../utils/inventario';
+import ModalImportarInventario from './modals/ModalImportarInventario';
 
 // Pestaña "Inventario" de Compras: stock de cada artículo (lo comprado más
 // los movimientos), con ajuste por conteo, baja e historial. El filamento
-// se lleva en gramos; el resto, en unidades.
+// se lleva en gramos; el resto, en unidades. La carga inicial (lo que ya se
+// tenía) se importa de un CSV con ModalImportarInventario.
 
 const BADGE_CAT = {
   Filamento: 'badge-progress',
@@ -25,6 +27,8 @@ export default function InventarioTab() {
   const { movimientos, agregarMovimiento, borrarMovimiento } = useMovimientosInventario();
   const [busqueda, setBusqueda] = useState('');
   const [abierto, setAbierto] = useState(null); // clave del artículo con el historial desplegado
+  const [importando, setImportando] = useState(false);
+  const modalImportar = importando && <ModalImportarInventario onClose={() => setImportando(false)} />;
 
   const inventario = useMemo(() => armarInventario(compras, movimientos), [compras, movimientos]);
   const texto = busqueda.trim().toLowerCase();
@@ -99,7 +103,10 @@ export default function InventarioTab() {
         <div className="card-title">Inventario</div>
         <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
           Todavía no hay artículos. Las compras marcadas "Sumar al inventario" aparecen acá.
+          Para partir de lo que ya tenés, importalo de una planilla.
         </div>
+        <button className="btn btn-primary btn-sm" style={{ marginTop: '10px' }} onClick={() => setImportando(true)}>Importar inventario inicial</button>
+        {modalImportar}
       </div>
     );
   }
@@ -110,14 +117,18 @@ export default function InventarioTab() {
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
         <div className="card-title" style={{ marginBottom: 0 }}>Inventario</div>
-        <input
-          type="text"
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar artículo o categoría…"
-          style={{ maxWidth: '260px' }}
-        />
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar artículo o categoría…"
+            style={{ maxWidth: '260px' }}
+          />
+          <button className="btn btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => setImportando(true)} title="Cargar lo que ya tenés desde un CSV">Importar CSV</button>
+        </div>
       </div>
+      {modalImportar}
       <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text2)', marginBottom: '8px' }}>
         <span>{visibles.length} artículo{visibles.length === 1 ? '' : 's'} · valor en stock {fmt(valorTotal)}</span>
         {bajoMinimo.length > 0 && (
@@ -194,7 +205,7 @@ export default function InventarioTab() {
                           {a.historial.map((h, i) => (
                             <div key={h.id || `${h.tipo}-${i}`} style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                               <span style={{ fontFamily: 'var(--mono)', color: 'var(--text3)', width: '80px' }}>{fechaCorta(h.fecha)}</span>
-                              <span style={{ width: '70px' }}>{h.tipo === 'compra' ? 'Compra' : TIPOS_MOVIMIENTO[h.tipo] || h.tipo}</span>
+                              <span style={{ width: '90px' }}>{h.tipo === 'compra' ? 'Compra' : TIPOS_MOVIMIENTO[h.tipo] || h.tipo}</span>
                               <span style={{ fontFamily: 'var(--mono)', width: '90px', textAlign: 'right', color: h.cantidad < 0 ? 'var(--danger)' : 'var(--accent)' }}>
                                 {h.cantidad > 0 ? '+' : ''}{formatoCantidad(h.cantidad, a.unidad)}
                               </span>
