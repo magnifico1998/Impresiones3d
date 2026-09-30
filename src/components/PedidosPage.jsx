@@ -301,21 +301,27 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
               {p.desc || 'Sin descripción'}
             </div>
             {/* Número de pedido (el mismo del detalle) y si ya se facturó. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px 6px', marginTop: '3px', minWidth: 0, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {/* Una sola línea: si no entra, se acorta el número de pedido (con
+                "…", completo en el tooltip) y los chips quedan siempre enteros,
+                así la tarjeta no crece. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', minWidth: 0, flexWrap: 'nowrap' }}>
+              <span
+                title={`Pedido #${String(p.id).padStart(4, '0')}`}
+                style={{ flex: '0 1 auto', minWidth: '3ch', fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
                 #{String(p.id).padStart(4, '0')}
               </span>
               {alerta && (
                 <span
                   className="badge"
                   title={`Fecha de entrega: ${p.fechaEntrega.split('-').reverse().join('/')}`}
-                  style={{ fontSize: '10px', flexShrink: 0, fontWeight: 700, color: alerta.color, background: `${alerta.color}26` }}
+                  style={{ fontSize: '10px', flexShrink: 0, whiteSpace: 'nowrap', fontWeight: 700, color: alerta.color, background: `${alerta.color}26` }}
                 >
                   {alerta.texto}
                 </span>
               )}
               {badgeFactura(p) && (
-                <span className={`badge ${badgeFactura(p)[0]}`} style={{ fontSize: '10px', flexShrink: 0 }}>{badgeFactura(p)[1]}</span>
+                <span className={`badge ${badgeFactura(p)[0]}`} style={{ fontSize: '10px', flexShrink: 0, whiteSpace: 'nowrap' }}>{badgeFactura(p)[1]}</span>
               )}
             </div>
           </div>
