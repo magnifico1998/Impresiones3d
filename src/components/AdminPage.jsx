@@ -51,6 +51,12 @@ const tituloUltimoAcceso = (ts) => {
 // y contactos), la red comercial (revendedores y códigos promocionales), la
 // facturación electrónica con ARCA (aparte porque va a seguir creciendo) y
 // la operación del negocio (mails y administradores).
+// Mismo criterio que functions/planGratuito.js: con estos datos en la ficha
+// datosSuscriptor, el trial vencido pasa al plan gratuito (Boceto) en vez
+// de a modo lectura.
+const CAMPOS_PERFIL = ['nombre', 'apellido', 'telefono', 'localidad'];
+const fichaCompleta = (datos) => !!datos && CAMPOS_PERFIL.every((c) => String(datos[c] || '').trim());
+
 const PESTANAS_ADMIN = [
   { id: 'suscriptores', nombre: 'Planes y suscriptores' },
   { id: 'revendedores', nombre: 'Revendedores y promociones' },
@@ -94,6 +100,7 @@ export default function AdminPage({ modoRevendedor = false }) {
   const [loadingCuentas, setLoadingCuentas] = useState(true);
   const [accionEnCurso, setAccionEnCurso] = useState(null); // uid+accion en curso, para deshabilitar el botón
   const [contadoresPorUid, setContadoresPorUid] = useState({});
+  const [uidsFichaCompleta, setUidsFichaCompleta] = useState(() => new Set());
   const [cargandoConsumoUid, setCargandoConsumoUid] = useState(null);
 
   const [solicitudes, setSolicitudes] = useState([]);
@@ -300,6 +307,20 @@ export default function AdminPage({ modoRevendedor = false }) {
     );
     return unsubscribe;
   }, []);
+
+  // Fichas datosSuscriptor con el perfil completo: las cuentas en trial que
+  // lo completaron antes de la marca perfilCompleto también pasan a Boceto
+  // (ver transicionSuscripciones.js). El revendedor sólo puede leer las
+  // fichas de sus cuentas, no la colección entera: ahí vale sólo la marca.
+  useEffect(() => {
+    if (modoRevendedor) return;
+    const unsubscribe = onSnapshot(
+      collection(db, 'datosSuscriptor'),
+      (snap) => setUidsFichaCompleta(new Set(snap.docs.filter(d => fichaCompleta(d.data())).map(d => d.id))),
+      (err) => console.error('Error al listar datosSuscriptor:', err)
+    );
+    return unsubscribe;
+  }, [modoRevendedor]);
 
   // Listado de revendedores -- sólo el admin principal puede leer esta
   // colección entera (ver firestore.rules), así que directamente no la
@@ -1079,6 +1100,10 @@ export default function AdminPage({ modoRevendedor = false }) {
                               <td style={{ fontFamily: 'var(--mono)', fontSize: '12px' }}>{c.email || c.uid}</td>
                               <td>
                                 {badgeEstado(c.estado)}
+                                {c.estado === 'trial' && (c.perfilCompleto || uidsFichaCompleta.has(c.uid)
+                                  ? <span className="badge badge-ok" style={{ marginLeft: '6px' }} title="Completó el perfil: al vencer el trial pasa al plan gratuito (Boceto).">✓ perfil → Boceto</span>
+                                  : <span className="badge" style={{ marginLeft: '6px', background: 'rgba(249,115,22,.16)', color: '#f97316' }} title="No completó el perfil (nombre, apellido, teléfono y localidad): al vencer el trial pasa a modo lectura.">sin perfil → lectura</span>
+                                )}
                                 {c.cobro?.estado === 'authorized' && (
                                   <span className="badge badge-done" style={{ marginLeft: '6px' }} title="Paga con débito automático de Mercado Pago">💳 MP</span>
                                 )}
