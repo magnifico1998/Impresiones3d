@@ -347,6 +347,11 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   día, rojo "no llega" si la estimada cae después, y gris si el pedido no
   tiene fecha de entrega (sólo informativo). Colores fijos, iguales en todas
   las paletas (`etaEstado` en `src/components/PedidosPage.jsx`).
+- **Aviso de entrega** en la lista de pedidos (sin depender de la capacidad
+  de producción): marco izquierdo y chip naranja "Entrega hoy / mañana / en
+  N días" si se entrega en los próximos 7 días, y rojo "Vencido hace N días"
+  si la fecha ya pasó. Sólo para pedidos que todavía se están haciendo (no
+  listo, enviado, completado ni cancelado) (`alertaEntrega`).
 - **Catálogo web público:** cada tienda tiene su catálogo en
   `/catalogo/{uid}`, que se ve sin login. Solo se publica lo que el dueño
   elige: nunca costos ni pedidos. Los visitantes pueden mandar solicitudes solo

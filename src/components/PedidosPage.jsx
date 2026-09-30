@@ -92,13 +92,27 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   }, [diasPeriodo, fechaDesde, fechaHasta, pedidos]);
 
 
-  const esUrgente = (p) => {
-    if (!p.fechaEntrega || p.estado === 'completado' || p.estado === 'listo' || p.estado === 'enviado' || p.estado === 'cancelado') return false;
+  // Aviso de entrega en la tarjeta (marco + chip), para ver de un vistazo
+  // lo que hay que sacar pronto. Sólo pedidos que todavía se están
+  // haciendo: listo, enviado, completado y cancelado ya no corren riesgo.
+  //   - vencido: la fecha de entrega ya pasó;
+  //   - urgente: se entrega en los próximos 7 días (incluye hoy).
+  // Colores fijos, como el semáforo de la ETA.
+  const DIAS_URGENTE = 7;
+  const alertaEntrega = (p) => {
+    if (!p.fechaEntrega || ['completado', 'listo', 'enviado', 'cancelado'].includes(p.estado)) return null;
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const entr = new Date(p.fechaEntrega + 'T00:00:00');
-    const diff = (entr - hoy) / (1000 * 60 * 60 * 24);
-    return diff >= 0 && diff <= 7;
+    const dias = Math.round((entr - hoy) / (1000 * 60 * 60 * 24));
+    if (dias < 0) {
+      return { tipo: 'vencido', color: '#ef4444', texto: `Vencido hace ${-dias} día${dias === -1 ? '' : 's'}` };
+    }
+    if (dias <= DIAS_URGENTE) {
+      const texto = dias === 0 ? 'Entrega hoy' : dias === 1 ? 'Entrega mañana' : `Entrega en ${dias} días`;
+      return { tipo: 'urgente', color: '#f97316', texto };
+    }
+    return null;
   };
 
   // Semáforo de la ETA estimada por la simulación de capacidad contra la
@@ -227,7 +241,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   };
 
   const renderPedidoCard = (p, prioridad) => {
-    const urgente = esUrgente(p);
+    const alerta = alertaEntrega(p);
 
     const costoPiezas = p.piezas.reduce(
       (s, pz) => s + ((pz.costoUnitario || pz.total || 0) * pz.cantidad),
@@ -260,8 +274,10 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     return (
       <div
         key={p.id}
-        className={`pedido-card ${urgente ? 'urgente' : ''}`}
+        className="pedido-card"
         onClick={() => onOpenOrderDetail(p.id)}
+        // Marco del aviso de entrega: borde izquierdo grueso del color del aviso.
+        style={alerta ? { borderLeft: `4px solid ${alerta.color}` } : undefined}
       >
         <div style={{ flex: '1 1 22%', minWidth: 0, maxWidth: '26%', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {prioridad && (
@@ -285,10 +301,19 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
               {p.desc || 'Sin descripción'}
             </div>
             {/* Número de pedido (el mismo del detalle) y si ya se facturó. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px 6px', marginTop: '3px', minWidth: 0, flexWrap: 'wrap' }}>
               <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 #{String(p.id).padStart(4, '0')}
               </span>
+              {alerta && (
+                <span
+                  className="badge"
+                  title={`Fecha de entrega: ${p.fechaEntrega.split('-').reverse().join('/')}`}
+                  style={{ fontSize: '10px', flexShrink: 0, fontWeight: 700, color: alerta.color, background: `${alerta.color}26` }}
+                >
+                  {alerta.texto}
+                </span>
+              )}
               {badgeFactura(p) && (
                 <span className={`badge ${badgeFactura(p)[0]}`} style={{ fontSize: '10px', flexShrink: 0 }}>{badgeFactura(p)[1]}</span>
               )}
