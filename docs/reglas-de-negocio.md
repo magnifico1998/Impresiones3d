@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-30 (carga inicial del inventario desde CSV).
+Última revisión: 2026-09-30 (carga inicial del inventario desde CSV y exportación de lo que está bajo el mínimo).
 
 ---
 
@@ -471,6 +471,10 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   (`cfg.inventarioMinimos[clave]`: número = propio, 0 = sin mínimo, null o
   ausente = usa el por defecto). Si el stock queda por debajo, la fila se
   resalta y la solapa muestra "Inventario (N)". Los equipos no llevan mínimo.
+  "Exportar para pedir (Excel)" baja los artículos bajo el mínimo con el
+  faltante para llegar al mínimo (en filamento, también en rollos enteros
+  redondeados para arriba), el costo estimado con el costo promedio y el
+  proveedor y la fecha de la última compra.
 
 Código del consumo: `src/utils/consumoPedido.js`,
 `src/components/modals/ModalConsumoPedido.jsx`,

@@ -22,12 +22,13 @@ const BADGE_CAT = {
 const fechaCorta = (f) => (f ? f.split('-').reverse().join('/') : '—');
 
 export default function InventarioTab() {
-  const { compras, fmt, cfg, setCfg } = useApp();
+  const { compras, fmt, cfg, setCfg, showToast } = useApp();
   const [soloBajoMinimo, setSoloBajoMinimo] = useState(false);
   const { movimientos, agregarMovimiento, borrarMovimiento } = useMovimientosInventario();
   const [busqueda, setBusqueda] = useState('');
   const [abierto, setAbierto] = useState(null); // clave del artículo con el historial desplegado
   const [importando, setImportando] = useState(false);
+  const [exportando, setExportando] = useState(false);
   const modalImportar = importando && <ModalImportarInventario onClose={() => setImportando(false)} />;
 
   const inventario = useMemo(() => armarInventario(compras, movimientos), [compras, movimientos]);
@@ -92,6 +93,56 @@ export default function InventarioTab() {
     }));
   };
 
+  // Excel con lo que está bajo el mínimo, para armar el pedido al
+  // proveedor: cuánto falta para llegar al mínimo (en filamento, también en
+  // rollos enteros), el costo estimado con el costo promedio y a quién se
+  // le compró la última vez.
+  const exportarBajoMinimo = async () => {
+    setExportando(true);
+    try {
+      const { exportarExcel } = await import('../utils/exportarExcel');
+      await exportarExcel({
+        nombreArchivo: `inventario-bajo-minimo-${fechaLocalHoy()}.xlsx`,
+        hoja: 'Bajo mínimo',
+        columnas: [
+          { titulo: 'Categoría', ancho: 12 },
+          { titulo: 'Artículo', ancho: 26 },
+          { titulo: 'Marca', ancho: 14 },
+          { titulo: 'Color', ancho: 14 },
+          { titulo: 'Unidad', ancho: 8 },
+          { titulo: 'Stock', ancho: 10, tipo: 'numero' },
+          { titulo: 'Mínimo', ancho: 10, tipo: 'numero' },
+          { titulo: 'Faltante', ancho: 10, tipo: 'numero' },
+          { titulo: 'Rollos a pedir', ancho: 13, tipo: 'numero' },
+          { titulo: 'Costo promedio', ancho: 15, tipo: 'moneda' },
+          { titulo: 'Costo estimado', ancho: 15, tipo: 'moneda' },
+          { titulo: 'Último proveedor', ancho: 22 },
+          { titulo: 'Última compra', ancho: 13, tipo: 'fecha' }
+        ],
+        filas: bajoMinimo.map((a) => {
+          const { minimo } = minimoArticulo(cfg, a);
+          const faltante = Math.max(0, minimo - a.stock);
+          const rollos = a.unidad === 'g' ? Math.ceil(faltante / (a.pesoRollo || 1000)) : '';
+          // historial viene del más nuevo al más viejo.
+          const ultimaCompra = a.historial.find((h) => h.tipo === 'compra');
+          return [
+            a.cat, a.base, a.marca, a.color,
+            a.unidad === 'g' ? 'g' : 'u.',
+            Math.round(a.stock), minimo, Math.ceil(faltante), rollos,
+            a.unidad === 'g' ? a.costoPromedio * (a.pesoRollo || 1000) : a.costoPromedio,
+            a.costoPromedio * (a.unidad === 'g' && rollos ? rollos * (a.pesoRollo || 1000) : faltante),
+            ultimaCompra?.nota || '', ultimaCompra?.fecha || ''
+          ];
+        })
+      });
+    } catch (e) {
+      console.error('Error al exportar el inventario bajo mínimo:', e);
+      showToast('No se pudo exportar el listado.', 'error');
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const deshacer = async (m) => {
     if (!(await confirmar(`¿Borrar este movimiento (${TIPOS_MOVIMIENTO[m.tipo]} de ${formatoCantidad(m.cantidad, '')})? El stock vuelve a como estaba antes.`, { titulo: 'Borrar movimiento', peligro: true }))) return;
     await borrarMovimiento(m.id);
@@ -136,6 +187,11 @@ export default function InventarioTab() {
             <input type="checkbox" checked={soloBajoMinimo} onChange={(e) => setSoloBajoMinimo(e.target.checked)} />
             {bajoMinimo.length} bajo el mínimo · ver sólo esos
           </label>
+        )}
+        {bajoMinimo.length > 0 && (
+          <button className="btn btn-sm" style={{ fontSize: '11px', padding: '4px 10px' }} disabled={exportando} onClick={exportarBajoMinimo} title="Excel con lo que falta reponer, para armar el pedido al proveedor">
+            {exportando ? 'Exportando…' : 'Exportar para pedir (Excel)'}
+          </button>
         )}
       </div>
       <div style={{ overflowX: 'auto' }}>
