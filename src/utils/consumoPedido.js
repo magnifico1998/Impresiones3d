@@ -4,7 +4,8 @@
 // Los gramos por unidad salen de la pieza (las piezas nuevas los guardan al
 // crearse, ver utils/piezaPedido.js) o, en pedidos anteriores, del producto
 // de la Biblioteca con el mismo nombre. El color sale de cada versión de la
-// pieza; en piezas multicolor (G-code de Bambu), de cada material.
+// pieza; en piezas multicolor (G-code de Bambu) se reparte cada material
+// entre los colores de la versión (ver estimarConsumoPedido).
 
 const normal = (t) => String(t || '').trim().toLowerCase();
 const hex6 = (h) => String(h || '').replace('#', '').slice(0, 6).toLowerCase();
@@ -21,68 +22,82 @@ function hexDeNombre(colores, nombre) {
   return c && typeof c !== 'string' ? c.hex : '';
 }
 
-// Líneas de filamento estimadas del pedido, agrupadas por color y tipo:
-//   { clave, colorNombre, colorHex, tipo, gramos, piezas: [nombres], sinDatos }
-// sinDatos: alguna pieza de esa línea no tiene gramos conocidos (se carga a mano).
+// Líneas de filamento estimadas del pedido: una por versión de cada pieza
+// y, en las multicolor, una por material de esa versión.
+//   { clave, pieza, version (texto), primeraDeVersion, filasVersion,
+//     colorNombre, colorHex, tipo, gramos, sinDatos,
+//     material: null | { numero, colorHex (del archivo) } }
+// El color de cada línea es el de la versión: en las multicolor, el
+// material con más gramos va al "Color" de la versión y el siguiente a
+// "Color 2" (los demás, o si la versión no tiene ese color cargado, quedan
+// con el color del archivo). Es una estimación: el rollo de cada línea se
+// elige en el modal.
+// sinDatos: la pieza no tiene gramos conocidos (se cargan a mano).
 // Insumos del pedido: { nombre, cantidad }.
 export function estimarConsumoPedido(pedido, biblioteca, cfg) {
-  const lineas = new Map();
-  const agregar = ({ colorNombre, colorHex, tipo, gramos, pieza, sinDatos }) => {
-    // Las piezas sin gramos conocidos van en su propia fila (por color),
-    // así el aviso de "cargalos" no se mezcla con lo ya estimado.
-    const clave = `${normal(colorNombre) || hex6(colorHex) || 'sin-color'}|${normal(tipo)}${sinDatos ? `|sin-datos|${normal(pieza)}` : ''}`;
-    const l = lineas.get(clave) || { clave, colorNombre, colorHex, tipo, gramos: 0, piezas: [], sinDatos: false };
-    l.gramos += gramos;
-    if (!l.piezas.includes(pieza)) l.piezas.push(pieza);
-    l.sinDatos = l.sinDatos || sinDatos;
-    lineas.set(clave, l);
-  };
+  const lineas = [];
 
-  for (const pz of pedido?.piezas || []) {
+  (pedido?.piezas || []).forEach((pz, ip) => {
     const prod = (biblioteca || []).find((b) => normal(b.nombre) === normal(pz.nombre));
     const desperdicio = Number(pz.desperdicio ?? prod?.desperdicio ?? cfg?.desperdicio ?? 0) || 0;
     const factor = 1 + desperdicio / 100;
     const materiales = pz.materiales || prod?.materiales || null;
     const multicolor = Array.isArray(materiales) && materiales.length > 1 && (pz.multiMat ?? prod?.multiMat ?? true);
+    const versiones = pz.versiones?.length ? pz.versiones : [{ cantidad: pz.cantidad, color: '', colorSecundario: '' }];
 
-    if (multicolor) {
-      // Los colores vienen del archivo: cada material, por la cantidad total de la pieza.
-      for (const m of materiales) {
-        agregar({
-          colorNombre: nombreDeHex(cfg?.colores, m.color),
-          colorHex: m.color ? `#${hex6(m.color)}` : '',
-          tipo: m.type || '',
-          gramos: (Number(m.totalG) || 0) * factor * (Number(pz.cantidad) || 0),
-          pieza: pz.nombre,
-          sinDatos: !m.totalG
-        });
-      }
-      continue;
-    }
-
+    // Materiales de mayor a menor peso: el primero es el color principal.
+    const porPeso = multicolor
+      ? materiales.map((m, i) => ({ ...m, numero: i + 1 })).sort((a, b) => (Number(b.totalG) || 0) - (Number(a.totalG) || 0))
+      : null;
     const gramosUnidad = Number(pz.gramos ?? prod?.gramos) || Number(materiales?.[0]?.totalG) || 0;
-    const tipo = materiales?.[0]?.type || pz.tipoFilamento || '';
-    const versiones = pz.versiones?.length ? pz.versiones : [{ cantidad: pz.cantidad, color: '' }];
-    for (const v of versiones) {
-      agregar({
-        colorNombre: v.color || '',
-        colorHex: hexDeNombre(cfg?.colores, v.color),
-        tipo,
-        gramos: gramosUnidad * factor * (Number(v.cantidad) || 0),
-        pieza: pz.nombre,
-        sinDatos: !gramosUnidad
-      });
-    }
-  }
+    const tipoUnico = materiales?.[0]?.type || pz.tipoFilamento || '';
+
+    versiones.forEach((v, iv) => {
+      const cantidad = Number(v.cantidad) || 0;
+      const coloresVersion = [v.color, v.colorSecundario].filter(Boolean).join(' + ');
+      const version = `${cantidad} u.${coloresVersion ? ` · ${coloresVersion}` : ''}`;
+      const base = { pieza: pz.nombre, version };
+      const filas = multicolor
+        ? porPeso.map((m, im) => {
+          const delArchivo = nombreDeHex(cfg?.colores, m.color);
+          const deVersion = im === 0 ? v.color : im === 1 ? v.colorSecundario : '';
+          const colorNombre = deVersion || delArchivo;
+          return {
+            ...base,
+            colorNombre,
+            // Con color de la versión, su muestra (o ninguna si no está en
+            // Configuración): la del archivo sería de otro color.
+            colorHex: deVersion ? hexDeNombre(cfg?.colores, deVersion) : (m.color ? `#${hex6(m.color)}` : ''),
+            tipo: m.type || '',
+            gramos: (Number(m.totalG) || 0) * factor * cantidad,
+            sinDatos: !m.totalG,
+            material: { numero: m.numero, colorHex: m.color ? `#${hex6(m.color)}` : '' }
+          };
+        })
+        : [{
+          ...base,
+          colorNombre: v.color || '',
+          colorHex: hexDeNombre(cfg?.colores, v.color),
+          tipo: tipoUnico,
+          gramos: gramosUnidad * factor * cantidad,
+          sinDatos: !gramosUnidad,
+          material: null
+        }];
+      filas.forEach((f, i) => lineas.push({
+        ...f,
+        clave: `${ip}|${iv}|${i}`,
+        primeraDeVersion: i === 0,
+        filasVersion: filas.length,
+        gramos: Math.round(f.gramos)
+      }));
+    });
+  });
 
   const insumos = (pedido?.insumos || [])
     .filter((i) => i.nombre)
     .map((i) => ({ nombre: i.nombre, cantidad: Number(i.qty) || 1 }));
 
-  return {
-    lineas: [...lineas.values()].map((l) => ({ ...l, gramos: Math.round(l.gramos) })),
-    insumos
-  };
+  return { lineas, insumos };
 }
 
 // Artículo del inventario propuesto para una línea de filamento: mismo

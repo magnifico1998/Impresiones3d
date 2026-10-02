@@ -7,9 +7,10 @@ import { armarInventario, formatoCantidad } from '../../utils/inventario';
 import { estimarConsumoPedido, sugerirFilamento, sugerirInsumo } from '../../utils/consumoPedido';
 
 // "Descontar del inventario" de un pedido: propone cuánto filamento usó
-// por color (y los insumos del pedido), sugiere de qué artículo del
-// inventario sale cada cosa, y al confirmar registra los consumos
-// vinculados al pedido. Todo se puede corregir antes de confirmar.
+// cada versión de cada producto (en los multicolor, por material) y los
+// insumos del pedido, sugiere de qué artículo del inventario sale cada cosa,
+// y al confirmar registra los consumos vinculados al pedido, uno por
+// artículo. Todo se puede corregir antes de confirmar.
 
 export default function ModalConsumoPedido({ pedido, onClose }) {
   const { compras, biblioteca, cfg, showToast } = useApp();
@@ -95,7 +96,8 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()} style={{ margin: 'auto', maxWidth: '820px' }}>
         <div className="modal-title">Descontar del inventario · Pedido #{String(pedido.id).padStart(4, '0')}</div>
         <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px' }}>
-          Estimado con los gramos de cada producto y el color de cada versión (incluye el desperdicio). Revisá y corregí lo que haga falta.
+          Estimado con los gramos de cada producto y los colores de cada versión (incluye el desperdicio). En los multicolor, el material con más gramos
+          va al color principal de la versión y el siguiente al color 2. Revisá y corregí lo que haga falta: si dos filas salen del mismo rollo, se descuentan juntas.
         </div>
 
         <div className="card-title" style={{ marginTop: 0 }}>Filamento</div>
@@ -106,21 +108,35 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
             <table className="data-table tabla-lineas-compra" style={{ fontSize: '12px' }}>
               <thead>
                 <tr>
+                  <th>Versión</th>
                   <th>Color</th>
-                  <th style={{ minWidth: '110px' }}>Gramos</th>
+                  <th style={{ minWidth: '100px' }}>Gramos</th>
                   <th style={{ width: '100%' }}>Descontar de</th>
                 </tr>
               </thead>
               <tbody>
                 {filas.filamento.map((f, i) => (
-                  <tr key={f.clave}>
+                  <React.Fragment key={f.clave}>
+                  {/* Encabezado de cada producto. */}
+                  {(i === 0 || filas.filamento[i - 1].pieza !== f.pieza) && (
+                    <tr>
+                      <td colSpan={4} style={{ fontWeight: 600, fontSize: '12px', background: 'var(--bg3)', paddingTop: '6px', paddingBottom: '6px' }}>{f.pieza}</td>
+                    </tr>
+                  )}
+                  <tr>
+                    {f.primeraDeVersion && (
+                      <td rowSpan={f.filasVersion} style={{ whiteSpace: 'nowrap', verticalAlign: 'top', color: 'var(--text2)' }}>{f.version}</td>
+                    )}
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {/* En multicolor: el color del material en el archivo → el color asignado. */}
+                        {f.material && (
+                          <span title={`Material ${f.material.numero} del archivo`} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text3)', fontSize: '11px' }}>
+                            {muestra(f.material.colorHex)}M{f.material.numero} →
+                          </span>
+                        )}
                         {muestra(f.colorHex)}
                         <span>{f.colorNombre || 'Sin color'}{f.tipo ? ` · ${f.tipo}` : ''}</span>
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text3)' }} title={f.piezas.join(', ')}>
-                        {f.piezas.length === 1 ? f.piezas[0] : `${f.piezas.length} productos`}
                       </div>
                     </td>
                     <td>
@@ -131,6 +147,7 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
                     </td>
                     <td>{selectorArticulo('filamento', i, f, filamentos)}</td>
                   </tr>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

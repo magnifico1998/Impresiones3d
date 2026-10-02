@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-09-30 (carga inicial del inventario desde CSV y exportación de lo que está bajo el mínimo).
+Última revisión: 2026-10-02 (descuento de filamento por versión y por material).
 
 ---
 
@@ -453,13 +453,17 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   configuración los tipos de filamento, colores, marcas y artículos nuevos.
 - **Consumo de los pedidos:** al pasar un pedido a *completado* o *enviado*
   (desde la lista o el detalle) se propone descontarlo; también hay un botón
-  en el bloque "Inventario" del detalle. Se estima el filamento por color:
-  gramos por unidad × cantidad de cada versión + desperdicio (en piezas
-  multicolor, los gramos de cada material del G-code). Los gramos salen de la
-  pieza (las piezas nuevas los guardan al crearse) o, en pedidos anteriores,
-  del producto de la Biblioteca con el mismo nombre. Para cada color se
-  sugiere el rollo del inventario con ese color (y tipo, si se conoce), el de
-  más stock; los insumos del pedido se buscan por nombre. Todo es editable.
+  en el bloque "Inventario" del detalle. Se estima el filamento **por versión**
+  de cada producto: gramos por unidad × cantidad de la versión + desperdicio,
+  con el color de la versión. En piezas multicolor hay una fila por material
+  del G-code: el material con **más gramos va al "Color"** de la versión, el
+  siguiente al **"Color 2"**, y los demás (o si la versión no tiene ese color
+  cargado) quedan con el color del archivo. Los gramos salen de la pieza (las
+  piezas nuevas los guardan al crearse) o, en pedidos anteriores, del producto
+  de la Biblioteca con el mismo nombre. Para cada fila se sugiere el rollo del
+  inventario con ese color (y tipo, si se conoce), el de más stock; los
+  insumos del pedido se buscan por nombre. Todo es editable, y las filas que
+  salen del mismo rollo se descuentan en un solo movimiento.
 - Un pedido se descuenta **una sola vez**: los consumos quedan vinculados al
   pedido (`pedidoId`), y para volver a descontarlo hay que deshacer primero.
   Se puede descontar aunque no alcance el stock (queda en negativo, para
