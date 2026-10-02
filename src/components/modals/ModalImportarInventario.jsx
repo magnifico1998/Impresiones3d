@@ -5,7 +5,7 @@ import { confirmar as confirmarDialogo } from '../Dialogos';
 import { useMovimientosInventario } from '../../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { armarInventario, entrada, esLineaFilamento, formatoCantidad, juntarMarcas, nombreLinea } from '../../utils/inventario';
-import { leerCSVInventario, plantillaCSVInventario } from '../../utils/importarInventario';
+import { descargarPlantillaInventario, leerCSVInventario } from '../../utils/importarInventario';
 
 // Carga inicial del inventario desde un CSV (formato en
 // utils/importarInventario.js): lo que ya se tenía antes de cargar compras.
@@ -69,18 +69,6 @@ export default function ModalImportarInventario({ onClose }) {
     if (!f) return;
     setArchivo(f.name);
     setLectura(leerCSVInventario(await leerArchivo(f), colores));
-  };
-
-  const descargarPlantilla = () => {
-    const blob = new Blob([plantillaCSVInventario()], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'plantilla-inventario-inicial.csv';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
   };
 
   // Tipos de filamento, colores, marcas y artículos nuevos a la
@@ -164,7 +152,7 @@ export default function ModalImportarInventario({ onClose }) {
           <b>cantidad</b>: unidades, o rollos en filamento (0,5 = medio rollo) · <b>peso_rollo_g</b>: sólo filamento, por defecto 1000 ·{' '}
           <b>costo_unitario</b>: por unidad o por rollo (opcional). Marca y color son opcionales; en filamento el color sirve para descontarlo de los pedidos.
           <div style={{ marginTop: '8px' }}>
-            <button className="btn btn-sm" onClick={descargarPlantilla}>Descargar plantilla</button>
+            <button className="btn btn-sm" onClick={descargarPlantillaInventario}>Descargar plantilla</button>
           </div>
         </div>
 

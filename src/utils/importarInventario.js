@@ -147,3 +147,17 @@ export function plantillaCSVInventario() {
   ];
   return BOM + filas.map((f) => f.join(';')).join('\r\n') + '\r\n';
 }
+
+// Baja la plantilla como archivo (botón en el Inventario y en el modal de
+// importación).
+export function descargarPlantillaInventario() {
+  const blob = new Blob([plantillaCSVInventario()], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'plantilla-inventario-inicial.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

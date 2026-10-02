@@ -5,6 +5,7 @@ import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { armarInventario, estaBajoMinimo, formatoCantidad, minimoArticulo, TIPOS_MOVIMIENTO } from '../utils/inventario';
 import ModalImportarInventario from './modals/ModalImportarInventario';
+import { descargarPlantillaInventario } from '../utils/importarInventario';
 
 // Pestaña "Inventario" de Compras: stock de cada artículo (lo comprado más
 // los movimientos), con ajuste por conteo, baja e historial. El filamento
@@ -156,7 +157,10 @@ export default function InventarioTab() {
           Todavía no hay artículos. Las compras marcadas "Sumar al inventario" aparecen acá.
           Para partir de lo que ya tenés, importalo de una planilla.
         </div>
-        <button className="btn btn-primary btn-sm" style={{ marginTop: '10px' }} onClick={() => setImportando(true)}>Importar inventario inicial</button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+          <button className="btn btn-sm" onClick={descargarPlantillaInventario}>Descargar plantilla</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setImportando(true)}>Importar inventario inicial</button>
+        </div>
         {modalImportar}
       </div>
     );
@@ -176,6 +180,7 @@ export default function InventarioTab() {
             placeholder="Buscar artículo o categoría…"
             style={{ maxWidth: '260px' }}
           />
+          <button className="btn btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={descargarPlantillaInventario} title="Planilla con el formato para importar, con ejemplos">Descargar plantilla</button>
           <button className="btn btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => setImportando(true)} title="Cargar lo que ya tenés desde un CSV">Importar CSV</button>
         </div>
       </div>
