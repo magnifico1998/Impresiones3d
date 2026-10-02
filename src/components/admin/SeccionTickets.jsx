@@ -4,7 +4,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
 import { CATEGORIAS_TICKET, ESTADOS_TICKET, lineasLog, numeroTicket, textoParaAnalisis } from '../../utils/formatoTicket';
 import { esError } from '../../utils/registroSoporte';
-import { BADGE_ESTADO_TICKET, fechaTicket } from '../soporte/SoportePage';
+import { fechaTicket } from '../soporte/SoportePage';
 
 // Panel admin → Tickets: todos los tickets de soporte, con el log de cada
 // uno (tickets/{id}/adjuntos/log, sólo lo lee el admin), cambio de estado
@@ -113,6 +113,10 @@ export default function SeccionTickets({ showToast }) {
       if (cambios.respuesta) {
         setRespuesta('');
         showToast(data.mailEnviado ? 'Respuesta enviada por mail.' : 'Respuesta guardada, pero no se pudo mandar el mail.', data.mailEnviado ? 'success' : 'error');
+      } else if (cambios.estado) {
+        // Con el filtro "Pendientes", un ticket cerrado o respondido sale de la lista.
+        const ocultado = filtroEstado === 'pendientes' && !PENDIENTES.includes(cambios.estado);
+        showToast(`${numeroTicket(t.numero)}: ${ESTADOS_TICKET[cambios.estado]}${ocultado ? ' (sale de Pendientes; lo ves en "Todos")' : ''}.`);
       }
     } catch (e) {
       console.error('Error al actualizar el ticket:', e);
@@ -180,7 +184,18 @@ export default function SeccionTickets({ showToast }) {
                           : <span style={{ color: 'var(--text3)' }}>sin errores</span>}
                         {t.resumen?.grabado && <span className="badge badge-ok" style={{ marginLeft: '4px' }} title="El usuario grabó el problema">● grabado</span>}
                       </td>
-                      <td><span className={`badge ${BADGE_ESTADO_TICKET[t.estado] || ''}`}>{ESTADOS_TICKET[t.estado] || t.estado}</span></td>
+                      {/* El estado se cambia desde la misma fila, sin abrir el ticket. */}
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={t.estado}
+                          disabled={guardando}
+                          onChange={(e) => actualizar(t, { estado: e.target.value })}
+                          title="Cambiar el estado"
+                          style={{ width: 'auto', fontSize: '12px', padding: '3px 6px' }}
+                        >
+                          {Object.entries(ESTADOS_TICKET).map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
+                        </select>
+                      </td>
                     </tr>
                     {abierto === t.id && (
                       <tr>
@@ -196,10 +211,6 @@ export default function SeccionTickets({ showToast }) {
                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                               <button className="btn btn-sm btn-primary" onClick={() => copiar(t)}>Copiar para análisis</button>
                               <button className="btn btn-sm" onClick={() => descargar(t)}>Descargar (.md)</button>
-                              <span style={{ fontSize: '12px', color: 'var(--text3)', marginLeft: '8px' }}>Estado:</span>
-                              <select value={t.estado} disabled={guardando} onChange={(e) => actualizar(t, { estado: e.target.value })} style={{ width: 'auto' }}>
-                                {Object.entries(ESTADOS_TICKET).map(([id, nombre]) => <option key={id} value={id}>{nombre}</option>)}
-                              </select>
                             </div>
 
                             {!log && <div style={{ fontSize: '12px', color: 'var(--text3)' }}>Cargando log…</div>}
