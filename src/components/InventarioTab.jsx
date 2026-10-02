@@ -30,14 +30,43 @@ export default function InventarioTab() {
   const [abierto, setAbierto] = useState(null); // clave del artículo con el historial desplegado
   const [importando, setImportando] = useState(false);
   const [exportando, setExportando] = useState(false);
+  const [orden, setOrden] = useState({ campo: null, dir: 'asc' });
   const modalImportar = importando && <ModalImportarInventario onClose={() => setImportando(false)} />;
 
   const inventario = useMemo(() => armarInventario(compras, movimientos), [compras, movimientos]);
   const texto = busqueda.trim().toLowerCase();
   const bajoMinimo = inventario.filter((a) => estaBajoMinimo(cfg, a));
-  const visibles = inventario
+  const filtrados = inventario
     .filter((a) => !texto || a.nombre.toLowerCase().includes(texto) || a.cat.toLowerCase().includes(texto))
     .filter((a) => !soloBajoMinimo || estaBajoMinimo(cfg, a));
+  // Orden por columna (clic en el título: ascendente, descendente y vuelta
+  // al orden original: filamentos primero, cada grupo por nombre). El stock
+  // se ordena dentro de cada unidad, para no mezclar gramos con unidades.
+  const valorOrden = {
+    articulo: (a) => a.nombre.toLowerCase(),
+    categoria: (a) => a.cat.toLowerCase(),
+    stock: (a) => a.stock,
+    costo: (a) => (a.unidad === 'g' ? a.costoPromedio * 1000 : a.costoPromedio),
+    valor: (a) => a.valorStock,
+    ultimaCompra: (a) => a.ultimaCompra || ''
+  };
+  const visibles = !orden.campo ? filtrados : [...filtrados].sort((x, y) => {
+    if (orden.campo === 'stock' && x.unidad !== y.unidad) return x.unidad === 'g' ? -1 : 1;
+    const vx = valorOrden[orden.campo](x);
+    const vy = valorOrden[orden.campo](y);
+    const comp = typeof vx === 'string' ? vx.localeCompare(vy, 'es') : vx - vy;
+    return orden.dir === 'asc' ? comp : -comp;
+  });
+  const ordenarPor = (campo) => setOrden((o) => (o.campo !== campo ? { campo, dir: 'asc' } : o.dir === 'asc' ? { campo, dir: 'desc' } : { campo: null, dir: 'asc' }));
+  const th = (campo, titulo, derecha) => (
+    <th
+      onClick={() => ordenarPor(campo)}
+      title="Ordenar por esta columna"
+      style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', ...(derecha ? { textAlign: 'right' } : {}) }}
+    >
+      {titulo}{orden.campo === campo ? (orden.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+    </th>
+  );
   const valorTotal = visibles.reduce((s, a) => s + a.valorStock, 0);
 
   // Número escrito a mano ("1.250", "1250,5") a número.
@@ -206,12 +235,12 @@ export default function InventarioTab() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Artículo</th>
-              <th>Categoría</th>
-              <th style={{ textAlign: 'right' }}>Stock</th>
-              <th style={{ textAlign: 'right' }}>Costo prom.</th>
-              <th style={{ textAlign: 'right' }}>Valor</th>
-              <th>Última compra</th>
+              {th('articulo', 'Artículo')}
+              {th('categoria', 'Categoría')}
+              {th('stock', 'Stock', true)}
+              {th('costo', 'Costo prom.', true)}
+              {th('valor', 'Valor', true)}
+              {th('ultimaCompra', 'Última compra')}
               <th></th>
             </tr>
           </thead>
