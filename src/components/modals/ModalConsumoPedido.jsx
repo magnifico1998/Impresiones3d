@@ -5,6 +5,7 @@ import { useMovimientosInventario } from '../../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { armarInventario, formatoCantidad } from '../../utils/inventario';
 import { estimarConsumoPedido, sugerirFilamento, sugerirInsumo } from '../../utils/consumoPedido';
+import SelectorBuscable from '../SelectorBuscable';
 
 // "Descontar del inventario" de un pedido: propone cuánto filamento usó
 // cada versión de cada producto (en los multicolor, por material) y los
@@ -76,12 +77,13 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
     const a = articuloDe(f.articulo);
     return (
       <>
-        <select value={f.articulo} onChange={(e) => cambiar(grupo, i, 'articulo', e.target.value)}>
-          <option value="">— No descontar —</option>
-          {opciones.map((o) => (
-            <option key={o.clave} value={o.clave}>{o.nombre} ({formatoCantidad(o.stock, o.unidad)})</option>
-          ))}
-        </select>
+        <SelectorBuscable
+          value={f.articulo}
+          onChange={(v) => cambiar(grupo, i, 'articulo', v)}
+          textoVacio="— No descontar —"
+          placeholder="Escribí el color o el tipo…"
+          opciones={opciones.map((o) => ({ valor: o.clave, texto: o.nombre, muestra: o.colorHex, detalle: formatoCantidad(o.stock, o.unidad) }))}
+        />
         {restante !== null && restante < 0 && (
           <div style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '2px' }}>
             No alcanza: faltan {formatoCantidad(-restante, a.unidad)}. Igual se puede descontar y ajustar después.
