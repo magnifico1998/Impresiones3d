@@ -180,8 +180,11 @@ export default function InventarioTab() {
             placeholder="Buscar artículo o categoría…"
             style={{ maxWidth: '260px' }}
           />
-          <button className="btn btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={descargarPlantillaInventario} title="Planilla con el formato para importar, con ejemplos">Descargar plantilla</button>
-          <button className="btn btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => setImportando(true)} title="Cargar lo que ya tenés desde un CSV">Importar CSV</button>
+          {/* Los dos botones van juntos: si no entran al lado del buscador, bajan en la misma fila. */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => setImportando(true)} title="Cargar lo que ya tenés desde un CSV">Importar CSV</button>
+            <button className="btn btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={descargarPlantillaInventario} title="Planilla con el formato para importar, con ejemplos">Descargar plantilla</button>
+          </div>
         </div>
       </div>
       {modalImportar}
