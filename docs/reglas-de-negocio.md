@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-02 (tickets de soporte; descuento de filamento por versión y por material).
+Última revisión: 2026-10-02 (boletín de novedades a los suscriptores).
 
 ---
 
@@ -566,3 +566,23 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
   desde Firebase Console**. Desde la app no se pueden crear.
 - Las preguntas frecuentes (`faq`) y los planes (`planes`) los edita solo un
   admin.
+- **Plantillas de mail:** el admin edita el asunto y el cuerpo de cada mail en
+  modo **visual** (escribiendo sobre el mail) o **HTML**. Las plantillas con una
+  tabla que arma el sistema (`{{filasTabla}}`, los avisos internos) sólo se
+  editan en HTML.
+- **Boletín de novedades** (Administrador → Negocio): un mail a los
+  suscriptores con el contenido de la plantilla `boletin`, que se reescribe
+  para cada campaña.
+  - Destinatarios: el email de cada cuenta (no los miembros del equipo), según
+    los estados elegidos (prueba, activas, lectura, bloqueadas), sin repetidos
+    y sin las **bajas** (lista de emails que se carga a mano con quienes
+    respondieron BAJA). El saludo es "Hola {nombre}," con el nombre de la
+    ficha del suscriptor, o "Hola,".
+  - Primero se manda una **prueba** al admin. Al enviar, el contenido se copia
+    en `boletines/{id}`: editar la plantilla después no cambia un envío en
+    curso.
+  - Gmail permite unos 500 destinatarios por día: se manda de a **400 por
+    vez** y, si quedan pendientes o Gmail corta por el límite, el envío queda
+    **pausado** para reanudarlo otro día. Nunca se le manda dos veces a la
+    misma persona en un mismo envío.
+  - Las respuestas van al mail del admin.

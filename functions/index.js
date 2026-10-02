@@ -30,6 +30,7 @@ const { probarConexionArca, emitirFacturaManual, facturarPagoMP, reintentarFactu
 const { configurarFacturacionCuenta, facturarPedido, reintentarFacturaCuenta, descartarFacturaCuenta, anularFacturaCuenta, descargarFacturaCuentaPDF, enviarFacturaCuentaMail } = require('./http/facturacionCuenta');
 const { completarPerfil } = require('./http/perfil');
 const { crearTicket, actualizarTicket } = require('./http/tickets');
+const { gestionarBoletin } = require('./http/boletin');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
 module.exports = {
@@ -83,5 +84,6 @@ module.exports = {
   enviarFacturaCuentaMail,
   completarPerfil,
   crearTicket,
-  actualizarTicket
+  actualizarTicket,
+  gestionarBoletin
 };

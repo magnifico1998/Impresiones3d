@@ -164,6 +164,19 @@ firebase functions:list        # qué funciones están deployadas
 cuántas cuentas pasaron a lectura, cuántas se bloquearon, cuántos avisos se
 mandaron, etc.
 
+## Boletín de novedades
+
+En Administrador → Negocio → Boletín de novedades:
+
+1. **Editar contenido** y reescribir las novedades de la campaña.
+2. **Enviarme una prueba** y revisarla en el mail (también en el celular).
+3. Elegir los estados de suscripción y **Enviar**.
+
+Gmail manda unos 500 mails por día desde `manager3d.app@gmail.com`: si hay
+más suscriptores, el envío queda **Pausado** y se termina con **Reanudar** al
+día siguiente. Quien responda BAJA se agrega a la lista de **Bajas** de la
+misma tarjeta.
+
 ## Tickets de soporte
 
 Los tickets llegan por mail y están en Admin → Tickets. Para analizar uno,

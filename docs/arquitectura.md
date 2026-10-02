@@ -81,6 +81,7 @@ con un máximo de 10 instancias por función.
 | `activarCodigoPromocional` | Canjear un código de comercio | Usuario en prueba |
 | `crearCodigoPromocional`, `actualizarCodigoPromocional`, `desactivarCodigoPromocional` | Gestión de códigos | Admin |
 | `listarPlantillasEmail`, `guardarPlantillaEmail`, `restablecerPlantillaEmail` | Textos de los mails | Admin |
+| `gestionarBoletin` | Boletín de novedades: resumen de destinatarios, bajas, prueba, envío y reanudación | Admin |
 | `probarConexionArca`, `emitirFacturaManual`, `facturarPagoMP`, `reintentarFactura`, `anularFactura`, `descargarFacturaPDF`, `reenviarFacturaMail` | Facturación electrónica con ARCA | Admin |
 | `configurarFacturacionCuenta` | Configura y verifica contra ARCA el CUIT y punto de venta de una cuenta; reserva el CUIT | Dueño de la cuenta |
 | `facturarPedido`, `reintentarFacturaCuenta`, `descartarFacturaCuenta`, `anularFacturaCuenta`, `descargarFacturaCuentaPDF`, `enviarFacturaCuentaMail` | Factura C de los pedidos de una cuenta | Dueño y miembros (plan con facturación) |
@@ -137,6 +138,8 @@ con un máximo de 10 instancias por función.
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |
 | `invitacionesMiembro/{email}` | Vínculos de equipo | Solo Cloud Functions |
 | `tickets/{id}` (+ `adjuntos/log`) | Tickets de soporte; el log con el contexto técnico sólo lo lee el admin | Solo Cloud Functions; leen el admin y la cuenta |
+| `boletines/{id}` | Cada envío del boletín: copia del contenido, destinatarios, enviados y fallidos | Solo Cloud Functions; lee el admin |
+| `configuracion/emailTemplates`, `configuracion/boletin` | Textos personalizados de los mails y bajas del boletín | Solo Cloud Functions (sin acceso desde la app) |
 | `contadores/tickets`, `soporteCuotas/{uid}` | Último número de ticket y tickets creados hoy por usuario | Solo Cloud Functions (sin acceso desde la app) |
 | `admins/{email}` | Lista de admins | A mano desde Firebase Console |
 

@@ -228,6 +228,63 @@ const DEFAULTS = {
     `.trim(),
     variables: { nombre: 'Juana', comprobante: 'Factura C 00002-00000015', importe: '$ 45.000,00', emprendimiento: 'Impresiones Lucas' },
   },
+  // Campaña a todos los suscriptores (ver functions/http/boletin.js): el
+  // contenido se reescribe desde el panel para cada envío.
+  boletin: {
+    label: 'Boletín de novedades (campaña a los suscriptores)',
+    subject: 'Novedades en Manager3D: facturación, inventario y soporte',
+    bodyHtml: `
+      <h2 style="${TITULO}">Lo nuevo en Manager3D</h2>
+      <p>{{saludo}}</p>
+      <p>En las últimas semanas sumamos varias herramientas que nos venían pidiendo. Te cuento las principales:</p>
+
+      <h3 style="font-size: 15px; margin: 22px 0 6px;">🧾 Facturación electrónica con ARCA</h3>
+      <ul style="margin: 0; padding-left: 18px;">
+        <li>Emití la <strong>Factura C</strong> de tus pedidos sin salir de la app (según tu plan).</li>
+        <li>El PDF con el QR le llega por mail a tu cliente, y si te responde, te escribe a vos.</li>
+        <li>Todos tus comprobantes en <strong>Mi emprendimiento → Facturación ARCA</strong>, con filtros y exportación a Excel.</li>
+      </ul>
+
+      <h3 style="font-size: 15px; margin: 22px 0 6px;">📦 Compras e inventario</h3>
+      <ul style="margin: 0; padding-left: 18px;">
+        <li>Las compras ahora son un carrito: filamentos, insumos y accesorios en un mismo ingreso.</li>
+        <li>El filamento se lleva en gramos y <strong>se descuenta solo</strong> al completar un pedido, por versión y color (también en los multicolor).</li>
+        <li>Stock mínimo con alertas, y un Excel con lo que falta para armar el pedido al proveedor.</li>
+        <li>¿Ya tenías stock? Cargalo de una vez importando una planilla.</li>
+      </ul>
+      <p style="font-size: 13px; color: #666;">Se activa en Configuración → Aplicación → Llevar inventario.</p>
+
+      <h3 style="font-size: 15px; margin: 22px 0 6px;">📝 Presupuestos</h3>
+      <ul style="margin: 0; padding-left: 18px;">
+        <li>Armá presupuestos con productos de la Calculadora o de tu Biblioteca.</li>
+        <li>Cuando el cliente lo aprueba, se convierte en pedido con un clic.</li>
+      </ul>
+
+      <h3 style="font-size: 15px; margin: 22px 0 6px;">🚦 Pedidos más claros</h3>
+      <ul style="margin: 0; padding-left: 18px;">
+        <li>Semáforo que te avisa si llegás con la fecha de entrega.</li>
+        <li>Marca en los pedidos que se entregan en los próximos 7 días o están vencidos.</li>
+      </ul>
+
+      <h3 style="font-size: 15px; margin: 22px 0 6px;">🛟 Soporte dentro de la app</h3>
+      <ul style="margin: 0; padding-left: 18px;">
+        <li>Nueva sección <strong>Soporte</strong>: creá un ticket y tocá <em>Grabar el problema</em> para que nos llegue todo lo necesario para resolverlo.</li>
+        <li>Si aparece un error, tocá <strong>Reportar</strong> en el mismo aviso.</li>
+      </ul>
+
+      <h3 style="font-size: 15px; margin: 22px 0 6px;">🎁 Plan Boceto, gratis</h3>
+      <p style="margin: 0;">Completá tu perfil y seguí usando Manager3D sin costo cuando termine tu prueba.</p>
+
+      <p style="margin-top: 22px;">Y estrenamos dirección: <strong>manager3d.com.ar</strong>.</p>
+      <p>Como siempre, cualquier idea o consulta, respondé este mail.</p>
+      <p>¡Gracias por imprimir con nosotros!<br>Gustavo</p>
+      ${BOTON}
+      <p style="font-size: 11px; color: #999; margin-top: 24px;">Si no querés recibir más novedades, respondé este mail con la palabra BAJA.</p>
+    `.trim(),
+    // {{saludo}} se arma por destinatario: "Hola Juana," o "Hola," si no
+    // tenemos su nombre.
+    variables: { saludo: 'Hola Juana,' },
+  },
   ticketNuevoAdmin: {
     label: 'Aviso interno: nuevo ticket de soporte (a admin)',
     subject: '[{{numero}}] {{asunto}}',
@@ -390,9 +447,22 @@ function renderPlantilla(id, vars, overrides = {}) {
   const base = DEFAULTS[id];
   if (!base) throw new Error(`Plantilla de mail desconocida: ${id}`);
   const override = overrides[id] || {};
-  const subject = sustituirVariables(override.subject || base.subject, vars);
-  const bodyHtml = sustituirVariables(override.bodyHtml || base.bodyHtml, vars, { escaparHtml: true });
+  return renderContenido(override.subject || base.subject, override.bodyHtml || base.bodyHtml, vars);
+}
+
+// Lo mismo, a partir de un asunto y un cuerpo ya elegidos.
+function renderContenido(subjectCrudo, bodyHtmlCrudo, vars) {
+  const subject = sustituirVariables(subjectCrudo, vars);
+  const bodyHtml = sustituirVariables(bodyHtmlCrudo, vars, { escaparHtml: true });
   return { subject, html: layout(bodyHtml) };
+}
+
+// Contenido vigente (override o default) de una plantilla, sin armar.
+function contenidoPlantilla(id, overrides = {}) {
+  const base = DEFAULTS[id];
+  if (!base) throw new Error(`Plantilla de mail desconocida: ${id}`);
+  const override = overrides[id] || {};
+  return { subject: override.subject || base.subject, bodyHtml: override.bodyHtml || base.bodyHtml };
 }
 
 module.exports = {
@@ -400,6 +470,8 @@ module.exports = {
   DEFAULTS,
   obtenerOverridesPlantillas,
   renderPlantilla,
+  renderContenido,
+  contenidoPlantilla,
   filasTablaContacto,
   filasTablaPedidoCatalogo,
   filasTablaPerfil,

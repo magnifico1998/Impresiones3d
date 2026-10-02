@@ -10,6 +10,7 @@ import ModalPlantillaEmail from './modals/ModalPlantillaEmail';
 import SeccionCodigosPromocionales from './admin/SeccionCodigosPromocionales';
 import SeccionFacturacion from './admin/SeccionFacturacion';
 import SeccionTickets from './admin/SeccionTickets';
+import SeccionBoletin from './admin/SeccionBoletin';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 
 // Panel de administración: sólo lo ven los emails presentes en la
@@ -1690,6 +1691,8 @@ export default function AdminPage({ modoRevendedor = false }) {
       {!modoRevendedor && pestana === 'arca' && <SeccionFacturacion showToast={showToast} />}
 
       {!modoRevendedor && pestana === 'tickets' && <SeccionTickets showToast={showToast} />}
+
+      {!modoRevendedor && pestana === 'negocio' && <SeccionBoletin showToast={showToast} />}
 
       {/* ---- Plantillas de mail (sólo admin principal) ---- */}
       {!modoRevendedor && pestana === 'negocio' && <div className="card">

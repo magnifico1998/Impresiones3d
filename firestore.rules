@@ -402,6 +402,13 @@ service cloud.firestore {
       allow write: if esAdmin() || esRevendedorDe(uid);
     }
 
+    // ---- Boletín de novedades ----
+    // Cada envío y su progreso; lo escribe sólo functions/http/boletin.js.
+    match /boletines/{boletinId} {
+      allow read: if esAdmin();
+      allow write: if false;
+    }
+
     // ---- Tickets de soporte ----
     // Los crea y actualiza sólo functions/http/tickets.js. La cuenta ve sus
     // propios tickets (la consulta filtra por cuentaId); el log adjunto,
