@@ -228,6 +228,48 @@ const DEFAULTS = {
     `.trim(),
     variables: { nombre: 'Juana', comprobante: 'Factura C 00002-00000015', importe: '$ 45.000,00', emprendimiento: 'Impresiones Lucas' },
   },
+  ticketNuevoAdmin: {
+    label: 'Aviso interno: nuevo ticket de soporte (a admin)',
+    subject: '[{{numero}}] {{asunto}}',
+    bodyHtml: `
+      <h2 style="${TITULO}">Nuevo ticket de soporte</h2>
+      <table style="border-collapse: collapse;">{{filasTabla}}</table>
+      <p>El log completo está en el panel de admin, pestaña Tickets.</p>
+    `.trim(),
+    // Mismo criterio que nuevaSolicitudContacto: {{filasTabla}} se arma
+    // siempre desde los datos reales del ticket (ver filasTablaTicket).
+    variables: {
+      numero: 'TKT-0001',
+      asunto: 'No puedo guardar un pedido',
+      filasTabla: filasTablaTicket({
+        numero: 'TKT-0001', categoria: 'error', asunto: 'No puedo guardar un pedido', comentario: 'Al tocar Guardar aparece un error.',
+        email: 'juana@ejemplo.com', cuentaId: 'abc123', errores: 2, eventos: 34, grabado: true, version: '8.0.0', seccion: 'pedidos'
+      }),
+    },
+  },
+  ticketRecibido: {
+    label: 'Ticket de soporte recibido (al suscriptor)',
+    subject: 'Recibimos tu ticket {{numero}}',
+    bodyHtml: `
+      <h2 style="${TITULO}">Recibimos tu ticket</h2>
+      <p>Tu consulta <strong>{{numero}}: {{asunto}}</strong> ya está en nuestra bandeja. La vamos a revisar y te respondemos por este medio.</p>
+      <p>Podés ver el estado en la app, en <strong>Soporte</strong>.</p>
+      ${BOTON}
+    `.trim(),
+    variables: { numero: 'TKT-0001', asunto: 'No puedo guardar un pedido' },
+  },
+  ticketRespondido: {
+    label: 'Respuesta a un ticket de soporte (al suscriptor)',
+    subject: 'Respuesta a tu ticket {{numero}}',
+    bodyHtml: `
+      <h2 style="${TITULO}">Respuesta a tu ticket {{numero}}</h2>
+      <p style="color: #666;">{{asunto}}</p>
+      <div style="white-space: pre-wrap; background: #f5f5f5; border-radius: 6px; padding: 12px 14px;">{{respuesta}}</div>
+      <p>Si necesitás algo más, respondé este mail.</p>
+      ${BOTON}
+    `.trim(),
+    variables: { numero: 'TKT-0001', asunto: 'No puedo guardar un pedido', respuesta: 'Hola Juana, ya lo corregimos. Probá de nuevo y contanos.' },
+  },
 };
 
 // Los valores de este formulario los tipea cualquier cuenta autenticada
@@ -272,6 +314,25 @@ function filasTablaPerfil(datos) {
   ];
   return filas
     .map(([label, valor]) => `<tr><td style="padding: 4px 12px 4px 0; color: #666;">${label}</td><td style="padding: 4px 0;">${escapeHtml(valor || '-')}</td></tr>`)
+    .join('');
+}
+
+// El ticket lo escribe cualquier cuenta: cada valor se escapa acá, como en
+// filasTablaContacto. El comentario respeta los saltos de línea.
+function filasTablaTicket(datos) {
+  const categorias = { error: 'Error', consulta: 'Consulta', facturacion: 'Facturación', sugerencia: 'Sugerencia' };
+  const filas = [
+    ['Ticket', datos.numero || ''],
+    ['Categoría', categorias[datos.categoria] || datos.categoria || ''],
+    ['Asunto', datos.asunto || ''],
+    ['Comentario', datos.comentario || ''],
+    ['Email', datos.email || ''],
+    ['Cuenta', datos.cuentaId || ''],
+    ['Log', `${datos.eventos || 0} eventos, ${datos.errores || 0} errores${datos.grabado ? ' (grabado)' : ''}`],
+    ['Versión / sección', `${datos.version || '-'} / ${datos.seccion || '-'}`],
+  ];
+  return filas
+    .map(([label, valor]) => `<tr><td style="padding: 4px 12px 4px 0; color: #666; vertical-align: top;">${label}</td><td style="padding: 4px 0; white-space: pre-wrap;">${escapeHtml(valor || '-')}</td></tr>`)
     .join('');
 }
 
@@ -342,4 +403,5 @@ module.exports = {
   filasTablaContacto,
   filasTablaPedidoCatalogo,
   filasTablaPerfil,
+  filasTablaTicket,
 };

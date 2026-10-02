@@ -402,6 +402,20 @@ service cloud.firestore {
       allow write: if esAdmin() || esRevendedorDe(uid);
     }
 
+    // ---- Tickets de soporte ----
+    // Los crea y actualiza sólo functions/http/tickets.js. La cuenta ve sus
+    // propios tickets (la consulta filtra por cuentaId); el log adjunto,
+    // con el detalle técnico de la sesión, sólo lo ve el admin.
+    // contadores/ y soporteCuotas/ no tienen regla: sólo las funciones.
+    match /tickets/{ticketId} {
+      allow read: if esAdmin() || tieneAcceso(resource.data.cuentaId);
+      allow write: if false;
+      match /adjuntos/{docId} {
+        allow read: if esAdmin();
+        allow write: if false;
+      }
+    }
+
     // ---- Revendedores ----
     // Doc ID = código (ej "JUAN20"). Mapeo inverso código -> uid, para que
     // el admin (o la Cloud Function cambiarEstadoSuscripcion) pueda

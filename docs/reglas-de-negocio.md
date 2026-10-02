@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-02 (descuento de filamento por versión y por material).
+Última revisión: 2026-10-02 (tickets de soporte; descuento de filamento por versión y por material).
 
 ---
 
@@ -528,7 +528,39 @@ Código: `functions/http/facturacionCuenta.js`, `functions/facturacion.js`,
 
 ---
 
-## 9. Administración
+## 9. Soporte: tickets
+
+- **Quién:** cualquier cuenta, en cualquier plan y estado (también en modo
+  lectura o bloqueada), y los miembros del equipo. El ticket queda en la
+  cuenta (`cuentaId`, la del dueño si lo crea un miembro): todos los de la
+  cuenta lo ven en **Soporte**.
+- **Cómo:** Soporte → Nuevo ticket (categoría Error, Consulta, Facturación o
+  Sugerencia, asunto y comentario obligatorios), o **Reportar** en cualquier
+  aviso de error (los avisos de error duran 7 segundos para poder tocarlo).
+- **Log:** la app registra en memoria los últimos 300 eventos de la sesión
+  (errores de consola y de JavaScript, avisos de error, llamadas a Cloud
+  Functions con su resultado, secciones y botones tocados). No registra lo
+  que se escribe en los formularios; los textos se recortan y lo que parece
+  un token se tapa. Con **Grabar el problema** se adjunta lo que pasó entre
+  el inicio y el fin de la grabación; si no, los últimos 15 minutos (o, desde
+  un aviso, lo que pasó hasta ese momento). Va con el contexto técnico:
+  versión, sección, plan y estado, navegador, pantalla. El usuario puede ver
+  lo que se envía antes de mandarlo.
+- **Tope:** 5 tickets por día por usuario (día de Argentina).
+- **Numeración:** TKT-0001, correlativa para todo el sistema.
+- **Estados:** abierto → en análisis → respondido → cerrado. Los cambia el
+  admin; responder pasa el ticket a *respondido* salvo que se elija otro.
+- **Mails:** al crear, aviso al admin (con *reply-to* al usuario) y "recibimos
+  tu ticket" al usuario; cada respuesta del admin le llega al usuario por mail
+  y queda en el ticket. Plantillas `ticketNuevoAdmin`, `ticketRecibido` y
+  `ticketRespondido` (editables desde el panel).
+- El log (`tickets/{id}/adjuntos/log`) sólo lo ve el admin.
+
+Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
+`src/components/soporte/`, `src/components/admin/SeccionTickets.jsx`,
+`functions/http/tickets.js`, `scripts/ticket.mjs`.
+
+## 10. Administración
 
 - Los admins se definen en la colección `admins/{email}` y **se agregan a mano
   desde Firebase Console**. Desde la app no se pueden crear.

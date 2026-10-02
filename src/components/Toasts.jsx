@@ -53,6 +53,19 @@ export default function Toasts() {
             }}
           >
             {t.message}
+            {/* Abre un ticket con el log de lo que pasó justo antes (CentroSoporte). */}
+            {t.type === 'error' && (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('abrir-ticket', { detail: { errorOrigen: t.message } }))}
+                style={{
+                  pointerEvents: 'auto', marginLeft: '12px', background: 'transparent', border: '1px solid currentColor',
+                  color: 'inherit', borderRadius: '6px', padding: '2px 8px', fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit'
+                }}
+              >
+                Reportar
+              </button>
+            )}
           </div>
         );
       })}

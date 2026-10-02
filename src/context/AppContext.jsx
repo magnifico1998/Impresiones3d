@@ -7,6 +7,7 @@ import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
 import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
+import { registrarEvento } from '../utils/registroSoporte';
 
 const AppContext = createContext();
 
@@ -209,7 +210,10 @@ export const AppProvider = ({ children }) => {
   // que desaparece) mientras el problema no se resuelva.
   const [syncError, setSyncError] = useState(false);
 
-  const showToast = (message, type = 'success', duration = 3000) => {
+  // Los avisos de error quedan en el registro de soporte y duran más: traen
+  // el botón "Reportar" (ver Toasts.jsx), y hay que darle tiempo a tocarlo.
+  const showToast = (message, type = 'success', duration = type === 'error' ? 7000 : 3000) => {
+    if (type === 'error') registrarEvento('aviso', message);
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {

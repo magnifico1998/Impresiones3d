@@ -164,6 +164,30 @@ firebase functions:list        # qué funciones están deployadas
 cuántas cuentas pasaron a lectura, cuántas se bloquearon, cuántos avisos se
 mandaron, etc.
 
+## Tickets de soporte
+
+Los tickets llegan por mail y están en Admin → Tickets. Para analizar uno,
+**Copiar para análisis** (o **Descargar (.md)**) y pegarlo en Claude.
+
+También se pueden leer desde la terminal, sin pasar por el panel:
+
+```powershell
+node scripts/ticket.mjs        # tickets pendientes
+node scripts/ticket.mjs 12     # TKT-0012 completo, con el log
+```
+
+El script necesita, una sola vez, una clave de cuenta de servicio:
+
+1. Firebase Console → Configuración del proyecto → Cuentas de servicio →
+   **Generar nueva clave privada**.
+2. Guardar el JSON como `C:\Users\<usuario>\.manager3d\service-account.json`
+   (fuera del repo; **nunca** se sube). Otra opción es definir
+   `GOOGLE_APPLICATION_CREDENTIALS` con la ruta.
+3. Tener instaladas las dependencias de `functions/` (`npm install` ahí).
+
+Esa clave da acceso total al proyecto: guardarla sólo en esta máquina y, si
+se filtra, borrarla desde la misma pantalla de Firebase.
+
 ## Qué revisar si...
 
 **Un cliente pagó y sigue sin plan.**

@@ -108,6 +108,18 @@ export default function Sidebar({ isOpen, onClose }) {
               <circle cx="10" cy="14.2" r="0.4" fill="currentColor" stroke="none" />
             </svg>
           )
+        },
+        {
+          id: 'soporte',
+          name: 'Soporte',
+          icon: (
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 11V9a7 7 0 0114 0v2" />
+              <rect x="2.5" y="11" width="3.5" height="5" rx="1" />
+              <rect x="14" y="11" width="3.5" height="5" rx="1" />
+              <path d="M15.75 16v.5a2 2 0 01-2 2H11" strokeLinecap="round" />
+            </svg>
+          )
         }
       ]
     },

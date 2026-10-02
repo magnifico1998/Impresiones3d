@@ -302,3 +302,11 @@ select option{background:var(--bg3)}
 .page.active {
   display: block;
 }
+
+/* Soporte: cartel mientras se graba el problema y detalle del log */
+.soporte-grabando{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:10000;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);background:var(--bg2);border:1px solid var(--danger);border-radius:999px;padding:8px 10px 8px 16px;box-shadow:var(--shadow);font-size:13px}
+.soporte-grabando-punto{width:10px;height:10px;border-radius:50%;background:#ef4444;animation:soporteParpadeo 1.2s ease-in-out infinite}
+@keyframes soporteParpadeo{0%,100%{opacity:1}50%{opacity:.25}}
+.soporte-log{margin-top:14px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius)}
+.soporte-log-detalle{margin:8px 0 0;max-height:220px;overflow:auto;font-family:var(--mono);font-size:11px;line-height:1.5;white-space:pre;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px}
+.soporte-respuesta{margin-top:8px;padding:8px 10px;border-left:3px solid var(--accent);background:var(--bg2);border-radius:4px;font-size:13px;white-space:pre-wrap}

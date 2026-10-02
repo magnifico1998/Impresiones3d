@@ -9,6 +9,7 @@ import ModalDatosSuscriptor from './modals/ModalDatosSuscriptor';
 import ModalPlantillaEmail from './modals/ModalPlantillaEmail';
 import SeccionCodigosPromocionales from './admin/SeccionCodigosPromocionales';
 import SeccionFacturacion from './admin/SeccionFacturacion';
+import SeccionTickets from './admin/SeccionTickets';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 
 // Panel de administración: sólo lo ven los emails presentes en la
@@ -61,6 +62,7 @@ const PESTANAS_ADMIN = [
   { id: 'suscriptores', nombre: 'Planes y suscriptores' },
   { id: 'revendedores', nombre: 'Revendedores y promociones' },
   { id: 'arca', nombre: 'Facturación ARCA' },
+  { id: 'tickets', nombre: 'Tickets' },
   { id: 'negocio', nombre: 'Negocio' }
 ];
 const CLAVE_PESTANA_ADMIN = 'admin.pestana';
@@ -1686,6 +1688,8 @@ export default function AdminPage({ modoRevendedor = false }) {
       {!modoRevendedor && pestana === 'revendedores' && <SeccionCodigosPromocionales planes={planes} showToast={showToast} />}
 
       {!modoRevendedor && pestana === 'arca' && <SeccionFacturacion showToast={showToast} />}
+
+      {!modoRevendedor && pestana === 'tickets' && <SeccionTickets showToast={showToast} />}
 
       {/* ---- Plantillas de mail (sólo admin principal) ---- */}
       {!modoRevendedor && pestana === 'negocio' && <div className="card">

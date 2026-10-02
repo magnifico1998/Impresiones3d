@@ -18,6 +18,9 @@ import EmpresaPage from './components/EmpresaPage';
 import AdminPage from './components/AdminPage';
 import FaqPage from './components/FaqPage';
 import Toasts from './components/Toasts';
+import SoportePage from './components/soporte/SoportePage';
+import CentroSoporte from './components/soporte/CentroSoporte';
+import { registrarEvento } from './utils/registroSoporte';
 
 // Modals
 import ModalCliente from './components/modals/ModalCliente';
@@ -70,6 +73,12 @@ function App() {
   // Resumen, modo lectura). Además se ofrece solo durante la prueba, como
   // mucho una vez por día y por navegador, hasta que lo completa.
   const [modalPerfilOpen, setModalPerfilOpen] = useState(false);
+
+  // Cada cambio de sección queda en el registro de los tickets de soporte.
+  useEffect(() => {
+    registrarEvento('nav', `Sección: ${activePage}`);
+  }, [activePage]);
+
   useEffect(() => {
     const abrir = () => setModalPerfilOpen(true);
     window.addEventListener('abrir-completar-perfil', abrir);
@@ -649,6 +658,9 @@ function App() {
           />
         );
 
+      case 'soporte':
+        return <SoportePage />;
+
       case 'config':
         return <ConfiguracionPage />;
       
@@ -688,6 +700,7 @@ function App() {
 
       {/* TOAST PANEL */}
       <Toasts />
+      <CentroSoporte />
 
       {/* MODAL POPUPS */}
       <ModalCliente 

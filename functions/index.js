@@ -29,6 +29,7 @@ const { onPagoMPRegistrado } = require('./triggers/onPagoMPRegistrado');
 const { probarConexionArca, emitirFacturaManual, facturarPagoMP, reintentarFactura, anularFactura, descargarFacturaPDF, reenviarFacturaMail } = require('./http/facturacion');
 const { configurarFacturacionCuenta, facturarPedido, reintentarFacturaCuenta, descartarFacturaCuenta, anularFacturaCuenta, descargarFacturaCuentaPDF, enviarFacturaCuentaMail } = require('./http/facturacionCuenta');
 const { completarPerfil } = require('./http/perfil');
+const { crearTicket, actualizarTicket } = require('./http/tickets');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
 module.exports = {
@@ -80,5 +81,7 @@ module.exports = {
   anularFacturaCuenta,
   descargarFacturaCuentaPDF,
   enviarFacturaCuentaMail,
-  completarPerfil
+  completarPerfil,
+  crearTicket,
+  actualizarTicket
 };

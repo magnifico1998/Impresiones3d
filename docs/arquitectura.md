@@ -46,6 +46,7 @@ React 19 + Vite, sin router: la navegación es por estado.
 | `utils/` | Cálculos (finanzas del pedido, precio neto, capacidad), PDFs (`presupuestoPDF.js`, `listadoPDF.js`), armado de piezas de pedido (`piezaPedido.js`), WhatsApp, paletas |
 | `SeccionFacturaPedido.jsx`, `modals/ModalFacturarPedido.jsx`, `TarjetaFacturacionCuenta.jsx`, `utils/facturacion.js` | Facturación de pedidos: bloque en el detalle del pedido, modal para emitir y configuración en "Mi emprendimiento" |
 | `TablaComprobantes.jsx`, `ComprobantesCuenta.jsx`, `SelectorRangoFechas.jsx`, `utils/exportarExcel.js` | Listado de comprobantes con filtros, rango de fechas y exportación a Excel; lo usan el panel admin y la pestaña "Facturación ARCA" de cada emprendimiento |
+| `utils/registroSoporte.js`, `utils/formatoTicket.js`, `components/soporte/`, `components/admin/SeccionTickets.jsx` | Tickets de soporte: registro en memoria de la sesión (se instala en `AppPrivada.jsx`), modal con "Grabar el problema" (`CentroSoporte`, abierto con el evento `abrir-ticket`), página Soporte y pestaña Tickets del admin |
 | `index.css` | Estilos globales y variables de color |
 
 ## Vercel (`api/` y `vercel.json`)
@@ -69,6 +70,8 @@ con un máximo de 10 instancias por función.
 | `crearSuscripcionMP`, `sincronizarSuscripcionMP`, `cancelarSuscripcionMP` | Contratar, verificar y cancelar el débito de Mercado Pago | Dueño de la cuenta |
 | `webhookMercadoPago` | Recibe los avisos de Mercado Pago (valida la firma) | Mercado Pago |
 | `registrarUltimoAcceso` | Guarda el último ingreso; renueva el plan gratuito | La app, una vez por sesión |
+| `crearTicket` | Crea un ticket de soporte con el log de la sesión (número correlativo, tope de 5 por día) y avisa por mail al admin y al usuario | Cualquier usuario logueado |
+| `actualizarTicket` | Cambia el estado de un ticket y/o lo responde por mail | Admin |
 | `completarPerfil` | Guarda el perfil del dueño (ficha `datosSuscriptor`) y le da acceso al plan gratuito: al vencer la prueba, o en el momento si está en lectura o bloqueada | Dueño de la cuenta |
 | `registrarAperturaCatalogo` | Cuenta las aperturas del catálogo y responde si la tienda todavía acepta pedidos (límite del plan) | Catálogo público |
 | `agregarMiembro`, `quitarMiembro`, `responderInvitacion` | Usuarios adicionales ("equipo") | Dueño / invitado |
@@ -133,6 +136,8 @@ con un máximo de 10 instancias por función.
 | `arcaTickets`, `arcaNumeracion` | Ticket de acceso a ARCA y candado de numeración | Solo Cloud Functions (sin acceso desde la app) |
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |
 | `invitacionesMiembro/{email}` | Vínculos de equipo | Solo Cloud Functions |
+| `tickets/{id}` (+ `adjuntos/log`) | Tickets de soporte; el log con el contexto técnico sólo lo lee el admin | Solo Cloud Functions; leen el admin y la cuenta |
+| `contadores/tickets`, `soporteCuotas/{uid}` | Último número de ticket y tickets creados hoy por usuario | Solo Cloud Functions (sin acceso desde la app) |
 | `admins/{email}` | Lista de admins | A mano desde Firebase Console |
 
 Storage: `users/{uid}/...` (logos e imágenes), accesible por el dueño y los
