@@ -27,7 +27,16 @@ export default function Header({ onToggleMenu }) {
         </svg>
       </div>
       <span className="header-title">Manager3D</span>
-      <span className="header-version" style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px' }}>v{VERSION}</span>
+      {/* Tocando la versión se vuelven a ver las novedades (ModalNovedades). */}
+      <button
+        type="button"
+        className="header-version"
+        onClick={() => window.dispatchEvent(new CustomEvent('abrir-novedades'))}
+        title="Ver las novedades"
+        style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginLeft: '10px', background: 'none', border: 0, padding: 0, cursor: 'pointer', textDecoration: 'underline dotted' }}
+      >
+        v{VERSION}
+      </button>
       
       {(empresa.nombre || empresa.logo) && (
         <div id="header-empresa" style={{

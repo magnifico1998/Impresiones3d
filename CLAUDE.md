@@ -52,6 +52,11 @@ pasarla a producción):
 Si una rama junta de los dos tipos, manda el funcional. Al final de la
 respuesta, avisale al usuario a qué versión quedó.
 
+Cada versión **mayor** suma su entrada en `src/utils/novedades.js` (en el
+mismo commit): lo que cambió para el usuario, en lenguaje de usuario, sin lo
+estético ni lo correctivo. Lo que sólo ve el admin va con `soloAdmin: true`.
+Es lo que muestra el aviso "Novedades" al entrar.
+
 ## Cómo trabaja el usuario
 
 - Escribile en español rioplatense.
