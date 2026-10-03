@@ -328,3 +328,4 @@ select option{background:var(--bg3)}
 .driver-popover.recorrido-popover .driver-popover-arrow-side-top{border-top-color:var(--bg2)}
 .driver-popover.recorrido-popover .driver-popover-arrow-side-left{border-left-color:var(--bg2)}
 .driver-popover.recorrido-popover .driver-popover-arrow-side-right{border-right-color:var(--bg2)}
+.recorrido-ruta{font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px}

@@ -7,6 +7,11 @@
 // (`elemento`: una función que lo busca en la página). Se busca por el título
 // de la tarjeta o el texto del botón; si no se encuentra (por ejemplo, una
 // sección que esa cuenta no tiene), el paso se muestra centrado igual.
+//
+// Para que se aprenda también CÓMO LLEGAR: al entrar a cada sección nueva
+// se agrega un paso que resalta ese ítem del menú lateral (y la pestaña, si
+// hay), y cada globo lleva arriba el camino ("Menú › Configuración ›
+// Herramientas"). Ver armarPasos.
 
 const limpio = (t) => String(t || '').replace(/^[▸▾]\s*/, '').replace(/\s+/g, ' ').trim();
 
@@ -26,7 +31,25 @@ const pestanaDe = (nombre) => () =>
 // El título de la página actual, con su descripción.
 const tituloPagina = () => document.querySelector('.page-title')?.parentElement;
 
-export const PASOS = [
+// Nombre de cada sección en el menú lateral.
+const MENU = {
+  config: 'Configuración',
+  empresa: 'Mi emprendimiento',
+  calc: 'Calculadora',
+  biblioteca: 'Biblioteca',
+  pedidos: 'Pedidos',
+  presupuestos: 'Presupuestos',
+  compras: 'Compras',
+  catalogoweb: 'Catálogo web',
+  faq: 'Preguntas frecuentes',
+  soporte: 'Soporte'
+};
+
+// El ítem del menú lateral de una sección.
+const itemMenu = (pagina) => () =>
+  [...document.querySelectorAll('.nav-item')].find((b) => b.offsetParent && limpio(b.textContent).startsWith(MENU[pagina]));
+
+const PASOS_BASE = [
   {
     titulo: '¡Bienvenido a Manager3D! 👋',
     texto: 'Te mostramos en 2 minutos lo principal para arrancar: dónde configurar tus costos, cómo calcular una pieza desde el G-code y cómo cargar pedidos. Podés salir cuando quieras con la ✕.'
@@ -112,6 +135,38 @@ export const PASOS = [
     texto: 'Ya conocés lo principal. Te recomendamos empezar por Configuración y calcular tu primera pieza. Podés repetir el recorrido desde Soporte o Preguntas frecuentes.'
   }
 ];
+
+// (la pestaña no se repite si se llama igual que la sección, ej. Compras › Compras)
+const ruta = (p) => ['Menú', MENU[p.pagina], p.pestana !== MENU[p.pagina] && p.pestana].filter(Boolean).join(' › ');
+const conRuta = (p) => `<div class="recorrido-ruta">📍 ${ruta(p)}</div>${p.texto}`;
+
+// Pasos finales: antes de cada sección nueva, el paso "cómo llegar" (resalta
+// el ítem del menú; la sección se abre recién en el paso siguiente). Un
+// cambio de pestaña dentro de la misma sección también lo indica.
+function armarPasos() {
+  const pasos = [];
+  let anterior = {};
+  for (const p of PASOS_BASE) {
+    if (p.pagina && MENU[p.pagina] && p.pagina !== anterior.pagina) {
+      pasos.push({
+        elemento: itemMenu(p.pagina),
+        titulo: `Cómo llegar: ${MENU[p.pagina]}`,
+        texto: `<div class="recorrido-ruta">📍 ${ruta(p)}</div>En el menú de la izquierda, tocá <b>${MENU[p.pagina]}</b>${p.pestana && p.pestana !== MENU[p.pagina] ? ` y después la pestaña <b>${p.pestana}</b>` : ''}.`
+      });
+    }
+    const cambiaPestana = p.pagina === anterior.pagina && p.pestana && p.pestana !== anterior.pestana;
+    pasos.push({
+      ...p,
+      texto: p.pagina && MENU[p.pagina]
+        ? conRuta({ ...p, texto: (cambiaPestana ? `Tocá la pestaña <b>${p.pestana}</b>. ` : '') + p.texto })
+        : p.texto
+    });
+    anterior = p;
+  }
+  return pasos;
+}
+
+export const PASOS = armarPasos();
 
 // Busca el elemento varias veces mientras la sección se termina de mostrar.
 async function esperarElemento(buscar, ms = 1500) {
