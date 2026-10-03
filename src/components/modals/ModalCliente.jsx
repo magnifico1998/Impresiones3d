@@ -3,7 +3,9 @@ import { useApp } from '../../context/AppContext';
 import { CONDICIONES_IVA } from '../../utils/facturacion';
 
 export default function ModalCliente({ isOpen, onClose, editId }) {
-  const { clientes, addCliente, updateCliente, updatePedidosBulk, getNewId, showToast } = useApp();
+  const { clientes, addCliente, updateCliente, updatePedidosBulk, getNewId, showToast, cfg } = useApp();
+  const nombreMetodo = (m) => (typeof m === 'string' ? m : m?.nombre) || '';
+  const metodos = (cfg.metodosEnvio || []).map(nombreMetodo).filter(Boolean);
 
   const [form, setForm] = useState({
     nombre: '',
@@ -18,6 +20,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
     altura: '',
     piso: '',
     depto: '',
+    metodoEnvio: '',
     notas: ''
   });
 
@@ -39,6 +42,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
             altura: c.altura || '',
             piso: c.piso || '',
             depto: c.depto || '',
+            metodoEnvio: c.metodoEnvio || '',
             notas: c.notas || ''
           });
         }
@@ -56,6 +60,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           altura: '',
           piso: '',
           depto: '',
+          metodoEnvio: '',
           notas: ''
         });
       }
@@ -92,6 +97,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
       altura: form.altura,
       piso: form.piso,
       depto: form.depto,
+      metodoEnvio: form.metodoEnvio,
       notas: form.notas
     };
 
@@ -187,6 +193,17 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           <div>
             <label className="fl">Depto</label>
             <input type="text" id="depto" value={form.depto} onChange={handleChange} />
+          </div>
+          <div>
+            {/* Solo informativo: se ve en la ficha del cliente (ModalClienteDetalle). */}
+            <label className="fl">Método de envío favorito</label>
+            <select id="metodoEnvio" value={form.metodoEnvio} onChange={handleChange}>
+              <option value="">— Sin favorito —</option>
+              {metodos.map((m) => <option key={m} value={m}>{m}</option>)}
+              {form.metodoEnvio && !metodos.includes(form.metodoEnvio) && (
+                <option value={form.metodoEnvio}>{form.metodoEnvio} (ya no está en Configuración)</option>
+              )}
+            </select>
           </div>
         </div>
         <div>

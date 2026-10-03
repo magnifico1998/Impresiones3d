@@ -384,6 +384,10 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   N días" si se entrega en los próximos 7 días, y rojo "Vencido hace N días"
   si la fecha ya pasó. Sólo para pedidos que todavía se están haciendo (no
   listo, enviado, completado ni cancelado) (`alertaEntrega`).
+- **Método de envío favorito del cliente:** en la ficha del cliente se elige
+  uno de los métodos de envío de Configuración (`metodoEnvio` del cliente) y
+  se muestra en sus datos. Es sólo informativo: no se precarga en los pedidos.
+  Si el método se borra de Configuración, la ficha lo conserva y lo marca.
 - **Datos para transferencia en los PDF:** con CBU/CVU o alias cargados en
   Mi emprendimiento → Datos bancarios (y "Mostrar en los PDF" tildado), el
   PDF del presupuesto y el del pedido suman "Datos para transferencia" al pie
