@@ -133,6 +133,14 @@ export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
   const handleGuardar = async () => {
     const error = validar();
     if (error) { showToast(error, 'error'); return; }
+    // Un código que no corresponde a ningún revendedor no se guarda: si no,
+    // queda en la solicitud y el panel lo muestra como si existiera.
+    if (form.codigoRevendedor.trim() && estadoCodigo !== 'valido') {
+      showToast(estadoCodigo === 'validando'
+        ? 'Esperá a que terminemos de comprobar el código de revendedor.'
+        : 'El código de revendedor no existe. Revisalo o dejalo vacío.', 'error');
+      return;
+    }
 
     setGuardando(true);
     try {

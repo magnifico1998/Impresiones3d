@@ -269,6 +269,9 @@ Un admin puede habilitar a cualquier suscriptor como revendedor con un
   vigentes (en prueba o activas).
 - Para validar un código hay un límite de **8 intentos fallidos cada 10
   minutos** por cuenta, para que no se puedan adivinar códigos.
+- El formulario del perfil **no deja guardar un código que no existe**
+  (`ModalContacto`). Si una solicitud vieja quedó con un código inexistente,
+  la tabla de Suscriptores lo muestra en rojo como "(no existe)".
 
 ### Cierre mensual
 

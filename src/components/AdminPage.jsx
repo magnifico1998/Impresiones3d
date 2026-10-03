@@ -1187,10 +1187,16 @@ export default function AdminPage({ modoRevendedor = false }) {
                                   const codigoFila = c.revendedorCodigo || solicitud.codigoRevendedor;
                                   const revFila = revendedores.find(r => r.codigo === codigoFila);
                                   const defaultPct = revFila?.descuentosPorPlan?.[planElegido];
+                                  // Un código cargado en la solicitud que no es de ningún revendedor
+                                  // (el formulario antes dejaba guardarlo igual).
+                                  const inexistente = !revFila && revendedores.length > 0;
                                   return (
                                     <>
-                                      <span className="badge badge-progress" title="Código de revendedor de esta cuenta">
-                                        {codigoFila}
+                                      <span
+                                        className={`badge ${inexistente ? 'badge-cancelled' : 'badge-progress'}`}
+                                        title={inexistente ? 'Este código no es de ningún revendedor: lo escribió en su perfil y no existe' : 'Código de revendedor de esta cuenta'}
+                                      >
+                                        {inexistente ? `⚠ ${codigoFila} (no existe)` : codigoFila}
                                       </span>
                                       <input
                                         type="number" min="0" max="100"
