@@ -7,13 +7,6 @@
 
 export const NOVEDADES = [
   {
-    version: 13,
-    fecha: '2026-10-03',
-    items: [
-      { texto: 'En la ficha de cada cliente podés guardar su método de envío favorito (de los que tenés en Configuración) y lo ves en sus datos.' }
-    ]
-  },
-  {
     version: 12,
     fecha: '2026-10-03',
     items: [
