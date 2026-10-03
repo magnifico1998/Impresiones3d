@@ -81,6 +81,7 @@ con un máximo de 10 instancias por función.
 | `activarCodigoPromocional` | Canjear un código de comercio | Usuario en prueba |
 | `crearCodigoPromocional`, `actualizarCodigoPromocional`, `desactivarCodigoPromocional` | Gestión de códigos | Admin |
 | `listarPlantillasEmail`, `guardarPlantillaEmail`, `restablecerPlantillaEmail` | Textos de los mails | Admin |
+| `buscarCategoriasMonotributo` | Lee la tabla de categorías del monotributo de la página de ARCA (no guarda: el admin la aplica desde el panel) | Admin |
 | `gestionarBoletin` | Boletín de novedades: resumen de destinatarios, bajas, prueba, envío y reanudación | Admin |
 | `probarConexionArca`, `emitirFacturaManual`, `facturarPagoMP`, `reintentarFactura`, `anularFactura`, `descargarFacturaPDF`, `reenviarFacturaMail` | Facturación electrónica con ARCA | Admin |
 | `configurarFacturacionCuenta` | Configura y verifica contra ARCA el CUIT y punto de venta de una cuenta; reserva el CUIT | Dueño de la cuenta |

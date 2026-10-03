@@ -31,6 +31,7 @@ const { configurarFacturacionCuenta, facturarPedido, reintentarFacturaCuenta, de
 const { completarPerfil } = require('./http/perfil');
 const { crearTicket, actualizarTicket } = require('./http/tickets');
 const { gestionarBoletin } = require('./http/boletin');
+const { buscarCategoriasMonotributo } = require('./http/monotributo');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
 module.exports = {
@@ -85,5 +86,6 @@ module.exports = {
   completarPerfil,
   crearTicket,
   actualizarTicket,
-  gestionarBoletin
+  gestionarBoletin,
+  buscarCategoriasMonotributo
 };

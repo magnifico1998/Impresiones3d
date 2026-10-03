@@ -557,7 +557,10 @@ En Mi emprendimiento → Facturación ARCA, la tarjeta "Facturación y monotribu
   faltan al promedio de los últimos 3 meses completos.
 - La tabla de categorías (`monotributo/categorias`: letra y tope anual, más la
   vigencia) la carga el admin en Administrador → Negocio y se actualiza
-  cuando ARCA publica la nueva (cada semestre). La leen todas las cuentas.
+  cuando ARCA publica la nueva (cada semestre): **"Buscar en ARCA"** lee la
+  página oficial (`functions/monotributoArca.js`), muestra los cambios contra
+  lo cargado y el admin los aplica. Si la página no tiene el formato esperado,
+  avisa y no propone nada. La leen todas las cuentas.
 - Es orientativo: la recategorización también mira superficie, energía y
   alquileres.
 
