@@ -6,8 +6,9 @@ import { iniciarRecorrido } from '../utils/recorrido';
 import { fijarEstadoRecorrido } from '../utils/estadoRecorrido';
 
 // Recorrido guiado (utils/recorrido.js), montado una vez en App.
-//   - Se ofrece solo a quien nunca lo hizo: en prueba, recién con el perfil
-//     completo (antes se ofrece completar el perfil para el plan Boceto).
+//   - Se ofrece solo a quien nunca lo hizo (también a las cuentas que ya
+//     existían), en su primer ingreso. El pedido de completar el perfil (en
+//     prueba) espera a que el recorrido termine o se cierre (App.jsx).
 //   - Si lo cerró antes del final, se vuelve a ofrecer una sola vez, al
 //     día siguiente o después.
 //   - Se repite con el evento 'iniciar-recorrido' (Soporte, Preguntas frecuentes).
@@ -18,7 +19,7 @@ const DIA_MS = 24 * 60 * 60 * 1000;
 const DEMORA_INICIO_MS = 1200; // que la app termine de mostrarse
 
 export default function Recorrido() {
-  const { user, datosCargadosOk, suscripcion, esMiembro, setActivePage } = useApp();
+  const { user, datosCargadosOk, setActivePage } = useApp();
   const enCurso = useRef(false);
   const registro = useRef(null);
 
@@ -48,7 +49,6 @@ export default function Recorrido() {
   };
 
   // Al entrar: ¿corresponde ofrecerlo?
-  const perfilPendiente = !esMiembro && suscripcion?.estado === 'trial' && !suscripcion?.perfilCompleto;
   useEffect(() => {
     if (!user?.uid || !datosCargadosOk) return undefined;
     let cancelado = false;
@@ -59,8 +59,8 @@ export default function Recorrido() {
         const r = snap.exists() ? snap.data() : null;
         registro.current = r;
         const ofrecerDeNuevo = r?.estado === 'salteado' && (r.veces || 0) < 2 && Date.now() - (r.actualizadoEl?.toMillis?.() || 0) > DIA_MS;
-        const corresponde = (!r || ofrecerDeNuevo) && !perfilPendiente;
-        fijarEstadoRecorrido(corresponde || (!r && perfilPendiente) ? 'pendiente' : 'listo');
+        const corresponde = !r || ofrecerDeNuevo;
+        fijarEstadoRecorrido(corresponde ? 'pendiente' : 'listo');
         if (corresponde) timer = setTimeout(empezar, DEMORA_INICIO_MS);
       })
       .catch((e) => {
@@ -72,7 +72,7 @@ export default function Recorrido() {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid, datosCargadosOk, perfilPendiente]);
+  }, [user?.uid, datosCargadosOk]);
 
   useEffect(() => {
     const repetir = () => empezar();

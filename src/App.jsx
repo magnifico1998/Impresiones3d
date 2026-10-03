@@ -23,6 +23,7 @@ import CentroSoporte from './components/soporte/CentroSoporte';
 import AvisosTicketsAdmin from './components/soporte/AvisosTicketsAdmin';
 import ModalNovedades from './components/modals/ModalNovedades';
 import Recorrido from './components/Recorrido';
+import { useEstadoRecorrido } from './utils/estadoRecorrido';
 import { registrarEvento } from './utils/registroSoporte';
 
 // Modals
@@ -76,6 +77,9 @@ function App() {
   // Resumen, modo lectura). Además se ofrece solo durante la prueba, como
   // mucho una vez por día y por navegador, hasta que lo completa.
   const [modalPerfilOpen, setModalPerfilOpen] = useState(false);
+  // El recorrido guiado va primero: el pedido de perfil espera a que termine
+  // o se cierre (ver components/Recorrido.jsx).
+  const estadoRecorrido = useEstadoRecorrido();
 
   // Cada cambio de sección queda en el registro de los tickets de soporte.
   useEffect(() => {
@@ -90,6 +94,7 @@ function App() {
   useEffect(() => {
     if (!user || !suscripcion || esMiembro || isAdmin) return;
     if (suscripcion.estado !== 'trial' || suscripcion.perfilCompleto) return;
+    if (estadoRecorrido !== 'listo') return;
     const clave = `perfil.ofrecido.${user.uid}`;
     try {
       const ultimo = Number(localStorage.getItem(clave)) || 0;
@@ -99,7 +104,7 @@ function App() {
       // Sin almacenamiento: se ofrece igual (una vez por carga de la app).
     }
     setModalPerfilOpen(true);
-  }, [user, suscripcion, esMiembro, isAdmin]);
+  }, [user, suscripcion, esMiembro, isAdmin, estadoRecorrido]);
 
   // Vuelta del checkout de Mercado Pago (back_url con ?pagoMP=1): se
   // sincroniza el pago al toque en vez de esperar el aviso del webhook, y se
