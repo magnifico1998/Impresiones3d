@@ -330,6 +330,48 @@ export default function EmpresaPage() {
                 Define la moneda de los precios y el formato de teléfono en toda la app.
               </div>
             </div>
+
+            {/* Datos para que el cliente pague por transferencia: salen en
+                los PDF de presupuestos y pedidos (ver utils/datosBancarios.js). */}
+            <div className="card">
+              <div className="card-title">Datos bancarios</div>
+
+              <label className="fl" style={{ marginTop: 0 }}>CBU / CVU</label>
+              <input
+                type="text"
+                id="cbu"
+                inputMode="numeric"
+                value={empresa.cbu || ''}
+                placeholder="22 dígitos"
+                onChange={(e) => setEmpresa(prev => ({ ...prev, cbu: e.target.value.replace(/[^\d ]/g, '') }))}
+              />
+              {empresa.cbu && empresa.cbu.replace(/\D/g, '').length !== 22 && (
+                <div style={{ fontSize: '11px', color: 'var(--warn)', marginTop: '4px' }}>
+                  El CBU/CVU tiene 22 dígitos (tiene {empresa.cbu.replace(/\D/g, '').length}).
+                </div>
+              )}
+
+              <label className="fl">Alias</label>
+              <input type="text" id="alias" value={empresa.alias || ''} placeholder="Ej: mi.emprendimiento.3d" onChange={handleChange} />
+
+              <label className="fl">Titular de la cuenta</label>
+              <input type="text" id="titularCuenta" value={empresa.titularCuenta || ''} placeholder="Ej: Juan Pérez" onChange={handleChange} />
+
+              <label className="fl">Entidad / Banco</label>
+              <input type="text" id="banco" value={empresa.banco || ''} placeholder="Ej: Banco Nación, Mercado Pago" onChange={handleChange} />
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginTop: '12px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={empresa.mostrarBancoEnPdf !== false}
+                  onChange={(e) => setEmpresa(prev => ({ ...prev, mostrarBancoEnPdf: e.target.checked }))}
+                />
+                Mostrar en los PDF de presupuestos y pedidos
+              </label>
+              <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+                Con CBU/CVU o alias cargado, los PDF suman un recuadro "Datos para transferencia" (en los pedidos, sólo si queda saldo pendiente).
+              </div>
+            </div>
           </div>
 
           {/* Contact info card */}

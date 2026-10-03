@@ -1,4 +1,5 @@
 import { loadImageAsBase64 } from './loadImageAsBase64';
+import { dibujarDatosBancarios } from './datosBancarios';
 
 // PDF de un presupuesto. Lo usan ModalPresupuesto (al generarlo desde la
 // Calculadora o la Biblioteca) y PresupuestosPage (para volver a bajar uno
@@ -152,6 +153,9 @@ export async function generarPdfPresupuesto({ empresa, fmt, numero = null, fecha
   doc.text('TOTAL', xPUR + 2, y + 5.5);
   doc.text(fmt(total), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
   y += rowH + 10;
+
+  // Datos para transferir (si están cargados en Mi emprendimiento).
+  y = dibujarDatosBancarios(doc, empresa, { y, marginX, contentW, navy });
 
   // Notas
   if (notas) {

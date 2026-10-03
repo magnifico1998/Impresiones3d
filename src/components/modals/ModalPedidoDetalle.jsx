@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { confirmar, pedirTexto } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
+import { dibujarDatosBancarios } from '../../utils/datosBancarios';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
 import { buildWaLink, findClientePedido } from '../../utils/whatsapp';
 import SeccionFacturaPedido from '../SeccionFacturaPedido';
@@ -786,6 +787,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.text('SALDO PENDIENTE', xPUR + 2, y + 5.5);
     doc.text(fmt(saldoPendientePdf), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
     y += rowH + 10;
+
+    // Datos para transferir (si están cargados en Mi emprendimiento), sólo
+    // si queda algo por pagar.
+    if (saldoPendientePdf > 0) {
+      y = dibujarDatosBancarios(doc, empresa, {
+        y, marginX, contentW, navy, nota: `Monto a transferir: ${fmt(saldoPendientePdf)}`
+      });
+    }
 
     // Shipping info
     if (p.metodoEnvio || p.numeroSeguimiento) {

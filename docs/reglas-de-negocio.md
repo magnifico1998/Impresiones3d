@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-02 (pedido marcado sin descuento de inventario).
+Última revisión: 2026-10-02 (datos para transferencia en los PDF; pedido sin descuento de inventario).
 
 ---
 
@@ -384,6 +384,11 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   N días" si se entrega en los próximos 7 días, y rojo "Vencido hace N días"
   si la fecha ya pasó. Sólo para pedidos que todavía se están haciendo (no
   listo, enviado, completado ni cancelado) (`alertaEntrega`).
+- **Datos para transferencia en los PDF:** con CBU/CVU o alias cargados en
+  Mi emprendimiento → Datos bancarios (y "Mostrar en los PDF" tildado), el
+  PDF del presupuesto suma el recuadro "Datos para transferencia" después del
+  total, y el del pedido después del saldo, **sólo si queda saldo pendiente**
+  y con el monto a transferir (`src/utils/datosBancarios.js`).
 - **Catálogo web público:** cada tienda tiene su catálogo en
   `/catalogo/{uid}`, que se ve sin login. Solo se publica lo que el dueño
   elige: nunca costos ni pedidos. Los visitantes pueden mandar solicitudes solo
