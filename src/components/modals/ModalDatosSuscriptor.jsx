@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import SelectorCondicionImpositiva from '../SelectorCondicionImpositiva';
 
 const FORM_VACIO = {
   nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '', condicionImpositiva: '',
@@ -148,7 +149,7 @@ export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta
             </div>
             <div>
               <label className="fl">Condición impositiva</label>
-              <input type="text" id="condicionImpositiva" placeholder="Ej: Monotributo, Responsable Inscripto..." value={form.condicionImpositiva} onChange={handleChange} />
+              <SelectorCondicionImpositiva value={form.condicionImpositiva} onChange={handleChange} />
             </div>
             <div>
               <label className="fl">Localidad</label>

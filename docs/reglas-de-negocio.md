@@ -122,7 +122,9 @@ para contratar), `gratuito`, y `limites`:
 El plan con `gratuito: true` (si hay más de uno, el de menor orden; no importa si está visible para contratar) es
 la salida gratis de toda cuenta que no paga, **a cambio de completar el
 perfil**: nombre, apellido, teléfono y localidad (emprendimiento, cómo nos
-conoció, documento y condición impositiva se piden pero son opcionales). El
+conoció, documento y condición impositiva se piden pero son opcionales;
+la condición impositiva se elige de una lista: consumidor final, monotributo,
+responsable inscripto o exento, `SelectorCondicionImpositiva.jsx`). El
 perfil es **el mismo formulario de contacto** (`ModalContacto.jsx`), en dos
 modos: "Contactate con el área comercial" y "Completá tu perfil y seguí
 gratis" (Boceto). En los dos se guarda la solicitud en

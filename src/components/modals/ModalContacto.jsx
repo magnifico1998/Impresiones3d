@@ -4,6 +4,7 @@ import { db, functions } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { validarTelefono } from '../../utils/paises';
+import SelectorCondicionImpositiva, { condicionImpositivaValida } from '../SelectorCondicionImpositiva';
 
 // Formulario de contacto, que es también el "perfil" que da acceso al plan
 // gratuito Boceto. Dos modos, mismo formulario:
@@ -123,6 +124,9 @@ export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
     const docLimpio = form.numeroDocumento.replace(/\D/g, '');
     if (docLimpio && !(form.tipoDocumento === 'CUIT' ? /^\d{11}$/.test(docLimpio) : /^\d{7,8}$/.test(docLimpio))) {
       return form.tipoDocumento === 'CUIT' ? 'El CUIT tiene que tener 11 dígitos.' : 'El DNI tiene que tener 7 u 8 dígitos.';
+    }
+    if (form.condicionImpositiva && !condicionImpositivaValida(form.condicionImpositiva)) {
+      return 'Elegí la condición impositiva de la lista.';
     }
     if (form.codigoRevendedor && !/^[A-Z0-9]{4,12}$/.test(form.codigoRevendedor)) {
       return 'El código de revendedor debe tener entre 4 y 12 letras/números.';
@@ -257,7 +261,7 @@ export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
             </div>
             <div>
               <label className="fl">Condición impositiva</label>
-              <input type="text" id="condicionImpositiva" placeholder="Ej: Monotributo, Responsable Inscripto..." value={form.condicionImpositiva} onChange={handleChange} />
+              <SelectorCondicionImpositiva value={form.condicionImpositiva} onChange={handleChange} />
             </div>
             <div>
               <label className="fl">Localidad</label>

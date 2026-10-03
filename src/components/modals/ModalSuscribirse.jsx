@@ -4,12 +4,12 @@ import { db, functions } from '../../firebase';
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { validarTelefono } from '../../utils/paises';
+import SelectorCondicionImpositiva from '../SelectorCondicionImpositiva';
 
 const DATOS_VACIOS = {
   nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '',
   condicionImpositiva: '', telefono: '', localidad: ''
 };
-const CONDICIONES_IMPOSITIVAS = ['Consumidor final', 'Monotributo', 'Responsable inscripto', 'Exento'];
 
 // Misma validación que hace crearSuscripcionMP en el servidor (que es la
 // que manda); acá es para avisar antes de salir del paso.
@@ -178,15 +178,7 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
               </div>
               <div>
                 <label className="fl">Condición impositiva</label>
-                <select id="condicionImpositiva" value={datos.condicionImpositiva} onChange={handleCambioDato}>
-                  <option value="">Elegí una opción</option>
-                  {/* Una condición cargada antes a mano (texto libre) se
-                      respeta aunque no sea una de las opciones. */}
-                  {datos.condicionImpositiva && !CONDICIONES_IMPOSITIVAS.includes(datos.condicionImpositiva) && (
-                    <option value={datos.condicionImpositiva}>{datos.condicionImpositiva}</option>
-                  )}
-                  {CONDICIONES_IMPOSITIVAS.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <SelectorCondicionImpositiva value={datos.condicionImpositiva} onChange={handleCambioDato} />
               </div>
               <div>
                 <label className="fl">Teléfono</label>
