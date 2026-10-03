@@ -552,6 +552,10 @@ En Mi emprendimiento → Facturación ARCA, la tarjeta "Facturación y monotribu
   últimos 12 meses** con el tope anual de la categoría del suscriptor
   (`empresa.categoriaMonotributo`). Barra verde hasta el 70 % del tope,
   amarilla hasta el 90 %, roja después; dice qué categoría corresponde.
+- En el **facturado por mes**, cada barra compara el mes con el promedio
+  mensual de la categoría (tope anual / 12, marcado con una raya): verde por
+  debajo, amarilla hasta un 20 % arriba, roja más arriba. Sin categoría
+  elegida, compara contra el mejor mes de los 12.
 - **Próxima recategorización:** en julio (12 meses al 30/06) o en enero (al
   31/12). Proyección: lo que ya está dentro de esos 12 meses + los meses que
   faltan al promedio de los últimos 3 meses completos.

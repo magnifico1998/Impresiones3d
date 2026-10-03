@@ -87,6 +87,32 @@ export default function TotalizadorMonotributo() {
   const pct = miCategoria ? (acumulado / miCategoria.topeAnual) * 100 : 0;
   const pctProy = miCategoria ? (proy.proyectado / miCategoria.topeAnual) * 100 : 0;
 
+  // Barras del facturado por mes. Con categoría elegida, cada mes se compara
+  // con el promedio mensual que permite (tope anual / 12): verde por debajo,
+  // amarillo hasta un 20 % arriba, rojo más arriba; una marca muestra dónde
+  // está el promedio. Sin categoría, contra el mejor mes de los 12.
+  const promedioCategoria = miCategoria ? miCategoria.topeAnual / 12 : 0;
+  const escalaBarras = promedioCategoria ? Math.max(maxMes, promedioCategoria * 1.25) : maxMes;
+  const tituloBarra = promedioCategoria
+    ? `Cada mes contra el promedio mensual que permite la categoría ${miCategoria.letra} (tope anual / 12). Verde: por debajo; amarillo: hasta 20 % arriba; rojo: más. La marca es el promedio.`
+    : 'Cada barra es el total del mes comparado con el mes que más facturó de los últimos 12 (ese mes ocupa la barra completa). Elegí tu categoría para compararlo con su promedio mensual.';
+  const barraMes = (total) => {
+    const ancho = Math.max(0, Math.min(100, (total / escalaBarras) * 100));
+    const pctProm = promedioCategoria ? (total / promedioCategoria) * 100 : 0;
+    const color = !promedioCategoria ? 'var(--accent)' : pctProm > 120 ? COLORES.pasado : pctProm > 100 ? COLORES.cerca : COLORES.ok;
+    return (
+      <div
+        title={promedioCategoria ? `${Math.round(pctProm)} % del promedio mensual de la ${miCategoria.letra}` : `${Math.round((total / maxMes) * 100)} % del mejor mes`}
+        style={{ position: 'relative', height: '8px', background: 'var(--bg3)', borderRadius: '4px' }}
+      >
+        <div style={{ width: `${ancho}%`, height: '100%', background: color, borderRadius: '4px' }} />
+        {promedioCategoria > 0 && (
+          <div style={{ position: 'absolute', top: '-3px', bottom: '-3px', left: `${(promedioCategoria / escalaBarras) * 100}%`, width: '2px', background: 'var(--text2)' }} />
+        )}
+      </div>
+    );
+  };
+
   // Semestres que se evalúan en las recategorizaciones (el cerrado más
   // reciente y el próximo).
   const cierreAnterior = sumarMeses(cierre, -6);
@@ -190,8 +216,9 @@ export default function TotalizadorMonotributo() {
               <th style={{ textAlign: 'right' }}>Notas de crédito</th>
               <th style={{ textAlign: 'right' }}>Otros ingresos</th>
               <th style={{ textAlign: 'right' }}>Total</th>
-              {/* Barra: el total del mes contra el mejor mes de los 12 (no contra el tope). */}
-              <th style={{ width: '30%' }} title="Cada barra es el total del mes comparado con el mes que más facturó de los últimos 12 (ese mes ocupa la barra completa)">Comparado con el mejor mes</th>
+              <th style={{ width: '30%' }} title={tituloBarra}>
+                {promedioCategoria ? `Contra el promedio de la ${miCategoria.letra} (${fmt(promedioCategoria)}/mes)` : 'Comparado con el mejor mes'}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -208,11 +235,7 @@ export default function TotalizadorMonotributo() {
                     </button>
                   </td>
                   <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmt(m.total)}</td>
-                  <td title={`${Math.round(Math.max(0, (m.total / maxMes) * 100))} % del mejor mes`}>
-                    <div style={{ height: '8px', background: 'var(--bg3)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.max(0, (m.total / maxMes) * 100)}%`, height: '100%', background: 'var(--accent)' }} />
-                    </div>
-                  </td>
+                  <td>{barraMes(m.total)}</td>
                 </tr>
               );
             })}
