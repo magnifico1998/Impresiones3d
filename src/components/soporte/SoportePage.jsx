@@ -50,7 +50,10 @@ export default function SoportePage() {
           <div className="page-title">Soporte</div>
           <div className="page-sub" style={{ marginBottom: 0 }}>Reportá un problema o hacé una consulta.</div>
         </div>
-        <button className="btn btn-primary" onClick={abrirNuevoTicket}>+ Nuevo ticket</button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('iniciar-recorrido'))}>Ver el recorrido</button>
+          <button className="btn btn-primary" onClick={abrirNuevoTicket}>+ Nuevo ticket</button>
+        </div>
       </div>
 
       <div className="card">

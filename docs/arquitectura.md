@@ -47,6 +47,7 @@ React 19 + Vite, sin router: la navegación es por estado.
 | `SeccionFacturaPedido.jsx`, `modals/ModalFacturarPedido.jsx`, `TarjetaFacturacionCuenta.jsx`, `utils/facturacion.js` | Facturación de pedidos: bloque en el detalle del pedido, modal para emitir y configuración en "Mi emprendimiento" |
 | `TablaComprobantes.jsx`, `ComprobantesCuenta.jsx`, `SelectorRangoFechas.jsx`, `utils/exportarExcel.js` | Listado de comprobantes con filtros, rango de fechas y exportación a Excel; lo usan el panel admin y la pestaña "Facturación ARCA" de cada emprendimiento |
 | `utils/registroSoporte.js`, `utils/formatoTicket.js`, `components/soporte/`, `components/admin/SeccionTickets.jsx` | Tickets de soporte: registro en memoria de la sesión (se instala en `AppPrivada.jsx`), modal con "Grabar el problema" (`CentroSoporte`, abierto con el evento `abrir-ticket`), página Soporte y pestaña Tickets del admin |
+| `utils/recorrido.js`, `Recorrido.jsx`, `utils/estadoRecorrido.js` | Recorrido guiado (driver.js, se descarga al empezar): pasos por sección; se ofrece a quien nunca lo hizo (en prueba, con el perfil completo) y se repite desde Soporte y Preguntas frecuentes |
 | `utils/novedades.js`, `modals/ModalNovedades.jsx` | Aviso "Novedades" al entrar: una entrada por versión mayor; la última vista se recuerda en el navegador por usuario. Se reabre tocando la versión del encabezado |
 | `index.css` | Estilos globales y variables de color |
 
@@ -140,6 +141,7 @@ con un máximo de 10 instancias por función.
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |
 | `invitacionesMiembro/{email}` | Vínculos de equipo | Solo Cloud Functions |
 | `tickets/{id}` (+ `adjuntos/log`) | Tickets de soporte; el log con el contexto técnico sólo lo lee el admin | Solo Cloud Functions; leen el admin y la cuenta |
+| `recorridos/{uid}` | Si cada usuario hizo el recorrido guiado (`hecho` / `salteado`, veces) | El propio usuario |
 | `monotributo/categorias` | Topes anuales de cada categoría del monotributo, para el totalizador de facturación | Admin; la leen todas las cuentas |
 | `boletines/{id}` | Cada envío del boletín: copia del contenido, destinatarios, enviados y fallidos | Solo Cloud Functions; lee el admin |
 | `configuracion/emailTemplates`, `configuracion/boletin` | Textos personalizados de los mails y bajas del boletín | Solo Cloud Functions (sin acceso desde la app) |

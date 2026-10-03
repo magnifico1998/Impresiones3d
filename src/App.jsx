@@ -22,6 +22,7 @@ import SoportePage from './components/soporte/SoportePage';
 import CentroSoporte from './components/soporte/CentroSoporte';
 import AvisosTicketsAdmin from './components/soporte/AvisosTicketsAdmin';
 import ModalNovedades from './components/modals/ModalNovedades';
+import Recorrido from './components/Recorrido';
 import { registrarEvento } from './utils/registroSoporte';
 
 // Modals
@@ -705,6 +706,7 @@ function App() {
       <CentroSoporte />
       <AvisosTicketsAdmin />
       <ModalNovedades />
+      <Recorrido />
 
       {/* MODAL POPUPS */}
       <ModalCliente 

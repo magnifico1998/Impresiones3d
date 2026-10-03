@@ -237,8 +237,14 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
 
   return (
     <div className="page active">
-      <div className="page-title">Preguntas frecuentes</div>
-      <div className="page-sub">Dudas comunes agrupadas por tema, con videos explicativos cuando corresponde.</div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div className="page-title">Preguntas frecuentes</div>
+          <div className="page-sub">Dudas comunes agrupadas por tema, con videos explicativos cuando corresponde.</div>
+        </div>
+        {/* Recorrido guiado por la app (components/Recorrido.jsx). */}
+        <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('iniciar-recorrido'))}>Ver el recorrido por la app</button>
+      </div>
 
       {isAdmin && (
         <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>

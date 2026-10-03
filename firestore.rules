@@ -410,6 +410,17 @@ service cloud.firestore {
       allow write: if esAdmin();
     }
 
+    // ---- Recorrido guiado ----
+    // Si cada usuario ya hizo el recorrido por la app (components/Recorrido.jsx).
+    // Es de la persona, no de la cuenta: no depende del estado de la suscripción.
+    match /recorridos/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['estado', 'veces', 'actualizadoEl']) &&
+        request.resource.data.estado in ['hecho', 'salteado'] &&
+        request.resource.data.veces is int;
+    }
+
     // ---- Boletín de novedades ----
     // Cada envío y su progreso; lo escribe sólo functions/http/boletin.js.
     match /boletines/{boletinId} {

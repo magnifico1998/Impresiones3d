@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { version } from '../../../package.json';
 import { novedadesDesde } from '../../utils/novedades';
+import { useEstadoRecorrido } from '../../utils/estadoRecorrido';
 
 // Aviso "Novedades", montado una vez en App:
 //   - al entrar, si este usuario todavía no vio la versión mayor actual,
@@ -38,16 +39,23 @@ const fechaCorta = (f) => f.split('-').reverse().join('/');
 export default function ModalNovedades() {
   const { user, datosCargadosOk } = useApp();
   const [entradas, setEntradas] = useState(null);
+  const recorrido = useEstadoRecorrido();
 
   // Al entrar, una vez cargados los datos (así no se superpone con la carga).
   useEffect(() => {
-    if (!user?.uid || !datosCargadosOk) return;
+    if (!user?.uid || !datosCargadosOk || recorrido === 'cargando') return;
+    // A quien le toca el recorrido guiado no se le muestran novedades: el
+    // recorrido ya le cuenta todo. Quedan como vistas.
+    if (recorrido === 'pendiente') {
+      guardarVista(user.uid);
+      return;
+    }
     const vista = leerVista(user.uid);
     if (vista !== null && vista >= MAYOR) return;
     const nuevas = novedadesDesde(vista ?? MAYOR - VERSIONES_PRIMERA_VEZ).slice(0, MAX_VERSIONES);
     if (nuevas.length) setEntradas(nuevas);
     else guardarVista(user.uid);
-  }, [user?.uid, datosCargadosOk]);
+  }, [user?.uid, datosCargadosOk, recorrido]);
 
   useEffect(() => {
     const abrir = () => setEntradas(novedadesDesde().slice(0, MAX_VERSIONES));
