@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-02 (datos para transferencia en los PDF; pedido sin descuento de inventario).
+Última revisión: 2026-10-03 (avisos de tickets al admin dentro de la app).
 
 ---
 
@@ -564,6 +564,10 @@ Código: `functions/http/facturacionCuenta.js`, `functions/facturacion.js`,
   y queda en el ticket. Plantillas `ticketNuevoAdmin`, `ticketRecibido` y
   `ticketRespondido` (editables desde el panel).
 - El log (`tickets/{id}/adjuntos/log`) sólo lo ve el admin.
+- **Avisos al admin dentro de la app:** el menú muestra en "Administrador" (y en
+  la pestaña Tickets) cuántos tickets hay abiertos o en análisis, y cada ticket
+  nuevo que entra con la app abierta aparece en un aviso emergente con "Ver"
+  (`src/components/soporte/AvisosTicketsAdmin.jsx`). Los suscriptores no ven nada de esto.
 
 Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
 `src/components/soporte/`, `src/components/admin/SeccionTickets.jsx`,

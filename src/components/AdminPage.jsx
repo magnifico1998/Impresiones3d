@@ -11,6 +11,7 @@ import SeccionCodigosPromocionales from './admin/SeccionCodigosPromocionales';
 import SeccionFacturacion from './admin/SeccionFacturacion';
 import SeccionTickets from './admin/SeccionTickets';
 import SeccionBoletin from './admin/SeccionBoletin';
+import { useTicketsPendientes } from './soporte/AvisosTicketsAdmin';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 
 // Panel de administración: sólo lo ven los emails presentes en la
@@ -90,6 +91,15 @@ export default function AdminPage({ modoRevendedor = false }) {
     }
   };
   const { user, showToast, suscripcion } = useApp();
+  const ticketsPendientes = useTicketsPendientes();
+  // Desde el aviso de ticket nuevo con el panel ya abierto (ver AvisosTicketsAdmin).
+  useEffect(() => {
+    const abrir = (ev) => {
+      if (PESTANAS_ADMIN.some((p) => p.id === ev.detail)) elegirPestana(ev.detail);
+    };
+    window.addEventListener('abrir-pestana-admin', abrir);
+    return () => window.removeEventListener('abrir-pestana-admin', abrir);
+  }, []);
   // Código propio si esta cuenta es un revendedor (independientemente de
   // si además es admin) -- lo usamos para filtrar "mi cartera" en modo
   // revendedor y para prellenar el formulario de habilitar/editar en el
@@ -918,6 +928,7 @@ export default function AdminPage({ modoRevendedor = false }) {
               onClick={() => elegirPestana(p.id)}
             >
               {p.nombre}
+              {p.id === 'tickets' && ticketsPendientes > 0 && <span className="nav-contador" style={{ marginLeft: '6px' }}>{ticketsPendientes}</span>}
             </button>
           ))}
         </div>

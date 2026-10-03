@@ -1,8 +1,10 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { useTicketsPendientes } from './soporte/AvisosTicketsAdmin';
 
 export default function Sidebar({ isOpen, onClose }) {
   const { activePage, setActivePage, isAdmin, esRevendedor, cfg } = useApp();
+  const ticketsPendientes = useTicketsPendientes();
 
   const handleNavigate = (id) => {
     setActivePage(id);
@@ -157,6 +159,9 @@ export default function Sidebar({ isOpen, onClose }) {
         {
           id: 'admin',
           name: 'Administrador',
+          // Tickets de soporte abiertos o en análisis (sólo se cuentan para el admin).
+          contador: ticketsPendientes,
+          tituloContador: 'tickets de soporte pendientes',
           icon: (
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 2l6 3v5c0 4-2.5 6.5-6 8-3.5-1.5-6-4-6-8V5l6-3z" />
@@ -210,6 +215,9 @@ export default function Sidebar({ isOpen, onClose }) {
               >
                 {link.icon}
                 {link.name}
+                {link.contador > 0 && (
+                  <span className="nav-contador" title={`${link.contador} ${link.tituloContador || ''}`.trim()}>{link.contador}</span>
+                )}
               </button>
             ))}
           </React.Fragment>

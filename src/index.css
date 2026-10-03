@@ -310,3 +310,8 @@ select option{background:var(--bg3)}
 .soporte-log{margin-top:14px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius)}
 .soporte-log-detalle{margin:8px 0 0;max-height:220px;overflow:auto;font-family:var(--mono);font-size:11px;line-height:1.5;white-space:pre;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px}
 .soporte-respuesta{margin-top:8px;padding:8px 10px;border-left:3px solid var(--accent);background:var(--bg2);border-radius:4px;font-size:13px;white-space:pre-wrap}
+
+/* Contador del menú lateral (tickets pendientes) y avisos de ticket nuevo */
+.nav-contador{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono)}
+.avisos-tickets{position:fixed;right:16px;bottom:16px;z-index:9998;display:flex;flex-direction:column;gap:8px;width:min(360px,calc(100vw - 32px))}
+.aviso-ticket{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border2);border-left:3px solid #ef4444;border-radius:var(--radius2);padding:10px 10px 10px 12px;box-shadow:var(--shadow);animation:slideDown .2s ease}
