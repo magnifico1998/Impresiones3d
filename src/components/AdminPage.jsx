@@ -11,6 +11,7 @@ import SeccionCodigosPromocionales from './admin/SeccionCodigosPromocionales';
 import SeccionFacturacion from './admin/SeccionFacturacion';
 import SeccionTickets from './admin/SeccionTickets';
 import SeccionBoletin from './admin/SeccionBoletin';
+import SeccionMonotributo from './admin/SeccionMonotributo';
 import { useTicketsPendientes } from './soporte/AvisosTicketsAdmin';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 
@@ -1704,6 +1705,8 @@ export default function AdminPage({ modoRevendedor = false }) {
       {!modoRevendedor && pestana === 'tickets' && <SeccionTickets showToast={showToast} />}
 
       {!modoRevendedor && pestana === 'negocio' && <SeccionBoletin showToast={showToast} />}
+
+      {!modoRevendedor && pestana === 'negocio' && <SeccionMonotributo showToast={showToast} />}
 
       {/* ---- Plantillas de mail (sólo admin principal) ---- */}
       {!modoRevendedor && pestana === 'negocio' && <div className="card">

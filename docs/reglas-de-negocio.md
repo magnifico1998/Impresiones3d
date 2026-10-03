@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-03 (avisos de tickets al admin dentro de la app).
+Última revisión: 2026-10-03 (avisos de tickets al admin; totalizador de monotributo).
 
 ---
 
@@ -534,6 +534,28 @@ Código: `functions/http/facturacionCuenta.js`, `functions/facturacion.js`,
 `src/components/SeccionFacturaPedido.jsx`,
 `src/components/modals/ModalFacturarPedido.jsx`,
 `src/components/TarjetaFacturacionCuenta.jsx`.
+
+### Totalizador de monotributo
+
+En Mi emprendimiento → Facturación ARCA, la tarjeta "Facturación y monotributo"
+(`src/utils/monotributo.js`, `src/components/TotalizadorMonotributo.jsx`):
+
+- **Ingresos del mes:** Facturas C emitidas en **producción** (también las que
+  después se anularon) − Notas de Crédito C emitidas + "otros ingresos" que el
+  suscriptor carga a mano por mes (lo facturado fuera de la app,
+  `empresa.ingresosExternos`). El mes sale de la fecha del comprobante.
+- El monotributo no tiene topes mensuales: se compara el **acumulado de los
+  últimos 12 meses** con el tope anual de la categoría del suscriptor
+  (`empresa.categoriaMonotributo`). Barra verde hasta el 70 % del tope,
+  amarilla hasta el 90 %, roja después; dice qué categoría corresponde.
+- **Próxima recategorización:** en julio (12 meses al 30/06) o en enero (al
+  31/12). Proyección: lo que ya está dentro de esos 12 meses + los meses que
+  faltan al promedio de los últimos 3 meses completos.
+- La tabla de categorías (`monotributo/categorias`: letra y tope anual, más la
+  vigencia) la carga el admin en Administrador → Negocio y se actualiza
+  cuando ARCA publica la nueva (cada semestre). La leen todas las cuentas.
+- Es orientativo: la recategorización también mira superficie, energía y
+  alquileres.
 
 ---
 

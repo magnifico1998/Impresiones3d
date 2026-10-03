@@ -8,6 +8,7 @@ import { httpsCallable } from 'firebase/functions';
 import ModalSuscribirse from './modals/ModalSuscribirse';
 import TarjetaFacturacionCuenta from './TarjetaFacturacionCuenta';
 import ComprobantesCuenta from './ComprobantesCuenta';
+import TotalizadorMonotributo from './TotalizadorMonotributo';
 import { PESTANAS_EMPRESA, pestanaEmpresaGuardada, guardarPestanaEmpresa } from '../utils/facturacion';
 import { sincronizarPagoMP } from '../utils/pagosMP';
 
@@ -598,6 +599,7 @@ export default function EmpresaPage() {
       {pestanaVisible === 'arca' && (
         <>
           <TarjetaFacturacionCuenta />
+          <TotalizadorMonotributo />
           <ComprobantesCuenta />
         </>
       )}

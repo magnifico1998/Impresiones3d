@@ -138,6 +138,7 @@ con un máximo de 10 instancias por función.
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |
 | `invitacionesMiembro/{email}` | Vínculos de equipo | Solo Cloud Functions |
 | `tickets/{id}` (+ `adjuntos/log`) | Tickets de soporte; el log con el contexto técnico sólo lo lee el admin | Solo Cloud Functions; leen el admin y la cuenta |
+| `monotributo/categorias` | Topes anuales de cada categoría del monotributo, para el totalizador de facturación | Admin; la leen todas las cuentas |
 | `boletines/{id}` | Cada envío del boletín: copia del contenido, destinatarios, enviados y fallidos | Solo Cloud Functions; lee el admin |
 | `configuracion/emailTemplates`, `configuracion/boletin` | Textos personalizados de los mails y bajas del boletín | Solo Cloud Functions (sin acceso desde la app) |
 | `contadores/tickets`, `soporteCuotas/{uid}` | Último número de ticket y tickets creados hoy por usuario | Solo Cloud Functions (sin acceso desde la app) |

@@ -402,6 +402,14 @@ service cloud.firestore {
       allow write: if esAdmin() || esRevendedorDe(uid);
     }
 
+    // ---- Categorías del monotributo ----
+    // Topes anuales por categoría: los carga el admin (Negocio) y los lee
+    // cualquier cuenta para su totalizador de facturación.
+    match /monotributo/{docId} {
+      allow read: if request.auth != null;
+      allow write: if esAdmin();
+    }
+
     // ---- Boletín de novedades ----
     // Cada envío y su progreso; lo escribe sólo functions/http/boletin.js.
     match /boletines/{boletinId} {
