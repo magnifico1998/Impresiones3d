@@ -124,7 +124,11 @@ la salida gratis de toda cuenta que no paga, **a cambio de completar el
 perfil**: nombre, apellido, teléfono y localidad (emprendimiento, cómo nos
 conoció, documento y condición impositiva se piden pero son opcionales;
 la condición impositiva se elige de una lista: consumidor final, monotributo,
-responsable inscripto o exento, `SelectorCondicionImpositiva.jsx`). El
+responsable inscripto o exento, `SelectorCondicionImpositiva.jsx`; el
+teléfono, además del largo de su país, no puede empezar con 0 y en Argentina
+tiene que empezar por el código de área, 11, 2 o 3, sin el 15:
+`motivoTelefonoInvalido` en `src/utils/paises.js`, que usan también la
+suscripción y el catálogo web). El
 perfil es **el mismo formulario de contacto** (`ModalContacto.jsx`), en dos
 modos: "Contactate con el área comercial" y "Completá tu perfil y seguí
 gratis" (Boceto). En los dos se guarda la solicitud en

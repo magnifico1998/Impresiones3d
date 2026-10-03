@@ -3,7 +3,7 @@ import Dialogos, { avisar } from '../components/Dialogos';
 import { db, functions } from '../firebaseBase';
 import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { obtenerPais, validarTelefono, formatearMoneda } from '../utils/paises';
+import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/paises';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 
 const newLocalId = () => Date.now() + Math.random();
@@ -316,8 +316,9 @@ export default function CatalogoPublico() {
       avisar('Dejanos un teléfono de contacto para poder coordinar el pedido.');
       return;
     }
-    if (!validarTelefono(telefono, pais.id)) {
-      avisar(pais.mensajeTelefono);
+    const motivoTel = motivoTelefonoInvalido(telefono, pais.id);
+    if (motivoTel) {
+      avisar(motivoTel);
       return;
     }
     if (!carrito.length || cantidadCarrito === 0) {

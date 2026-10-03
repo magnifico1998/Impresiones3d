@@ -152,10 +152,29 @@ export function obtenerPais(paisId) {
   return paises[paisId] || paises[PAIS_DEFAULT];
 }
 
-export function validarTelefono(numero, paisId) {
+// Qué tiene mal el teléfono (o null si está bien). Además del largo:
+//   - ningún país de la lista escribe el número nacional con 0 adelante
+//     (el 0 es el prefijo para llamar de larga distancia, no va);
+//   - en Argentina el código de área empieza con 11, 2 o 3, así que también
+//     se detecta el 15 del celular puesto adelante.
+export function motivoTelefonoInvalido(numero, paisId) {
   const pais = obtenerPais(paisId);
-  const soloDigitos = String(numero || '').replace(/\D/g, '');
-  return soloDigitos.length === pais.longitudTelefono;
+  const d = String(numero || '').replace(/\D/g, '');
+  if (d.startsWith('0')) return `Sacá el 0 del principio. ${pais.mensajeTelefono}`;
+  if (d.length !== pais.longitudTelefono) {
+    const faltan = pais.longitudTelefono - d.length;
+    const detalle = faltan > 0 ? (faltan === 1 ? 'Falta 1 dígito. ' : `Faltan ${faltan} dígitos. `) : '';
+    return `${detalle}${pais.mensajeTelefono}`;
+  }
+  if (pais.id === 'AR') {
+    if (d.startsWith('15')) return `Sacá el 15 del principio y empezá por el código de área. ${pais.mensajeTelefono}`;
+    if (!/^(11|[23])/.test(d)) return `El código de área no es válido. ${pais.mensajeTelefono}`;
+  }
+  return null;
+}
+
+export function validarTelefono(numero, paisId) {
+  return !motivoTelefonoInvalido(numero, paisId);
 }
 
 export function formatearMoneda(monto, paisId) {

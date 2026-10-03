@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { db, functions } from '../../firebase';
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { validarTelefono } from '../../utils/paises';
+import { motivoTelefonoInvalido } from '../../utils/paises';
 import SelectorCondicionImpositiva from '../SelectorCondicionImpositiva';
 
 const DATOS_VACIOS = {
@@ -21,7 +21,8 @@ function errorDatos(d, pais) {
     return d.tipoDocumento === 'CUIT' ? 'El CUIT tiene que tener 11 dígitos.' : 'El DNI tiene que tener 7 u 8 dígitos.';
   }
   if (!d.condicionImpositiva.trim()) return 'Elegí la condición impositiva.';
-  if (!validarTelefono(d.telefono, pais.id)) return pais.mensajeTelefono;
+  const motivoTel = motivoTelefonoInvalido(d.telefono, pais.id);
+  if (motivoTel) return motivoTel;
   if (!d.localidad.trim()) return 'Falta la localidad.';
   return null;
 }

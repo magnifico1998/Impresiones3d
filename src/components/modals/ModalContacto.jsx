@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { db, functions } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { validarTelefono } from '../../utils/paises';
+import { motivoTelefonoInvalido } from '../../utils/paises';
 import SelectorCondicionImpositiva, { condicionImpositivaValida } from '../SelectorCondicionImpositiva';
 
 // Formulario de contacto, que es también el "perfil" que da acceso al plan
@@ -119,7 +119,8 @@ export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
     if (!form.nombre.trim()) return 'Falta el nombre.';
     if (!form.apellido.trim()) return 'Falta el apellido.';
     if (!form.localidad.trim()) return 'Falta la localidad.';
-    if (!validarTelefono(form.telefono, paisActual.id)) return paisActual.mensajeTelefono;
+    const motivoTel = motivoTelefonoInvalido(form.telefono, paisActual.id);
+    if (motivoTel) return motivoTel;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) return 'El email no es válido.';
     const docLimpio = form.numeroDocumento.replace(/\D/g, '');
     if (docLimpio && !(form.tipoDocumento === 'CUIT' ? /^\d{11}$/.test(docLimpio) : /^\d{7,8}$/.test(docLimpio))) {
