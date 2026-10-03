@@ -386,9 +386,10 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   listo, enviado, completado ni cancelado) (`alertaEntrega`).
 - **Datos para transferencia en los PDF:** con CBU/CVU o alias cargados en
   Mi emprendimiento → Datos bancarios (y "Mostrar en los PDF" tildado), el
-  PDF del presupuesto suma el recuadro "Datos para transferencia" después del
-  total, y el del pedido después del saldo, **sólo si queda saldo pendiente**
-  y con el monto a transferir (`src/utils/datosBancarios.js`).
+  PDF del presupuesto y el del pedido suman "Datos para transferencia" al pie
+  de la última página, arriba del nombre del emprendimiento y con un estilo
+  liviano (separado del comprobante). En el pedido, **sólo si queda saldo
+  pendiente** y con el monto a transferir (`src/utils/datosBancarios.js`).
 - **Catálogo web público:** cada tienda tiene su catálogo en
   `/catalogo/{uid}`, que se ve sin login. Solo se publica lo que el dueño
   elige: nunca costos ni pedidos. Los visitantes pueden mandar solicitudes solo

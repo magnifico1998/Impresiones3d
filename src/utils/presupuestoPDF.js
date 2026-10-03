@@ -154,9 +154,6 @@ export async function generarPdfPresupuesto({ empresa, fmt, numero = null, fecha
   doc.text(fmt(total), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
   y += rowH + 10;
 
-  // Datos para transferir (si están cargados en Mi emprendimiento).
-  y = dibujarDatosBancarios(doc, empresa, { y, marginX, contentW, navy });
-
   // Notas
   if (notas) {
     checkPageBreak(20);
@@ -173,6 +170,9 @@ export async function generarPdfPresupuesto({ empresa, fmt, numero = null, fecha
     doc.text(lines, marginX + 3, y + 5.5);
     y += bh + 8;
   }
+
+  // Datos para transferir (si están cargados en Mi emprendimiento), al pie.
+  dibujarDatosBancarios(doc, empresa, { yContenido: y, marginX, contentW });
 
   // Footer
   doc.setFontSize(9); doc.setTextColor(130, 130, 130); doc.setFont('helvetica', 'normal');

@@ -13,50 +13,52 @@ export const formatoCbu = (cbu) => {
   return d.length === 22 ? `${d.slice(0, 8)} ${d.slice(8)}` : String(cbu || '');
 };
 
-// Bloque "DATOS PARA TRANSFERENCIA" de los PDF de presupuesto y pedido
-// (jsPDF). Dibuja desde `y` y devuelve el `y` siguiente. Si no hay datos
-// o se eligió no mostrarlos, no dibuja nada.
-//   nota: texto chico opcional debajo (ej. el monto a transferir).
-export function dibujarDatosBancarios(doc, empresa, { y, marginX, contentW, navy, nota }) {
-  if (!mostrarBancoEnPdf(empresa)) return y;
+// "Datos para transferencia" de los PDF de presupuesto y pedido (jsPDF):
+// va al pie de la última página, justo arriba del pie con el nombre del
+// emprendimiento, con un estilo liviano (sin encabezado oscuro ni bordes)
+// para que no se lea como parte del comprobante. Si el contenido ya llega
+// hasta ahí, pasa a una página nueva. Si no hay datos o se eligió no
+// mostrarlos, no dibuja nada.
+//   yContenido: dónde terminó el contenido de la página actual.
+//   nota: texto opcional a la derecha del título (ej. el monto a transferir).
+const Y_PIE = 283; // el pie con el nombre del emprendimiento va en pageH - 14
+
+export function dibujarDatosBancarios(doc, empresa, { yContenido, marginX, contentW, nota }) {
+  if (!mostrarBancoEnPdf(empresa)) return;
 
   const campos = [
     ['CBU / CVU', formatoCbu(empresa.cbu)],
-    ['ALIAS', empresa.alias],
-    ['TITULAR', empresa.titularCuenta],
-    ['BANCO / ENTIDAD', empresa.banco]
+    ['Alias', empresa.alias],
+    ['Titular', empresa.titularCuenta],
+    ['Banco / Entidad', empresa.banco]
   ].filter(([, v]) => v);
   const filas = Math.ceil(campos.length / 2);
-  const altoCelda = 11;
-  const altoNota = nota ? 6 : 0;
-  const alto = filas * altoCelda + 3 + altoNota;
-
-  // Mismo corte de página que los PDF que lo usan: el bloque no se parte.
-  if (y + 7 + alto > 278) {
+  const altoFila = 9;
+  const alto = 7 + filas * altoFila;
+  let y = Y_PIE - 6 - alto;
+  if (yContenido > y - 4) {
     doc.addPage();
-    y = 20;
+    y = Y_PIE - 6 - alto;
   }
-  doc.setFillColor(...navy);
-  doc.rect(marginX, y, contentW, 7, 'F');
-  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-  doc.text('DATOS PARA TRANSFERENCIA', marginX + 3, y + 5);
-  y += 7;
 
-  doc.setDrawColor(220); doc.rect(marginX, y, contentW, alto);
+  doc.setDrawColor(200); doc.setLineWidth(0.3);
+  doc.line(marginX, y, marginX + contentW, y);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(90, 90, 90);
+  doc.text('DATOS PARA TRANSFERENCIA', marginX, y + 5);
+  if (nota) {
+    doc.setFont('helvetica', 'normal');
+    doc.text(nota, marginX + contentW, y + 5, { align: 'right' });
+  }
+
   const anchoCol = contentW / 2;
   campos.forEach(([etiqueta, valor], i) => {
-    const x = marginX + 3 + (i % 2) * anchoCol;
-    const yy = y + 5 + Math.floor(i / 2) * altoCelda;
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
-    doc.text(etiqueta, x, yy);
+    const x = marginX + (i % 2) * anchoCol;
+    const yy = y + 7 + Math.floor(i / 2) * altoFila + 3;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(130, 130, 130);
+    doc.text(etiqueta.toUpperCase(), x, yy);
     // El CBU y el alias en monoespaciada: se copian a mano, carácter por carácter.
-    const mono = etiqueta === 'CBU / CVU' || etiqueta === 'ALIAS';
-    doc.setFont(mono ? 'courier' : 'helvetica', 'bold'); doc.setFontSize(mono ? 10.5 : 10); doc.setTextColor(30, 33, 40);
-    doc.text(doc.splitTextToSize(String(valor), anchoCol - 6)[0], x, yy + 5);
+    const mono = etiqueta === 'CBU / CVU' || etiqueta === 'Alias';
+    doc.setFont(mono ? 'courier' : 'helvetica', mono ? 'bold' : 'normal'); doc.setFontSize(9.5); doc.setTextColor(50, 50, 50);
+    doc.text(doc.splitTextToSize(String(valor), anchoCol - 6)[0], x, yy + 4.2);
   });
-  if (nota) {
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90, 90, 90);
-    doc.text(nota, marginX + 3, y + filas * altoCelda + 4.5);
-  }
-  return y + alto + 8;
 }

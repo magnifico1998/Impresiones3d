@@ -788,14 +788,6 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     doc.text(fmt(saldoPendientePdf), xTotR + totalColTot - 2, y + 5.5, { align: 'right' });
     y += rowH + 10;
 
-    // Datos para transferir (si están cargados en Mi emprendimiento), sólo
-    // si queda algo por pagar.
-    if (saldoPendientePdf > 0) {
-      y = dibujarDatosBancarios(doc, empresa, {
-        y, marginX, contentW, navy, nota: `Monto a transferir: ${fmt(saldoPendientePdf)}`
-      });
-    }
-
     // Shipping info
     if (p.metodoEnvio || p.numeroSeguimiento) {
       checkPageBreak(20);
@@ -829,6 +821,12 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       doc.setDrawColor(220); doc.rect(marginX, y, contentW, bh);
       doc.text(lines, marginX + 3, y + 5.5);
       y += bh + 8;
+    }
+
+    // Datos para transferir (si están cargados en Mi emprendimiento), al
+    // pie y sólo si queda algo por pagar.
+    if (saldoPendientePdf > 0) {
+      dibujarDatosBancarios(doc, empresa, { yContenido: y, marginX, contentW, nota: `Monto a transferir: ${fmt(saldoPendientePdf)}` });
     }
 
     // Footer business details
