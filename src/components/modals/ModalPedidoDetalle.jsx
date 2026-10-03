@@ -826,7 +826,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     // Datos para transferir (si están cargados en Mi emprendimiento), al
     // pie y sólo si queda algo por pagar.
     if (saldoPendientePdf > 0) {
-      dibujarDatosBancarios(doc, empresa, { yContenido: y, marginX, contentW, nota: `Monto a transferir: ${fmt(saldoPendientePdf)}` });
+      dibujarDatosBancarios(doc, empresa, { yContenido: y, marginX, contentW });
     }
 
     // Footer business details
