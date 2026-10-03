@@ -14,6 +14,11 @@ import {
 // recategorización (cálculos en utils/monotributo.js). La categoría y los
 // ingresos facturados fuera de la app se guardan en `empresa`
 // (categoriaMonotributo, ingresosExternos: { 'YYYY-MM': monto }).
+//
+// Para un admin, con "Incluir las facturas de Manager3D" tildado
+// (empresa.totalizadorConFacturasAdmin) se suman también los comprobantes
+// del panel admin (colección facturas: suscripciones y facturas manuales),
+// que salen del mismo CUIT y cuentan para el mismo tope.
 
 const MESES_A_LEER = 24; // alcanza para los dos semestres de recategorización
 
@@ -24,20 +29,40 @@ const nivel = (pct) => (pct >= 90 ? 'pasado' : pct >= 70 ? 'cerca' : 'ok');
 const leerNumero = (t) => parseFloat(String(t).replace(/\$|\s/g, '').replace(/\./g, '').replace(',', '.'));
 
 export default function TotalizadorMonotributo() {
-  const { cuentaId, empresa, setEmpresa, fmt } = useApp();
-  const [facturas, setFacturas] = useState([]);
+  const { cuentaId, empresa, setEmpresa, fmt, isAdmin } = useApp();
+  const [facturasCuenta, setFacturasCuenta] = useState([]);
+  const [facturasAdmin, setFacturasAdmin] = useState([]);
+  const conFacturasAdmin = isAdmin && !!empresa.totalizadorConFacturasAdmin;
   const [tabla, setTabla] = useState(null);
+
+  const desdeLectura = () => {
+    const desde = new Date();
+    desde.setMonth(desde.getMonth() - MESES_A_LEER);
+    return Timestamp.fromDate(desde);
+  };
 
   useEffect(() => {
     if (!cuentaId) return undefined;
-    const desde = new Date();
-    desde.setMonth(desde.getMonth() - MESES_A_LEER);
     return onSnapshot(
-      query(collection(db, 'users', cuentaId, 'facturas'), where('creadoEl', '>=', Timestamp.fromDate(desde))),
-      (snap) => setFacturas(snap.docs.map((d) => d.data())),
+      query(collection(db, 'users', cuentaId, 'facturas'), where('creadoEl', '>=', desdeLectura())),
+      (snap) => setFacturasCuenta(snap.docs.map((d) => d.data())),
       (err) => console.error('Error al leer los comprobantes para el totalizador:', err)
     );
   }, [cuentaId]);
+
+  useEffect(() => {
+    if (!conFacturasAdmin) {
+      setFacturasAdmin([]);
+      return undefined;
+    }
+    return onSnapshot(
+      query(collection(db, 'facturas'), where('creadoEl', '>=', desdeLectura())),
+      (snap) => setFacturasAdmin(snap.docs.map((d) => d.data())),
+      (err) => console.error('Error al leer las facturas del admin para el totalizador:', err)
+    );
+  }, [conFacturasAdmin]);
+
+  const facturas = useMemo(() => [...facturasCuenta, ...facturasAdmin], [facturasCuenta, facturasAdmin]);
 
   useEffect(() => onSnapshot(
     doc(db, 'monotributo', 'categorias'),
@@ -102,6 +127,16 @@ export default function TotalizadorMonotributo() {
         </div>
         {tabla?.vigencia && <div style={{ fontSize: '11px', color: 'var(--text3)', paddingBottom: '8px' }}>Topes vigentes desde {tabla.vigencia}</div>}
       </div>
+      {isAdmin && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '12px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={!!empresa.totalizadorConFacturasAdmin}
+            onChange={(e) => setEmpresa((prev) => ({ ...prev, totalizadorConFacturasAdmin: e.target.checked }))}
+          />
+          Incluir las facturas de Manager3D (suscripciones y facturas manuales del panel admin)
+        </label>
+      )}
       {tabla && !categorias.length && (
         <div style={{ fontSize: '12px', color: 'var(--warn)', marginBottom: '12px' }}>Todavía no están cargadas las categorías del monotributo. Avisanos por Soporte.</div>
       )}
@@ -199,7 +234,7 @@ export default function TotalizadorMonotributo() {
       </div>
 
       <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '12px', lineHeight: 1.5 }}>
-        Suma las facturas emitidas en producción desde Manager3D (también las anuladas) y resta sus notas de crédito. Lo que facturaste por otro lado,
+        Suma las facturas emitidas en producción desde Manager3D (también las anuladas) y resta sus notas de crédito{conFacturasAdmin ? ', incluidas las de las suscripciones' : ''}. Lo que facturaste por otro lado,
         cargalo en "Otros ingresos". Es una ayuda para anticiparte: la recategorización también mira otros parámetros (superficie, energía, alquileres) y la
         confirmás con tu contador.
       </div>

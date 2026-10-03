@@ -544,6 +544,10 @@ En Mi emprendimiento → Facturación ARCA, la tarjeta "Facturación y monotribu
   después se anularon) − Notas de Crédito C emitidas + "otros ingresos" que el
   suscriptor carga a mano por mes (lo facturado fuera de la app,
   `empresa.ingresosExternos`). El mes sale de la fecha del comprobante.
+- **Admin:** con "Incluir las facturas de Manager3D" tildado
+  (`empresa.totalizadorConFacturasAdmin`) se suman también los comprobantes del
+  panel admin (colección `facturas`: suscripciones y facturas manuales), que
+  salen del mismo CUIT. Sólo lo ve una cuenta admin.
 - El monotributo no tiene topes mensuales: se compara el **acumulado de los
   últimos 12 meses** con el tope anual de la categoría del suscriptor
   (`empresa.categoriaMonotributo`). Barra verde hasta el 70 % del tope,
