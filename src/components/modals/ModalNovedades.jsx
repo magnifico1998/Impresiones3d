@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { version } from '../../../package.json';
-import { novedadesPara } from '../../utils/novedades';
+import { novedadesDesde } from '../../utils/novedades';
 
 // Aviso "Novedades", montado una vez en App:
 //   - al entrar, si este usuario todavía no vio la versión mayor actual,
@@ -36,7 +36,7 @@ const guardarVista = (uid) => {
 const fechaCorta = (f) => f.split('-').reverse().join('/');
 
 export default function ModalNovedades() {
-  const { user, isAdmin, datosCargadosOk } = useApp();
+  const { user, datosCargadosOk } = useApp();
   const [entradas, setEntradas] = useState(null);
 
   // Al entrar, una vez cargados los datos (así no se superpone con la carga).
@@ -44,16 +44,16 @@ export default function ModalNovedades() {
     if (!user?.uid || !datosCargadosOk) return;
     const vista = leerVista(user.uid);
     if (vista !== null && vista >= MAYOR) return;
-    const nuevas = novedadesPara({ esAdmin: isAdmin, desde: vista ?? MAYOR - VERSIONES_PRIMERA_VEZ }).slice(0, MAX_VERSIONES);
+    const nuevas = novedadesDesde(vista ?? MAYOR - VERSIONES_PRIMERA_VEZ).slice(0, MAX_VERSIONES);
     if (nuevas.length) setEntradas(nuevas);
     else guardarVista(user.uid);
-  }, [user?.uid, datosCargadosOk, isAdmin]);
+  }, [user?.uid, datosCargadosOk]);
 
   useEffect(() => {
-    const abrir = () => setEntradas(novedadesPara({ esAdmin: isAdmin }).slice(0, MAX_VERSIONES));
+    const abrir = () => setEntradas(novedadesDesde().slice(0, MAX_VERSIONES));
     window.addEventListener('abrir-novedades', abrir);
     return () => window.removeEventListener('abrir-novedades', abrir);
-  }, [isAdmin]);
+  }, []);
 
   if (!entradas) return null;
 
@@ -78,7 +78,6 @@ export default function ModalNovedades() {
                 {n.items.map((i) => (
                   <li key={i.texto}>
                     {i.texto}
-                    {i.soloAdmin && <span className="badge badge-progress" style={{ marginLeft: '6px', fontSize: '10px' }}>admin</span>}
                   </li>
                 ))}
               </ul>

@@ -54,8 +54,9 @@ respuesta, avisale al usuario a qué versión quedó.
 
 Cada versión **mayor** suma su entrada en `src/utils/novedades.js` (en el
 mismo commit): lo que cambió para el usuario, en lenguaje de usuario, sin lo
-estético ni lo correctivo. Lo que sólo ve el admin va con `soloAdmin: true`.
-Es lo que muestra el aviso "Novedades" al entrar.
+estético ni lo correctivo, ni lo que sólo afecta al panel de administración.
+Es lo que muestra el aviso "Novedades" al entrar. Si la versión no trae nada
+para los suscriptores, no lleva entrada.
 
 ## Cómo trabaja el usuario
 

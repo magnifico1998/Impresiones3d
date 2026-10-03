@@ -1,8 +1,9 @@
 // Novedades de la plataforma: lo que muestra el aviso "Novedades" al entrar
 // (components/ModalNovedades.jsx). Una entrada por versión MAYOR (cambios
 // funcionales o de negocio, ver "Versión" en CLAUDE.md), de la más nueva a
-// la más vieja. Los cambios estéticos o correctivos no van acá.
-//   items: { texto, soloAdmin? } — soloAdmin: sólo lo ve una cuenta admin.
+// la más vieja. Sólo lo que cambia para los suscriptores: ni lo estético o
+// correctivo, ni lo que sólo afecta al panel de administración.
+//   items: { texto }
 
 export const NOVEDADES = [
   {
@@ -17,9 +18,7 @@ export const NOVEDADES = [
     fecha: '2026-10-03',
     items: [
       { texto: 'Facturación y monotributo (Mi emprendimiento → Facturación ARCA): lo facturado por mes, el acumulado de los últimos 12 meses contra el tope de tu categoría y la proyección a la próxima recategorización.' },
-      { texto: 'Podés cargar los ingresos que facturaste fuera de Manager3D para que el acumulado sea completo.' },
-      { texto: 'Contador de tickets pendientes en el menú y aviso emergente cuando entra uno nuevo.', soloAdmin: true },
-      { texto: 'Categorías de monotributo con "Buscar en ARCA" y opción de sumar las facturas de suscripciones al totalizador.', soloAdmin: true }
+      { texto: 'Podés cargar los ingresos que facturaste fuera de Manager3D para que el acumulado sea completo.' }
     ]
   },
   {
@@ -30,13 +29,6 @@ export const NOVEDADES = [
       { texto: 'Al descontar un pedido del inventario, buscá el rollo escribiendo el color o el tipo.' },
       { texto: 'Si un pedido no consumió nada, "Confirmar sin descontar" lo marca como resuelto.' },
       { texto: 'El inventario se ordena tocando el título de cualquier columna.' }
-    ]
-  },
-  {
-    version: 10,
-    fecha: '2026-10-02',
-    items: [
-      { texto: 'Boletín de novedades a los suscriptores y editor visual de las plantillas de mail.', soloAdmin: true }
     ]
   },
   {
@@ -63,11 +55,5 @@ export const NOVEDADES = [
   }
 ];
 
-// Entradas con lo que ve esa cuenta (sin las de admin si no lo es), las de
-// versión mayor a `desde` (o todas), sin las que quedan vacías.
-export function novedadesPara({ esAdmin, desde = 0 }) {
-  return NOVEDADES
-    .filter((n) => n.version > desde)
-    .map((n) => ({ ...n, items: n.items.filter((i) => esAdmin || !i.soloAdmin) }))
-    .filter((n) => n.items.length);
-}
+// Entradas de versión mayor a `desde` (o todas).
+export const novedadesDesde = (desde = 0) => NOVEDADES.filter((n) => n.version > desde);
