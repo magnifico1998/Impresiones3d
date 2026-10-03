@@ -6,6 +6,7 @@ import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { armarInventario, formatoCantidad } from '../../utils/inventario';
 import { estimarConsumoPedido, sugerirFilamento, sugerirInsumo } from '../../utils/consumoPedido';
 import SelectorBuscable from '../SelectorBuscable';
+import { confirmar as confirmarDialogo } from '../Dialogos';
 
 // "Descontar del inventario" de un pedido: propone cuánto filamento usó
 // cada versión de cada producto (en los multicolor, por material) y los
@@ -40,8 +41,24 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
   const aDescontar = [...filas.filamento, ...filas.insumos].filter((f) => f.articulo && parseFloat(f.cantidad) > 0);
 
   const confirmar = async () => {
-    setGuardando(true);
     const numero = `Pedido #${String(pedido.id).padStart(4, '0')}`;
+    // Sin nada elegido: se confirma y queda la marca de que se revisó, así el
+    // pedido no vuelve a pedir el descuento (se deshace desde su detalle).
+    if (aDescontar.length === 0) {
+      if (!(await confirmarDialogo('No elegiste ningún rollo ni insumo: no se va a descontar nada del inventario. El pedido queda marcado como "sin descuento" y no te lo vuelve a proponer.', { titulo: 'Confirmar sin descontar', textoConfirmar: 'Confirmar sin descontar' }))) return;
+      setGuardando(true);
+      const ok = await agregarMovimiento({
+        clave: '', nombre: '', tipo: 'sinDescuento', cantidad: 0,
+        fecha: fechaLocalHoy(), pedidoId: String(pedido.id), nota: [numero, pedido.cliente].filter(Boolean).join(' · ')
+      });
+      setGuardando(false);
+      if (ok) {
+        showToast('Pedido marcado sin descuento de inventario.');
+        onClose();
+      }
+      return;
+    }
+    setGuardando(true);
     // Un movimiento por artículo: si dos líneas salen del mismo rollo, se suman.
     const porArticulo = new Map();
     for (const f of aDescontar) porArticulo.set(f.articulo, (porArticulo.get(f.articulo) || 0) + parseFloat(f.cantidad));
@@ -189,8 +206,8 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
 
         <div className="modal-footer">
           <button className="btn" disabled={guardando} onClick={onClose}>Ahora no</button>
-          <button className="btn btn-primary" disabled={guardando || aDescontar.length === 0} onClick={confirmar}>
-            {guardando ? 'Descontando…' : `Descontar (${aDescontar.length})`}
+          <button className="btn btn-primary" disabled={guardando} onClick={confirmar} title={aDescontar.length ? '' : 'No hay nada elegido: marca el pedido sin descuento'}>
+            {guardando ? 'Guardando…' : aDescontar.length ? `Descontar (${aDescontar.length})` : 'Confirmar sin descontar'}
           </button>
         </div>
       </div>

@@ -127,4 +127,14 @@ export function sugerirInsumo(insumo, articulos) {
 export const consumosDelPedido = (movimientos, pedidoId) =>
   (movimientos || []).filter((m) => m.tipo === 'consumo' && String(m.pedidoId) === String(pedidoId));
 
+// Marca de "se revisó y no se descontó nada" (movimiento 'sinDescuento',
+// sin artículo ni cantidad): el pedido cuenta como resuelto y no se vuelve a
+// proponer el descuento. Devuelve el movimiento o null.
+export const marcaSinDescuento = (movimientos, pedidoId) =>
+  (movimientos || []).find((m) => m.tipo === 'sinDescuento' && String(m.pedidoId) === String(pedidoId)) || null;
+
+// ¿Ya se resolvió el inventario del pedido (descontado o marcado sin descuento)?
+export const inventarioResuelto = (movimientos, pedidoId) =>
+  consumosDelPedido(movimientos, pedidoId).length > 0 || !!marcaSinDescuento(movimientos, pedidoId);
+
 export const ESTADOS_QUE_CONSUMEN = ['completado', 'enviado'];

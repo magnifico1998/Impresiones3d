@@ -3,11 +3,12 @@ import { useApp } from '../context/AppContext';
 import { confirmar } from './Dialogos';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { formatoCantidad } from '../utils/inventario';
-import { consumosDelPedido, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
+import { consumosDelPedido, marcaSinDescuento, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
 import ModalConsumoPedido from './modals/ModalConsumoPedido';
 
 // Bloque "Inventario" del detalle del pedido: lo que ya se descontó (con
-// opción de deshacer) o el botón para descontarlo. Si el pedido pasa a
+// opción de deshacer), la marca de que se confirmó sin descontar, o el
+// botón para descontarlo. Si el pedido pasa a
 // completado o enviado y todavía no se descontó, abre solo la propuesta.
 
 export default function SeccionInventarioPedido({ pedido }) {
@@ -18,13 +19,14 @@ export default function SeccionInventarioPedido({ pedido }) {
 
   const consumos = consumosDelPedido(movimientos, pedido.id);
   const yaDescontado = consumos.length > 0;
+  const sinDescuento = marcaSinDescuento(movimientos, pedido.id);
 
   // Sólo al CAMBIAR a completado/enviado (no al abrir un pedido que ya lo estaba).
   useEffect(() => {
     const antes = estadoAnterior.current;
     estadoAnterior.current = pedido.estado;
-    if (antes !== pedido.estado && ESTADOS_QUE_CONSUMEN.includes(pedido.estado) && !yaDescontado) setAbierto(true);
-  }, [pedido.estado, yaDescontado]);
+    if (antes !== pedido.estado && ESTADOS_QUE_CONSUMEN.includes(pedido.estado) && !yaDescontado && !sinDescuento) setAbierto(true);
+  }, [pedido.estado, yaDescontado, sinDescuento]);
 
   if (!cfg.inventarioHabilitado) return null;
 
@@ -46,6 +48,12 @@ export default function SeccionInventarioPedido({ pedido }) {
             {consumos.map((m) => `${formatoCantidad(-m.cantidad, /filamento\|/.test(m.clave) ? 'g' : 'u')} ${m.nombre}`).join(' · ')}
           </div>
           <button className="btn btn-sm" onClick={deshacer}>Deshacer</button>
+        </div>
+      ) : sinDescuento ? (
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', fontSize: '13px', color: 'var(--text2)' }}>
+          <span className="badge badge-pending">sin descuento</span>
+          <span style={{ flex: 1, minWidth: '200px' }}>Se confirmó sin descontar nada del inventario{sinDescuento.creadoPor ? ` (${sinDescuento.creadoPor})` : ''}.</span>
+          <button className="btn btn-sm" onClick={() => borrarMovimiento(sinDescuento.id)} title="Quita la marca para poder descontarlo">Deshacer</button>
         </div>
       ) : (
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', fontSize: '13px', color: 'var(--text2)' }}>

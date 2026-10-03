@@ -9,7 +9,7 @@ import { buildWaLink, findClientePedido } from '../utils/whatsapp';
 import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
 import { useCapacidadProduccion } from '../hooks/useCapacidadProduccion';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
-import { consumosDelPedido, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
+import { inventarioResuelto, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
 import ModalConsumoPedido from './modals/ModalConsumoPedido';
 import { ESTADOS_PEDIDO, textoEstadoPedido } from '../utils/estadosPedido';
 
@@ -235,7 +235,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
     showToast('Estado actualizado a: ' + textoEstadoPedido(newStatus));
 
-    if (cfg.inventarioHabilitado && ESTADOS_QUE_CONSUMEN.includes(newStatus) && consumosDelPedido(movimientos, id).length === 0) {
+    if (cfg.inventarioHabilitado && ESTADOS_QUE_CONSUMEN.includes(newStatus) && !inventarioResuelto(movimientos, id)) {
       setPedidoAConsumir(id);
     }
   };

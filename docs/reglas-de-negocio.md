@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-02 (boletín de novedades a los suscriptores).
+Última revisión: 2026-10-02 (pedido marcado sin descuento de inventario).
 
 ---
 
@@ -466,6 +466,10 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   salen del mismo rollo se descuentan en un solo movimiento.
 - Un pedido se descuenta **una sola vez**: los consumos quedan vinculados al
   pedido (`pedidoId`), y para volver a descontarlo hay que deshacer primero.
+  Si no se elige ningún rollo ni insumo, el botón pasa a **"Confirmar sin
+  descontar"**: pide confirmación y deja un movimiento `sinDescuento` (sin
+  artículo ni cantidad) que marca el pedido como resuelto, así no se vuelve a
+  proponer. En el detalle se ve "sin descuento" y se puede deshacer.
   Se puede descontar aunque no alcance el stock (queda en negativo, para
   corregir con un ajuste).
 
