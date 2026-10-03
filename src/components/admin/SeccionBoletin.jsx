@@ -4,6 +4,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
 import { confirmar } from '../Dialogos';
 import ModalPlantillaEmail from '../modals/ModalPlantillaEmail';
+import TarjetaColapsable from '../TarjetaColapsable';
 
 // Panel admin → Negocio → Boletín de novedades: edita el contenido de la
 // plantilla "boletin", manda una prueba y lo envía a los suscriptores de
@@ -109,9 +110,14 @@ export default function SeccionBoletin({ showToast }) {
     }
   );
 
+  const ultimo = envios[0];
+  const resumenTarjeta = ultimo
+    ? `último envío ${fecha(ultimo.creadoEl)} · ${(ETIQUETA_ESTADO_ENVIO[ultimo.estado] || { texto: ultimo.estado }).texto.toLowerCase()}`
+    : '';
+
   return (
-    <div className="card">
-      <div className="card-title">Boletín de novedades</div>
+    <>
+    <TarjetaColapsable titulo="Boletín de novedades" resumen={resumenTarjeta} clave="admin.boletin">
       <div style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '12px', lineHeight: 1.5 }}>
         Un mail a todos los suscriptores con las novedades. Editá el contenido para cada campaña, mandate una prueba y después envialo.
         Gmail manda unos 500 por día: si hay más, el envío queda pausado y se reanuda al día siguiente.
@@ -183,12 +189,13 @@ export default function SeccionBoletin({ showToast }) {
           </div>
         </div>
       )}
+    </TarjetaColapsable>
 
-      <ModalPlantillaEmail
-        isOpen={!!plantilla}
-        onClose={() => setPlantilla(null)}
-        plantilla={plantilla}
-      />
-    </div>
+    <ModalPlantillaEmail
+      isOpen={!!plantilla}
+      onClose={() => setPlantilla(null)}
+      plantilla={plantilla}
+    />
+    </>
   );
 }

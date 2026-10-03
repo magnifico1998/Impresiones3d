@@ -3,6 +3,7 @@ import { collection, doc, onSnapshot, query, Timestamp, where } from 'firebase/f
 import { db } from '../firebase';
 import { useApp } from '../context/AppContext';
 import { pedirTexto } from './Dialogos';
+import TarjetaColapsable from './TarjetaColapsable';
 import {
   acumulado12, categoriaPara, categoriasOrdenadas, ingresosPorMes, mesActual, nombreMes,
   proximaRecategorizacion, proyeccionAlCierre, sumarMeses
@@ -109,9 +110,11 @@ export default function TotalizadorMonotributo() {
     </div>
   );
 
+  // Visible con la tarjeta cerrada: lo esencial de un vistazo.
+  const resumenTarjeta = `últimos 12 meses ${fmt(acumulado)}${miCategoria ? ` · categoría ${miCategoria.letra} al ${Math.round(pct)} %` : ''}`;
+
   return (
-    <div className="card">
-      <div className="card-title">Facturación y monotributo</div>
+    <TarjetaColapsable titulo="Facturación y monotributo" resumen={resumenTarjeta} clave="arca.monotributo">
 
       <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '14px' }}>
         <div>
@@ -238,6 +241,6 @@ export default function TotalizadorMonotributo() {
         cargalo en "Otros ingresos". Es una ayuda para anticiparte: la recategorización también mira otros parámetros (superficie, energía, alquileres) y la
         confirmás con tu contador.
       </div>
-    </div>
+    </TarjetaColapsable>
   );
 }

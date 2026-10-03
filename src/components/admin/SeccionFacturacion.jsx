@@ -54,10 +54,29 @@ function Tarjeta({ titulo, extra, abierta, onAlternar, children }) {
 }
 
 // Vive en su propia pestaña del panel: se monta al entrar y carga todo.
-// Comprobantes arranca abierta; emisor y facturador, cerradas.
+// Las tarjetas arrancan cerradas (emisor se abre si falta configurarlo) y
+// se recuerda en este navegador cuáles quedaron abiertas.
+const CLAVE_ABIERTAS = 'admin.arca.abiertas';
+function abiertasGuardadas() {
+  const porDefecto = { emisor: false, facturador: false, comprobantes: false };
+  try {
+    return { ...porDefecto, ...JSON.parse(localStorage.getItem(CLAVE_ABIERTAS) || '{}') };
+  } catch {
+    return porDefecto;
+  }
+}
+
 export default function SeccionFacturacion({ showToast }) {
-  const [abiertas, setAbiertas] = useState({ emisor: false, facturador: false, comprobantes: true });
-  const alternar = (id) => setAbiertas((prev) => ({ ...prev, [id]: !prev[id] }));
+  const [abiertas, setAbiertas] = useState(abiertasGuardadas);
+  const alternar = (id) => setAbiertas((prev) => {
+    const nuevas = { ...prev, [id]: !prev[id] };
+    try {
+      localStorage.setItem(CLAVE_ABIERTAS, JSON.stringify(nuevas));
+    } catch {
+      // Sin almacenamiento: sólo dura mientras la página está abierta.
+    }
+    return nuevas;
+  });
   const [config, setConfig] = useState(configVacia);
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [probando, setProbando] = useState(false);
@@ -283,7 +302,12 @@ export default function SeccionFacturacion({ showToast }) {
           </div>
       </Tarjeta>
 
-      <Tarjeta titulo="Comprobantes" abierta={abiertas.comprobantes} onAlternar={() => alternar('comprobantes')}>
+      <Tarjeta
+        titulo="Comprobantes"
+        extra={facturas.length ? <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text3)', marginLeft: '8px' }}>{facturas.length} comprobante{facturas.length === 1 ? '' : 's'}</span> : null}
+        abierta={abiertas.comprobantes}
+        onAlternar={() => alternar('comprobantes')}
+      >
         <TablaComprobantes
           facturas={facturas}
           origenes={ORIGENES}

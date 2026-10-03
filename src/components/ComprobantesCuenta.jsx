@@ -3,6 +3,7 @@ import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestor
 import { db } from '../firebase';
 import { useApp } from '../context/AppContext';
 import TablaComprobantes from './TablaComprobantes';
+import TarjetaColapsable from './TarjetaColapsable';
 
 // Comprobantes de la cuenta (facturas de sus pedidos y sus notas de
 // crédito), en la pestaña "Facturación ARCA" de "Mi emprendimiento". Mismo
@@ -48,8 +49,7 @@ export default function ComprobantesCuenta() {
   }, [cuentaId]);
 
   return (
-    <div className="card">
-      <div className="card-title">Comprobantes</div>
+    <TarjetaColapsable titulo="Comprobantes" resumen={facturas.length ? `${facturas.length} comprobante${facturas.length === 1 ? '' : 's'}` : ''} clave="arca.comprobantes">
       <TablaComprobantes
         facturas={facturas}
         origenes={ORIGENES}
@@ -59,6 +59,6 @@ export default function ComprobantesCuenta() {
         columnaExtra={COLUMNA_PEDIDO}
         showToast={showToast}
       />
-    </div>
+    </TarjetaColapsable>
   );
 }
