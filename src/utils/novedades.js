@@ -12,7 +12,7 @@ export const NOVEDADES = [
     items: [
       { texto: 'Facturación y monotributo (Mi emprendimiento → Facturación ARCA): lo facturado por mes, el acumulado de los últimos 12 meses contra el tope de tu categoría y la proyección a la próxima recategorización.' },
       { texto: 'Podés cargar los ingresos que facturaste fuera de Manager3D para que el acumulado sea completo.' },
-      { texto: 'Recorrido guiado por la app: te muestra dónde configurar tus costos, cómo calcular una pieza desde el G-code y cómo cargar pedidos. Lo encontrás en Soporte y en Preguntas frecuentes ("Ver el recorrido").' },
+      { texto: 'Recorrido guiado por la app: te muestra dónde configurar tus costos, cómo calcular una pieza desde el G-code y cómo cargar pedidos. Lo abrís cuando quieras con el botón 🧭 Recorrido, arriba a la derecha.' },
       { texto: 'Al entrar te mostramos las novedades desde tu último ingreso. Para volver a verlas, tocá la versión arriba a la izquierda.' }
     ]
   },

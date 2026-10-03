@@ -122,7 +122,7 @@ const PASOS_BASE = [
   {
     pagina: 'faq', elemento: tituloPagina,
     titulo: 'Preguntas frecuentes',
-    texto: 'Las respuestas a las dudas más comunes sobre cada sección. Desde acá también podés volver a ver este recorrido.'
+    texto: 'Las respuestas a las dudas más comunes sobre cada sección.'
   },
   {
     pagina: 'soporte', elemento: boton('Nuevo ticket'),
@@ -130,9 +130,9 @@ const PASOS_BASE = [
     texto: 'Creá un ticket y usá "Grabar el problema" para que nos llegue todo lo necesario. También podés tocar "Reportar" en cualquier aviso de error.'
   },
   {
-    pagina: 'resumen',
+    pagina: 'resumen', elemento: () => document.querySelector('[data-tour="boton-recorrido"]'),
     titulo: '¡Listo!',
-    texto: 'Ya conocés lo principal. Te recomendamos empezar por Configuración y calcular tu primera pieza. Podés repetir el recorrido desde Soporte o Preguntas frecuentes.'
+    texto: 'Ya conocés lo principal. Te recomendamos empezar por Configuración y calcular tu primera pieza. Para volver a ver el recorrido cuando quieras, tocá <b>🧭 Recorrido</b>, acá arriba.'
   }
 ];
 

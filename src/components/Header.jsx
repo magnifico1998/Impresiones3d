@@ -97,9 +97,30 @@ export default function Header({ onToggleMenu }) {
       )}
 
       <div className="header-actions" style={{ display: 'flex', gap: '6px', marginLeft: 'auto', alignItems: 'center' }}>
+        {/* Recorrido guiado por la app (components/Recorrido.jsx), siempre a mano. */}
         {user && (
-          <button 
-            onClick={logout} 
+          <button
+            type="button"
+            data-tour="boton-recorrido"
+            onClick={() => window.dispatchEvent(new CustomEvent('iniciar-recorrido'))}
+            className="btn btn-sm"
+            title="Recorrido por la app: dónde está cada cosa y cómo se usa"
+            style={{
+              fontSize: '11px',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              border: '1px solid var(--border2)',
+              background: 'none',
+              color: 'var(--text2)',
+              cursor: 'pointer'
+            }}
+          >
+            🧭 Recorrido
+          </button>
+        )}
+        {user && (
+          <button
+            onClick={logout}
             className="btn btn-sm"
             style={{
               fontSize: '11px',
