@@ -190,7 +190,8 @@ export default function TotalizadorMonotributo() {
               <th style={{ textAlign: 'right' }}>Notas de crédito</th>
               <th style={{ textAlign: 'right' }}>Otros ingresos</th>
               <th style={{ textAlign: 'right' }}>Total</th>
-              <th style={{ width: '30%' }}></th>
+              {/* Barra: el total del mes contra el mejor mes de los 12 (no contra el tope). */}
+              <th style={{ width: '30%' }} title="Cada barra es el total del mes comparado con el mes que más facturó de los últimos 12 (ese mes ocupa la barra completa)">Comparado con el mejor mes</th>
             </tr>
           </thead>
           <tbody>
@@ -207,7 +208,7 @@ export default function TotalizadorMonotributo() {
                     </button>
                   </td>
                   <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmt(m.total)}</td>
-                  <td>
+                  <td title={`${Math.round(Math.max(0, (m.total / maxMes) * 100))} % del mejor mes`}>
                     <div style={{ height: '8px', background: 'var(--bg3)', borderRadius: '4px', overflow: 'hidden' }}>
                       <div style={{ width: `${Math.max(0, (m.total / maxMes) * 100)}%`, height: '100%', background: 'var(--accent)' }} />
                     </div>
