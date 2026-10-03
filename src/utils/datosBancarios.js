@@ -35,16 +35,22 @@ export function dibujarDatosBancarios(doc, empresa, { yContenido, marginX, conte
   const filas = Math.ceil(campos.length / 2);
   const altoFila = 9;
   const alto = 7 + filas * altoFila;
-  let y = Y_PIE - 6 - alto;
+  // Entre líneas separadoras (arriba y abajo), dejando aire antes del pie.
+  const yInicio = Y_PIE - 9 - alto;
+  let y = yInicio;
   if (yContenido > y - 4) {
     doc.addPage();
-    y = Y_PIE - 6 - alto;
+    y = yInicio;
   }
 
   doc.setDrawColor(200); doc.setLineWidth(0.3);
   doc.line(marginX, y, marginX + contentW, y);
+  doc.line(marginX, y + alto + 3, marginX + contentW, y + alto + 3);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(90, 90, 90);
   doc.text('DATOS PARA TRANSFERENCIA', marginX, y + 5);
+  // Subrayado fino del título.
+  doc.setDrawColor(150); doc.setLineWidth(0.15);
+  doc.line(marginX, y + 5.8, marginX + doc.getTextWidth('DATOS PARA TRANSFERENCIA'), y + 5.8);
   if (nota) {
     doc.setFont('helvetica', 'normal');
     doc.text(nota, marginX + contentW, y + 5, { align: 'right' });
