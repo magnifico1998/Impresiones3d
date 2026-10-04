@@ -614,6 +614,12 @@ En Mi emprendimiento → Facturación ARCA, la tarjeta "Facturación y monotribu
   la pestaña Tickets) cuántos tickets hay abiertos o en análisis, y cada ticket
   nuevo que entra con la app abierta aparece en un aviso emergente con "Ver"
   (`src/components/soporte/AvisosTicketsAdmin.jsx`). Los suscriptores no ven nada de esto.
+- **Avisos al suscriptor:** cuando el admin le cambia el estado o le responde
+  un ticket, el menú muestra en "Soporte" un contador rojo con los tickets con
+  novedades sin ver, y en la lista cada uno queda marcado ("Nuevo") hasta que
+  lo abre. Hay novedad si `actualizadoEl` es posterior a `creadoEl` y a lo ya
+  visto; lo visto se guarda por persona en el navegador
+  (`src/components/soporte/AvisosTicketsCuenta.jsx`).
 
 Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
 `src/components/soporte/`, `src/components/admin/SeccionTickets.jsx`,

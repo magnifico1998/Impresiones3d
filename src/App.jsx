@@ -21,6 +21,7 @@ import Toasts from './components/Toasts';
 import SoportePage from './components/soporte/SoportePage';
 import CentroSoporte from './components/soporte/CentroSoporte';
 import AvisosTicketsAdmin from './components/soporte/AvisosTicketsAdmin';
+import AvisosTicketsCuenta from './components/soporte/AvisosTicketsCuenta';
 import ModalNovedades from './components/modals/ModalNovedades';
 import Recorrido from './components/Recorrido';
 import { useEstadoRecorrido } from './utils/estadoRecorrido';
@@ -710,6 +711,7 @@ function App() {
       <Toasts />
       <CentroSoporte />
       <AvisosTicketsAdmin />
+      <AvisosTicketsCuenta />
       <ModalNovedades />
       <Recorrido />
 

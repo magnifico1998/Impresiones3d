@@ -3,6 +3,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useApp } from '../../context/AppContext';
 import { CATEGORIAS_TICKET, ESTADOS_TICKET, numeroTicket } from '../../utils/formatoTicket';
+import { marcarTicketVisto, useTicketsSinVer } from './AvisosTicketsCuenta';
 
 // Soporte: los tickets de la cuenta (de cualquier miembro del equipo) con
 // su estado y las respuestas. El ticket nuevo se arma en CentroSoporte.
@@ -23,6 +24,7 @@ export default function SoportePage() {
   const [tickets, setTickets] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(null);
+  const { ids: sinVer } = useTicketsSinVer();
 
   useEffect(() => {
     if (!cuentaId) return undefined;
@@ -83,7 +85,14 @@ export default function SoportePage() {
               <tbody>
                 {tickets.map((t) => (
                   <React.Fragment key={t.id}>
-                    <tr style={{ cursor: 'pointer' }} onClick={() => setAbierto(abierto === t.id ? null : t.id)}>
+                    <tr
+                      style={{ cursor: 'pointer', ...(sinVer.has(t.id) ? { boxShadow: 'inset 3px 0 0 var(--danger)' } : {}) }}
+                      onClick={() => {
+                        // Abrirlo lo da por visto (saca el aviso del menú).
+                        if (abierto !== t.id) marcarTicketVisto(t);
+                        setAbierto(abierto === t.id ? null : t.id);
+                      }}
+                    >
                       <td style={{ fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
                         <span style={{ color: 'var(--text3)', marginRight: '6px' }}>{abierto === t.id ? '▾' : '▸'}</span>
                         {numeroTicket(t.numero)}
@@ -94,7 +103,10 @@ export default function SoportePage() {
                         {t.respuestas?.length > 0 && <span style={{ fontSize: '11px', color: 'var(--text3)', marginLeft: '6px' }}>· {t.respuestas.length} respuesta{t.respuestas.length === 1 ? '' : 's'}</span>}
                       </td>
                       <td>{CATEGORIAS_TICKET[t.categoria] || t.categoria}</td>
-                      <td><span className={`badge ${BADGE_ESTADO_TICKET[t.estado] || ''}`}>{ESTADOS_TICKET[t.estado] || t.estado}</span></td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <span className={`badge ${BADGE_ESTADO_TICKET[t.estado] || ''}`}>{ESTADOS_TICKET[t.estado] || t.estado}</span>
+                        {sinVer.has(t.id) && <span className="nav-contador" style={{ marginLeft: '6px' }} title="Tiene una respuesta o un cambio de estado que todavía no viste">Nuevo</span>}
+                      </td>
                     </tr>
                     {abierto === t.id && (
                       <tr>

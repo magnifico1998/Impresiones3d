@@ -1,10 +1,12 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { useTicketsPendientes } from './soporte/AvisosTicketsAdmin';
+import { useTicketsSinVer } from './soporte/AvisosTicketsCuenta';
 
 export default function Sidebar({ isOpen, onClose }) {
   const { activePage, setActivePage, isAdmin, esRevendedor, cfg } = useApp();
   const ticketsPendientes = useTicketsPendientes();
+  const { sinVer: ticketsSinVer } = useTicketsSinVer();
 
   const handleNavigate = (id) => {
     setActivePage(id);
@@ -114,6 +116,9 @@ export default function Sidebar({ isOpen, onClose }) {
         {
           id: 'soporte',
           name: 'Soporte',
+          // Tickets propios con una respuesta o un cambio de estado sin ver.
+          contador: ticketsSinVer,
+          tituloContador: 'tickets con novedades',
           icon: (
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M3 11V9a7 7 0 0114 0v2" />
