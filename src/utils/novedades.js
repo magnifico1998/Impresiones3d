@@ -7,13 +7,6 @@
 
 export const NOVEDADES = [
   {
-    version: 13,
-    fecha: '2026-10-04',
-    items: [
-      { texto: 'Cuando respondemos o cambiamos el estado de uno de tus tickets, "Soporte" en el menú te lo marca en rojo, y el ticket queda resaltado hasta que lo abrís.' }
-    ]
-  },
-  {
     version: 12,
     fecha: '2026-10-03',
     items: [
