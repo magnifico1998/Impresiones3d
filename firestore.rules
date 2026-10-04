@@ -268,13 +268,15 @@ service cloud.firestore {
     // Un envío para IMPRIMIR vence a los 10 minutos en cola: pasado ese
     // tiempo el conector ya no puede tomarlo (sólo marcarlo vencido o con
     // error), así una impresión no arranca sola horas después de pedirla.
-    // creadoEl tiene que ser la hora del servidor para que el plazo sea fiable.
+    // creadoEl no puede estar en el futuro (una hora atrasada sólo lo hace vencer
+    // antes): así el plazo no se puede estirar.
     match /users/{uid}/trabajosImpresion/{trabajoId} {
       allow read: if tieneAcceso(uid) || esConectorDe(uid);
       allow create: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) &&
         request.resource.data.keys().hasOnly(['archivoId', 'productoId', 'nombre', 'formato', 'conectorId', 'impresoraId', 'impresoraNombre', 'accion', 'opciones', 'estado', 'creadoEl', 'creadoPor', 'actualizadoEl']) &&
         request.resource.data.estado == 'pendiente' &&
-        request.resource.data.creadoEl == request.time &&
+        request.resource.data.creadoEl is timestamp &&
+        request.resource.data.creadoEl <= request.time + duration.value(1, 'm') &&
         request.resource.data.accion in ['subir', 'imprimir'];
       allow update: if (tieneAcceso(uid) && resource.data.estado == 'pendiente' &&
           request.resource.data.estado == 'cancelado' &&
