@@ -1,0 +1,21 @@
+{
+  "name": "manager3d-conector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Conector de impresión de Manager3D: toma los trabajos de la cola de la cuenta y los manda a las impresoras de la red local.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "basic-ftp": "^6.2.2",
+    "fflate": "^0.8.3",
+    "firebase": "^12.15.0",
+    "mqtt": "^5.16.0"
+  }
+}

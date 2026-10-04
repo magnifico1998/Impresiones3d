@@ -412,6 +412,18 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   espacio usado (`suscripcion/actual.gcodeBytes`) se ve en "Tu plan y
   consumo" y en el consumo de la cuenta del panel. Borrar el producto borra
   sus archivos (`src/utils/archivosGcode.js`).
+- **Impresión directa (conector):** desde el 📄 del producto, "🖨 Mandar" pone
+  un archivo G-code en una cola (`users/{cuenta}/trabajosImpresion`) y el
+  **Manager3D Conector**, un programa que corre en una PC del taller (carpeta
+  `conector/`), lo manda a la impresora por la red local: *solo subir* (queda en
+  la impresora para elegirlo en su pantalla) o *subir e imprimir*, que exige
+  tildar "La cama está libre". Se vincula en Configuración → Impresión directa
+  con un código de 8 caracteres (vale 10 minutos, un solo uso, hasta 5
+  conectores por cuenta); desvincular lo corta. Impresoras: Anycubic Kobra 3 /
+  3 V2 / S1 en modo LAN (con ACE, cada color va al lugar del mismo orden), y
+  Bambu Lab por Bambu Connect o, experimental, por modo LAN + desarrollador. Las
+  IP y códigos de acceso quedan sólo en la PC. Estado del conector (conectado si
+  hizo su latido en los últimos 3 minutos) y de cada envío se ve en la app.
 - **Datos para transferencia en los PDF:** con CBU/CVU o alias cargados en
   Mi emprendimiento → Datos bancarios (y "Mostrar en los PDF" tildado), el
   PDF del presupuesto y el del pedido suman "Datos para transferencia" al pie

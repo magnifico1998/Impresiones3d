@@ -12,6 +12,7 @@ const { onNuevoUsuario } = require('./triggers/onNuevoUsuario');
 const { onPedidoCreado } = require('./triggers/onPedidoCreado');
 const { onBibliotecaCambio } = require('./triggers/onBibliotecaCambio');
 const { onGcodeSubido, onGcodeBorrado } = require('./triggers/onGcodeSubido');
+const { crearCodigoConector, vincularConector, onConectorBorrado } = require('./http/conectores');
 const { registrarAperturaCatalogo } = require('./http/registrarAperturaCatalogo');
 const { registrarUltimoAcceso } = require('./http/registrarUltimoAcceso');
 const { cambiarEstadoSuscripcion } = require('./http/cambiarEstadoSuscripcion');
@@ -41,6 +42,9 @@ module.exports = {
   onBibliotecaCambio,
   onGcodeSubido,
   onGcodeBorrado,
+  crearCodigoConector,
+  vincularConector,
+  onConectorBorrado,
   registrarAperturaCatalogo,
   registrarUltimoAcceso,
   cambiarEstadoSuscripcion,

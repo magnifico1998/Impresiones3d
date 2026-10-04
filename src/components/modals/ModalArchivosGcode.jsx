@@ -1,10 +1,13 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { confirmar } from '../Dialogos';
 import {
   EXTENSIONES_GCODE, borrarArchivoGcode, cambiarImpresoraGcode, cupoGcode, descargarArchivoGcode,
   esArchivoGcode, formatoBytes, subirArchivoGcode
 } from '../../utils/archivosGcode';
+import {
+  ESTADOS_TRABAJO, borrarTrabajo, cancelarTrabajo, escucharConectores, escucharTrabajos, impresorasPara, mandarAImpresora
+} from '../../utils/impresionDirecta';
 
 // Archivos G-code de un producto de la Biblioteca (utils/archivosGcode.js):
 // se suben, se comprimen al máximo en el servidor y se bajan con su nombre
@@ -18,11 +21,19 @@ const ESTADO = {
 };
 
 export default function ModalArchivosGcode({ producto, archivos, onClose }) {
-  const { cuentaId, cfg, planContratado, suscripcion, isAdmin, showToast } = useApp();
+  const { cuentaId, user, cfg, planContratado, suscripcion, isAdmin, showToast } = useApp();
   const [impresora, setImpresora] = useState(producto?.impresoraNombre || '');
   const [subiendo, setSubiendo] = useState(null); // { nombre, progreso }
   const [bajando, setBajando] = useState(null);
   const inputRef = useRef(null);
+
+  // Impresión directa (conector): impresoras disponibles y trabajos de este producto.
+  const [conectores, setConectores] = useState([]);
+  const [trabajos, setTrabajos] = useState([]);
+  const [mandando, setMandando] = useState(null); // { archivo, destino, accion, libre }
+  const [enviandoTrabajo, setEnviandoTrabajo] = useState(false);
+  useEffect(() => (cuentaId ? escucharConectores(cuentaId, setConectores) : undefined), [cuentaId]);
+  useEffect(() => (cuentaId ? escucharTrabajos(cuentaId, setTrabajos) : undefined), [cuentaId]);
 
   if (!producto) return null;
 
@@ -91,6 +102,60 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
       showToast('No se pudo cambiar la impresora.', 'error');
     }
   };
+
+  const trabajosDelProducto = trabajos
+    .filter((t) => t.productoId === String(producto.id))
+    .sort((a, b) => (b.creadoEl?.toMillis?.() || 0) - (a.creadoEl?.toMillis?.() || 0))
+    .slice(0, 6);
+
+  const abrirEnvio = (archivo) => {
+    const opciones = impresorasPara(archivo, conectores);
+    if (!opciones.length) {
+      showToast(conectores.length
+        ? `Ninguna impresora cargada en tus conectores recibe archivos .${archivo.formato === '3mf' ? '3mf' : 'gcode'}.`
+        : 'Primero vinculá un conector en Configuración → Impresión directa.', 'error');
+      return;
+    }
+    // Arranca en la impresora del archivo si coincide por nombre, o en una activa.
+    const preferida = opciones.find((o) => o.impresora.nombre === archivo.impresora) || opciones.find((o) => o.activo) || opciones[0];
+    setMandando({ archivo, destino: `${preferida.conector.id}|${preferida.impresora.id}`, accion: 'subir', libre: false });
+  };
+
+  const enviar = async () => {
+    const { archivo, destino, accion, libre } = mandando;
+    const [conectorId, impresoraId] = destino.split('|');
+    const conector = conectores.find((c) => c.id === conectorId);
+    const impresora = conector?.impresoras?.find((i) => i.id === impresoraId);
+    if (!conector || !impresora) return;
+    if (accion === 'imprimir' && !libre) {
+      showToast('Confirmá que la cama está libre antes de imprimir.', 'error');
+      return;
+    }
+    setEnviandoTrabajo(true);
+    try {
+      await mandarAImpresora({ cuentaId, uid: user?.uid || null, archivo, conector, impresora, accion });
+      showToast(`Trabajo en cola para ${impresora.nombre}.`, 'info');
+      setMandando(null);
+    } catch (err) {
+      console.error('No se pudo mandar el trabajo a la impresora:', err);
+      showToast('No se pudo poner el trabajo en la cola.', 'error');
+    } finally {
+      setEnviandoTrabajo(false);
+    }
+  };
+
+  const quitarTrabajo = async (t) => {
+    try {
+      if (t.estado === 'pendiente') await cancelarTrabajo(cuentaId, t.id);
+      else await borrarTrabajo(cuentaId, t.id);
+    } catch (err) {
+      console.error('No se pudo quitar el trabajo:', err);
+      showToast('No se pudo quitar el trabajo.', 'error');
+    }
+  };
+
+  const destinos = mandando ? impresorasPara(mandando.archivo, conectores) : [];
+  const destinoElegido = mandando ? destinos.find((d) => `${d.conector.id}|${d.impresora.id}` === mandando.destino) : null;
 
   return (
     <div className="modal-overlay open" onClick={onClose}>
@@ -173,6 +238,9 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
                             {bajando === a.id ? 'Preparando…' : 'Bajar'}
                           </button>
                         )}
+                        {a.estado === 'listo' && !soloLectura && (
+                          <button className="btn btn-sm" style={{ marginLeft: '6px' }} title="Mandar este archivo a una impresora (con el conector)" onClick={() => abrirEnvio(a)}>🖨 Mandar</button>
+                        )}
                         {!soloLectura && (
                           <button className="btn btn-danger btn-sm" style={{ marginLeft: '6px' }} onClick={() => borrar(a)} title="Borrar">✕</button>
                         )}
@@ -182,6 +250,70 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Mandar a impresora */}
+        {mandando && (
+          <div style={{ marginTop: '16px', border: '1px solid var(--border2)', borderRadius: '8px', padding: '12px 14px', background: 'var(--bg3)' }}>
+            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>Mandar "{mandando.archivo.nombre}" a una impresora</div>
+            <label className="fl" style={{ marginTop: 0 }}>Impresora</label>
+            <select value={mandando.destino} onChange={(e) => setMandando({ ...mandando, destino: e.target.value, accion: 'subir', libre: false })}>
+              {destinos.map((d) => (
+                <option key={`${d.conector.id}|${d.impresora.id}`} value={`${d.conector.id}|${d.impresora.id}`}>
+                  {d.impresora.nombre} · {d.conector.equipo}{d.activo ? '' : ' (sin conexión)'}
+                </option>
+              ))}
+            </select>
+            {destinoElegido && !destinoElegido.activo && (
+              <div style={{ fontSize: '12px', color: 'var(--warn)', marginTop: '6px' }}>El conector de esa impresora está sin conexión: el trabajo queda en cola y se manda cuando se prenda.</div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px', fontSize: '13px' }}>
+              <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
+                <input type="radio" name="accion-gcode" checked={mandando.accion === 'subir'} onChange={() => setMandando({ ...mandando, accion: 'subir', libre: false })} style={{ marginTop: '3px' }} />
+                <span>Solo subir el archivo <span style={{ color: 'var(--text3)' }}>· queda en la impresora y lo elegís en su pantalla</span></span>
+              </label>
+              {destinoElegido?.impresora.puedeImprimir && (
+                <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
+                  <input type="radio" name="accion-gcode" checked={mandando.accion === 'imprimir'} onChange={() => setMandando({ ...mandando, accion: 'imprimir' })} style={{ marginTop: '3px' }} />
+                  <span>Subir e imprimir ahora</span>
+                </label>
+              )}
+              {mandando.accion === 'imprimir' && (
+                <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer', marginLeft: '22px', color: 'var(--warn)' }}>
+                  <input type="checkbox" checked={mandando.libre} onChange={(e) => setMandando({ ...mandando, libre: e.target.checked })} style={{ marginTop: '3px' }} />
+                  <span>La cama está libre y el filamento es el correcto</span>
+                </label>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+              <button className="btn btn-primary btn-sm" disabled={enviandoTrabajo || (mandando.accion === 'imprimir' && !mandando.libre)} onClick={enviar}>
+                {enviandoTrabajo ? 'Enviando…' : (mandando.accion === 'imprimir' ? 'Imprimir' : 'Subir a la impresora')}
+              </button>
+              <button className="btn btn-sm" onClick={() => setMandando(null)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
+        {trabajosDelProducto.length > 0 && (
+          <div style={{ marginTop: '16px' }}>
+            <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '6px' }}>Envíos a impresoras</div>
+            {trabajosDelProducto.map((t) => {
+              const est = ESTADOS_TRABAJO[t.estado] || ESTADOS_TRABAJO.pendiente;
+              return (
+                <div key={t.id} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', fontSize: '12px', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: est.color, fontWeight: 600, minWidth: '90px' }}>{est.texto}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    {t.nombre} → {t.impresoraNombre}{t.accion === 'imprimir' ? ' (imprimir)' : ''}
+                    {t.mensaje && <span style={{ display: 'block', color: t.estado === 'error' ? 'var(--danger)' : 'var(--text3)' }}>{t.mensaje}</span>}
+                  </span>
+                  <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>{t.creadoEl?.toDate?.().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  {!soloLectura && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => quitarTrabajo(t)} title={t.estado === 'pendiente' ? 'Cancelar' : 'Quitar de la lista'}>✕</button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

@@ -10,6 +10,7 @@ export const NOVEDADES = [
     version: 13,
     fecha: '2026-10-04',
     items: [
+      { texto: 'Impresión directa: con el Manager3D Conector instalado en una PC de tu taller mandás el G-code de un producto a tu impresora (Anycubic Kobra 3 o Bambu Lab) con el botón 🖨 Mandar, dentro de 📄 en la Biblioteca. Lo vinculás en Configuración → Impresión directa.' },
       { texto: 'Guardá el G-code de cada producto en la Biblioteca (botón 📄), o al guardarlo desde la Calculadora. Se guarda comprimido al máximo y lo bajás tal cual lo subiste, también el .gcode.3mf de Bambu Studio. El espacio depende de tu plan y lo ves en Mi emprendimiento → Tu plan y consumo.' }
     ]
   },

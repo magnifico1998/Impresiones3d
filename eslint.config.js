@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'vanilla_backup', 'vanilla_backup/**', 'functions/node_modules']),
+  globalIgnores(['dist', 'vanilla_backup', 'vanilla_backup/**', 'functions/node_modules', 'conector/node_modules']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -30,6 +30,14 @@ export default defineConfig([
     files: ['functions/**/*.js'],
     languageOptions: {
       sourceType: 'commonjs',
+      globals: globals.node,
+    },
+  },
+  // Conector de impresión (Node, módulos ES): corre en una PC del taller.
+  {
+    files: ['conector/**/*.{js,mjs}'],
+    languageOptions: {
+      sourceType: 'module',
       globals: globals.node,
     },
   },

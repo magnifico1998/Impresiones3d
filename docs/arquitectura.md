@@ -97,6 +97,8 @@ con un máximo de 10 instancias por función.
 | `onPedidoCreado` | Cada escritura de un pedido | Actualiza los contadores del ciclo (pedidos y monto) |
 | `onBibliotecaCambio` | Alta o baja en la biblioteca | Recalcula `bibliotecaCount`; al borrar un producto, borra sus archivos G-code |
 | `onGcodeSubido` | Archivo nuevo en Storage `users/{uid}/gcode-entrada/` | Lo recomprime con Brotli, controla el cupo del plan, lo guarda en `gcode/{id}.br` y completa la ficha |
+| `crearCodigoConector` / `vincularConector` | Vincular un conector de impresión (callable de la app / HTTP del conector) | Genera el código de un solo uso y, al canjearlo, crea el usuario técnico del conector (claim `conectorDe`) |
+| `onConectorBorrado` | Se borra `users/{uid}/conectores/{id}` | Borra el usuario técnico del conector |
 | `onGcodeBorrado` | Se borra un `users/{uid}/gcode/*.br` | Recalcula `gcodeBytes` (espacio usado) |
 | `onNuevaSolicitudContacto` | Formulario "contactate" | Avisa al admin |
 | `onNuevaSolicitudCatalogo` | Solicitud en un catálogo web | Avisa a la tienda |
@@ -143,6 +145,7 @@ con un máximo de 10 instancias por función.
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |
 | `invitacionesMiembro/{email}` | Vínculos de equipo | Solo Cloud Functions |
 | `tickets/{id}` (+ `adjuntos/log`) | Tickets de soporte; el log con el contexto técnico sólo lo lee el admin | Solo Cloud Functions; leen el admin y la cuenta |
+| `users/{uid}/conectores/{id}`, `trabajosImpresion/{id}`, `codigosConector/{codigo}` | Conectores de impresión vinculados, cola de envíos a impresoras y códigos de vinculación | Conectores y códigos: Cloud Functions (y el conector, su latido); cola: la cuenta pide/cancela y el conector avanza el estado |
 | `users/{uid}/gcode/{id}` | Fichas de los archivos G-code de la Biblioteca (producto, impresora, tamaños, estado) | Dueño y miembros crean la ficha y cambian la impresora; el resto, `onGcodeSubido` |
 | `recorridos/{uid}` | Si cada usuario hizo el recorrido guiado (`hecho` / `salteado`, veces) | El propio usuario |
 | `monotributo/categorias` | Topes anuales de cada categoría del monotributo, para el totalizador de facturación | Admin; la leen todas las cuentas |

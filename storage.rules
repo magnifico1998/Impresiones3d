@@ -34,6 +34,8 @@ service firebase.storage {
     }
     match /users/{userId}/gcode/{archivo} {
       allow read, delete: if esDeLaCuenta(userId);
+      // El conector de impresión de la cuenta (functions/http/conectores.js) sólo los baja.
+      allow read: if request.auth != null && request.auth.token.get('conectorDe', null) == userId;
     }
   }
 }

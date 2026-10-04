@@ -201,6 +201,15 @@ El script necesita, una sola vez, una clave de cuenta de servicio:
 Esa clave da acceso total al proyecto: guardarla sólo en esta máquina y, si
 se filtra, borrarla desde la misma pantalla de Firebase.
 
+## Conector de impresión
+
+Programa aparte (carpeta `conector/`, ver su `README.md`) que corre en una PC del
+taller. No se despliega con la web: se le pasa la carpeta al suscriptor. Habla con
+las funciones `crearCodigoConector`, `vincularConector` y `onConectorBorrado`, así
+que esas funciones y las reglas de Firestore y Storage tienen que estar
+desplegadas. Los usuarios técnicos que crea (email `…@conectores.manager3d.invalid`)
+se ven en Firebase Authentication y se borran solos al desvincular.
+
 ## Qué revisar si...
 
 **Un botón "no hace nada" (generar PDF, recorrido, exportar Excel) después de un deploy.**

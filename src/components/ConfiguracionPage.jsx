@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import ConectoresImpresion from './ConectoresImpresion';
 import { paletas, paletasList } from '../utils/paletas';
 
 // La configuración se divide en dos pestañas: las herramientas de trabajo
@@ -325,6 +326,9 @@ export default function ConfiguracionPage() {
                   </>
                 )}
               </div>
+
+              {/* Conectores de impresión directa (G-code de la Biblioteca → impresora). */}
+              <ConectoresImpresion />
 
               {/* Cómo se calculan los gastos en Resumen: es una preferencia de
                   cómo mostrar los números, no un valor de la Calculadora. */}

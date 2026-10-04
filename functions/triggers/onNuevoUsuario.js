@@ -3,6 +3,7 @@ const { logger } = require('firebase-functions');
 const { db, Timestamp, DIA_MS, DURACION_TRIAL_DIAS } = require('../admin');
 const { enviarEmail, gmailAppPassword, EMAIL_ADMIN } = require('../mailer');
 const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
+const { EMAIL_CONECTOR } = require('../http/conectores');
 
 // Se dispara cuando alguien se loguea por primera vez con Google (Firebase
 // Auth crea la cuenta al vuelo). Le arma su doc de suscripción en estado
@@ -15,6 +16,10 @@ exports.onNuevoUsuario = functionsV1
   .runWith({ secrets: [gmailAppPassword] })
   .auth.user()
   .onCreate(async (user) => {
+  // Usuario técnico de un conector de impresión (http/conectores.js): no es
+  // una persona, no lleva suscripción ni mails.
+  if ((user.email || '').toLowerCase().endsWith(`@${EMAIL_CONECTOR}`)) return;
+
   const ahora = Timestamp.now();
   const trialFin = Timestamp.fromMillis(ahora.toMillis() + DURACION_TRIAL_DIAS * DIA_MS);
 
