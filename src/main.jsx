@@ -1,6 +1,9 @@
 import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import { instalarAvisoVersionNueva } from './utils/avisoVersionNueva'
+
+instalarAvisoVersionNueva()
 
 // El catálogo público (/catalogo/{uid}) lo abre gente sin cuenta desde un
 // link de WhatsApp, así que se monta AFUERA de AppProvider/App: App.jsx

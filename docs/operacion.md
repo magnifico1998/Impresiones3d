@@ -203,6 +203,12 @@ se filtra, borrarla desde la misma pantalla de Firebase.
 
 ## Qué revisar si...
 
+**Un botón "no hace nada" (generar PDF, recorrido, exportar Excel) después de un deploy.**
+La pestaña quedó abierta con la versión anterior: lo que se descarga al usarlo
+tiene otro nombre en la nueva y Vercel devuelve la página principal en su
+lugar. La app muestra un cartel "Hay una versión nueva… Recargar"
+(`src/utils/avisoVersionNueva.js`); si no aparece, recargar con Ctrl+F5.
+
 **Un cliente pagó y sigue sin plan.**
 1. Que toque "Verificar pago" en "Mi emprendimiento" (sincroniza con Mercado Pago).
 2. Revisá `firebase functions:log --only webhookMercadoPago`.
