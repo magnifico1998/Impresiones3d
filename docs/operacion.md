@@ -211,7 +211,9 @@ LEEME, ~34 MB) y `node scripts/subir-conector.mjs` lo sube a Storage
 `storage.rules`). Los suscriptores lo bajan con el botón "Descargar el conector"
 de Configuración → Impresión directa; **hay que volver a subirlo cada vez que
 cambia el conector**. El .exe no está firmado: Windows puede mostrar el aviso de
-SmartScreen la primera vez. Habla con
+SmartScreen la primera vez. En redes de empresa que revisan el tráfico (certificado
+propio) el conector usa los certificados que Windows ya tiene instalados; si igual
+dice "fetch failed", el panel muestra la causa (por ejemplo SELF_SIGNED_CERT_IN_CHAIN). Habla con
 las funciones `crearCodigoConector`, `vincularConector` y `onConectorBorrado`, así
 que esas funciones y las reglas de Firestore y Storage tienen que estar
 desplegadas. Los usuarios técnicos que crea (email `…@conectores.manager3d.invalid`)

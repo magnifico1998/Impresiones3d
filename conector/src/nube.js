@@ -31,13 +31,30 @@ const storage = getStorage(app);
 
 const LATIDO_MS = 60 * 1000;
 
+// Explica una falla de red: "fetch failed" solo no dice nada; la causa (certificado,
+// DNS, proxy, conexión rechazada) está en e.cause.
+export function motivoDeRed(e) {
+  const causa = e?.cause;
+  const detalle = causa?.code || causa?.message || '';
+  const pista = /CERT|SSL|TLS|issuer|self.signed/i.test(detalle)
+    ? ' Esta PC parece usar un certificado de seguridad propio (red de empresa); avisá para ajustarlo.'
+    : /ENOTFOUND|EAI_AGAIN/.test(detalle) ? ' No resuelve el nombre del servidor: revisá la conexión a internet.'
+      : /ECONNREFUSED|ETIMEDOUT|ECONNRESET|UND_ERR/.test(detalle) ? ' No llega al servidor: revisá internet, el firewall o el proxy.' : '';
+  return `${e?.message || e}${detalle ? ` (${detalle})` : ''}.${pista}`;
+}
+
 export async function vincular(codigo, equipo) {
-  const r = await fetch(URL_VINCULAR, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ codigo, equipo }),
-    signal: AbortSignal.timeout(20000)
-  });
+  let r;
+  try {
+    r = await fetch(URL_VINCULAR, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo, equipo }),
+      signal: AbortSignal.timeout(20000)
+    });
+  } catch (e) {
+    throw new Error(`No se pudo conectar con Manager3D: ${motivoDeRed(e)}`, { cause: e });
+  }
   const datos = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(datos.error || `No se pudo vincular (HTTP ${r.status}).`);
   return { ...datos, equipo };

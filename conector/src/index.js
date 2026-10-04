@@ -2,6 +2,7 @@
 import http from 'node:http';
 import os from 'node:os';
 import { execFile } from 'node:child_process';
+import tls from 'node:tls';
 import { leerConfig, guardarConfig, nuevoId, carpetaDatos } from './config.js';
 import { crearNube, vincular } from './nube.js';
 import { DRIVERS, driverDe } from './drivers/index.js';
@@ -12,6 +13,17 @@ import { PAGINA } from './panel.js';
 // impresoras de la red local (ver drivers/).
 //
 // Panel de configuración: http://127.0.0.1:18930 (sólo desde esta PC).
+
+// Redes de empresa que revisan el tráfico (certificado propio, instalado en
+// Windows): sin esto el .exe no confía en él y todo da "fetch failed" con
+// SELF_SIGNED_CERT_IN_CHAIN. Se suman los certificados del sistema a los de Node.
+try {
+  if (typeof tls.setDefaultCACertificates === 'function') {
+    tls.setDefaultCACertificates([...tls.getCACertificates('default'), ...tls.getCACertificates('system')]);
+  }
+} catch {
+  // Node más viejo o sin acceso al almacén: se sigue con los certificados de Node.
+}
 
 const PUERTO = Number(process.env.PUERTO_CONECTOR) || 18930;
 const HOSTS_PERMITIDOS = new Set([`127.0.0.1:${PUERTO}`, `localhost:${PUERTO}`]);
