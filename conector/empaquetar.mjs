@@ -12,6 +12,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { zipSync } from 'fflate';
 
 const raiz = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.join(raiz, 'dist');
@@ -61,6 +62,11 @@ NOTAS
 - Tus datos y los códigos de acceso de las impresoras quedan sólo en esta PC
   (carpeta %APPDATA%\\Manager3D-Conector).
 `);
+// Zip armado acá (no con el tar del sistema: según la PC es el de Git, que no
+// hace zips y deja un archivo que Windows no abre).
 const zip = path.join(dist, 'Manager3D-Conector.zip');
-correr('tar', ['-a', '-c', '-f', 'Manager3D-Conector.zip', 'Manager3D-Conector.exe', 'LEEME.txt'], dist);
+fs.writeFileSync(zip, zipSync({
+  'Manager3D-Conector.exe': [fs.readFileSync(exe), { level: 9 }],
+  'LEEME.txt': [fs.readFileSync(path.join(dist, 'LEEME.txt')), { level: 9 }]
+}));
 console.log(`\nListo: ${zip} (${(fs.statSync(zip).size / 1024 / 1024).toFixed(1)} MB)`);

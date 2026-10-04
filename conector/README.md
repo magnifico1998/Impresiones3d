@@ -13,7 +13,8 @@ esta PC** (`%APPDATA%\Manager3D-Conector\config.json`).
 
 **Para entregarlo a un usuario:** `npm run empaquetar` arma
 `dist/Manager3D-Conector.zip` con un único `.exe` (no hace falta instalar nada) y
-un LEEME. Los pasos de abajo son los mismos con el `.exe`.
+un LEEME, y `node ../scripts/subir-conector.mjs` lo sube a Firebase Storage para
+que los suscriptores lo bajen desde Manager3D (Configuración → Impresión directa). Los pasos de abajo son los mismos con el `.exe`.
 
 1. Con el código fuente: instalar [Node.js](https://nodejs.org) 22 o más nuevo.
 2. Abrir `Iniciar-Conector.bat` (la primera vez instala lo que necesita) o el

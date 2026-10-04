@@ -1,6 +1,7 @@
 import { addDoc, collection, deleteDoc, doc, onSnapshot, Timestamp, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../firebase';
+import { getDownloadURL, getMetadata, ref } from 'firebase/storage';
+import { db, functions, storage } from '../firebase';
 
 // Impresión directa: la app pone en una cola (users/{cuenta}/trabajosImpresion)
 // lo que hay que mandar, y el "Manager3D Conector" (carpeta conector/), que
@@ -33,6 +34,15 @@ export const escucharTrabajos = (cuentaId, alCambiar) => onSnapshot(
   (snap) => alCambiar(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
   (err) => console.error('Error al escuchar los trabajos de impresión:', err)
 );
+
+// Programa del conector (un .zip con el .exe y el LEEME), subido a Storage con
+// scripts/subir-conector.mjs. Devuelve { url, bytes }.
+const RUTA_CONECTOR = 'conector/Manager3D-Conector.zip';
+export async function datosDescargaConector() {
+  const archivo = ref(storage, RUTA_CONECTOR);
+  const [url, meta] = await Promise.all([getDownloadURL(archivo), getMetadata(archivo).catch(() => null)]);
+  return { url, bytes: Number(meta?.size) || 0 };
+}
 
 export async function pedirCodigoConector() {
   const { data } = await httpsCallable(functions, 'crearCodigoConector')();

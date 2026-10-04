@@ -206,8 +206,12 @@ se filtra, borrarla desde la misma pantalla de Firebase.
 Programa aparte (carpeta `conector/`, ver su `README.md`) que corre en una PC del
 taller. No se despliega con la web: `npm --prefix conector run empaquetar` arma
 `conector/dist/Manager3D-Conector.zip` (un único .exe, sin instalar Node, más un
-LEEME) y ese .zip se le pasa al suscriptor. El .exe no está firmado: Windows puede
-mostrar el aviso de SmartScreen la primera vez. Habla con
+LEEME, ~34 MB) y `node scripts/subir-conector.mjs` lo sube a Storage
+(`conector/Manager3D-Conector.zip`, lo lee cualquier usuario logueado según
+`storage.rules`). Los suscriptores lo bajan con el botón "Descargar el conector"
+de Configuración → Impresión directa; **hay que volver a subirlo cada vez que
+cambia el conector**. El .exe no está firmado: Windows puede mostrar el aviso de
+SmartScreen la primera vez. Habla con
 las funciones `crearCodigoConector`, `vincularConector` y `onConectorBorrado`, así
 que esas funciones y las reglas de Firestore y Storage tienen que estar
 desplegadas. Los usuarios técnicos que crea (email `…@conectores.manager3d.invalid`)

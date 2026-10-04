@@ -417,7 +417,8 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   **Manager3D Conector**, un programa que corre en una PC del taller (carpeta
   `conector/`), lo manda a la impresora por la red local: *solo subir* (queda en
   la impresora para elegirlo en su pantalla) o *subir e imprimir*, que exige
-  tildar "La cama está libre". Se vincula en Configuración → Impresión directa
+  tildar "La cama está libre". El programa se baja desde Configuración → Impresión
+  directa (botón "Descargar el conector", Windows) y se vincula ahí mismo
   con un código de 8 caracteres (vale 10 minutos, un solo uso, hasta 5
   conectores por cuenta); desvincular lo corta. Impresoras: Anycubic Kobra 3 /
   3 V2 / S1 en modo LAN (con ACE, cada color va al lugar del mismo orden), y

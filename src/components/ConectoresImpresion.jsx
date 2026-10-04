@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { confirmar } from './Dialogos';
 import {
-  conectorActivo, desvincularConector, escucharConectores, pedirCodigoConector, renombrarConector
+  conectorActivo, datosDescargaConector, desvincularConector, escucharConectores, pedirCodigoConector, renombrarConector
 } from '../utils/impresionDirecta';
 
 // Configuración → "Impresión directa": vincula los conectores (el programa
@@ -15,6 +15,7 @@ export default function ConectoresImpresion() {
   const [conectores, setConectores] = useState([]);
   const [codigo, setCodigo] = useState(null); // { codigo, expira }
   const [pidiendo, setPidiendo] = useState(false);
+  const [bajando, setBajando] = useState(false);
   const [ahora, setAhora] = useState(() => Date.now());
   const soloLectura = ['lectura', 'suspendida'].includes(suscripcion?.estado) && !isAdmin;
 
@@ -40,6 +41,26 @@ export default function ConectoresImpresion() {
       showToast(e?.message?.replace(/^.*?:\s*/, '') || 'No se pudo generar el código.', 'error');
     } finally {
       setPidiendo(false);
+    }
+  };
+
+  // Programa del conector: se baja directo de Storage.
+  const descargar = async () => {
+    setBajando(true);
+    try {
+      const { url } = await datosDescargaConector();
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Manager3D-Conector.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showToast('Descargando el conector. Abrí el .zip y ejecutá Manager3D-Conector.exe.', 'info');
+    } catch (e) {
+      console.error('No se pudo bajar el conector:', e);
+      showToast('No se pudo preparar la descarga del conector. Probá de nuevo en un momento.', 'error');
+    } finally {
+      setBajando(false);
     }
   };
 
@@ -104,10 +125,18 @@ export default function ConectoresImpresion() {
           <button className="btn btn-sm" onClick={() => setCodigo(null)}>Cerrar</button>
         </div>
       ) : (
-        <button className="btn" onClick={pedir} disabled={pidiendo || soloLectura} style={{ marginTop: '4px' }}>
-          {pidiendo ? 'Generando…' : '+ Vincular un conector'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+          <button className="btn" onClick={pedir} disabled={pidiendo || soloLectura}>
+            {pidiendo ? 'Generando…' : '+ Vincular un conector'}
+          </button>
+          <button className="btn" onClick={descargar} disabled={bajando} title="Programa para Windows: se instala en la PC que está en la misma red que tus impresoras">
+            {bajando ? 'Preparando…' : '⬇ Descargar el conector (Windows)'}
+          </button>
+        </div>
       )}
+      <p style={{ fontSize: '11px', color: 'var(--text3)', margin: '10px 0 0' }}>
+        1) Descargá el conector y abrí el .zip. 2) Ejecutá <b>Manager3D-Conector.exe</b> en la PC del taller (si Windows muestra un aviso azul: "Más información" → "Ejecutar de todas formas"). 3) Tocá "Vincular un conector" y escribí el código en su panel.
+      </p>
     </div>
   );
 }

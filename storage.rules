@@ -32,6 +32,12 @@ service firebase.storage {
     match /users/{userId}/gcode-entrada/{archivoId} {
       allow create: if esDeLaCuenta(userId) && request.resource.size <= 300 * 1024 * 1024;
     }
+    // Programa del conector de impresión (conector/empaquetar.mjs, se sube con
+    // scripts/subir-conector.mjs): lo baja cualquier usuario logueado desde
+    // Configuración → Impresión directa; nadie lo escribe desde la app.
+    match /conector/{archivo} {
+      allow read: if request.auth != null;
+    }
     match /users/{userId}/gcode/{archivo} {
       allow read, delete: if esDeLaCuenta(userId);
       // El conector de impresión de la cuenta (functions/http/conectores.js) sólo los baja.

@@ -157,7 +157,8 @@ con un máximo de 10 instancias por función.
 Storage: `users/{uid}/...` (logos e imágenes), accesible por el dueño y los
 miembros activos (`storage.rules`). Los G-code van aparte: la cuenta sólo
 sube a `gcode-entrada/` (hasta 300 MB) y lee o borra en `gcode/`, donde
-sólo escribe `onGcodeSubido`.
+sólo escribe `onGcodeSubido`. `conector/` es de lectura para cualquier
+usuario logueado: ahí está el programa del conector de impresión.
 
 ## Seguridad: dónde está cada control
 
