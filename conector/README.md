@@ -11,9 +11,13 @@ esta PC** (`%APPDATA%\Manager3D-Conector\config.json`).
 
 ## Instalar y usar
 
-1. Instalar [Node.js](https://nodejs.org) 22 o más nuevo.
-2. Abrir `Iniciar-Conector.bat` (la primera vez instala lo que necesita). Se
-   abre el panel en <http://127.0.0.1:18930>.
+**Para entregarlo a un usuario:** `npm run empaquetar` arma
+`dist/Manager3D-Conector.zip` con un único `.exe` (no hace falta instalar nada) y
+un LEEME. Los pasos de abajo son los mismos con el `.exe`.
+
+1. Con el código fuente: instalar [Node.js](https://nodejs.org) 22 o más nuevo.
+2. Abrir `Iniciar-Conector.bat` (la primera vez instala lo que necesita) o el
+   `.exe`. Se abre el panel en <http://127.0.0.1:18930>.
 3. En Manager3D: **Configuración → Impresión directa → Vincular un conector**.
    Muestra un código de 8 caracteres (vale 10 minutos). Escribirlo en el panel.
 4. En el panel, agregar cada impresora y tocar **Probar**.

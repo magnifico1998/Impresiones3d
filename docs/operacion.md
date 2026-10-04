@@ -204,7 +204,10 @@ se filtra, borrarla desde la misma pantalla de Firebase.
 ## Conector de impresión
 
 Programa aparte (carpeta `conector/`, ver su `README.md`) que corre en una PC del
-taller. No se despliega con la web: se le pasa la carpeta al suscriptor. Habla con
+taller. No se despliega con la web: `npm --prefix conector run empaquetar` arma
+`conector/dist/Manager3D-Conector.zip` (un único .exe, sin instalar Node, más un
+LEEME) y ese .zip se le pasa al suscriptor. El .exe no está firmado: Windows puede
+mostrar el aviso de SmartScreen la primera vez. Habla con
 las funciones `crearCodigoConector`, `vincularConector` y `onConectorBorrado`, así
 que esas funciones y las reglas de Firestore y Storage tienen que estar
 desplegadas. Los usuarios técnicos que crea (email `…@conectores.manager3d.invalid`)
