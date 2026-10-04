@@ -273,6 +273,57 @@ export default function ConfiguracionPage() {
                   })}
                 </div>
               </div>
+
+              {/* Paleta personalizada: arranca con los 5 colores de la paleta
+                  elegida en "Paletas de colores" y se puede retocar color por color. Cada
+                  cuadrito es un <input type="color"> nativo escondido detrás
+                  del swatch -- clickearlo abre el selector de color del
+                  sistema operativo/navegador ("despliega una paleta"). */}
+              <div className="card">
+                <div className="card-title">Paleta personalizada</div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
+                  Retocá los colores de la paleta elegida en "Paletas de colores". Al elegir otra paleta, se reinicia con sus colores.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px' }}>
+                  {[
+                    { key: 'bg', label: 'Fondo' },
+                    { key: 'bg3', label: 'Tarjetas' },
+                    { key: 'accent', label: 'Acento 1' },
+                    { key: 'accent2', label: 'Acento 2' },
+                    { key: 'text', label: 'Texto' }
+                  ].map(({ key, label }) => {
+                    const base = paletas[cfg.palette] || paletas.lagoon;
+                    const valor = cfg.paletaCustom?.[key] ?? base[key];
+                    return (
+                      <label
+                        key={key}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                        title={`Editar ${label.toLowerCase()}`}
+                      >
+                        <span
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            maxHeight: '38px',
+                            aspectRatio: '1',
+                            borderRadius: '10px',
+                            border: '1px solid var(--border)',
+                            background: valor
+                          }}
+                        />
+                        <input
+                          type="color"
+                          value={valor}
+                          onChange={(e) => handleCustomColorChange(key, e.target.value)}
+                          style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
+                          tabIndex={-1}
+                        />
+                        <span style={{ fontSize: '11px', color: 'var(--text2)', textAlign: 'center' }}>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
           </div>
           <div>
               {/* Inventario: prende la pestaña "Inventario" en Compras. */}
@@ -399,57 +450,6 @@ export default function ConfiguracionPage() {
                 >
                   + Agregar
                 </button>
-              </div>
-
-              {/* Paleta personalizada: arranca con los 5 colores de la paleta
-                  elegida en "Paletas de colores" y se puede retocar color por color. Cada
-                  cuadrito es un <input type="color"> nativo escondido detrás
-                  del swatch -- clickearlo abre el selector de color del
-                  sistema operativo/navegador ("despliega una paleta"). */}
-              <div className="card">
-                <div className="card-title">Paleta personalizada</div>
-                <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
-                  Retocá los colores de la paleta elegida en "Paletas de colores". Al elegir otra paleta, se reinicia con sus colores.
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px' }}>
-                  {[
-                    { key: 'bg', label: 'Fondo' },
-                    { key: 'bg3', label: 'Tarjetas' },
-                    { key: 'accent', label: 'Acento 1' },
-                    { key: 'accent2', label: 'Acento 2' },
-                    { key: 'text', label: 'Texto' }
-                  ].map(({ key, label }) => {
-                    const base = paletas[cfg.palette] || paletas.lagoon;
-                    const valor = cfg.paletaCustom?.[key] ?? base[key];
-                    return (
-                      <label
-                        key={key}
-                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-                        title={`Editar ${label.toLowerCase()}`}
-                      >
-                        <span
-                          style={{
-                            display: 'block',
-                            width: '100%',
-                            maxHeight: '38px',
-                            aspectRatio: '1',
-                            borderRadius: '10px',
-                            border: '1px solid var(--border)',
-                            background: valor
-                          }}
-                        />
-                        <input
-                          type="color"
-                          value={valor}
-                          onChange={(e) => handleCustomColorChange(key, e.target.value)}
-                          style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none' }}
-                          tabIndex={-1}
-                        />
-                        <span style={{ fontSize: '11px', color: 'var(--text2)', textAlign: 'center' }}>{label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
               </div>
           </div>
         </div>
