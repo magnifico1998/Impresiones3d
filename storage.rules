@@ -2,14 +2,14 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    match /users/{userId}/{allPaths=**} {
-      // Acceso total, sin roles: el dueño de la carpeta, o cualquier email
-      // vinculado como miembro activo de esa cuenta (ver
-      // firestore.rules / invitacionesMiembro y functions/http/gestionarMiembros.js).
-      // Los uploads de un miembro (logo, imágenes de producto) quedan en la
-      // MISMA carpeta users/{uid del dueño}/... porque el cliente arma la
-      // ruta con cuentaId (ver AppContext.jsx), nunca con su propio uid.
-      allow read, write: if request.auth != null && (
+    // El dueño de la carpeta, o cualquier email vinculado como miembro activo
+    // de esa cuenta (ver firestore.rules / invitacionesMiembro y
+    // functions/http/gestionarMiembros.js). Los uploads de un miembro (logo,
+    // imágenes de producto) quedan en la MISMA carpeta users/{uid del
+    // dueño}/... porque el cliente arma la ruta con cuentaId (ver
+    // AppContext.jsx), nunca con su propio uid.
+    function esDeLaCuenta(userId) {
+      return request.auth != null && (
         request.auth.uid == userId ||
         (
           request.auth.token.email_verified == true &&
@@ -18,6 +18,22 @@ service firebase.storage {
           firestore.get(/databases/(default)/documents/invitacionesMiembro/$(request.auth.token.email.lower())).data.estado == 'activo'
         )
       );
+    }
+
+    // Acceso total, sin roles, salvo los archivos G-code (abajo).
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if esDeLaCuenta(userId) && !allPaths.matches('^gcode(-entrada)?/.*');
+    }
+
+    // Archivos G-code de la Biblioteca (functions/triggers/onGcodeSubido.js):
+    // la cuenta sólo sube a la entrada (hasta 300 MB por archivo); la función
+    // lo comprime, controla el cupo del plan y lo guarda en gcode/. Desde ahí
+    // la cuenta lo baja o lo borra, pero no escribe directo.
+    match /users/{userId}/gcode-entrada/{archivoId} {
+      allow create: if esDeLaCuenta(userId) && request.resource.size <= 300 * 1024 * 1024;
+    }
+    match /users/{userId}/gcode/{archivo} {
+      allow read, delete: if esDeLaCuenta(userId);
     }
   }
 }

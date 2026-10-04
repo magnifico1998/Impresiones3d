@@ -10,7 +10,7 @@ const FORM_VACIO = {
   activo: true,
   gratuito: false,
   facturacionElectronica: false,
-  limites: { usuarios: '', productosBiblioteca: '', pedidosMes: '', aperturasCatalogoMes: '', montoFacturadoMes: '' }
+  limites: { usuarios: '', productosBiblioteca: '', pedidosMes: '', aperturasCatalogoMes: '', montoFacturadoMes: '', gcodeGB: '' }
 };
 
 // Alta/edición de un plan. Un límite vacío significa "sin límite" para esa
@@ -36,7 +36,8 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
           productosBiblioteca: plan.limites?.productosBiblioteca ?? '',
           pedidosMes: plan.limites?.pedidosMes ?? '',
           aperturasCatalogoMes: plan.limites?.aperturasCatalogoMes ?? '',
-          montoFacturadoMes: plan.limites?.montoFacturadoMes ?? ''
+          montoFacturadoMes: plan.limites?.montoFacturadoMes ?? '',
+          gcodeGB: plan.limites?.gcodeGB ?? ''
         }
       });
     } else {
@@ -75,7 +76,9 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
           productosBiblioteca: aNumeroONull(form.limites.productosBiblioteca),
           pedidosMes: aNumeroONull(form.limites.pedidosMes),
           aperturasCatalogoMes: aNumeroONull(form.limites.aperturasCatalogoMes),
-          montoFacturadoMes: aNumeroONull(form.limites.montoFacturadoMes)
+          montoFacturadoMes: aNumeroONull(form.limites.montoFacturadoMes),
+          // Al revés que el resto: vacío = 0 GB (sin espacio para archivos).
+          gcodeGB: Math.max(0, Number(form.limites.gcodeGB) || 0)
         }
       }, { merge: true });
       showToast(plan ? 'Plan actualizado' : 'Plan creado');
@@ -147,6 +150,11 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
           <div>
             <label className="fl">Monto facturado / mes ($)</label>
             <input type="number" id="montoFacturadoMes" value={form.limites.montoFacturadoMes} onChange={handleChangeLimite} min="0" />
+          </div>
+          <div>
+            {/* Archivos G-code de la Biblioteca (src/utils/archivosGcode.js). */}
+            <label className="fl">Espacio para G-code (GB, vacío = 0)</label>
+            <input type="number" id="gcodeGB" value={form.limites.gcodeGB} onChange={handleChangeLimite} min="0" step="0.5" />
           </div>
         </div>
 

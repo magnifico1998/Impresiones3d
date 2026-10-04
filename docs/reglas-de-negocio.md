@@ -105,9 +105,12 @@ para contratar), `gratuito`, y `limites`:
 | `aperturasCatalogoMes` | Aperturas del catálogo web por ciclo | El catálogo **se sigue viendo, pero no acepta pedidos** (la apertura que llega justo al límite todavía puede pedir) | `firestore.rules` (`dentroDelLimiteDeAperturas`) y `functions/http/registrarAperturaCatalogo.js` |
 | `productosBiblioteca` | Productos guardados en total (no por mes) | No puede guardar productos nuevos | `firestore.rules` (`dentroDelLimiteDeBiblioteca`) |
 | `usuarios` | Personas con acceso a la cuenta, contando al dueño | No puede invitar a nadie más | `functions/http/gestionarMiembros.js` |
+| `gcodeGB` | Espacio para los archivos G-code de la Biblioteca (GB, total) | No puede subir más archivos (el que no entra se descarta con el motivo) | `functions/triggers/onGcodeSubido.js` |
 
 - Un límite vacío (`null`) significa **sin límite**. Tampoco aplican durante
   la prueba (sin plan asignado).
+- **Excepción, `gcodeGB`:** vacío o 0 es **sin espacio**, y sin plan (en prueba)
+  tampoco hay. Todos los planes arrancan en 0 y se habilita desde el panel.
 - Los límites por ciclo se liberan solos cuando empieza el ciclo siguiente, o
   antes si la cuenta pasa a un plan con un límite más alto.
 - Avisos: al crear un pedido pasado el límite, la app muestra el motivo. Con el
@@ -397,6 +400,18 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   uno de los métodos de envío de Configuración (`metodoEnvio` del cliente) y
   se muestra en sus datos. Es sólo informativo: no se precarga en los pedidos.
   Si el método se borra de Configuración, la ficha lo conserva y lo marca.
+- **Archivos G-code de la Biblioteca:** cada producto puede guardar sus
+  archivos laminados (`.gcode`/`.gco` o el `.gcode.3mf` de Bambu Studio, hasta
+  300 MB cada uno), con la impresora para la que se laminaron. Se suben desde
+  el botón 📄 del producto o al guardarlo desde la Calculadora ("Guardar
+  también el archivo G-code"). El navegador lo sube con una compresión rápida
+  y `onGcodeSubido` lo recomprime al máximo con Brotli (un G-code queda en
+  ~12-16 %; un `.3mf` de Bambu, en ~55 % de lo que pesaba). El `.3mf` se
+  guarda **entero** (placas, miniaturas, md5) para poder mandarlo después a la
+  impresora tal cual; al bajarlo se vuelve a armar como un `.3mf` normal. El
+  espacio usado (`suscripcion/actual.gcodeBytes`) se ve en "Tu plan y
+  consumo" y en el consumo de la cuenta del panel. Borrar el producto borra
+  sus archivos (`src/utils/archivosGcode.js`).
 - **Datos para transferencia en los PDF:** con CBU/CVU o alias cargados en
   Mi emprendimiento → Datos bancarios (y "Mostrar en los PDF" tildado), el
   PDF del presupuesto y el del pedido suman "Datos para transferencia" al pie

@@ -2,15 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
+import { cupoGcode, formatoBytes, subirArchivoGcode } from '../../utils/archivosGcode';
 
 export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, onGuardado }) {
-  const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado, fmt } = useApp();
+  const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado, suscripcion, fmt } = useApp();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [descLarga, setDescLarga] = useState('');
   const [cat, setCat] = useState('');
   const [subcat, setSubcat] = useState('');
   const [imagenes, setImagenes] = useState([]);
+  const [guardarGcode, setGuardarGcode] = useState(true);
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
 
@@ -32,6 +34,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       setCat('');
       setSubcat('');
       setImagenes([]);
+      setGuardarGcode(true);
     }
   }, [isOpen, presupuestoActual]);
 
@@ -111,6 +114,24 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
 
   if (!isOpen || !presupuestoActual) return null;
 
+  // Archivos que se cargaron en la Calculadora: se pueden guardar en el
+  // producto (utils/archivosGcode.js) si el plan tiene espacio.
+  const archivosCalc = presupuestoActual.archivosParaSubir || [];
+  const cupo = cupoGcode(planContratado);
+  const hayEspacio = cupo > 0 && (suscripcion?.gcodeBytes || 0) < cupo;
+  const subirGcode = (productoId) => {
+    if (!guardarGcode || !hayEspacio || !archivosCalc.length) return;
+    // Sigue en segundo plano: el modal se cierra y el producto ya está guardado.
+    Promise.all(archivosCalc.map((file) => subirArchivoGcode({
+      cuentaId, productoId, file, impresora: presupuestoActual.impresoraNombre || ''
+    })))
+      .then(() => showToast('G-code subido: se está comprimiendo. Lo ves en 📄 del producto.', 'info'))
+      .catch((err) => {
+        console.error('No se pudo subir el G-code del producto:', err);
+        showToast('El producto se guardó, pero no se pudo subir el G-code.', 'error');
+      });
+  };
+
 
   const handleSave = async () => {
     const nameTrimmed = nombre.trim();
@@ -187,6 +208,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
             imagen: imagenesFinales[0] || ''
           });
           showToast('Producto actualizado en biblioteca.');
+          subirGcode(existente.id);
           onClose();
           onGuardado?.();
         } catch (err) {
@@ -203,6 +225,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       }
       addProducto(snap);
       showToast('✓ Producto guardado en biblioteca.');
+      subirGcode(snap.id);
       onClose();
       onGuardado?.();
     }
@@ -360,6 +383,24 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
             Precio sugerido: {fmt(presupuestoActual.precio * presupuestoActual.cantidad)}
           </strong>
         </div>
+
+        {archivosCalc.length > 0 && (
+          <div style={{ marginTop: '12px', fontSize: '13px' }}>
+            {hayEspacio ? (
+              <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
+                <input type="checkbox" checked={guardarGcode} onChange={(e) => setGuardarGcode(e.target.checked)} style={{ marginTop: '3px' }} />
+                <span>
+                  Guardar también {archivosCalc.length === 1 ? 'el archivo' : `los ${archivosCalc.length} archivos`} G-code ({archivosCalc.map((f) => f.name).join(', ')}, {formatoBytes(archivosCalc.reduce((s, f) => s + f.size, 0))})
+                  <span style={{ display: 'block', fontSize: '11px', color: 'var(--text3)' }}>Se guarda comprimido al máximo y lo bajás tal cual desde 📄 en el producto.</span>
+                </span>
+              </label>
+            ) : (
+              <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
+                {cupo > 0 ? 'No te queda espacio para guardar el G-code en tu plan.' : 'Tu plan no incluye espacio para guardar el G-code.'}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancelar</button>

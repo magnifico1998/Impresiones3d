@@ -327,6 +327,7 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text2)', marginTop: '2px' }}>
                   {limiteTexto(p.limites?.pedidosMes, 'pedido/mes', 'pedidos/mes')} · {limiteTexto(p.limites?.usuarios, 'usuario', 'usuarios')} · {limiteTexto(p.limites?.productosBiblioteca, 'producto', 'productos')}
+                  {Number(p.limites?.gcodeGB) > 0 && ` · ${Number(p.limites.gcodeGB).toLocaleString('es-AR')} GB para archivos G-code`}
                 </div>
               </div>
             </label>

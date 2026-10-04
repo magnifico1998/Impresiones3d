@@ -11,6 +11,7 @@ import ComprobantesCuenta from './ComprobantesCuenta';
 import TotalizadorMonotributo from './TotalizadorMonotributo';
 import { PESTANAS_EMPRESA, pestanaEmpresaGuardada, guardarPestanaEmpresa } from '../utils/facturacion';
 import { sincronizarPagoMP } from '../utils/pagosMP';
+import { cupoGcode, formatoBytes } from '../utils/archivosGcode';
 
 // Texto del estado del débito automático de Mercado Pago
 // (suscripcion.cobro.estado, lo mantiene el webhook).
@@ -467,6 +468,13 @@ export default function EmpresaPage() {
                     etiqueta="Productos en biblioteca"
                     usado={biblioteca.length}
                     limite={planContratado.limites?.productosBiblioteca}
+                  />
+                  {/* Archivos G-code de la Biblioteca: el cupo vacío es 0 (sin espacio). */}
+                  <BarraConsumo
+                    etiqueta={cupoGcode(planContratado) > 0 ? 'Espacio para archivos G-code' : 'Archivos G-code (tu plan no incluye espacio)'}
+                    usado={suscripcion?.gcodeBytes || 0}
+                    limite={cupoGcode(planContratado)}
+                    formatear={formatoBytes}
                   />
                 </>
               )}

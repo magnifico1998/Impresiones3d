@@ -1,6 +1,7 @@
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { logger } = require('firebase-functions');
 const { db } = require('../admin');
+const { borrarArchivosDeProducto } = require('./onGcodeSubido');
 
 // Mantiene bibliotecaCount en users/{uid}/suscripcion/actual al día cada vez
 // que se crea o borra un producto de la Biblioteca. A diferencia de los
@@ -18,6 +19,15 @@ exports.onBibliotecaCambio = onDocumentWritten('users/{uid}/biblioteca/{docId}',
   if (existiaAntes === existeAhora) return; // update de un producto existente: no cambia la cantidad
 
   const uid = event.params.uid;
+
+  // Producto borrado: se van también sus archivos G-code (onGcodeSubido.js).
+  if (existiaAntes && !existeAhora) {
+    try {
+      await borrarArchivosDeProducto(uid, event.params.docId);
+    } catch (e) {
+      logger.error(`onBibliotecaCambio: no se pudieron borrar los G-code de ${uid}/${event.params.docId}`, e);
+    }
+  }
 
   const subRef = db.doc(`users/${uid}/suscripcion/actual`);
   const subSnap = await subRef.get();

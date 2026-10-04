@@ -228,6 +228,22 @@ service cloud.firestore {
       allow update, delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
       allow create: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) && dentroDelLimiteDeBiblioteca(uid);
     }
+    // Fichas de los archivos G-code de la Biblioteca (src/utils/archivosGcode.js).
+    // La cuenta crea la ficha antes de subir el archivo y sólo puede cambiar
+    // la impresora; tamaño, estado y ruta los completa onGcodeSubido. El
+    // espacio usado se cuenta desde Storage, no desde estas fichas.
+    match /users/{uid}/gcode/{docId} {
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow create: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) &&
+        request.resource.data.keys().hasOnly(['productoId', 'nombre', 'formato', 'impresora', 'bytesOriginal', 'estado', 'creadoEl']) &&
+        request.resource.data.estado == 'subiendo' &&
+        request.resource.data.formato in ['gcode', '3mf'] &&
+        request.resource.data.productoId is string &&
+        request.resource.data.nombre is string && request.resource.data.nombre.size() <= 200;
+      allow update: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['impresora']);
+      allow delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+    }
     match /users/{uid}/pedidos/{docId} {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
       // Los pedidos no se borran, sólo se cancelan (estado 'cancelado'):

@@ -1,10 +1,12 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
 import { generarListadoProductosPDF } from '../utils/listadoPDF';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import ModalOrdenCategorias from './modals/ModalOrdenCategorias';
+import ModalArchivosGcode from './modals/ModalArchivosGcode';
+import { escucharArchivosGcode } from '../utils/archivosGcode';
 
 /**
  * Recalcula costos de un producto manteniendo estructura física pero actualizando precios
@@ -317,7 +319,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
  * Componente principal BibliotecaPage
  */
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido, onOpenPresupuesto }) {
-  const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa, fmt, suscripcion, isAdmin } = useApp();
+  const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa, fmt, suscripcion, isAdmin, cuentaId } = useApp();
   // Igual que la Calculadora: armar un presupuesto no escribe nada en
   // Firestore, así que en modo lectura no queda bloqueado solo -- hay que
   // deshabilitar el botón a mano. Se excluye a los admins (mismo criterio
@@ -333,6 +335,17 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const [recalcModal, setRecalcModal] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null);
   const [ordenCatModalOpen, setOrdenCatModalOpen] = useState(false);
+
+  // Archivos G-code de los productos (utils/archivosGcode.js): cuántos tiene
+  // cada uno, para el botón de la tarjeta, y el producto abierto en el modal.
+  const [archivosGcode, setArchivosGcode] = useState([]);
+  const [productoGcode, setProductoGcode] = useState(null);
+  useEffect(() => (cuentaId ? escucharArchivosGcode(cuentaId, setArchivosGcode) : undefined), [cuentaId]);
+  const gcodePorProducto = useMemo(() => {
+    const m = {};
+    archivosGcode.forEach((a) => { m[a.productoId] = (m[a.productoId] || 0) + 1; });
+    return m;
+  }, [archivosGcode]);
 
   // Categorías colapsadas por defecto: con muchos productos, agrupar y
   // colapsar por categoría ordena la vista. Se abren a demanda.
@@ -784,6 +797,14 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                           </button>
                           <button
                             className="btn btn-sm"
+                            title="Archivos G-code de este producto"
+                            onClick={() => setProductoGcode(p)}
+                            style={gcodePorProducto[String(p.id)] ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                          >
+                            📄{gcodePorProducto[String(p.id)] ? ` ${gcodePorProducto[String(p.id)]}` : ''}
+                          </button>
+                          <button
+                            className="btn btn-sm"
                             title="Ajustar precio"
                             onClick={() => setAdjustModal([{ prod: p }])}
                             style={{ color: 'var(--text)', borderColor: 'transparent' }}
@@ -871,6 +892,10 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
           }}
           onClose={() => setAdjustModal(null)}
         />
+      )}
+
+      {productoGcode && (
+        <ModalArchivosGcode producto={productoGcode} archivos={archivosGcode} onClose={() => setProductoGcode(null)} />
       )}
 
       {/* Modal de orden de categorías */}

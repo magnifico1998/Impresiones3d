@@ -243,7 +243,9 @@ export default function CalculadoraPage({
         item = parsearGcode(text, file.name);
       }
       if (item) {
-        appendGcodeItem(item);
+        // El archivo en sí viaja con el ítem para poder guardarlo en el
+        // producto al pasarlo a la Biblioteca (ModalBibGuardar).
+        appendGcodeItem({ ...item, archivo: file });
       }
     } catch (err) {
       setStatus('Error: ' + err.message, 'error');
@@ -815,6 +817,8 @@ export default function CalculadoraPage({
     const currentPresupuesto = {
       nombreArchivo: (isGcodeApplied && gcodeData) ? gcodeData.nombre : null,
         gcodeArchivos: gcodeItems.length ? gcodeItems.map(item => item.nombre) : ((isGcodeApplied && gcodeData) ? [gcodeData.nombre] : []),
+      // Los File cargados (no se guardan en Firestore: ModalBibGuardar los sube aparte).
+      archivosParaSubir: gcodeItems.map(item => item.archivo).filter(Boolean),
       costeFil,
       filDetalle,
       costeElec,
@@ -863,7 +867,7 @@ export default function CalculadoraPage({
   }, [
     horas, watts, precioKwh, manoObra, horasTrabajo, extras, margen, desperdicio,
     precioRollo, gramos, cantidad, selFilamento, selImpresora, insumosState,
-    gcodeData, isGcodeApplied, bambuMats, precioVentaTocado, precioVentaManual, cfg.impresoras,
+    gcodeData, gcodeItems, isGcodeApplied, bambuMats, precioVentaTocado, precioVentaManual, cfg.impresoras,
     aplicaMargen
   ]);
 

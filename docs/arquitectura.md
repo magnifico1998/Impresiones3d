@@ -95,7 +95,9 @@ con un máximo de 10 instancias por función.
 |---|---|---|
 | `onNuevoUsuario` | Primer login | Crea la suscripción en prueba y manda los mails de bienvenida |
 | `onPedidoCreado` | Cada escritura de un pedido | Actualiza los contadores del ciclo (pedidos y monto) |
-| `onBibliotecaCambio` | Alta o baja en la biblioteca | Recalcula `bibliotecaCount` |
+| `onBibliotecaCambio` | Alta o baja en la biblioteca | Recalcula `bibliotecaCount`; al borrar un producto, borra sus archivos G-code |
+| `onGcodeSubido` | Archivo nuevo en Storage `users/{uid}/gcode-entrada/` | Lo recomprime con Brotli, controla el cupo del plan, lo guarda en `gcode/{id}.br` y completa la ficha |
+| `onGcodeBorrado` | Se borra un `users/{uid}/gcode/*.br` | Recalcula `gcodeBytes` (espacio usado) |
 | `onNuevaSolicitudContacto` | Formulario "contactate" | Avisa al admin |
 | `onNuevaSolicitudCatalogo` | Solicitud en un catálogo web | Avisa a la tienda |
 | `transicionSuscripciones` | Todos los días, 03:00 UTC | Vencimientos, bloqueos, avisos y renovación de promos |
@@ -141,6 +143,7 @@ con un máximo de 10 instancias por función.
 | `catalogoTiendas/{uid}` (+ `productos`, `solicitudes`) | Catálogo público de cada tienda | Dueño; los visitantes solo crean solicitudes |
 | `invitacionesMiembro/{email}` | Vínculos de equipo | Solo Cloud Functions |
 | `tickets/{id}` (+ `adjuntos/log`) | Tickets de soporte; el log con el contexto técnico sólo lo lee el admin | Solo Cloud Functions; leen el admin y la cuenta |
+| `users/{uid}/gcode/{id}` | Fichas de los archivos G-code de la Biblioteca (producto, impresora, tamaños, estado) | Dueño y miembros crean la ficha y cambian la impresora; el resto, `onGcodeSubido` |
 | `recorridos/{uid}` | Si cada usuario hizo el recorrido guiado (`hecho` / `salteado`, veces) | El propio usuario |
 | `monotributo/categorias` | Topes anuales de cada categoría del monotributo, para el totalizador de facturación | Admin; la leen todas las cuentas |
 | `boletines/{id}` | Cada envío del boletín: copia del contenido, destinatarios, enviados y fallidos | Solo Cloud Functions; lee el admin |
@@ -149,7 +152,9 @@ con un máximo de 10 instancias por función.
 | `admins/{email}` | Lista de admins | A mano desde Firebase Console |
 
 Storage: `users/{uid}/...` (logos e imágenes), accesible por el dueño y los
-miembros activos (`storage.rules`).
+miembros activos (`storage.rules`). Los G-code van aparte: la cuenta sólo
+sube a `gcode-entrada/` (hasta 300 MB) y lee o borra en `gcode/`, donde
+sólo escribe `onGcodeSubido`.
 
 ## Seguridad: dónde está cada control
 

@@ -7,6 +7,13 @@
 
 export const NOVEDADES = [
   {
+    version: 13,
+    fecha: '2026-10-04',
+    items: [
+      { texto: 'Guardá el G-code de cada producto en la Biblioteca (botón 📄), o al guardarlo desde la Calculadora. Se guarda comprimido al máximo y lo bajás tal cual lo subiste, también el .gcode.3mf de Bambu Studio. El espacio depende de tu plan y lo ves en Mi emprendimiento → Tu plan y consumo.' }
+    ]
+  },
+  {
     version: 12,
     fecha: '2026-10-03',
     items: [
