@@ -421,7 +421,7 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   con un código de 8 caracteres (vale 10 minutos, un solo uso, hasta 5
   conectores por cuenta); desvincular lo corta. Impresoras: Anycubic Kobra 3 /
   3 V2 / S1 en modo LAN (con ACE, cada color va al lugar del mismo orden), y
-  Bambu Lab por Bambu Connect o, experimental, por modo LAN + desarrollador. Las
+  Bambu Lab abriendo el archivo en Bambu Studio / Orca (lo manda a la impresora el propio programa), por Bambu Connect o, experimental, por modo LAN + desarrollador. Las
   IP y códigos de acceso quedan sólo en la PC. Estado del conector (conectado si
   hizo su latido en los últimos 3 minutos) y de cada envío se ve en la app.
 - **Datos para transferencia en los PDF:** con CBU/CVU o alias cargados en

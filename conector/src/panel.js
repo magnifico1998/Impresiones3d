@@ -92,6 +92,7 @@ export const PAGINA = `<!doctype html>
 <script>
 const AYUDA = {
   'anycubic-lan': 'Kobra 3, Kobra 3 V2 o Kobra S1 con el firmware original, en "modo LAN" (pantalla de la impresora → Ajustes → Red). La IP también está en esa pantalla.',
+  'abrir-en-programa': 'Guarda el archivo y lo abre en Bambu Studio (u Orca, el programa que tengas para los .3mf) en esta PC. Desde ahí lo mandás a la impresora como siempre. No necesita Bambu Connect ni el modo LAN.',
   'bambu-connect': 'Abre el archivo en Bambu Connect, en esta PC, para que elijas la impresora y confirmes. La impresora sigue con la nube y Bambu Handy. Instalá Bambu Connect desde wiki.bambulab.com.',
   'bambu-lan': 'EXPERIMENTAL. La impresora tiene que estar en "LAN Only" + "Developer Mode" (Ajustes → LAN Only): deja de usar la nube y Bambu Handy. IP, código de acceso y número de serie están en esa misma pantalla.'
 };

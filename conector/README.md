@@ -29,6 +29,7 @@ apagado, quedan en cola y se mandan cuando se abre).
 | Tipo | Qué hace | Requisitos |
 |---|---|---|
 | **Anycubic Kobra 3 / 3 V2 / S1** (modo LAN) | Sube el `.gcode` por HTTP y arranca la impresión por MQTT (con TLS). Con ACE, cada color va al lugar del mismo orden. | Firmware original, impresora en **modo LAN** (Ajustes → Red). IP de la pantalla. |
+| **Abrir en Bambu Studio / Orca** | Guarda el archivo y lo abre en el programa que tenga la PC para los `.3mf`; se manda a la impresora desde ahí, como siempre. | Bambu Studio u Orca instalado y como programa predeterminado de los `.3mf`. No necesita Bambu Connect ni el modo LAN. |
 | **Bambu Lab por Bambu Connect** | Abre el `.3mf` en Bambu Connect para elegir impresora y confirmar. La impresora sigue con la nube y Bambu Handy. | [Bambu Connect](https://wiki.bambulab.com/en/software/third-party-integration) instalado en la PC. |
 | **Bambu Lab modo LAN** (experimental) | Sube el `.3mf` por FTPS y arranca por MQTT. | Impresora en **LAN Only + Developer Mode** (deja de usar la nube y Bambu Handy). IP, código de acceso y número de serie de la pantalla. |
 

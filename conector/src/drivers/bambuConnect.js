@@ -13,6 +13,7 @@ import { promisify } from 'node:util';
 
 const ejecutar = promisify(execFile);
 const CARPETA = path.join(os.tmpdir(), 'Manager3D-Conector');
+const MENSAJE_SIN_CONNECT = 'No encontré Bambu Connect en esta PC. Instalalo desde wiki.bambulab.com, o cambiá el tipo de esta impresora a "Abrir en Bambu Studio" en el panel del conector.';
 
 async function bambuConnectInstalado() {
   if (process.platform !== 'win32') return true;
@@ -40,12 +41,12 @@ export const bambuConnect = {
   campos: [],
 
   async probar() {
-    if (!(await bambuConnectInstalado())) throw new Error('No encontré Bambu Connect en esta PC. Instalalo desde wiki.bambulab.com.');
+    if (!(await bambuConnectInstalado())) throw new Error(MENSAJE_SIN_CONNECT);
     return 'Bambu Connect está instalado.';
   },
 
   async enviar(impresora, { nombre, contenido }) {
-    if (!(await bambuConnectInstalado())) throw new Error('No encontré Bambu Connect en esta PC. Instalalo desde wiki.bambulab.com.');
+    if (!(await bambuConnectInstalado())) throw new Error(MENSAJE_SIN_CONNECT);
     fs.mkdirSync(CARPETA, { recursive: true });
     const archivo = path.join(CARPETA, nombre.replace(/[<>:"/\\|?*]/g, '_'));
     fs.writeFileSync(archivo, contenido);
