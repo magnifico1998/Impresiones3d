@@ -26,8 +26,10 @@ que los suscriptores lo bajen desde Manager3D (Configuración → Impresión dir
    - *Solo subir*: el archivo queda en la impresora y se elige en su pantalla.
    - *Subir e imprimir*: pide confirmar que la cama está libre.
 
-El conector tiene que estar abierto para que lleguen los trabajos (si está
-apagado, quedan en cola y se mandan cuando se abre).
+El conector tiene que estar abierto para que lleguen los trabajos. Si está
+apagado, los de *solo subir* quedan en cola y se mandan cuando se abre; los de
+*imprimir* **vencen a los 10 minutos** (no se imprime, hay que volver a mandarlo),
+para que una impresión no arranque sola horas después.
 
 ## Impresoras
 

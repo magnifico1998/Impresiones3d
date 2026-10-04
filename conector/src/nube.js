@@ -30,6 +30,9 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 const LATIDO_MS = 60 * 1000;
+// Un envío para imprimir que lleva más de esto en cola no se manda (también lo
+// hacen cumplir las reglas de Firestore): la impresión no arranca sola tarde.
+const MINUTOS_VENCE_IMPRIMIR = 10;
 
 // Explica una falla de red: "fetch failed" solo no dice nada; la causa (certificado,
 // DNS, proxy, conexión rechazada) está en e.cause.
@@ -107,11 +110,22 @@ export function crearNube({ registrar, alCambiarEstado }) {
       // Se toma con una transacción: si la app lo canceló justo, no se manda.
       const tomado = await runTransaction(db, async (tx) => {
         const s = await tx.get(trabajoRef);
-        if (!s.exists() || s.data().estado !== 'pendiente') return false;
+        if (!s.exists() || s.data().estado !== 'pendiente') return 'no';
+        const d = s.data();
+        const enCola = Date.now() - (d.creadoEl?.toMillis?.() || Date.now());
+        if (d.accion === 'imprimir' && enCola > MINUTOS_VENCE_IMPRIMIR * 60 * 1000) {
+          tx.update(trabajoRef, {
+            estado: 'vencido',
+            mensaje: `Venció: estuvo más de ${MINUTOS_VENCE_IMPRIMIR} minutos en cola con el conector cerrado. No se imprimió; volvé a mandarlo con el conector abierto.`,
+            actualizadoEl: Timestamp.now()
+          });
+          return 'vencido';
+        }
         tx.update(trabajoRef, { estado: 'enviando', mensaje: 'Bajando el archivo…', actualizadoEl: Timestamp.now() });
-        return true;
+        return 'ok';
       });
-      if (!tomado) return;
+      if (tomado === 'vencido') registrar(`Envío vencido, no se imprime: ${trabajo.nombre} → ${trabajo.impresoraNombre}`);
+      if (tomado !== 'ok') return;
 
       const impresora = impresoras.find((i) => i.id === trabajo.impresoraId);
       if (!impresora) throw new Error('Esa impresora ya no está cargada en el conector.');

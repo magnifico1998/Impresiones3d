@@ -6,7 +6,7 @@ import {
   esArchivoGcode, formatoBytes, subirArchivoGcode
 } from '../../utils/archivosGcode';
 import {
-  ESTADOS_TRABAJO, borrarTrabajo, cancelarTrabajo, escucharConectores, escucharTrabajos, impresorasPara, mandarAImpresora
+  ESTADOS_TRABAJO, MINUTOS_VENCE_IMPRIMIR, borrarTrabajo, cancelarTrabajo, escucharConectores, escucharTrabajos, impresorasPara, mandarAImpresora, trabajoVencido
 } from '../../utils/impresionDirecta';
 
 // Archivos G-code de un producto de la Biblioteca (utils/archivosGcode.js):
@@ -32,6 +32,11 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
   const [trabajos, setTrabajos] = useState([]);
   const [mandando, setMandando] = useState(null); // { archivo, destino, accion, libre }
   const [enviandoTrabajo, setEnviandoTrabajo] = useState(false);
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
   useEffect(() => (cuentaId ? escucharConectores(cuentaId, setConectores) : undefined), [cuentaId]);
   useEffect(() => (cuentaId ? escucharTrabajos(cuentaId, setTrabajos) : undefined), [cuentaId]);
 
@@ -105,7 +110,8 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
 
   const trabajosDelProducto = trabajos
     .filter((t) => t.productoId === String(producto.id))
-    .sort((a, b) => (b.creadoEl?.toMillis?.() || 0) - (a.creadoEl?.toMillis?.() || 0))
+    // Un envío recién creado todavía no tiene la hora del servidor: va primero.
+    .sort((a, b) => (b.creadoEl?.toMillis?.() ?? Infinity) - (a.creadoEl?.toMillis?.() ?? Infinity))
     .slice(0, 6);
 
   const abrirEnvio = (archivo) => {
@@ -266,7 +272,11 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
               ))}
             </select>
             {destinoElegido && !destinoElegido.activo && (
-              <div style={{ fontSize: '12px', color: 'var(--warn)', marginTop: '6px' }}>El conector de esa impresora está sin conexión: el trabajo queda en cola y se manda cuando se prenda.</div>
+              <div style={{ fontSize: '12px', color: 'var(--warn)', marginTop: '6px' }}>
+                El conector de esa impresora está sin conexión: abrilo en esa PC. {mandando.accion === 'imprimir'
+                  ? `Para imprimir, el envío vence si pasan ${MINUTOS_VENCE_IMPRIMIR} minutos sin que el conector lo tome.`
+                  : 'Mientras tanto el archivo queda en cola y se sube cuando se abra.'}
+              </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px', fontSize: '13px' }}>
               <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
@@ -299,13 +309,15 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
           <div style={{ marginTop: '16px' }}>
             <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '6px' }}>Envíos a impresoras</div>
             {trabajosDelProducto.map((t) => {
-              const est = ESTADOS_TRABAJO[t.estado] || ESTADOS_TRABAJO.pendiente;
+              const vencido = trabajoVencido(t, ahora);
+              const est = vencido ? ESTADOS_TRABAJO.vencido : (ESTADOS_TRABAJO[t.estado] || ESTADOS_TRABAJO.pendiente);
               return (
                 <div key={t.id} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', fontSize: '12px', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ color: est.color, fontWeight: 600, minWidth: '90px' }}>{est.texto}</span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     {t.nombre} → {t.impresoraNombre}{t.accion === 'imprimir' ? ' (imprimir)' : ''}
-                    {t.mensaje && <span style={{ display: 'block', color: t.estado === 'error' ? 'var(--danger)' : 'var(--text3)' }}>{t.mensaje}</span>}
+                    {vencido && <span style={{ display: 'block', color: 'var(--text3)' }}>Pasaron más de {MINUTOS_VENCE_IMPRIMIR} minutos sin que el conector lo tomara: no se imprime. Abrí el conector y volvé a mandarlo.</span>}
+                    {t.mensaje && <span style={{ display: 'block', color: ['error', 'vencido'].includes(t.estado) ? 'var(--danger)' : 'var(--text3)' }}>{t.mensaje}</span>}
                   </span>
                   <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>{t.creadoEl?.toDate?.().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                   {!soloLectura && (

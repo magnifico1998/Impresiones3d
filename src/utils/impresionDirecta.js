@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, onSnapshot, Timestamp, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, onSnapshot, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, getMetadata, ref } from 'firebase/storage';
 import { db, functions, storage } from '../firebase';
@@ -14,7 +14,16 @@ export const MS_CONECTOR_ACTIVO = 3 * 60 * 1000;
 
 export const conectorActivo = (c, ahora = Date.now()) => (c?.ultimaConexion?.toMillis?.() || 0) > ahora - MS_CONECTOR_ACTIVO;
 
+// Un envío para imprimir que no se tomó en este tiempo vence (lo hacen cumplir
+// firestore.rules y el conector): la impresión no puede arrancar sola horas después.
+export const MINUTOS_VENCE_IMPRIMIR = 10;
+
+export const trabajoVencido = (t, ahora = Date.now()) =>
+  t.estado === 'pendiente' && t.accion === 'imprimir'
+  && !!t.creadoEl?.toMillis && ahora - t.creadoEl.toMillis() > MINUTOS_VENCE_IMPRIMIR * 60 * 1000;
+
 export const ESTADOS_TRABAJO = {
+  vencido: { texto: 'Venció', color: 'var(--warn)' },
   pendiente: { texto: 'En cola', color: 'var(--text3)' },
   enviando: { texto: 'Enviando…', color: 'var(--text3)' },
   enviado: { texto: 'Enviado', color: 'var(--accent)' },
@@ -55,7 +64,7 @@ export const renombrarConector = (cuentaId, conectorId, equipo) => updateDoc(doc
 // Pone un trabajo en la cola. accion: 'subir' (queda en la impresora para
 // elegirlo en su pantalla) o 'imprimir'.
 export function mandarAImpresora({ cuentaId, uid, archivo, conector, impresora, accion }) {
-  const ahora = Timestamp.now();
+  // creadoEl con la hora del servidor: de ahí se cuenta el vencimiento.
   return addDoc(collection(db, 'users', cuentaId, 'trabajosImpresion'), {
     archivoId: archivo.id,
     productoId: archivo.productoId,
@@ -67,9 +76,9 @@ export function mandarAImpresora({ cuentaId, uid, archivo, conector, impresora, 
     accion,
     opciones: {},
     estado: 'pendiente',
-    creadoEl: ahora,
+    creadoEl: serverTimestamp(),
     creadoPor: uid,
-    actualizadoEl: ahora
+    actualizadoEl: serverTimestamp()
   });
 }
 

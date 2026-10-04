@@ -265,17 +265,26 @@ service cloud.firestore {
     }
     // Cola de trabajos para los conectores. La cuenta pide (pendiente) o
     // cancela un pendiente; el conector asignado sólo avanza el estado.
+    // Un envío para IMPRIMIR vence a los 10 minutos en cola: pasado ese
+    // tiempo el conector ya no puede tomarlo (sólo marcarlo vencido o con
+    // error), así una impresión no arranca sola horas después de pedirla.
+    // creadoEl tiene que ser la hora del servidor para que el plazo sea fiable.
     match /users/{uid}/trabajosImpresion/{trabajoId} {
       allow read: if tieneAcceso(uid) || esConectorDe(uid);
       allow create: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) &&
         request.resource.data.keys().hasOnly(['archivoId', 'productoId', 'nombre', 'formato', 'conectorId', 'impresoraId', 'impresoraNombre', 'accion', 'opciones', 'estado', 'creadoEl', 'creadoPor', 'actualizadoEl']) &&
         request.resource.data.estado == 'pendiente' &&
+        request.resource.data.creadoEl == request.time &&
         request.resource.data.accion in ['subir', 'imprimir'];
       allow update: if (tieneAcceso(uid) && resource.data.estado == 'pendiente' &&
           request.resource.data.estado == 'cancelado' &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'actualizadoEl'])) ||
         (esElConector(uid, resource.data.conectorId) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'mensaje', 'progreso', 'actualizadoEl']));
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado', 'mensaje', 'progreso', 'actualizadoEl']) &&
+          (resource.data.estado != 'pendiente' ||
+           request.resource.data.estado in ['vencido', 'error'] ||
+           resource.data.accion == 'subir' ||
+           request.time < resource.data.creadoEl + duration.value(10, 'm')));
       allow delete: if tieneAcceso(uid);
     }
     match /users/{uid}/pedidos/{docId} {
