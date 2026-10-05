@@ -428,7 +428,9 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   directa (botón "Descargar el conector", Windows) y se vincula ahí mismo
   con un código de 8 caracteres (vale 10 minutos, un solo uso, hasta 5
   conectores por cuenta); desvincular lo corta. Impresoras: Anycubic Kobra 3 /
-  3 V2 / S1 en modo LAN (con ACE, cada color va al lugar del mismo orden), y
+  3 V2 / S1 en modo LAN (se verifica que el archivo llegó; con ACE se lee qué hay
+  cargado y cada color va a un lugar con el mismo material; si la impresora
+  rechaza la orden, se cancela para que no quede calentando), y
   Bambu Lab abriendo el archivo en Bambu Studio / Orca (lo manda a la impresora el propio programa), por Bambu Connect o, experimental, por modo LAN + desarrollador. Un envío
   para **imprimir vence a los 10 minutos** en cola (con el conector cerrado, por
   ejemplo): pasado ese tiempo no se imprime y queda "Venció"; lo hacen cumplir las

@@ -136,7 +136,9 @@ export function crearNube({ registrar, alCambiarEstado }) {
       const contenido = await bajarArchivo(vinculo.cuentaId, trabajo.archivoId, trabajo.formato);
       await actualizar({ mensaje: `Mandando a ${impresora.nombre}…` });
       const resultado = await driver.enviar(impresora, {
-        nombre: trabajo.nombre, contenido, accion: trabajo.accion, opciones: trabajo.opciones || {}
+        nombre: trabajo.nombre, contenido, accion: trabajo.accion, opciones: trabajo.opciones || {},
+        // El driver va contando en qué paso está (se ve en la app).
+        avisar: (mensaje) => actualizar({ mensaje })
       });
       await actualizar({ estado: resultado.estado, mensaje: resultado.mensaje });
       registrar(`✓ ${resultado.mensaje}`);

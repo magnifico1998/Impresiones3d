@@ -13,12 +13,22 @@ import mqtt from 'mqtt';
 //      con el usuario y la contraseña del MQTT de la impresora, su certificado
 //      de cliente y el deviceId.
 //   3. Subida: POST multipart a /gcode_upload (campos filename y gcode).
-//   4. Imprimir: MQTT con TLS en el puerto 9883, tema
-//        anycubic/anycubicCloud/v1/slicer/printer/{modelId}/{deviceId}/print
-//      y la respuesta en .../printer/public/{modelId}/{deviceId}/print/report.
+//   4. MQTT con TLS en el puerto 9883. Se manda a
+//        anycubic/anycubicCloud/v1/slicer/printer/{modelId}/{deviceId}/{tipo}
+//      y la impresora contesta en
+//        anycubic/anycubicCloud/v1/printer/public/{modelId}/{deviceId}/{tipo}/report
+//      Tipos que se usan: info (estado), multiColorBox (el ACE) y print
+//      (start / stop).
+//
+// Para imprimir: se mira que la impresora esté libre, se lee qué hay cargado en
+// cada lugar del ACE y cada color del archivo va a un lugar con ese material
+// (si no hay, se avisa antes de mandar nada: la impresora rechaza una orden con
+// "invalid filament id" y se queda calentando la cama). Si igual rechaza la
+// orden, se cancela el trabajo para dejarla libre.
 
 const PUERTO_HTTP = 18910;
 const PUERTO_MQTT = 9883;
+const BASE_MQTT = 'anycubic/anycubicCloud/v1';
 // Identificador de este equipo para la impresora (fijo por instalación).
 const ID_EQUIPO = crypto.createHash('md5').update(`manager3d-conector-${process.env.COMPUTERNAME || 'pc'}`).digest('hex').toUpperCase();
 
@@ -68,15 +78,26 @@ export async function conectarAnycubic(host) {
   };
 }
 
-async function subir(sesion, nombre, contenido) {
+async function subir(sesion, nombre, contenido, msMaximo = 5 * 60 * 1000) {
   const form = new FormData();
   form.append('filename', nombre);
   form.append('gcode', new Blob([contenido], { type: 'application/octet-stream' }), nombre);
   const r = await fetch(sesion.urlSubida, {
     method: 'POST',
     body: form,
-    headers: { 'X-File-Length': String(contenido.length) },
-    signal: AbortSignal.timeout(10 * 60 * 1000)
+    // Mismos encabezados que Anycubic Slicer Next: la impresora los mira para
+    // saber quién le manda el archivo.
+    headers: {
+      'User-Agent': 'AnycubicSlicerNext/1.3.7.3',
+      'X-BBL-Client-Name': 'AnycubicSlicerNext',
+      'X-BBL-Client-Type': 'slicer',
+      'X-BBL-Client-Version': '01.03.07.03',
+      'X-BBL-Device-ID': ID_EQUIPO,
+      'X-BBL-Language': 'en-US',
+      'X-BBL-OS-Type': 'windows',
+      'X-File-Length': String(contenido.length)
+    },
+    signal: AbortSignal.timeout(msMaximo)
   });
   if (!r.ok) throw new Error(`La impresora rechazó el archivo (HTTP ${r.status}).`);
   const respuesta = await r.json();
@@ -84,9 +105,11 @@ async function subir(sesion, nombre, contenido) {
   return respuesta.data?.gcode || nombre;
 }
 
+// ---- Filamentos del archivo y lugares del ACE ------------------------------
+
 // Colores y materiales del archivo (los escribe el laminador al final del
-// G-code), para mapear cada color a un lugar del ACE en el mismo orden.
-function filamentosDelGcode(contenido) {
+// G-code), uno por filamento en el orden en que se usan.
+export function filamentosDelGcode(contenido) {
   const cola = Buffer.from(contenido.subarray(Math.max(0, contenido.length - 400 * 1024))).toString('utf8');
   const valor = (clave) => (cola.match(new RegExp(`^; ${clave} = (.*)$`, 'm'))?.[1] || '').split(/[;,]/).map((s) => s.trim()).filter(Boolean);
   const colores = valor('filament_colour');
@@ -99,8 +122,63 @@ const rgb = (hex) => {
   const h = String(hex).replace('#', '').padEnd(6, 'F').slice(0, 6);
   return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) || 0);
 };
+// "PLA", "PLA+", "PLA Basic" → "PLA"; "PETG-CF" → "PETG".
+const materialBase = (t) => (String(t || '').toUpperCase().match(/^[A-Z]+/) || [''])[0];
+const distanciaColor = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
-function publicarYEsperar(sesion, host, tema, mensaje, temaRespuesta) {
+// Lugares del ACE que tienen filamento cargado, según lo que informa la
+// impresora (multiColorBox): [{ indice, tipo, color }].
+export function lugaresDelAce(datos) {
+  const cajas = datos?.multi_color_box || datos?.multiColorBox || [];
+  const caja = cajas[0];
+  if (!caja) return [];
+  let crudos = caja.slots || [];
+  if (!crudos.length && caja.box_info) crudos = caja.box_info.slot_info || [];
+  return crudos
+    .map((s, i) => ({
+      indice: Number.isInteger(s.index) ? s.index : i,
+      tipo: materialBase(s.type),
+      tipoCompleto: String(s.type || ''),
+      color: (Array.isArray(s.color) ? s.color : [255, 255, 255]).slice(0, 3).map(Number),
+      cargado: [4, 5].includes(s.status) || (s.status > 0 && !!s.type)
+    }))
+    .filter((l) => l.cargado);
+}
+
+const nombreLugar = (l) => `lugar ${l.indice + 1}: ${l.tipoCompleto || 'sin tipo'}`;
+
+// Asigna cada color del archivo a un lugar del ACE con el mismo material (el
+// más parecido en color, sin repetir lugar). Si falta alguno, tira un Error
+// que explica qué hay cargado y qué falta.
+export function armarMapeoAce(filamentos, lugares) {
+  if (!lugares.length) {
+    throw new Error('El ACE no tiene ningún filamento cargado (o la impresora no informó su estado). Cargá el filamento en un lugar del ACE, o destildá "Tiene ACE" si la imprimís con el carrete externo.');
+  }
+  const libres = [...lugares];
+  return filamentos.map((f, i) => {
+    const material = materialBase(f.tipo);
+    const colorArchivo = rgb(f.color);
+    const candidatos = libres.filter((l) => l.tipo === material);
+    if (!candidatos.length) {
+      throw new Error(`El archivo usa ${f.tipo} (color ${i + 1}) y el ACE no tiene ${material} libre. Cargado: ${lugares.map(nombreLugar).join(' · ')}.`);
+    }
+    const elegido = candidatos.sort((a, b) => distanciaColor(a.color, colorArchivo) - distanciaColor(b.color, colorArchivo))[0];
+    libres.splice(libres.indexOf(elegido), 1);
+    return {
+      paint_index: i,
+      ams_index: elegido.indice,
+      paint_color: [...colorArchivo, 255],
+      ams_color: elegido.color,
+      material_type: material
+    };
+  });
+}
+
+// ---- MQTT -------------------------------------------------------------------
+
+// Sesión MQTT con la impresora: conecta, escucha sus informes y deja hacer
+// pedidos que esperan la respuesta del mismo tipo.
+function abrirMqtt(sesion, host) {
   return new Promise((resolve, reject) => {
     const cliente = mqtt.connect(`mqtts://${host}:${PUERTO_MQTT}`, {
       username: sesion.usuario,
@@ -112,28 +190,132 @@ function publicarYEsperar(sesion, host, tema, mensaje, temaRespuesta) {
       connectTimeout: 10000,
       reconnectPeriod: 0
     });
-    const terminar = (error, valor) => {
-      clearTimeout(reloj);
+    const esperas = new Set(); // { tipo, filtro, resolver, reloj }
+    const cerrar = () => {
+      esperas.forEach((e) => clearTimeout(e.reloj));
+      esperas.clear();
       cliente.end(true);
-      if (error) reject(error); else resolve(valor);
     };
-    const reloj = setTimeout(() => terminar(null, { confirmado: false }), 20000);
-    cliente.on('error', (e) => terminar(new Error(`No se pudo conectar al MQTT de la impresora: ${e.message}`)));
-    cliente.on('connect', () => {
-      cliente.subscribe(temaRespuesta, () => cliente.publish(tema, JSON.stringify(mensaje)));
+
+    cliente.once('error', (e) => {
+      cerrar();
+      reject(new Error(`No se pudo conectar al MQTT de la impresora: ${e.message}`, { cause: e }));
     });
-    cliente.on('message', (_t, buf) => {
+    cliente.on('message', (tema, buf) => {
+      const tipo = tema.match(/\/([A-Za-z]+)\/report$/)?.[1];
+      if (!tipo) return;
+      let informe;
       try {
-        const r = JSON.parse(buf.toString());
-        if (r.action === mensaje.action || r.msgid === mensaje.msgid) {
-          if (r.code && r.code !== 200) terminar(new Error(`La impresora no arrancó: ${r.msg || r.message || r.code}`));
-          else terminar(null, { confirmado: true, estado: r.state });
-        }
+        informe = JSON.parse(buf.toString());
       } catch {
-        // Mensajes que no son JSON: se ignoran.
+        return; // mensajes que no son JSON: se ignoran
+      }
+      for (const e of esperas) {
+        if (e.tipo === tipo && e.filtro(informe)) {
+          clearTimeout(e.reloj);
+          esperas.delete(e);
+          e.resolver(informe);
+        }
       }
     });
+
+    const api = {
+      // Manda un pedido y espera el informe de ese tipo (null si no llega a tiempo).
+      pedir(tipo, accion, data = null, { ms = 6000, filtro = () => true } = {}) {
+        return new Promise((resolver) => {
+          const msgid = crypto.randomUUID();
+          const espera = { tipo, filtro: (inf) => filtro(inf, msgid), resolver, reloj: setTimeout(() => { esperas.delete(espera); resolver(null); }, ms) };
+          esperas.add(espera);
+          cliente.publish(
+            `${BASE_MQTT}/slicer/printer/${sesion.modelId}/${sesion.deviceId}/${tipo}`,
+            JSON.stringify({ type: tipo, action: accion, timestamp: Date.now(), msgid, data })
+          );
+        });
+      },
+      cerrar
+    };
+
+    cliente.on('connect', () => {
+      cliente.subscribe(`${BASE_MQTT}/printer/public/${sesion.modelId}/${sesion.deviceId}/#`, (err) => {
+        if (err) { cerrar(); reject(err); } else resolve(api);
+      });
+    });
   });
+}
+
+// Estado de la impresora: { libre, texto }.
+async function estadoDe(mqttApi) {
+  const r = await mqttApi.pedir('info', 'query', null, { ms: 5000 });
+  const estado = String(r?.data?.state ?? '').toLowerCase();
+  const proyecto = String((r?.data?.last_project || r?.data?.project || {}).state || '').toLowerCase();
+  if (!r) return { libre: true, texto: 'no informó su estado' };
+  const ocupada = estado === 'busy' || proyecto === 'printing' || proyecto === 'pause' || estado === 'pause';
+  return { libre: !ocupada, texto: ocupada ? (proyecto === 'pause' || estado === 'pause' ? 'en pausa con un trabajo' : 'ocupada imprimiendo') : 'libre' };
+}
+
+// ¿Figura el archivo en la lista de la impresora? Se busca en todo el texto de
+// cada entrada para no depender de cómo se llame el campo del nombre.
+export function archivoEnLista(lista, nombre) {
+  const buscado = String(nombre).toLowerCase();
+  return (Array.isArray(lista) ? lista : []).some((e) => JSON.stringify(e).toLowerCase().includes(buscado));
+}
+
+// Después de subir, la impresora todavía tiene que terminar de recibir el
+// archivo (en su pantalla aparece como una descarga): el "200" de la subida no
+// alcanza. Se le pregunta su lista de archivos hasta que aparezca.
+//   'si' → está; 'no' → contestó pero el archivo no figura (se canceló o no
+//   terminó); 'sinRespuesta' → no contestó la lista (no se pudo verificar).
+async function esperarArchivo(mqttApi, nombre, ms = 90000) {
+  const fin = Date.now() + ms;
+  let ruta = '/';
+  let respondio = false;
+  while (Date.now() < fin) {
+    const r = await mqttApi.pedir('file', 'listLocal', { path: ruta }, { ms: 5000 });
+    if (r) {
+      respondio = true;
+      const lista = r.data?.file_list;
+      if (archivoEnLista(lista, nombre)) return 'si';
+      if (!Array.isArray(lista) && ruta === '/') ruta = '';
+    }
+    await new Promise((resolver) => setTimeout(resolver, 3000));
+  }
+  return respondio ? 'no' : 'sinRespuesta';
+}
+
+// Sube el archivo y, si la impresora tarda demasiado en contestar, mira si ya lo
+// tiene en su lista. Cuando la impresora quedó con una descarga abierta en su
+// pantalla (por ejemplo después de rechazar una orden), recibe el archivo pero
+// no contesta la subida hasta que alguien cancela ahí: en ese caso no se espera
+// a que conteste. Devuelve { nombre, colgada }.
+async function subirVigilando(sesion, mqttApi, nombre, contenido) {
+  const inicio = Date.now();
+  const MS_MAXIMO = 5 * 60 * 1000;
+  // Una subida normal termina en segundos: se sospecha después de este tiempo
+  // (más para archivos grandes, que tardan de verdad).
+  const msSospecha = Math.max(30000, (contenido.length / 1024 / 1024) * 3000);
+  let resultado = null;
+  subir(sesion, nombre, contenido, MS_MAXIMO)
+    .then((n) => { resultado = { nombre: n }; })
+    .catch((e) => { resultado = { error: e }; });
+
+  while (!resultado && Date.now() - inicio < MS_MAXIMO + 5000) {
+    await new Promise((resolver) => setTimeout(resolver, 2000));
+    if (resultado || !mqttApi || Date.now() - inicio < msSospecha) continue;
+    const r = await mqttApi.pedir('file', 'listLocal', { path: '/' }, { ms: 5000 });
+    if (!resultado && archivoEnLista(r?.data?.file_list, nombre)) return { nombre, colgada: true };
+  }
+  if (resultado?.error) throw resultado.error;
+  return { nombre: resultado?.nombre || nombre, colgada: false };
+}
+
+const MENSAJE_NO_LLEGO = 'La impresora aceptó el archivo pero no figura en su lista de archivos: si cancelaste la descarga en su pantalla o quedó cargando, cancelá el trabajo desde el panel del conector y volvé a mandarlo dejando que termine.';
+
+// Traduce los rechazos conocidos de la impresora.
+function explicarRechazo(msg) {
+  const t = String(msg || '').toLowerCase();
+  if (t.includes('filament')) return `La impresora rechazó el filamento (${msg}): revisá que el lugar del ACE tenga cargado el material que pide el archivo, o destildá "Tiene ACE" si usás el carrete externo.`;
+  if (t.includes('busy')) return `La impresora está ocupada (${msg}).`;
+  return `La impresora no arrancó: ${msg}`;
 }
 
 export const anycubicLan = {
@@ -141,26 +323,98 @@ export const anycubicLan = {
   nombre: 'Anycubic Kobra 3 / S1 (modo LAN)',
   formatos: ['gcode', '3mf'],
   puedeImprimir: true,
+  puedeCancelar: true,
   campos: ['host', 'tieneAce'],
 
+  // Conecta, y cuenta cómo está la impresora (estado y, con ACE, qué hay en cada lugar).
   async probar(impresora) {
     const s = await conectarAnycubic(impresora.host);
-    return `${s.modelo} conectada (modo LAN).`;
+    const m = await abrirMqtt(s, impresora.host);
+    try {
+      const est = await estadoDe(m);
+      let ace = '';
+      if (impresora.tieneAce) {
+        const r = await m.pedir('multiColorBox', 'getInfo', null, { ms: 6000 });
+        const lugares = lugaresDelAce(r?.data);
+        ace = r
+          ? ` ACE: ${lugares.length ? lugares.map(nombreLugar).join(' · ') : 'sin filamento cargado'}.`
+          : ' El ACE no respondió (¿está bien conectado?).';
+      }
+      return `${s.modelo} conectada (modo LAN). Estado: ${est.texto}.${ace}`;
+    } finally {
+      m.cerrar();
+    }
   },
 
-  async enviar(impresora, { nombre, contenido, accion }) {
-    const sesion = await conectarAnycubic(impresora.host);
-    const nombreEnImpresora = await subir(sesion, nombre, contenido);
-    if (accion !== 'imprimir') return { estado: 'enviado', mensaje: `Subido a ${impresora.nombre}: elegilo en su pantalla para imprimir.` };
+  // Cancela lo que la impresora tenga en curso o preparando (por ejemplo, tras
+  // un rechazo que la dejó calentando la cama sin imprimir).
+  async cancelar(impresora) {
+    const s = await conectarAnycubic(impresora.host);
+    const m = await abrirMqtt(s, impresora.host);
+    try {
+      const r = await m.pedir('print', 'stop', { taskid: '-1' }, { ms: 6000, filtro: (inf, msgid) => inf.msgid === msgid || inf.action === 'stop' });
+      return r && r.code && r.code !== 200
+        ? `La impresora contestó: ${r.msg || r.code}.`
+        : 'Orden de cancelar enviada a la impresora.';
+    } finally {
+      m.cerrar();
+    }
+  },
 
-    const filamentos = filamentosDelGcode(contenido);
-    const usarAce = !!impresora.tieneAce;
-    const mensaje = {
-      type: 'print',
-      action: 'start',
-      msgid: crypto.randomUUID(),
-      timestamp: Date.now(),
-      data: {
+  async enviar(impresora, { nombre, contenido, accion, avisar }) {
+    const sesion = await conectarAnycubic(impresora.host);
+
+    // MQTT: para imprimir es obligatorio; para sólo subir, sirve para verificar
+    // que el archivo llegó (si no se puede conectar, se sube igual sin verificar).
+    let mapeo = [];
+    let mqttApi = null;
+    try {
+      mqttApi = await abrirMqtt(sesion, impresora.host);
+    } catch (e) {
+      if (accion === 'imprimir') throw e;
+    }
+    try {
+      // Imprimir: antes de subir nada, ver que la impresora esté libre y que el
+      // ACE tenga los materiales (si no, no se toca la impresora).
+      if (mqttApi && accion === 'imprimir') {
+        const est = await estadoDe(mqttApi);
+        if (!est.libre) throw new Error(`La impresora está ${est.texto}: esperá a que termine o cancelala desde el panel.`);
+        if (impresora.tieneAce) {
+          const r = await mqttApi.pedir('multiColorBox', 'getInfo', null, { ms: 6000 });
+          if (!r) throw new Error('El ACE no respondió: revisá que esté bien conectado a la impresora, o destildá "Tiene ACE".');
+          mapeo = armarMapeoAce(filamentosDelGcode(contenido), lugaresDelAce(r.data));
+        }
+      }
+
+      avisar?.('Subiendo el archivo a la impresora…');
+      const { nombre: nombreEnImpresora, colgada } = await subirVigilando(sesion, mqttApi, nombre, contenido);
+      if (colgada) {
+        // El archivo ya está en la impresora, pero ella dejó la descarga abierta en su pantalla.
+        if (accion === 'imprimir') {
+          throw new Error('La impresora recibió el archivo pero quedó con la descarga abierta en su pantalla, así que no se mandó a imprimir: tocá Cancelar en su pantalla (el archivo queda guardado) o usá "Cancelar trabajo" en el panel del conector, y volvé a mandarlo.');
+        }
+        return {
+          estado: 'enviado',
+          mensaje: `El archivo ya está en ${impresora.nombre}, pero ella dejó la descarga abierta en su pantalla: tocá Cancelar ahí (el archivo queda guardado) o usá "Cancelar trabajo" en el panel del conector.`
+        };
+      }
+
+      // Que la impresora termine de recibirlo (si se cancela o se cuelga ahí, no es "enviado").
+      avisar?.('Esperando que la impresora termine de recibir el archivo (se ve en su pantalla)…');
+      const llego = mqttApi ? await esperarArchivo(mqttApi, nombreEnImpresora) : 'sinRespuesta';
+      if (llego === 'no') throw new Error(MENSAJE_NO_LLEGO);
+      if (accion !== 'imprimir') {
+        return {
+          estado: 'enviado',
+          mensaje: llego === 'si'
+            ? `Subido a ${impresora.nombre} y verificado: elegilo en su pantalla para imprimir.`
+            : `Subido a ${impresora.nombre}, pero la impresora no confirmó su lista de archivos: revisá en su pantalla que haya terminado de recibirlo.`
+        };
+      }
+      if (llego === 'sinRespuesta') throw new Error('La impresora no contestó cuando le pregunté si ya tenía el archivo: no se mandó a imprimir. Probá de nuevo o usá "Solo subir" y elegilo en su pantalla.');
+      avisar?.('Archivo recibido. Mandando la orden de imprimir…');
+
+      const respuesta = await mqttApi.pedir('print', 'start', {
         taskid: '-1',
         url: '',
         filename: nombreEnImpresora,
@@ -169,25 +423,22 @@ export const anycubicLan = {
         filetype: 1,
         project_type: 1,
         filesize: contenido.length,
-        ams_settings: {
-          use_ams: usarAce,
-          // Cada color del archivo al lugar del ACE en el mismo orden (1.º color → lugar 1).
-          ams_box_mapping: usarAce ? filamentos.map((f, i) => ({
-            paint_index: i, ams_index: i, paint_color: [...rgb(f.color), 255], ams_color: rgb(f.color), material_type: f.tipo
-          })) : []
-        },
+        ams_settings: { use_ams: !!impresora.tieneAce, ams_box_mapping: impresora.tieneAce ? mapeo : [] },
         task_settings: { auto_leveling: 1, vibration_compensation: 0, flow_calibration: 0, dry_mode: 0, timelapse: { status: 0, count: 0, type: 0 } }
+      }, { ms: 20000, filtro: (inf, msgid) => inf.msgid === msgid || inf.action === 'start' });
+
+      if (respuesta && respuesta.code && respuesta.code !== 200) {
+        // La impresora la rechazó: se cancela para que no quede con la cama
+        // calentando y un trabajo a medio preparar.
+        await mqttApi.pedir('print', 'stop', { taskid: '-1' }, { ms: 4000, filtro: (inf, msgid) => inf.msgid === msgid || inf.action === 'stop' }).catch(() => null);
+        throw new Error(explicarRechazo(respuesta.msg || respuesta.message || respuesta.code));
       }
-    };
-    const base = `anycubic/anycubicCloud/v1`;
-    const r = await publicarYEsperar(
-      sesion, impresora.host,
-      `${base}/slicer/printer/${sesion.modelId}/${sesion.deviceId}/print`,
-      mensaje,
-      `${base}/printer/public/${sesion.modelId}/${sesion.deviceId}/print/report`
-    );
-    return r.confirmado
-      ? { estado: 'imprimiendo', mensaje: `Imprimiendo en ${impresora.nombre}.` }
-      : { estado: 'enviado', mensaje: `Subido y orden de impresión enviada a ${impresora.nombre} (la impresora no confirmó: revisá su pantalla).` };
+      const donde = mapeo.length ? ` (${mapeo.map((m) => `color ${m.paint_index + 1} → lugar ${m.ams_index + 1}`).join(', ')})` : '';
+      return respuesta
+        ? { estado: 'imprimiendo', mensaje: `Imprimiendo en ${impresora.nombre}${donde}.` }
+        : { estado: 'enviado', mensaje: `Subido y orden de impresión enviada a ${impresora.nombre}, pero no confirmó: revisá su pantalla.` };
+    } finally {
+      mqttApi?.cerrar();
+    }
   }
 };

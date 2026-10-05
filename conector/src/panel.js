@@ -74,7 +74,7 @@ export const PAGINA = `<!doctype html>
       <div data-campo="codigoAcceso"><label>Código de acceso (pantalla de la impresora)</label><input id="impCodigo" placeholder="8 caracteres" autocomplete="off"></div>
       <div data-campo="serie"><label>Número de serie</label><input id="impSerie" placeholder="Ej: 03919C..."></div>
     </div>
-    <div data-campo="tieneAce"><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="impAce" style="width:auto"> Tiene ACE (Combo): al imprimir, cada color va al lugar del ACE en el mismo orden que en el laminador</label></div>
+    <div data-campo="tieneAce"><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="impAce" style="width:auto"> Tiene ACE (Combo): al imprimir, cada color va a un lugar del ACE que tenga ese material (lo lee de la impresora)</label></div>
     <div id="ayudaTipo" class="aviso"></div>
     <div style="margin-top:12px;display:flex;gap:8px">
       <button class="primario" id="btnGuardarImp">Guardar impresora</button>
@@ -164,6 +164,18 @@ function pintar() {
       catch (e) { mensaje('msgImp', e.message, 'error'); }
       probar.disabled = false; refrescar();
     };
+    let cancelar = null;
+    if (tipo && tipo.puedeCancelar) {
+      cancelar = document.createElement('button'); cancelar.textContent = 'Cancelar trabajo';
+      cancelar.title = 'Cancela lo que la impresora tenga en curso o preparando (por ejemplo, si quedó calentando la cama sin imprimir)';
+      cancelar.onclick = async () => {
+        if (!confirm('¿Cancelar lo que ' + i.nombre + ' tenga en curso? Si está imprimiendo, se detiene.')) return;
+        cancelar.disabled = true; mensaje('msgImp', 'Cancelando en ' + i.nombre + '…');
+        try { const r = await api('/api/impresora/cancelar', { id: i.id }); mensaje('msgImp', r.mensaje, 'ok'); }
+        catch (e) { mensaje('msgImp', e.message, 'error'); }
+        cancelar.disabled = false; refrescar();
+      };
+    }
     const editar = document.createElement('button'); editar.textContent = 'Editar';
     editar.onclick = () => {
       $('impId').value = i.id; $('impNombre').value = i.nombre; $('impTipo').value = i.tipo; $('impHost').value = i.host;
@@ -173,7 +185,7 @@ function pintar() {
     };
     const borrar = document.createElement('button'); borrar.className = 'peligro'; borrar.textContent = '✕';
     borrar.onclick = async () => { if (confirm('¿Quitar ' + i.nombre + '?')) { datos = await api('/api/impresora/borrar', { id: i.id }); pintar(); } };
-    td.append(probar, editar, borrar); tr.append(td); tb.append(tr);
+    td.append(probar); if (cancelar) td.append(cancelar); td.append(editar, borrar); tr.append(td); tb.append(tr);
   });
 
   $('log').textContent = datos.log.join('\\n');

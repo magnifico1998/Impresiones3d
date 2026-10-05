@@ -48,7 +48,7 @@ function estado() {
     conectado: nube.estaConectado(),
     equipo: config.vinculo?.equipo || os.hostname(),
     impresoras: config.impresoras.map(impresoraPublica),
-    tipos: Object.values(DRIVERS).map((d) => ({ tipo: d.tipo, nombre: d.nombre, campos: d.campos, puedeImprimir: d.puedeImprimir })),
+    tipos: Object.values(DRIVERS).map((d) => ({ tipo: d.tipo, nombre: d.nombre, campos: d.campos, puedeImprimir: d.puedeImprimir, puedeCancelar: !!d.puedeCancelar })),
     log: log.slice(-60),
     datos: carpetaDatos
   };
@@ -123,6 +123,15 @@ async function manejarApi(req, res, url) {
       if (!imp) return responder(404, { error: 'No existe esa impresora.' });
       const resultado = await driverDe(imp.tipo).probar(imp);
       registrar(`Prueba ${imp.nombre}: ${resultado}`);
+      return responder(200, { ok: true, mensaje: resultado });
+    }
+    if (url.pathname === '/api/impresora/cancelar') {
+      const imp = config.impresoras.find((i) => i.id === c.id);
+      if (!imp) return responder(404, { error: 'No existe esa impresora.' });
+      const driver = driverDe(imp.tipo);
+      if (!driver.cancelar) return responder(400, { error: 'Esta impresora no permite cancelar desde acá.' });
+      const resultado = await driver.cancelar(imp);
+      registrar(`Cancelar en ${imp.nombre}: ${resultado}`);
       return responder(200, { ok: true, mensaje: resultado });
     }
     return responder(404, { error: 'No existe.' });
