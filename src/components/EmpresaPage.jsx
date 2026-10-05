@@ -427,9 +427,18 @@ export default function EmpresaPage() {
               )}
 
               {suscripcion?.estado === 'trial' && (
-                <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
-                  Estás en versión de prueba — todavía no tenés un plan contratado.
-                </div>
+                <>
+                  <div style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '12px' }}>
+                    Estás en versión de prueba — todavía no tenés un plan contratado.
+                  </div>
+                  {/* Durante la prueba hay 200 MB para guardar archivos G-code. */}
+                  <BarraConsumo
+                    etiqueta="Espacio para archivos G-code"
+                    usado={suscripcion?.gcodeBytes || 0}
+                    limite={cupoGcode(null, suscripcion)}
+                    formatear={formatoBytes}
+                  />
+                </>
               )}
 
               {suscripcion && suscripcion.estado !== 'trial' && !planContratado && (
@@ -471,9 +480,9 @@ export default function EmpresaPage() {
                   />
                   {/* Archivos G-code de la Biblioteca: el cupo vacío es 0 (sin espacio). */}
                   <BarraConsumo
-                    etiqueta={cupoGcode(planContratado) > 0 ? 'Espacio para archivos G-code' : 'Archivos G-code (tu plan no incluye espacio)'}
+                    etiqueta={cupoGcode(planContratado, suscripcion) > 0 ? 'Espacio para archivos G-code' : 'Archivos G-code (tu plan no incluye espacio)'}
                     usado={suscripcion?.gcodeBytes || 0}
-                    limite={cupoGcode(planContratado)}
+                    limite={cupoGcode(planContratado, suscripcion)}
                     formatear={formatoBytes}
                   />
                 </>

@@ -42,7 +42,14 @@ export const archivosListosDe = (productoId, fichas) =>
   fichas.filter((f) => f.productoId === String(productoId) && f.estado === 'listo');
 
 // Cupo del plan en bytes (vacío o 0 = sin espacio).
-export const cupoGcode = (plan) => Math.max(0, Number(plan?.limites?.gcodeGB) || 0) * GB;
+// Una cuenta en prueba (sin plan todavía) tiene 200 MB para probarlo; con un plan,
+// el que diga plan.limites.gcodeGB. Mismo valor en functions/triggers/onGcodeSubido.js.
+export const CUPO_GCODE_PRUEBA = 200 * 1024 * 1024;
+export const cupoGcode = (plan, suscripcion) => (
+  !plan && suscripcion?.estado === 'trial'
+    ? CUPO_GCODE_PRUEBA
+    : Math.max(0, Number(plan?.limites?.gcodeGB) || 0) * GB
+);
 
 export function formatoBytes(n) {
   const b = Number(n) || 0;

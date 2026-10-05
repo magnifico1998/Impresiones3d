@@ -14,7 +14,7 @@ import SeccionBoletin from './admin/SeccionBoletin';
 import SeccionMonotributo from './admin/SeccionMonotributo';
 import { useTicketsPendientes } from './soporte/AvisosTicketsAdmin';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
-import { formatoBytes } from '../utils/archivosGcode';
+import { cupoGcode, formatoBytes } from '../utils/archivosGcode';
 
 // Panel de administración: sólo lo ven los emails presentes en la
 // colección Firestore "admins" (ver App.jsx -> guard de isAdmin y
@@ -1156,7 +1156,7 @@ export default function AdminPage({ modoRevendedor = false }) {
                               </td>
                               <td style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap', width: '160px' }}>
                                 <div>biblioteca: {c.bibliotecaCount || 0}{planDeLaCuenta?.limites?.productosBiblioteca != null ? `/${planDeLaCuenta.limites.productosBiblioteca}` : ''}</div>
-                                <div title="Espacio usado por los archivos G-code de la Biblioteca">g-code: {formatoBytes(c.gcodeBytes)} / {Number(planDeLaCuenta?.limites?.gcodeGB) || 0} GB</div>
+                                <div title="Espacio usado por los archivos G-code de la Biblioteca">g-code: {formatoBytes(c.gcodeBytes)} / {formatoBytes(cupoGcode(planDeLaCuenta, c))}</div>
                                 {!c.cicloId && <span>—</span>}
                                 {c.cicloId && !contador && (
                                   <button

@@ -117,7 +117,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   // Archivos que se cargaron en la Calculadora: se pueden guardar en el
   // producto (utils/archivosGcode.js) si el plan tiene espacio.
   const archivosCalc = presupuestoActual.archivosParaSubir || [];
-  const cupo = cupoGcode(planContratado);
+  const cupo = cupoGcode(planContratado, suscripcion);
   const hayEspacio = cupo > 0 && (suscripcion?.gcodeBytes || 0) < cupo;
   const subirGcode = (productoId) => {
     if (!guardarGcode || !hayEspacio || !archivosCalc.length) return;

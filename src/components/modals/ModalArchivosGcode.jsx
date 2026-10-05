@@ -33,7 +33,7 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
   const propios = archivos
     .filter((a) => a.productoId === String(producto.id))
     .sort((a, b) => (b.creadoEl?.toMillis?.() || 0) - (a.creadoEl?.toMillis?.() || 0));
-  const cupo = cupoGcode(planContratado);
+  const cupo = cupoGcode(planContratado, suscripcion);
   const usado = suscripcion?.gcodeBytes || 0;
   const soloLectura = ['lectura', 'suspendida'].includes(suscripcion?.estado) && !isAdmin;
   const puedeSubir = cupo > 0 && usado < cupo && !soloLectura && !subiendo;

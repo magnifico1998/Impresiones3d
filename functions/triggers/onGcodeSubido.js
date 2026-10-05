@@ -21,7 +21,8 @@ const { db, Timestamp } = require('../admin');
 //
 // El espacio usado por la cuenta (suma de sus .br) queda en
 // users/{cuenta}/suscripcion/actual.gcodeBytes, y el cupo es el del plan:
-// planes/{id}.limites.gcodeGB (vacío o 0 = sin espacio). Si el archivo no
+// planes/{id}.limites.gcodeGB (vacío o 0 = sin espacio; la cuenta en prueba tiene
+// 200 MB). Si el archivo no
 // entra, se borra y la ficha queda con el motivo.
 
 const brotli = promisify(zlib.brotliCompress);
@@ -37,10 +38,13 @@ const RE_GUARDADO = /^users\/([^/]+)\/gcode\/[A-Za-z0-9_-]+\.br$/;
 // (~2,5 s/MB, ~8 % más grande) y arriba de 120 MB a 9.
 const calidadPara = (bytes) => (bytes <= 30 * 1024 * 1024 ? 11 : bytes <= 120 * 1024 * 1024 ? 10 : 9);
 
+// Una cuenta en prueba (sin plan todavía) tiene 200 MB para probarlo.
+const CUPO_PRUEBA = 200 * 1024 * 1024;
+
 async function cupoDeLaCuenta(uid) {
   const sub = await db.doc(`users/${uid}/suscripcion/actual`).get();
   const planId = sub.exists ? sub.data().planId : null;
-  if (!planId) return 0;
+  if (!planId) return sub.exists && sub.data().estado === 'trial' ? CUPO_PRUEBA : 0;
   const plan = await db.doc(`planes/${planId}`).get();
   return Math.max(0, Number(plan.exists ? plan.data().limites?.gcodeGB : 0) || 0) * GB;
 }
