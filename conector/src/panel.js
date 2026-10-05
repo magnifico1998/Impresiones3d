@@ -73,6 +73,7 @@ export const PAGINA = `<!doctype html>
       <div data-campo="host"><label>IP de la impresora</label><input id="impHost" placeholder="Ej: 192.168.0.50"></div>
       <div data-campo="codigoAcceso"><label>Código de acceso (pantalla de la impresora)</label><input id="impCodigo" placeholder="8 caracteres" autocomplete="off"></div>
       <div data-campo="serie"><label>Número de serie</label><input id="impSerie" placeholder="Ej: 03919C..."></div>
+      <div data-campo="programa"><label>Programa (opcional): ruta del .exe</label><input id="impPrograma" placeholder="Si lo dejás vacío se busca solo. Ej: C:\\Program Files\\AnycubicSlicerNext\\AnycubicSlicerNext.exe"></div>
     </div>
     <div data-campo="tieneAce"><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="impAce" style="width:auto"> Tiene ACE (Combo): al imprimir, cada color va a un lugar del ACE que tenga ese material (lo lee de la impresora)</label></div>
     <div id="ayudaTipo" class="aviso"></div>
@@ -94,6 +95,7 @@ export const PAGINA = `<!doctype html>
 <script>
 const AYUDA = {
   'anycubic-lan': 'Kobra 3, Kobra 3 V2 o Kobra S1 con el firmware original, en "modo LAN" (pantalla de la impresora → Ajustes → Red). La IP también está en esa pantalla.',
+  'abrir-en-anycubic': 'Para cualquier Kobra, SIN modo LAN. Guarda el archivo y lo abre en Anycubic Slicer Next en esta PC; desde ahí lo mandás a la impresora con tu cuenta Anycubic, como ya lo hacés. Solo sirve con archivos .gcode.3mf laminados en Anycubic Slicer Next (Exportar archivo de la placa laminada). El programa se busca solo; si no lo encuentra, indicá la ruta de su .exe.',
   'abrir-en-programa': 'Guarda el archivo y lo abre en Bambu Studio (u Orca, el programa que tengas para los .3mf) en esta PC. Desde ahí lo mandás a la impresora como siempre. No necesita Bambu Connect ni el modo LAN.',
   'bambu-connect': 'Abre el archivo en Bambu Connect, en esta PC, para que elijas la impresora y confirmes. La impresora sigue con la nube y Bambu Handy. Instalá Bambu Connect desde wiki.bambulab.com.',
   'bambu-lan': 'EXPERIMENTAL. La impresora tiene que estar en "LAN Only" + "Developer Mode" (Ajustes → LAN Only): deja de usar la nube y Bambu Handy. IP, código de acceso y número de serie están en esa misma pantalla.'
@@ -117,7 +119,7 @@ function camposVisibles() {
 }
 
 function limpiarForm() {
-  $('impId').value = ''; $('impNombre').value = ''; $('impHost').value = ''; $('impCodigo').value = ''; $('impSerie').value = ''; $('impAce').checked = false;
+  $('impId').value = ''; $('impNombre').value = ''; $('impHost').value = ''; $('impCodigo').value = ''; $('impSerie').value = ''; $('impPrograma').value = ''; $('impAce').checked = false;
   $('impCodigo').placeholder = '8 caracteres';
   $('tituloForm').textContent = 'Agregar impresora'; $('btnCancelarImp').classList.add('oculto');
   camposVisibles();
@@ -195,7 +197,7 @@ function pintar() {
     const editar = document.createElement('button'); editar.textContent = 'Editar';
     editar.onclick = () => {
       $('impId').value = i.id; $('impNombre').value = i.nombre; $('impTipo').value = i.tipo; $('impHost').value = i.host;
-      $('impSerie').value = i.serie; $('impAce').checked = i.tieneAce; $('impCodigo').value = '';
+      $('impSerie').value = i.serie; $('impPrograma').value = i.programa || ''; $('impAce').checked = i.tieneAce; $('impCodigo').value = '';
       $('impCodigo').placeholder = i.conCodigo ? '(se mantiene el guardado)' : '8 caracteres';
       $('tituloForm').textContent = 'Editar ' + i.nombre; $('btnCancelarImp').classList.remove('oculto'); camposVisibles();
     };
@@ -227,7 +229,7 @@ $('btnGuardarImp').onclick = async () => {
   try {
     datos = await api('/api/impresora', {
       id: $('impId').value, nombre: $('impNombre').value, tipo: $('impTipo').value, host: $('impHost').value,
-      codigoAcceso: $('impCodigo').value, serie: $('impSerie').value, tieneAce: $('impAce').checked
+      codigoAcceso: $('impCodigo').value, serie: $('impSerie').value, programa: $('impPrograma').value, tieneAce: $('impAce').checked
     });
     mensaje('msgImp', 'Impresora guardada.', 'ok'); limpiarForm(); pintar();
   } catch (e) { mensaje('msgImp', e.message, 'error'); }

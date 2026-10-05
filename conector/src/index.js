@@ -40,7 +40,7 @@ const registrar = (texto) => {
 
 const nube = crearNube({ registrar });
 
-const impresoraPublica = (i) => ({ id: i.id, nombre: i.nombre, tipo: i.tipo, host: i.host || '', serie: i.serie || '', tieneAce: !!i.tieneAce, conCodigo: !!i.codigoAcceso });
+const impresoraPublica = (i) => ({ id: i.id, nombre: i.nombre, tipo: i.tipo, host: i.host || '', serie: i.serie || '', tieneAce: !!i.tieneAce, conCodigo: !!i.codigoAcceso, programa: i.programa || '' });
 
 function estado() {
   return {
@@ -68,10 +68,11 @@ const texto = (v, max) => String(v ?? '').trim().slice(0, max);
 function datosImpresora(c, id) {
   const tipo = texto(c.tipo, 40);
   driverDe(tipo);
-  const imp = { id, nombre: texto(c.nombre, 60) || 'Impresora', tipo, host: texto(c.host, 100), serie: texto(c.serie, 40), tieneAce: !!c.tieneAce };
+  const imp = { id, nombre: texto(c.nombre, 60) || 'Impresora', tipo, host: texto(c.host, 100), serie: texto(c.serie, 40), tieneAce: !!c.tieneAce, programa: texto(c.programa, 300) };
   const anterior = config.impresoras.find((i) => i.id === id);
   imp.codigoAcceso = texto(c.codigoAcceso, 40) || anterior?.codigoAcceso || '';
-  const faltan = driverDe(tipo).campos.filter((campo) => campo !== 'tieneAce' && !imp[campo]);
+  const driver = driverDe(tipo);
+  const faltan = driver.campos.filter((campo) => campo !== 'tieneAce' && !(driver.opcionales || []).includes(campo) && !imp[campo]);
   if (faltan.length) throw new Error(`Falta completar: ${faltan.join(', ')}.`);
   return imp;
 }

@@ -90,10 +90,16 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px', fontSize: '13px' }}>
-        <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
-          <input type="radio" name="accion-gcode" checked={accion === 'subir'} onChange={() => { setAccion('subir'); setLibre(false); }} style={{ marginTop: '3px' }} />
-          <span>Solo subir el archivo <span style={{ color: 'var(--text3)' }}>· queda en la impresora y lo elegís en su pantalla</span></span>
-        </label>
+        {elegido?.impresora.abre ? (
+          <div style={{ color: 'var(--text2)' }}>
+            Se abre en el programa de laminado de esa PC (Bambu Studio, Anycubic Slicer Next…) y desde ahí lo mandás a la impresora, como siempre.
+          </div>
+        ) : (
+          <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
+            <input type="radio" name="accion-gcode" checked={accion === 'subir'} onChange={() => { setAccion('subir'); setLibre(false); }} style={{ marginTop: '3px' }} />
+            <span>Solo subir el archivo <span style={{ color: 'var(--text3)' }}>· queda en la impresora y lo elegís en su pantalla</span></span>
+          </label>
+        )}
         {elegido?.impresora.puedeImprimir && (
           <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
             <input type="radio" name="accion-gcode" checked={accion === 'imprimir'} onChange={() => setAccion('imprimir')} style={{ marginTop: '3px' }} />
@@ -109,7 +115,7 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
       </div>
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
         <button className="btn btn-primary btn-sm" disabled={enviando || (accion === 'imprimir' && !libre)} onClick={enviar}>
-          {enviando ? 'Enviando…' : (accion === 'imprimir' ? 'Imprimir' : 'Subir a la impresora')}
+          {enviando ? 'Enviando…' : (accion === 'imprimir' ? 'Imprimir' : (elegido?.impresora.abre ? 'Abrir en el programa' : 'Subir a la impresora'))}
         </button>
         <button className="btn btn-sm" onClick={() => alTerminar?.(false)}>Cancelar</button>
       </div>

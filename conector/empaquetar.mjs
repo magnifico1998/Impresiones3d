@@ -50,8 +50,10 @@ PRIMER USO
 3. En el panel, en "Impresoras", cargá cada una:
    - Bambu Lab: elegí "Abrir en Bambu Studio / Orca" (necesita Bambu Studio
      instalado). Tocá "Probar".
-   - Anycubic Kobra 3 / S1: elegí "Anycubic Kobra 3 / S1 (modo LAN)", poné la IP
-     y tildá "Tiene ACE" si es Combo. La impresora tiene que estar en modo LAN.
+   - Anycubic Kobra: dos opciones. "Abrir en Anycubic Slicer Next" (sin modo
+     LAN, con archivos .gcode.3mf laminados en ese programa) o "Anycubic Kobra 3 /
+     S1 (modo LAN)": poné la IP y tildá "Tiene ACE" si es Combo (la impresora
+     tiene que estar en modo LAN).
 4. En Manager3D, en la Biblioteca, tocá el icono del archivo de un producto y
    después "Mandar" para elegir la impresora.
 
