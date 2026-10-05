@@ -107,15 +107,27 @@ async function subir(sesion, nombre, contenido, msMaximo = 5 * 60 * 1000) {
 
 // ---- Filamentos del archivo y lugares del ACE ------------------------------
 
-// Colores y materiales del archivo (los escribe el laminador al final del
-// G-code), uno por filamento en el orden en que se usan.
+// Filamentos que el archivo realmente usa. Un proyecto trae configurados todos
+// los filamentos que tenga el laminador (5, 8, 16…) aunque el modelo use uno
+// solo; lo que se usó lo anota el laminador en "filament used" (gramos, o mm).
+// Cada uno lleva su número original en el proyecto (indice), porque los cambios
+// de herramienta del archivo (T0, T1…) se refieren a ese número.
 export function filamentosDelGcode(contenido) {
   const cola = Buffer.from(contenido.subarray(Math.max(0, contenido.length - 400 * 1024))).toString('utf8');
-  const valor = (clave) => (cola.match(new RegExp(`^; ${clave} = (.*)$`, 'm'))?.[1] || '').split(/[;,]/).map((s) => s.trim()).filter(Boolean);
-  const colores = valor('filament_colour');
-  const tipos = valor('filament_type');
-  const cantidad = Math.max(colores.length, tipos.length, 1);
-  return Array.from({ length: cantidad }, (_, i) => ({ color: colores[i] || '#FFFFFF', tipo: tipos[i] || tipos[0] || 'PLA' }));
+  const cabecera = Buffer.from(contenido.subarray(0, 100 * 1024)).toString('utf8');
+  const buscar = (clave) => {
+    for (const texto of [cola, cabecera]) {
+      const m = texto.match(new RegExp('^;\\s*' + clave + '\\s*[=:]\\s*(.*)$', 'm'));
+      if (m) return m[1].split(/[;,]/).map((x) => x.trim()).filter(Boolean);
+    }
+    return [];
+  };
+  const colores = buscar('filament_colour');
+  const tipos = buscar('filament_type');
+  const usados = ['filament used \\[g\\]', 'filament used \\[mm\\]', 'filament used \\[cm3\\]'].map(buscar).find((l) => l.length) || [];
+  let indices = usados.map((v, i) => [Number(v), i]).filter(([v]) => v > 0).map(([, i]) => i);
+  if (!indices.length) indices = [0]; // sin esos datos, se asume un solo filamento
+  return indices.map((i) => ({ indice: i, color: colores[i] || '#FFFFFF', tipo: tipos[i] || tipos[0] || 'PLA' }));
 }
 
 const rgb = (hex) => {
@@ -155,7 +167,8 @@ export function armarMapeoAce(filamentos, lugares) {
     throw new Error('El ACE no tiene ningún filamento cargado (o la impresora no informó su estado). Cargá el filamento en un lugar del ACE, o destildá "Tiene ACE" si la imprimís con el carrete externo.');
   }
   const libres = [...lugares];
-  return filamentos.map((f, i) => {
+  return filamentos.map((f, pos) => {
+    const i = f.indice ?? pos;
     const material = materialBase(f.tipo);
     const colorArchivo = rgb(f.color);
     const candidatos = libres.filter((l) => l.tipo === material);
@@ -265,50 +278,49 @@ export function archivoEnLista(lista, nombre) {
 // alcanza. Se le pregunta su lista de archivos hasta que aparezca.
 //   'si' → está; 'no' → contestó pero el archivo no figura (se canceló o no
 //   terminó); 'sinRespuesta' → no contestó la lista (no se pudo verificar).
-async function esperarArchivo(mqttApi, nombre, ms = 90000) {
+async function esperarArchivo(mqttApi, nombre, ms = 30000) {
   const fin = Date.now() + ms;
   let ruta = '/';
-  let respondio = false;
+  let muestra = '';
   while (Date.now() < fin) {
     const r = await mqttApi.pedir('file', 'listLocal', { path: ruta }, { ms: 5000 });
     if (r) {
-      respondio = true;
       const lista = r.data?.file_list;
-      if (archivoEnLista(lista, nombre)) return 'si';
+      muestra = JSON.stringify(r.data ?? r).slice(0, 300);
+      if (archivoEnLista(lista, nombre)) return { resultado: 'si', muestra };
       if (!Array.isArray(lista) && ruta === '/') ruta = '';
     }
     await new Promise((resolver) => setTimeout(resolver, 3000));
   }
-  return respondio ? 'no' : 'sinRespuesta';
+  return { resultado: muestra ? 'no' : 'sinRespuesta', muestra };
 }
 
-// Sube el archivo y, si la impresora tarda demasiado en contestar, mira si ya lo
-// tiene en su lista. Cuando la impresora quedó con una descarga abierta en su
-// pantalla (por ejemplo después de rechazar una orden), recibe el archivo pero
-// no contesta la subida hasta que alguien cancela ahí: en ese caso no se espera
-// a que conteste. Devuelve { nombre, colgada }.
-async function subirVigilando(sesion, mqttApi, nombre, contenido) {
+// Sube el archivo. En esta impresora subir un archivo la deja "preparando un
+// trabajo" (recibiendo, calentando la cama) esperando que alguien lo inicie o lo
+// cancele; si no contesta la subida a tiempo, se cancela esa preparación por ella
+// (el archivo queda guardado) y se sigue esperando la respuesta.
+//   alColgarse: se llama una vez, cuando la subida tarda más de lo normal.
+async function subirVigilando(sesion, nombre, contenido, alColgarse) {
   const inicio = Date.now();
   const MS_MAXIMO = 5 * 60 * 1000;
-  // Una subida normal termina en segundos: se sospecha después de este tiempo
-  // (más para archivos grandes, que tardan de verdad).
+  // Una subida normal termina en segundos (más tiempo para archivos grandes).
   const msSospecha = Math.max(30000, (contenido.length / 1024 / 1024) * 3000);
   let resultado = null;
+  let colgada = false;
   subir(sesion, nombre, contenido, MS_MAXIMO)
     .then((n) => { resultado = { nombre: n }; })
     .catch((e) => { resultado = { error: e }; });
 
   while (!resultado && Date.now() - inicio < MS_MAXIMO + 5000) {
-    await new Promise((resolver) => setTimeout(resolver, 2000));
-    if (resultado || !mqttApi || Date.now() - inicio < msSospecha) continue;
-    const r = await mqttApi.pedir('file', 'listLocal', { path: '/' }, { ms: 5000 });
-    if (!resultado && archivoEnLista(r?.data?.file_list, nombre)) return { nombre, colgada: true };
+    await new Promise((resolver) => setTimeout(resolver, 1500));
+    if (!resultado && !colgada && Date.now() - inicio > msSospecha) {
+      colgada = true;
+      await alColgarse?.();
+    }
   }
   if (resultado?.error) throw resultado.error;
-  return { nombre: resultado?.nombre || nombre, colgada: false };
+  return { nombre: resultado?.nombre || nombre, colgada };
 }
-
-const MENSAJE_NO_LLEGO = 'La impresora aceptó el archivo pero no figura en su lista de archivos: si cancelaste la descarga en su pantalla o quedó cargando, cancelá el trabajo desde el panel del conector y volvé a mandarlo dejando que termine.';
 
 // Traduce los rechazos conocidos de la impresora.
 function explicarRechazo(msg) {
@@ -324,6 +336,7 @@ export const anycubicLan = {
   formatos: ['gcode', '3mf'],
   puedeImprimir: true,
   puedeCancelar: true,
+  puedeDiagnosticar: true,
   campos: ['host', 'tieneAce'],
 
   // Conecta, y cuenta cómo está la impresora (estado y, con ACE, qué hay en cada lugar).
@@ -361,11 +374,34 @@ export const anycubicLan = {
     }
   },
 
+  // Todo lo que informa la impresora, para entender qué contesta (se ve en el
+  // panel del conector, botón Diagnóstico).
+  async diagnosticar(impresora) {
+    const corto = (x, n = 700) => { const t = JSON.stringify(x); return t === undefined ? '(sin datos)' : (t.length > n ? `${t.slice(0, n)}…` : t); };
+    const lineas = [];
+    const s = await conectarAnycubic(impresora.host);
+    const infoSinToken = { ...s.info };
+    delete infoSinToken.token;
+    lineas.push(`/info: ${corto(infoSinToken, 600)}`);
+    const m = await abrirMqtt(s, impresora.host);
+    try {
+      lineas.push(`estado (info): ${corto((await m.pedir('info', 'query', null, { ms: 5000 }))?.data)}`);
+      if (impresora.tieneAce) lineas.push(`ACE (multiColorBox): ${corto((await m.pedir('multiColorBox', 'getInfo', null, { ms: 6000 }))?.data, 1200)}`);
+      for (const ruta of ['/', '', '/gcodes']) {
+        const r = await m.pedir('file', 'listLocal', { path: ruta }, { ms: 5000 });
+        lineas.push(`archivos (listLocal "${ruta}"): ${r ? corto(r.data ?? r, 900) : 'no contestó'}`);
+      }
+    } finally {
+      m.cerrar();
+    }
+    return lineas.join('\n');
+  },
+
   async enviar(impresora, { nombre, contenido, accion, avisar }) {
     const sesion = await conectarAnycubic(impresora.host);
 
-    // MQTT: para imprimir es obligatorio; para sólo subir, sirve para verificar
-    // que el archivo llegó (si no se puede conectar, se sube igual sin verificar).
+    // MQTT: para imprimir es obligatorio; para sólo subir, sirve para ver el
+    // estado y limpiar (si no se puede conectar, se sube igual).
     let mapeo = [];
     let mqttApi = null;
     try {
@@ -373,13 +409,15 @@ export const anycubicLan = {
     } catch (e) {
       if (accion === 'imprimir') throw e;
     }
+    const cancelarPreparacion = () => mqttApi.pedir('print', 'stop', { taskid: '-1' }, { ms: 4000, filtro: (inf, msgid) => inf.msgid === msgid || inf.action === 'stop' });
+
     try {
-      // Imprimir: antes de subir nada, ver que la impresora esté libre y que el
-      // ACE tenga los materiales (si no, no se toca la impresora).
-      if (mqttApi && accion === 'imprimir') {
+      // Antes de subir nada: la impresora tiene que estar libre (subir un archivo
+      // la mete a preparar un trabajo: si estuviera imprimiendo, se lo interrumpiría).
+      if (mqttApi) {
         const est = await estadoDe(mqttApi);
-        if (!est.libre) throw new Error(`La impresora está ${est.texto}: esperá a que termine o cancelala desde el panel.`);
-        if (impresora.tieneAce) {
+        if (!est.libre) throw new Error(`La impresora está ${est.texto}: esperá a que termine o cancelala desde el panel, y volvé a mandarlo.`);
+        if (accion === 'imprimir' && impresora.tieneAce) {
           const r = await mqttApi.pedir('multiColorBox', 'getInfo', null, { ms: 6000 });
           if (!r) throw new Error('El ACE no respondió: revisá que esté bien conectado a la impresora, o destildá "Tiene ACE".');
           mapeo = armarMapeoAce(filamentosDelGcode(contenido), lugaresDelAce(r.data));
@@ -387,36 +425,36 @@ export const anycubicLan = {
       }
 
       avisar?.('Subiendo el archivo a la impresora…');
-      const { nombre: nombreEnImpresora, colgada } = await subirVigilando(sesion, mqttApi, nombre, contenido);
-      if (colgada) {
-        // El archivo ya está en la impresora, pero ella dejó la descarga abierta en su pantalla.
-        if (accion === 'imprimir') {
-          throw new Error('La impresora recibió el archivo pero quedó con la descarga abierta en su pantalla, así que no se mandó a imprimir: tocá Cancelar en su pantalla (el archivo queda guardado) o usá "Cancelar trabajo" en el panel del conector, y volvé a mandarlo.');
-        }
-        return {
-          estado: 'enviado',
-          mensaje: `El archivo ya está en ${impresora.nombre}, pero ella dejó la descarga abierta en su pantalla: tocá Cancelar ahí (el archivo queda guardado) o usá "Cancelar trabajo" en el panel del conector.`
-        };
-      }
+      const { nombre: nombreEnImpresora, colgada } = await subirVigilando(sesion, nombre, contenido, async () => {
+        avisar?.('La impresora no contesta la subida: cancelando su pantalla de descarga…');
+        if (mqttApi) await cancelarPreparacion();
+      });
 
-      // Que la impresora termine de recibirlo (si se cancela o se cuelga ahí, no es "enviado").
-      avisar?.('Esperando que la impresora termine de recibir el archivo (se ve en su pantalla)…');
-      const llego = mqttApi ? await esperarArchivo(mqttApi, nombreEnImpresora) : 'sinRespuesta';
-      if (llego === 'no') throw new Error(MENSAJE_NO_LLEGO);
       if (accion !== 'imprimir') {
+        // Solo subir: la impresora, al recibir el archivo, se pone a preparar un
+        // trabajo (cama caliente). Como no se quiere imprimir, se cancela esa
+        // preparación; el archivo queda guardado.
+        let limpiada = colgada;
+        if (mqttApi) {
+          await new Promise((resolver) => setTimeout(resolver, 1500));
+          const despues = await estadoDe(mqttApi);
+          if (!despues.libre) { await cancelarPreparacion(); limpiada = true; }
+        }
+        const { resultado, muestra } = mqttApi ? await esperarArchivo(mqttApi, nombreEnImpresora) : { resultado: 'sinRespuesta', muestra: '' };
+        const nota = limpiada ? ' Se canceló la preparación que la impresora había empezado (el archivo queda guardado).' : '';
+        if (resultado === 'si') return { estado: 'enviado', mensaje: `Subido a ${impresora.nombre} y verificado: elegilo en su pantalla para imprimir.${nota}` };
         return {
           estado: 'enviado',
-          mensaje: llego === 'si'
-            ? `Subido a ${impresora.nombre} y verificado: elegilo en su pantalla para imprimir.`
-            : `Subido a ${impresora.nombre}, pero la impresora no confirmó su lista de archivos: revisá en su pantalla que haya terminado de recibirlo.`
+          mensaje: `Subido a ${impresora.nombre}, pero no pude confirmarlo en su lista de archivos${muestra ? ` (contestó: ${muestra})` : ''}: revisá en su pantalla.${nota}`
         };
       }
-      if (llego === 'sinRespuesta') throw new Error('La impresora no contestó cuando le pregunté si ya tenía el archivo: no se mandó a imprimir. Probá de nuevo o usá "Solo subir" y elegilo en su pantalla.');
-      avisar?.('Archivo recibido. Mandando la orden de imprimir…');
 
+      avisar?.('Archivo subido. Mandando la orden de imprimir…');
       const respuesta = await mqttApi.pedir('print', 'start', {
         taskid: '-1',
-        url: '',
+        // La misma url de relleno que usa el programa de referencia: la impresora
+        // toma el archivo que ya subimos (por nombre), no lo descarga de ahí.
+        url: 'https://anycubic.com/store/aaa.gcode',
         filename: nombreEnImpresora,
         md5: crypto.createHash('md5').update(contenido).digest('hex'),
         filepath: null,
@@ -430,10 +468,10 @@ export const anycubicLan = {
       if (respuesta && respuesta.code && respuesta.code !== 200) {
         // La impresora la rechazó: se cancela para que no quede con la cama
         // calentando y un trabajo a medio preparar.
-        await mqttApi.pedir('print', 'stop', { taskid: '-1' }, { ms: 4000, filtro: (inf, msgid) => inf.msgid === msgid || inf.action === 'stop' }).catch(() => null);
+        await cancelarPreparacion().catch(() => null);
         throw new Error(explicarRechazo(respuesta.msg || respuesta.message || respuesta.code));
       }
-      const donde = mapeo.length ? ` (${mapeo.map((m) => `color ${m.paint_index + 1} → lugar ${m.ams_index + 1}`).join(', ')})` : '';
+      const donde = mapeo.length ? ` (${mapeo.map((x) => `color ${x.paint_index + 1} → lugar ${x.ams_index + 1}`).join(', ')})` : '';
       return respuesta
         ? { estado: 'imprimiendo', mensaje: `Imprimiendo en ${impresora.nombre}${donde}.` }
         : { estado: 'enviado', mensaje: `Subido y orden de impresión enviada a ${impresora.nombre}, pero no confirmó: revisá su pantalla.` };

@@ -48,7 +48,7 @@ function estado() {
     conectado: nube.estaConectado(),
     equipo: config.vinculo?.equipo || os.hostname(),
     impresoras: config.impresoras.map(impresoraPublica),
-    tipos: Object.values(DRIVERS).map((d) => ({ tipo: d.tipo, nombre: d.nombre, campos: d.campos, puedeImprimir: d.puedeImprimir, puedeCancelar: !!d.puedeCancelar })),
+    tipos: Object.values(DRIVERS).map((d) => ({ tipo: d.tipo, nombre: d.nombre, campos: d.campos, puedeImprimir: d.puedeImprimir, puedeCancelar: !!d.puedeCancelar, puedeDiagnosticar: !!d.diagnosticar })),
     log: log.slice(-60),
     datos: carpetaDatos
   };
@@ -124,6 +124,15 @@ async function manejarApi(req, res, url) {
       const resultado = await driverDe(imp.tipo).probar(imp);
       registrar(`Prueba ${imp.nombre}: ${resultado}`);
       return responder(200, { ok: true, mensaje: resultado });
+    }
+    if (url.pathname === '/api/impresora/diagnostico') {
+      const imp = config.impresoras.find((i) => i.id === c.id);
+      if (!imp) return responder(404, { error: 'No existe esa impresora.' });
+      const driver = driverDe(imp.tipo);
+      if (!driver.diagnosticar) return responder(400, { error: 'Esta impresora no tiene diagnóstico.' });
+      const texto = await driver.diagnosticar(imp);
+      registrar(`Diagnóstico de ${imp.nombre} hecho.`);
+      return responder(200, { ok: true, mensaje: texto });
     }
     if (url.pathname === '/api/impresora/cancelar') {
       const imp = config.impresoras.find((i) => i.id === c.id);

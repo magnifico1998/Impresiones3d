@@ -46,11 +46,25 @@ catch (e) { ok(/PLA/.test(e.message), '3 colores PLA y solo 2 lugares con PLA: a
 try { armarMapeoAce([{ color: '#FFFFFF', tipo: 'PLA' }], []); ok(false, 'ACE vacío tendría que fallar'); }
 catch (e) { ok(/ningún filamento/.test(e.message), 'ACE vacío: avisa y sugiere destildar "Tiene ACE"'); }
 
-// Colores y tipos que escribe el laminador al final del G-code.
-const gcode = Buffer.from('G1 X1\n; filament_colour = #FFFFFF;#FF0000\n; filament_type = PLA;PLA\nM84\n');
-const f = filamentosDelGcode(gcode);
-ok(f.length === 2 && f[1].color === '#FF0000' && f[0].tipo === 'PLA', 'lee los colores y tipos del final del G-code');
-ok(filamentosDelGcode(Buffer.from('G1 X1\n')).length === 1, 'sin esas líneas asume un solo filamento PLA');
+// Colores y tipos que escribe el laminador al final del G-code. Un proyecto con
+// 8 filamentos configurados que usa uno solo (el caso del tester: "color 5").
+const ocho = '#FFFFFF;#FF0000;#00FF00;#0000FF;#FFFF00;#FF00FF;#00FFFF;#808080';
+const gcode8 = Buffer.from('G1 X1\n; filament used [mm] = 0.00, 1520.30, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00\n; filament used [g] = 0.00, 4.55, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00\n; filament_colour = ' + ocho + '\n; filament_type = PLA;PLA;PLA;PLA;PLA;PLA;PLA;PLA\nM84\n');
+let f = filamentosDelGcode(gcode8);
+ok(f.length === 1 && f[0].indice === 1 && f[0].color === '#FF0000', 'de 8 filamentos configurados, usa solo el que se usó (el 2.º, rojo)');
+m = armarMapeoAce(f, lugaresA);
+ok(m.length === 1 && m[0].paint_index === 1 && m[0].ams_index === 0, 'el color 2 del proyecto va al lugar del ACE con PLA rojo y conserva su número (paint_index 1)');
+
+// Dos filamentos usados de los 8.
+const gcode2 = Buffer.from('; filament used [g] = 3.10, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 2.00\n; filament_colour = ' + ocho + '\n; filament_type = PLA;PLA;PLA;PLA;PLA;PLA;PLA;PETG\n');
+f = filamentosDelGcode(gcode2);
+ok(f.length === 2 && f[0].indice === 0 && f[1].indice === 7 && f[1].tipo === 'PETG', 'dos usados (el 1.º y el 8.º): lee sus números, colores y materiales');
+
+// Sin datos de uso: asume el primero.
+const gcodeSinUso = Buffer.from('G1 X1\n; filament_colour = #FFFFFF;#FF0000\n; filament_type = PLA;PLA\n');
+f = filamentosDelGcode(gcodeSinUso);
+ok(f.length === 1 && f[0].indice === 0, 'sin "filament used" asume solo el primer filamento');
+ok(filamentosDelGcode(Buffer.from('G1 X1\n')).length === 1, 'sin ninguna de esas líneas asume un solo filamento PLA');
 
 // Verificar que el archivo llegó a la impresora.
 const lista = [{ filename: 'TORNILLO.gcode', size: 752640 }, { name: 'otro.gcode' }];

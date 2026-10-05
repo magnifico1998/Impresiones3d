@@ -81,6 +81,8 @@ export const PAGINA = `<!doctype html>
       <button id="btnCancelarImp" class="oculto">Cancelar</button>
     </div>
     <div id="msgImp" class="msg"></div>
+    <pre id="diag" class="oculto" style="margin-top:10px"></pre>
+    <button id="btnCopiarDiag" class="oculto" style="margin-top:8px">Copiar el diagnóstico</button>
   </div>
 
   <div class="card">
@@ -176,6 +178,20 @@ function pintar() {
         cancelar.disabled = false; refrescar();
       };
     }
+    let diagnostico = null;
+    if (tipo && tipo.puedeDiagnosticar) {
+      diagnostico = document.createElement('button'); diagnostico.textContent = 'Diagnóstico';
+      diagnostico.title = 'Muestra todo lo que contesta la impresora (para entender un problema)';
+      diagnostico.onclick = async () => {
+        diagnostico.disabled = true; mensaje('msgImp', 'Consultando a ' + i.nombre + '…');
+        try {
+          const r = await api('/api/impresora/diagnostico', { id: i.id });
+          mensaje('msgImp', 'Diagnóstico de ' + i.nombre + ':', 'ok');
+          $('diag').textContent = r.mensaje; $('diag').classList.remove('oculto'); $('btnCopiarDiag').classList.remove('oculto');
+        } catch (e) { mensaje('msgImp', e.message, 'error'); }
+        diagnostico.disabled = false; refrescar();
+      };
+    }
     const editar = document.createElement('button'); editar.textContent = 'Editar';
     editar.onclick = () => {
       $('impId').value = i.id; $('impNombre').value = i.nombre; $('impTipo').value = i.tipo; $('impHost').value = i.host;
@@ -185,7 +201,7 @@ function pintar() {
     };
     const borrar = document.createElement('button'); borrar.className = 'peligro'; borrar.textContent = '✕';
     borrar.onclick = async () => { if (confirm('¿Quitar ' + i.nombre + '?')) { datos = await api('/api/impresora/borrar', { id: i.id }); pintar(); } };
-    td.append(probar); if (cancelar) td.append(cancelar); td.append(editar, borrar); tr.append(td); tb.append(tr);
+    td.append(probar); if (cancelar) td.append(cancelar); if (diagnostico) td.append(diagnostico); td.append(editar, borrar); tr.append(td); tb.append(tr);
   });
 
   $('log').textContent = datos.log.join('\\n');
@@ -195,6 +211,10 @@ function pintar() {
 
 async function refrescar() { try { datos = await api('/api/estado'); pintar(); } catch { /* el conector se cerró */ } }
 
+$('btnCopiarDiag').onclick = async () => {
+  try { await navigator.clipboard.writeText($('diag').textContent); $('btnCopiarDiag').textContent = 'Copiado ✓'; setTimeout(() => { $('btnCopiarDiag').textContent = 'Copiar el diagnóstico'; }, 2000); }
+  catch { /* sin permiso para copiar: se puede seleccionar a mano */ }
+};
 $('impTipo').onchange = camposVisibles;
 $('btnCancelarImp').onclick = limpiarForm;
 $('btnVincular').onclick = async () => {
