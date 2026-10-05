@@ -257,14 +257,44 @@ function abrirMqtt(sesion, host) {
 }
 
 // Estado de la impresora: { libre, texto }.
+// Pasos de un trabajo que la impresora puede informar mientras lo prepara o lo
+// hace (descargando el archivo, revisando, calentando, imprimiendo…). Cuando
+// termina o se cancela, el trabajo en curso desaparece (project: null).
+const PASOS_TERMINADOS = ['', 'finish', 'complete', 'completed', 'stoped', 'stopped', 'cancel', 'cancelled', 'canceled', 'failed', 'free', 'idle'];
+
 async function estadoDe(mqttApi) {
   const r = await mqttApi.pedir('info', 'query', null, { ms: 5000 });
-  const estado = String(r?.data?.state ?? '').toLowerCase();
-  const proyecto = String((r?.data?.last_project || r?.data?.project || {}).state || '').toLowerCase();
-  const temp = r?.data?.temp ? { cama: Number(r.data.temp.target_hotbed_temp) || 0, boquilla: Number(r.data.temp.target_nozzle_temp) || 0 } : null;
-  if (!r) return { libre: true, texto: 'no informó su estado', temp };
-  const ocupada = estado === 'busy' || proyecto === 'printing' || proyecto === 'pause' || estado === 'pause';
-  return { libre: !ocupada, texto: ocupada ? (proyecto === 'pause' || estado === 'pause' ? 'en pausa con un trabajo' : 'ocupada imprimiendo') : 'libre', temp };
+  const datos = r?.data || {};
+  const estado = String(datos.state ?? '').toLowerCase();
+  const actual = datos.project || null; // el trabajo en curso (el último terminado va en last_project)
+  const pasoActual = String(actual?.state ?? '').toLowerCase();
+  const temp = datos.temp ? { cama: Number(datos.temp.target_hotbed_temp) || 0, boquilla: Number(datos.temp.target_nozzle_temp) || 0 } : null;
+  const trabajo = actual ? { taskid: String(actual.taskid ?? actual.task_id ?? '-1'), paso: pasoActual || 'sin paso' } : null;
+  if (!r) return { libre: true, texto: 'no informó su estado', temp, trabajo: null };
+  const enPausa = pasoActual === 'pause' || estado === 'pause';
+  const conTrabajo = !!actual && !PASOS_TERMINADOS.includes(pasoActual);
+  const ocupada = estado === 'busy' || conTrabajo || enPausa;
+  const texto = !ocupada ? 'libre'
+    : enPausa ? 'en pausa con un trabajo'
+      : conTrabajo && pasoActual !== 'printing' ? `preparando un trabajo (${pasoActual})`
+        : 'ocupada imprimiendo';
+  return { libre: !ocupada, texto, temp, trabajo };
+}
+
+// Cancela el trabajo que la impresora tenga en curso o preparando. Usa el número
+// de trabajo (taskid) que ella informa: con -1 sólo cancela una impresión, no una
+// descarga a medias. Prueba "stop" y, si la impresora sigue ocupada, "cancel".
+// Devuelve { libre, texto } con cómo quedó.
+async function cancelarTrabajoEnImpresora(mqttApi) {
+  let estado = await estadoDe(mqttApi);
+  for (const accion of ['stop', 'cancel']) {
+    const taskid = estado.trabajo?.taskid || '-1';
+    await mqttApi.pedir('print', accion, { taskid }, { ms: 4000, filtro: (inf, msgid) => inf.msgid === msgid || inf.action === accion });
+    await new Promise((resolver) => setTimeout(resolver, 2000));
+    estado = await estadoDe(mqttApi);
+    if (estado.libre) break;
+  }
+  return estado;
 }
 
 // Al preparar un trabajo la impresora sube las temperaturas objetivo (cama,
@@ -382,10 +412,12 @@ export const anycubicLan = {
     const s = await conectarAnycubic(impresora.host);
     const m = await abrirMqtt(s, impresora.host);
     try {
-      const r = await m.pedir('print', 'stop', { taskid: '-1' }, { ms: 6000, filtro: (inf, msgid) => inf.msgid === msgid || inf.action === 'stop' });
-      return r && r.code && r.code !== 200
-        ? `La impresora contestó: ${r.msg || r.code}.`
-        : 'Orden de cancelar enviada a la impresora.';
+      const antes = await estadoDe(m);
+      const despues = await cancelarTrabajoEnImpresora(m);
+      await restaurarTemperaturas(m, { cama: 0, boquilla: 0 });
+      return despues.libre
+        ? `Listo: la impresora quedó libre (antes: ${antes.texto}) y con la cama y la boquilla apagadas.`
+        : `Se mandó la orden de cancelar, pero la impresora sigue ${despues.texto}: tocá Cancelar en su pantalla.`;
     } finally {
       m.cerrar();
     }
@@ -402,7 +434,11 @@ export const anycubicLan = {
     lineas.push(`/info: ${corto(infoSinToken, 600)}`);
     const m = await abrirMqtt(s, impresora.host);
     try {
-      lineas.push(`estado (info): ${corto((await m.pedir('info', 'query', null, { ms: 5000 }))?.data)}`);
+      const informe = await m.pedir('info', 'query', null, { ms: 5000 });
+      lineas.push(`estado (info): ${corto(informe?.data, 1800)}`);
+      lineas.push(`trabajo en curso (project): ${corto(informe?.data?.project ?? null, 600)}`);
+      const interpretado = await estadoDe(m);
+      lineas.push(`el conector lo interpreta como: ${interpretado.texto}${interpretado.trabajo ? ` · trabajo ${interpretado.trabajo.taskid} en paso "${interpretado.trabajo.paso}"` : ''}`);
       if (impresora.tieneAce) lineas.push(`ACE (multiColorBox): ${corto((await m.pedir('multiColorBox', 'getInfo', null, { ms: 6000 }))?.data, 1200)}`);
       const r = await m.pedir('file', 'listLocal', { path: '/' }, { ms: 5000 });
       const registros = r?.data?.records;
@@ -425,7 +461,7 @@ export const anycubicLan = {
     } catch (e) {
       if (accion === 'imprimir') throw e;
     }
-    const cancelarPreparacion = () => mqttApi.pedir('print', 'stop', { taskid: '-1' }, { ms: 4000, filtro: (inf, msgid) => inf.msgid === msgid || inf.action === 'stop' });
+    const cancelarPreparacion = () => cancelarTrabajoEnImpresora(mqttApi);
 
     try {
       // Antes de subir nada: la impresora tiene que estar libre (subir un archivo
@@ -453,18 +489,22 @@ export const anycubicLan = {
         // trabajo (cama caliente). Como no se quiere imprimir, se cancela esa
         // preparación; el archivo queda guardado.
         let limpiada = colgada;
+        let sigueOcupada = '';
         if (mqttApi) {
           await new Promise((resolver) => setTimeout(resolver, 1500));
           const despues = await estadoDe(mqttApi);
           const calentando = despues.temp && antes && (despues.temp.cama !== antes.cama || despues.temp.boquilla !== antes.boquilla);
           if (!despues.libre || calentando) {
-            await cancelarPreparacion();
+            const final = await cancelarPreparacion();
             await restaurarTemperaturas(mqttApi, antes);
             limpiada = true;
+            if (!final.libre) sigueOcupada = final.texto;
           }
         }
         const { resultado, muestra } = mqttApi ? await esperarArchivo(mqttApi, nombreEnImpresora, contenido.length) : { resultado: 'sinRespuesta', muestra: '' };
-        const nota = limpiada ? ' Se canceló la preparación que la impresora había empezado y se dejó la cama y la boquilla como estaban (el archivo queda guardado).' : '';
+        const nota = sigueOcupada
+          ? ` Se mandó cancelar la preparación, pero la impresora sigue ${sigueOcupada}: tocá Cancelar en su pantalla (el archivo queda guardado).`
+          : (limpiada ? ' Se canceló la preparación que la impresora había empezado y se dejó la cama y la boquilla como estaban (el archivo queda guardado).' : '');
         if (resultado === 'si') return { estado: 'enviado', mensaje: `Subido a ${impresora.nombre} y verificado en su lista de archivos: elegilo en su pantalla para imprimir.${nota}` };
         return {
           estado: 'enviado',
