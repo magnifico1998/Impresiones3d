@@ -234,13 +234,13 @@ function abrirMqtt(sesion, host) {
 
     const api = {
       // Manda un pedido y espera el informe de ese tipo (null si no llega a tiempo).
-      pedir(tipo, accion, data = null, { ms = 6000, filtro = () => true } = {}) {
+      pedir(tipo, accion, data = null, { ms = 6000, filtro = () => true, espacio = 'slicer' } = {}) {
         return new Promise((resolver) => {
           const msgid = crypto.randomUUID();
           const espera = { tipo, filtro: (inf) => filtro(inf, msgid), resolver, reloj: setTimeout(() => { esperas.delete(espera); resolver(null); }, ms) };
           esperas.add(espera);
           cliente.publish(
-            `${BASE_MQTT}/slicer/printer/${sesion.modelId}/${sesion.deviceId}/${tipo}`,
+            `${BASE_MQTT}/${espacio}/printer/${sesion.modelId}/${sesion.deviceId}/${tipo}`,
             JSON.stringify({ type: tipo, action: accion, timestamp: Date.now(), msgid, data })
           );
         });
@@ -261,38 +261,55 @@ async function estadoDe(mqttApi) {
   const r = await mqttApi.pedir('info', 'query', null, { ms: 5000 });
   const estado = String(r?.data?.state ?? '').toLowerCase();
   const proyecto = String((r?.data?.last_project || r?.data?.project || {}).state || '').toLowerCase();
-  if (!r) return { libre: true, texto: 'no informó su estado' };
+  const temp = r?.data?.temp ? { cama: Number(r.data.temp.target_hotbed_temp) || 0, boquilla: Number(r.data.temp.target_nozzle_temp) || 0 } : null;
+  if (!r) return { libre: true, texto: 'no informó su estado', temp };
   const ocupada = estado === 'busy' || proyecto === 'printing' || proyecto === 'pause' || estado === 'pause';
-  return { libre: !ocupada, texto: ocupada ? (proyecto === 'pause' || estado === 'pause' ? 'en pausa con un trabajo' : 'ocupada imprimiendo') : 'libre' };
+  return { libre: !ocupada, texto: ocupada ? (proyecto === 'pause' || estado === 'pause' ? 'en pausa con un trabajo' : 'ocupada imprimiendo') : 'libre', temp };
 }
 
-// ¿Figura el archivo en la lista de la impresora? Se busca en todo el texto de
-// cada entrada para no depender de cómo se llame el campo del nombre.
-export function archivoEnLista(lista, nombre) {
+// Al preparar un trabajo la impresora sube las temperaturas objetivo (cama,
+// boquilla) y, al cancelarlo, las deja así. Se vuelven a poner las que tenía
+// antes de la subida (casi siempre 0, apagadas).
+async function restaurarTemperaturas(mqttApi, antes) {
+  if (!antes) return;
+  const ahora = await estadoDe(mqttApi);
+  if (!ahora.temp || (ahora.temp.cama === antes.cama && ahora.temp.boquilla === antes.boquilla)) return;
+  await mqttApi.pedir('tempature', 'set', { type: 2, target_hotbed_temp: antes.cama, target_nozzle_temp: antes.boquilla }, { ms: 2500, espacio: 'web' });
+}
+
+// ¿Figura el archivo en la lista de la impresora? Ella contesta
+//   { records: [{ filename, size, timestamp, is_dir, ... }] }
+// (formato visto con el Diagnóstico en una Kobra 3, firmware 2.4.6.7).
+//   'si' → está y con el tamaño completo; 'incompleto' → figura pero con otro
+//   tamaño (todavía lo está recibiendo); 'no' → no figura.
+export function buscarArchivo(registros, nombre, tamano) {
   const buscado = String(nombre).toLowerCase();
-  return (Array.isArray(lista) ? lista : []).some((e) => JSON.stringify(e).toLowerCase().includes(buscado));
+  const lista = Array.isArray(registros) ? registros : [];
+  const e = lista.find((x) => String(x?.filename ?? x?.name ?? x ?? '').toLowerCase() === buscado);
+  if (!e) return 'no';
+  const size = Number(e.size);
+  return Number.isFinite(size) && size > 0 && tamano && size !== tamano ? 'incompleto' : 'si';
 }
 
-// Después de subir, la impresora todavía tiene que terminar de recibir el
-// archivo (en su pantalla aparece como una descarga): el "200" de la subida no
-// alcanza. Se le pregunta su lista de archivos hasta que aparezca.
-//   'si' → está; 'no' → contestó pero el archivo no figura (se canceló o no
-//   terminó); 'sinRespuesta' → no contestó la lista (no se pudo verificar).
-async function esperarArchivo(mqttApi, nombre, ms = 30000) {
+// Después de subir, la impresora todavía tiene que terminar de guardar el
+// archivo: el "200" de la subida no alcanza. Se le pregunta su lista de archivos
+// hasta que aparezca completo.
+//   'si' | 'incompleto' | 'no' (contestó pero no figura) | 'sinRespuesta'.
+async function esperarArchivo(mqttApi, nombre, tamano, ms = 30000) {
   const fin = Date.now() + ms;
-  let ruta = '/';
+  let resultado = 'sinRespuesta';
   let muestra = '';
   while (Date.now() < fin) {
-    const r = await mqttApi.pedir('file', 'listLocal', { path: ruta }, { ms: 5000 });
+    const r = await mqttApi.pedir('file', 'listLocal', { path: '/' }, { ms: 5000 });
     if (r) {
-      const lista = r.data?.file_list;
-      muestra = JSON.stringify(r.data ?? r).slice(0, 300);
-      if (archivoEnLista(lista, nombre)) return { resultado: 'si', muestra };
-      if (!Array.isArray(lista) && ruta === '/') ruta = '';
+      const registros = r.data?.records ?? r.data?.file_list;
+      muestra = JSON.stringify((Array.isArray(registros) ? registros : []).slice(0, 3).map((x) => ({ filename: x?.filename, size: x?.size }))).slice(0, 300);
+      resultado = buscarArchivo(registros, nombre, tamano);
+      if (resultado === 'si') return { resultado, muestra };
     }
     await new Promise((resolver) => setTimeout(resolver, 3000));
   }
-  return { resultado: muestra ? 'no' : 'sinRespuesta', muestra };
+  return { resultado, muestra };
 }
 
 // Sube el archivo. En esta impresora subir un archivo la deja "preparando un
@@ -387,10 +404,9 @@ export const anycubicLan = {
     try {
       lineas.push(`estado (info): ${corto((await m.pedir('info', 'query', null, { ms: 5000 }))?.data)}`);
       if (impresora.tieneAce) lineas.push(`ACE (multiColorBox): ${corto((await m.pedir('multiColorBox', 'getInfo', null, { ms: 6000 }))?.data, 1200)}`);
-      for (const ruta of ['/', '', '/gcodes']) {
-        const r = await m.pedir('file', 'listLocal', { path: ruta }, { ms: 5000 });
-        lineas.push(`archivos (listLocal "${ruta}"): ${r ? corto(r.data ?? r, 900) : 'no contestó'}`);
-      }
+      const r = await m.pedir('file', 'listLocal', { path: '/' }, { ms: 5000 });
+      const registros = r?.data?.records;
+      lineas.push(`archivos (listLocal "/"): ${Array.isArray(registros) ? `${registros.length} archivos; los últimos: ${corto(registros.slice(0, 3).map((x) => ({ filename: x.filename, size: x.size })), 500)}` : (r ? corto(r, 600) : 'no contestó')}`);
     } finally {
       m.cerrar();
     }
@@ -414,8 +430,10 @@ export const anycubicLan = {
     try {
       // Antes de subir nada: la impresora tiene que estar libre (subir un archivo
       // la mete a preparar un trabajo: si estuviera imprimiendo, se lo interrumpiría).
+      let antes = null;
       if (mqttApi) {
         const est = await estadoDe(mqttApi);
+        antes = est.temp;
         if (!est.libre) throw new Error(`La impresora está ${est.texto}: esperá a que termine o cancelala desde el panel, y volvé a mandarlo.`);
         if (accion === 'imprimir' && impresora.tieneAce) {
           const r = await mqttApi.pedir('multiColorBox', 'getInfo', null, { ms: 6000 });
@@ -438,14 +456,19 @@ export const anycubicLan = {
         if (mqttApi) {
           await new Promise((resolver) => setTimeout(resolver, 1500));
           const despues = await estadoDe(mqttApi);
-          if (!despues.libre) { await cancelarPreparacion(); limpiada = true; }
+          const calentando = despues.temp && antes && (despues.temp.cama !== antes.cama || despues.temp.boquilla !== antes.boquilla);
+          if (!despues.libre || calentando) {
+            await cancelarPreparacion();
+            await restaurarTemperaturas(mqttApi, antes);
+            limpiada = true;
+          }
         }
-        const { resultado, muestra } = mqttApi ? await esperarArchivo(mqttApi, nombreEnImpresora) : { resultado: 'sinRespuesta', muestra: '' };
-        const nota = limpiada ? ' Se canceló la preparación que la impresora había empezado (el archivo queda guardado).' : '';
-        if (resultado === 'si') return { estado: 'enviado', mensaje: `Subido a ${impresora.nombre} y verificado: elegilo en su pantalla para imprimir.${nota}` };
+        const { resultado, muestra } = mqttApi ? await esperarArchivo(mqttApi, nombreEnImpresora, contenido.length) : { resultado: 'sinRespuesta', muestra: '' };
+        const nota = limpiada ? ' Se canceló la preparación que la impresora había empezado y se dejó la cama y la boquilla como estaban (el archivo queda guardado).' : '';
+        if (resultado === 'si') return { estado: 'enviado', mensaje: `Subido a ${impresora.nombre} y verificado en su lista de archivos: elegilo en su pantalla para imprimir.${nota}` };
         return {
           estado: 'enviado',
-          mensaje: `Subido a ${impresora.nombre}, pero no pude confirmarlo en su lista de archivos${muestra ? ` (contestó: ${muestra})` : ''}: revisá en su pantalla.${nota}`
+          mensaje: `Subido a ${impresora.nombre}, pero no pude confirmarlo en su lista de archivos (${resultado}${muestra ? `, contestó: ${muestra}` : ''}): revisá en su pantalla.${nota}`
         };
       }
 
