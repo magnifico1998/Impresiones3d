@@ -412,6 +412,13 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   espacio usado (`suscripcion/actual.gcodeBytes`) se ve en "Tu plan y
   consumo" y en el consumo de la cuenta del panel. Borrar el producto borra
   sus archivos (`src/utils/archivosGcode.js`).
+- **Enviar a imprimir desde el pedido:** en el detalle de un pedido, cada pieza
+  cuyo producto de la Biblioteca tiene archivos G-code listos muestra **🖨 Enviar**
+  (si no tiene, el botón no aparece). Abre el mismo panel de envío, con las
+  cantidades y los colores pedidos como recordatorio. Las piezas nuevas guardan
+  `bibliotecaId` (el producto del que salieron); las de pedidos anteriores se
+  vinculan por nombre, y las piezas libres o de la Calculadora sin producto no
+  tienen botón.
 - **Impresión directa (conector):** desde el 📄 del producto, "🖨 Mandar" pone
   un archivo G-code en una cola (`users/{cuenta}/trabajosImpresion`) y el
   **Manager3D Conector**, un programa que corre en una PC del taller (carpeta

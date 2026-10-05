@@ -22,6 +22,25 @@ export const EXTENSIONES_GCODE = '.gcode,.gco,.3mf';
 export const formatoDe = (nombre) => (/\.3mf$/i.test(nombre) ? '3mf' : 'gcode');
 export const esArchivoGcode = (nombre) => /\.(gcode|gco|3mf)$/i.test(nombre || '');
 
+const normaliza = (t) => String(t || '').normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+// Producto de la Biblioteca al que corresponde una pieza de un pedido. Las
+// piezas nuevas guardan su bibliotecaId; las de pedidos anteriores no, y se
+// buscan por nombre (la Biblioteca no admite dos productos con el mismo
+// nombre). Sin coincidencia, es una pieza libre o de la Calculadora: null.
+export function productoDePieza(pieza, biblioteca) {
+  if (pieza?.bibliotecaId != null) {
+    const porId = biblioteca.find((b) => String(b.id) === String(pieza.bibliotecaId));
+    if (porId) return porId;
+  }
+  const nombre = normaliza(pieza?.nombre);
+  return nombre ? (biblioteca.find((b) => normaliza(b.nombre) === nombre) || null) : null;
+}
+
+// Archivos de un producto que ya se pueden usar (terminaron de comprimirse).
+export const archivosListosDe = (productoId, fichas) =>
+  fichas.filter((f) => f.productoId === String(productoId) && f.estado === 'listo');
+
 // Cupo del plan en bytes (vacío o 0 = sin espacio).
 export const cupoGcode = (plan) => Math.max(0, Number(plan?.limites?.gcodeGB) || 0) * GB;
 

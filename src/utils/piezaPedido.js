@@ -50,6 +50,9 @@ export function piezaDesdeBiblioteca(prod, { id, nombre, cantidad, precioUnitari
 
   return {
     id,
+    // De qué producto de la Biblioteca salió: con eso el pedido sabe si tiene
+    // archivos G-code para mandar a la impresora (src/utils/archivosGcode.js).
+    bibliotecaId: prod.id ?? null,
     nombre,
     archivoNombre: prod.gcodeNombre || null,
     gcodeArchivos: prod.gcodeArchivos || null,

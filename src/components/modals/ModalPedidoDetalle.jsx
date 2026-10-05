@@ -7,6 +7,8 @@ import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaComplet
 import { buildWaLink, findClientePedido } from '../../utils/whatsapp';
 import SeccionFacturaPedido from '../SeccionFacturaPedido';
 import SeccionInventarioPedido from '../SeccionInventarioPedido';
+import ModalEnviarPieza from './ModalEnviarPieza';
+import { archivosListosDe, escucharArchivosGcode, productoDePieza } from '../../utils/archivosGcode';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
   const {
@@ -16,10 +18,21 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     clientes,
     empresa,
     showToast,
-    fmt
+    fmt,
+    biblioteca,
+    cuentaId,
+    suscripcion,
+    isAdmin
   } = useApp();
 
   const [draft, setDraft] = useState(null);
+
+  // Archivos G-code de la Biblioteca: si el producto de una pieza tiene, la
+  // pieza muestra "🖨 Enviar" (sólo así: no se ofrece lo que no está disponible).
+  const [fichasGcode, setFichasGcode] = useState([]);
+  const [piezaEnvio, setPiezaEnvio] = useState(null); // { pieza, producto, archivos }
+  useEffect(() => (isOpen && cuentaId ? escucharArchivosGcode(cuentaId, setFichasGcode) : undefined), [isOpen, cuentaId]);
+  const soloLecturaEnvio = ['lectura', 'suspendida'].includes(suscripcion?.estado) && !isAdmin;
 
   // Initialize draft when modal opens
   useEffect(() => {
@@ -923,6 +936,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                 const faltan = pz.cantidad - (pz.elaborados || 0);
 
                 const tieneVersiones = true;
+                // Producto de la Biblioteca y sus archivos listos para mandar a una impresora.
+                const productoPz = productoDePieza(pz, biblioteca);
+                const archivosPz = productoPz ? archivosListosDe(productoPz.id, fichasGcode) : [];
                 const precioVentaUnit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado || 0);
                 const ventaSubtotal = precioVentaUnit * pz.cantidad;
 
@@ -975,6 +991,15 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                           }}
                           onChange={(e) => handleUpdatePartVenta(pz.id, e.target.value)}
                         />
+                        {archivosPz.length > 0 && (
+                          <button
+                            className="btn btn-sm"
+                            title={`Mandar ${archivosPz.length === 1 ? 'el archivo G-code' : 'un archivo G-code'} de este producto a una impresora`}
+                            onClick={() => setPiezaEnvio({ pieza: pz, producto: productoPz, archivos: archivosPz })}
+                          >
+                            🖨 Enviar
+                          </button>
+                        )}
                         <button className="btn btn-danger btn-sm" onClick={() => handleDeletePart(pz.id)}>✕</button>
                       </div>
                     </div>
@@ -1447,6 +1472,17 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           <button className="btn btn-primary" onClick={handleSave}>Guardar cambios</button>
         </div>
       </div>
+
+      {/* Mandar el G-code de una pieza a la impresora (sólo si su producto tiene archivos). */}
+      {piezaEnvio && (
+        <ModalEnviarPieza
+          pieza={piezaEnvio.pieza}
+          producto={piezaEnvio.producto}
+          archivos={piezaEnvio.archivos}
+          soloLectura={soloLecturaEnvio}
+          onClose={() => setPiezaEnvio(null)}
+        />
+      )}
     </div>
   );
 }

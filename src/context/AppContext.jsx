@@ -1602,6 +1602,7 @@ export const AppProvider = ({ children }) => {
 
     return {
       id: getNewId(),
+      bibliotecaId: prod.id ?? null,
       nombre: prod.nombre || String(item.nombre || ''),
       archivoNombre: prod.gcodeNombre || null,
       gcodeArchivos: prod.gcodeArchivos || null,
