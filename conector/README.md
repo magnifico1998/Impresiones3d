@@ -22,20 +22,24 @@ que los suscriptores lo bajen desde Manager3D (Configuración → Impresión dir
 3. En Manager3D: **Configuración → Impresión directa → Vincular un conector**.
    Muestra un código de 8 caracteres (vale 10 minutos). Escribirlo en el panel.
 4. En el panel, agregar cada impresora y tocar **Probar**.
-5. En la Biblioteca, 📄 del producto → **🖨 Mandar** → elegir la impresora.
-   - *Solo subir*: el archivo queda en la impresora y se elige en su pantalla.
-   - *Subir e imprimir*: pide confirmar que la cama está libre.
+5. En la Biblioteca, 📄 del producto → **🖨 Mandar** → elegir la impresora. Según el
+   tipo de impresora:
+   - *Directo por red* (Anycubic por LAN, Bambu por LAN): se manda el archivo y
+     **arranca a imprimir**. Pide confirmar que la cama está libre.
+   - *Abrir en el programa* (Bambu Studio, Anycubic Slicer Next): se abre en el
+     programa y desde ahí se manda a la impresora.
+   - *Guardar en una carpeta*: se guarda en la carpeta elegida (tarjeta SD, etc.).
 
 El conector tiene que estar abierto para que lleguen los trabajos. Si está
-apagado, los de *solo subir* quedan en cola y se mandan cuando se abre; los de
-*imprimir* **vencen a los 10 minutos** (no se imprime, hay que volver a mandarlo),
-para que una impresión no arranque sola horas después.
+apagado, los de abrir en el programa o guardar en una carpeta quedan en cola y se
+hacen cuando se abre; los de *imprimir* **vencen a los 10 minutos** (no se imprime,
+hay que volver a mandarlo), para que una impresión no arranque sola horas después.
 
 ## Impresoras
 
 | Tipo | Qué hace | Requisitos |
 |---|---|---|
-| **Anycubic Kobra 3 / 3 V2 / S1** (modo LAN) | Sube el `.gcode` por HTTP, **verifica que figure en la lista de archivos de la impresora** y arranca la impresión por MQTT (con TLS). Antes de imprimir mira que esté libre y, con ACE, lee qué hay cargado en cada lugar y manda cada color a un lugar con ese material (si falta, avisa sin tocar la impresora). Si ella rechaza la orden, la cancela para que no quede calentando. Verifica con la lista de archivos de la impresora (nombre y tamaño completo). Al subir un archivo esta impresora se pone a "preparar un trabajo" (recibe y calienta la cama): para *solo subir* el conector cancela esa preparación, deja la cama y la boquilla con la temperatura que tenían y el archivo queda guardado; si la subida no termina sola, la cancela por ella. Cancela usando el número de trabajo (taskid) que informa la impresora y, si sigue ocupada, avisa que hay que tocar Cancelar en su pantalla. Con ACE usa solo los filamentos que el archivo realmente usa (`filament used`). El botón **Cancelar trabajo** del panel destraba una impresora que quedó con algo a medias; **Probar** informa su estado y lo que hay en el ACE; **Diagnóstico** muestra todo lo que contesta (para entender un problema). | Firmware original, impresora en **modo LAN** (Ajustes → Red). IP de la pantalla. |
+| **Anycubic Kobra 3 / 3 V2 / S1** (modo LAN) | Sube el `.gcode` por HTTP y arranca la impresión por MQTT (con TLS): **solo imprime**, no hay "solo subir" (la impresora, al recibir un archivo, se pone a preparar un trabajo con la cama caliente). Antes mira que esté libre y, con ACE, lee qué hay cargado en cada lugar y manda cada color a un lugar con ese material, usando solo los filamentos que el archivo realmente usa (si falta, avisa sin tocar la impresora). Si ella rechaza la orden, o la subida se cuelga, cancela el trabajo para que no quede calentando. El botón **Cancelar trabajo** del panel destraba una impresora que quedó con algo a medias; **Probar** informa su estado y lo que hay en el ACE; **Diagnóstico** muestra todo lo que contesta. | Firmware original, impresora en **modo LAN** (Ajustes → Red). IP de la pantalla. |
 | **Guardar en una carpeta** (siempre disponible) | Para **cualquier** impresora, sobre todo las sin red. No hay que agregarla: aparece sola. El archivo se guarda en la carpeta que se elige en el panel (tarjeta SD o pendrive como `E:`, una carpeta compartida de la red; por defecto `DocumentosManager3D-Archivos`) y se abre la carpeta para pasarlo a mano. | Nada: sirve con `.gcode` y con `.3mf`. |
 | **Anycubic Kobra: abrir en Anycubic Slicer Next** | Guarda el `.gcode.3mf` y lo abre en Anycubic Slicer Next; desde ahí se manda a la impresora con la cuenta Anycubic. **No necesita modo LAN.** El programa se busca solo (o se indica la ruta del `.exe` en el panel). | Anycubic Slicer Next instalado y archivos `.gcode.3mf` laminados ahí (un `.gcode` suelto no sirve para este modo). |
 | **Abrir en Bambu Studio / Orca** | Guarda el archivo y lo abre en el programa que tenga la PC para los `.3mf`; se manda a la impresora desde ahí, como siempre. | Bambu Studio u Orca instalado y como programa predeterminado de los `.3mf`. No necesita Bambu Connect ni el modo LAN. |

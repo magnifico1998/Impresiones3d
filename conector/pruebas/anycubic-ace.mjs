@@ -1,6 +1,6 @@
 // Prueba la asignación de colores a los lugares del ACE (sin impresora).
 //   node conector/pruebas/anycubic-ace.mjs
-import { armarMapeoAce, lugaresDelAce, filamentosDelGcode, buscarArchivo } from '../src/drivers/anycubicLan.js';
+import { armarMapeoAce, lugaresDelAce, filamentosDelGcode } from '../src/drivers/anycubicLan.js';
 
 let fallas = 0;
 const ok = (cond, texto) => { console.log(cond ? 'OK   ' : 'FALLA', texto); if (!cond) fallas++; };
@@ -65,19 +65,6 @@ const gcodeSinUso = Buffer.from('G1 X1\n; filament_colour = #FFFFFF;#FF0000\n; f
 f = filamentosDelGcode(gcodeSinUso);
 ok(f.length === 1 && f[0].indice === 0, 'sin "filament used" asume solo el primer filamento');
 ok(filamentosDelGcode(Buffer.from('G1 X1\n')).length === 1, 'sin ninguna de esas líneas asume un solo filamento PLA');
-
-// Verificar que el archivo llegó: formato real que contestó una Kobra 3 (visto con el Diagnóstico).
-const records = [
-  { is_dir: false, filename: '1004-0229-22LR x120_plate(27)_PLA_0.2_8h17m53s.gcode', timestamp: 1791092822686, size: 104998260, plate_number: 0 },
-  { is_dir: false, filename: 'TORNILLO.gcode', timestamp: 1791092999999, size: 752640, plate_number: 0 },
-  { is_dir: false, filename: '1001-1221-CAÑO_plate(15)_PETG_0.2_4h28m46s.gcode.3mf', size: 11003095 }
-];
-ok(buscarArchivo(records, 'TORNILLO.gcode', 752640) === 'si', 'el archivo subido figura en records con su tamaño completo');
-ok(buscarArchivo(records, 'tornillo.GCODE', 752640) === 'si', 'la búsqueda no distingue mayúsculas');
-ok(buscarArchivo(records, 'TORNILLO.gcode', 900000) === 'incompleto', 'figura pero con otro tamaño: todavía lo está recibiendo');
-ok(buscarArchivo(records, 'LLAVERO.gcode', 100) === 'no', 'un archivo que no llegó no figura');
-ok(buscarArchivo(records, 'CAÑO', 100) === 'no', 'no alcanza con que el nombre esté contenido en otro: tiene que ser el mismo');
-ok(buscarArchivo(undefined, 'TORNILLO.gcode', 1) === 'no' && buscarArchivo([], 'TORNILLO.gcode', 1) === 'no', 'lista vacía o ausente: no figura');
 
 console.log(fallas ? `\n${fallas} falla(s)` : '\nTodo bien');
 process.exit(fallas ? 1 : 0);

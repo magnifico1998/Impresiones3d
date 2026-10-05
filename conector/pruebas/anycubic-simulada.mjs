@@ -35,7 +35,8 @@ const s = await conectarAnycubic(host.split(':')[0] + ':' + host.split(':')[1]).
 console.log('apretón de manos:', s.error ? 'FALLA ' + s.error : `ok → modelo=${s.modelo} modelId=${s.modelId} deviceId=${s.deviceId} usuario=${s.usuario}`);
 console.log('firma válida:', firmaOk);
 if (!s.error) {
-  const r = await anycubicLan.enviar({ nombre: 'Kobra', host, tieneAce: false }, { nombre: 'pieza.gcode', contenido: Buffer.from('G28\nG1 X10\n'), accion: 'subir' }).catch((e) => ({ error: e.message }));
-  console.log('subida:', JSON.stringify(r), '| recibido tiene el archivo:', !!subido && subido.includes('G1 X10') && subido.includes('name="filename"'));
+  // Esta impresora sólo recibe para imprimir (el MQTT no se simula acá).
+  const r = await anycubicLan.enviar({ nombre: 'Kobra', host, tieneAce: false }, { nombre: 'pieza.gcode', contenido: Buffer.from('G28\n'), accion: 'subir' }).catch((e) => ({ error: e.message }));
+  console.log('"solo subir" se rechaza:', /sólo recibe envíos para imprimir/.test(r.error || '') ? 'OK' : 'FALLA ' + JSON.stringify(r));
 }
 srv.close();

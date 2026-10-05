@@ -20,7 +20,6 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
   const [conectores, setConectores] = useState([]);
   const [archivoId, setArchivoId] = useState(archivoInicialId || archivos[0]?.id || '');
   const [destino, setDestino] = useState('');
-  const [accion, setAccion] = useState('subir');
   const [libre, setLibre] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
@@ -33,6 +32,11 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
   const reales = destinos.filter((d) => !d.impresora.guarda);
   const preferido = archivo && (reales.find((d) => d.impresora.nombre === archivo.impresora) || reales.find((d) => d.activo) || destinos.find((d) => d.activo) || reales[0] || destinos[0]);
   const elegido = destinos.find((d) => clave(d) === destino) || preferido || null;
+  // Una impresora que recibe directo siempre imprime (subir el archivo para ir
+  // a darle imprimir a la impresora no tiene sentido); abrir en el programa y
+  // guardar en una carpeta no imprimen nada.
+  const directo = !!elegido?.impresora.puedeImprimir;
+  const accion = directo ? 'imprimir' : 'subir';
 
   if (!archivo) return null;
 
@@ -71,7 +75,7 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
       {archivos.length > 1 ? (
         <>
           <label className="fl" style={{ marginTop: 0 }}>Archivo</label>
-          <select value={archivo.id} onChange={(e) => { setArchivoId(e.target.value); setDestino(''); setAccion('subir'); setLibre(false); }}>
+          <select value={archivo.id} onChange={(e) => { setArchivoId(e.target.value); setDestino(''); setLibre(false); }}>
             {archivos.map((a) => <option key={a.id} value={a.id}>{a.nombre}{a.impresora ? ` · ${a.impresora}` : ''}</option>)}
           </select>
         </>
@@ -79,7 +83,7 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
         <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>Mandar "{archivo.nombre}" a una impresora</div>
       )}
       <label className="fl" style={archivos.length > 1 ? undefined : { marginTop: 0 }}>Impresora</label>
-      <select value={elegido ? clave(elegido) : ''} onChange={(e) => { setDestino(e.target.value); setAccion('subir'); setLibre(false); }}>
+      <select value={elegido ? clave(elegido) : ''} onChange={(e) => { setDestino(e.target.value); setLibre(false); }}>
         {destinos.map((d) => (
           <option key={clave(d)} value={clave(d)}>{d.impresora.nombre} · {d.conector.equipo}{d.activo ? '' : ' (sin conexión)'}</option>
         ))}
@@ -100,28 +104,21 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
           <div style={{ color: 'var(--text2)' }}>
             Se abre en el programa de laminado de esa PC (Bambu Studio, Anycubic Slicer Next…) y desde ahí lo mandás a la impresora, como siempre.
           </div>
+        ) : directo ? (
+          <>
+            <div style={{ color: 'var(--text2)' }}>Se manda el archivo a la impresora y <b>arranca a imprimir</b>.</div>
+            <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer', color: 'var(--warn)' }}>
+              <input type="checkbox" checked={libre} onChange={(e) => setLibre(e.target.checked)} style={{ marginTop: '3px' }} />
+              <span>La cama está libre y el filamento es el correcto</span>
+            </label>
+          </>
         ) : (
-          <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
-            <input type="radio" name="accion-gcode" checked={accion === 'subir'} onChange={() => { setAccion('subir'); setLibre(false); }} style={{ marginTop: '3px' }} />
-            <span>Solo subir el archivo <span style={{ color: 'var(--text3)' }}>· queda en la impresora y lo elegís en su pantalla</span></span>
-          </label>
-        )}
-        {elegido?.impresora.puedeImprimir && (
-          <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
-            <input type="radio" name="accion-gcode" checked={accion === 'imprimir'} onChange={() => setAccion('imprimir')} style={{ marginTop: '3px' }} />
-            <span>Subir e imprimir ahora</span>
-          </label>
-        )}
-        {accion === 'imprimir' && (
-          <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer', marginLeft: '22px', color: 'var(--warn)' }}>
-            <input type="checkbox" checked={libre} onChange={(e) => setLibre(e.target.checked)} style={{ marginTop: '3px' }} />
-            <span>La cama está libre y el filamento es el correcto</span>
-          </label>
+          <div style={{ color: 'var(--text2)' }}>Se manda el archivo a esa impresora desde el conector.</div>
         )}
       </div>
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
         <button className="btn btn-primary btn-sm" disabled={enviando || (accion === 'imprimir' && !libre)} onClick={enviar}>
-          {enviando ? 'Enviando…' : (accion === 'imprimir' ? 'Imprimir' : (elegido?.impresora.guarda ? 'Guardar en la carpeta' : (elegido?.impresora.abre ? 'Abrir en el programa' : 'Subir a la impresora')))}
+          {enviando ? 'Enviando…' : (directo ? 'Imprimir' : (elegido?.impresora.guarda ? 'Guardar en la carpeta' : (elegido?.impresora.abre ? 'Abrir en el programa' : 'Enviar')))}
         </button>
         <button className="btn btn-sm" onClick={() => alTerminar?.(false)}>Cancelar</button>
       </div>
