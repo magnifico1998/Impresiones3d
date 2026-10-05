@@ -29,7 +29,9 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
   const archivo = archivos.find((a) => a.id === archivoId) || archivos[0];
   const destinos = archivo ? impresorasPara(archivo, conectores) : [];
   // Arranca en la impresora del archivo si coincide por nombre, o en una activa.
-  const preferido = archivo && (destinos.find((d) => d.impresora.nombre === archivo.impresora) || destinos.find((d) => d.activo) || destinos[0]);
+  // (Guardar en una carpeta es el último recurso: va después de cualquier impresora.)
+  const reales = destinos.filter((d) => !d.impresora.guarda);
+  const preferido = archivo && (reales.find((d) => d.impresora.nombre === archivo.impresora) || reales.find((d) => d.activo) || destinos.find((d) => d.activo) || reales[0] || destinos[0]);
   const elegido = destinos.find((d) => clave(d) === destino) || preferido || null;
 
   if (!archivo) return null;
@@ -90,7 +92,11 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '10px', fontSize: '13px' }}>
-        {elegido?.impresora.abre ? (
+        {elegido?.impresora.guarda ? (
+          <div style={{ color: 'var(--text2)' }}>
+            Se guarda en la carpeta que elegiste en el conector de esa PC (por ejemplo, la tarjeta SD) y se abre esa carpeta para que lo pases a la impresora.
+          </div>
+        ) : elegido?.impresora.abre ? (
           <div style={{ color: 'var(--text2)' }}>
             Se abre en el programa de laminado de esa PC (Bambu Studio, Anycubic Slicer Next…) y desde ahí lo mandás a la impresora, como siempre.
           </div>
@@ -115,7 +121,7 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
       </div>
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
         <button className="btn btn-primary btn-sm" disabled={enviando || (accion === 'imprimir' && !libre)} onClick={enviar}>
-          {enviando ? 'Enviando…' : (accion === 'imprimir' ? 'Imprimir' : (elegido?.impresora.abre ? 'Abrir en el programa' : 'Subir a la impresora'))}
+          {enviando ? 'Enviando…' : (accion === 'imprimir' ? 'Imprimir' : (elegido?.impresora.guarda ? 'Guardar en la carpeta' : (elegido?.impresora.abre ? 'Abrir en el programa' : 'Subir a la impresora')))}
         </button>
         <button className="btn btn-sm" onClick={() => alTerminar?.(false)}>Cancelar</button>
       </div>

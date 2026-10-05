@@ -92,7 +92,7 @@ export function crearNube({ registrar, alCambiarEstado }) {
           const d = DRIVERS[i.tipo];
           return {
             id: i.id, nombre: i.nombre, tipo: i.tipo,
-            formatos: d?.formatos || [], puedeImprimir: !!d?.puedeImprimir, abre: !!d?.abre,
+            formatos: d?.formatos || [], puedeImprimir: !!d?.puedeImprimir, abre: !!d?.abre, guarda: !!d?.guarda,
             ...(estados[i.id] ? { estado: estados[i.id] } : {})
           };
         })

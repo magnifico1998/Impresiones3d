@@ -55,7 +55,9 @@ PRIMER USO
      S1 (modo LAN)": poné la IP y tildá "Tiene ACE" si es Combo (la impresora
      tiene que estar en modo LAN).
 4. En Manager3D, en la Biblioteca, tocá el icono del archivo de un producto y
-   después "Mandar" para elegir la impresora.
+   después "Mandar" para elegir la impresora. Siempre está "Guardar en una
+   carpeta" (para una impresora sin red: tarjeta SD o pendrive): la carpeta se
+   elige en el panel del conector.
 
 NOTAS
 - Para que lleguen los envíos, la ventana negra tiene que estar abierta.

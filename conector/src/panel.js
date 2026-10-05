@@ -87,6 +87,18 @@ export const PAGINA = `<!doctype html>
   </div>
 
   <div class="card">
+    <h2>Guardar en una carpeta (siempre disponible)</h2>
+    <div class="aviso" style="margin:0 0 8px">Para cualquier impresora, y sobre todo las que no tienen red: Manager3D te ofrece "Guardar en una carpeta". El archivo se guarda acá y se abre la carpeta para que lo pases a mano (tarjeta SD, pendrive, carpeta compartida).</div>
+    <div class="fila">
+      <div><label>Carpeta</label><input id="carpeta" placeholder="Ej: E:\\ (la tarjeta SD) o C:\\Impresiones"></div>
+      <div style="flex:0"><button class="primario" id="btnCarpeta">Guardar</button></div>
+      <div style="flex:0"><button id="btnProbarCarpeta">Probar</button></div>
+    </div>
+    <div class="aviso" id="avisoCarpeta"></div>
+    <div id="msgCarpeta" class="msg"></div>
+  </div>
+
+  <div class="card">
     <h2>Actividad</h2>
     <pre id="log"></pre>
     <div class="aviso" id="datos"></div>
@@ -149,7 +161,7 @@ function pintar() {
 
   const sel = $('impTipo');
   if (!sel.options.length) {
-    datos.tipos.forEach((t) => { const o = document.createElement('option'); o.value = t.tipo; o.textContent = t.nombre; sel.append(o); });
+    datos.tipos.filter((t) => !t.oculto).forEach((t) => { const o = document.createElement('option'); o.value = t.tipo; o.textContent = t.nombre; sel.append(o); });
     camposVisibles();
   }
 
@@ -208,6 +220,9 @@ function pintar() {
 
   $('log').textContent = datos.log.join('\\n');
   $('log').scrollTop = $('log').scrollHeight;
+  if (document.activeElement !== $('carpeta')) $('carpeta').value = datos.carpetaPropia ? datos.carpeta : '';
+  $('carpeta').placeholder = datos.carpeta;
+  $('avisoCarpeta').textContent = datos.carpetaPropia ? '' : 'Si la dejás vacía se usa: ' + datos.carpeta;
   $('datos').textContent = 'Configuración guardada en ' + datos.datos;
 }
 
@@ -216,6 +231,14 @@ async function refrescar() { try { datos = await api('/api/estado'); pintar(); }
 $('btnCopiarDiag').onclick = async () => {
   try { await navigator.clipboard.writeText($('diag').textContent); $('btnCopiarDiag').textContent = 'Copiado ✓'; setTimeout(() => { $('btnCopiarDiag').textContent = 'Copiar el diagnóstico'; }, 2000); }
   catch { /* sin permiso para copiar: se puede seleccionar a mano */ }
+};
+$('btnCarpeta').onclick = async () => {
+  try { datos = await api('/api/carpeta', { carpeta: $('carpeta').value }); mensaje('msgCarpeta', 'Carpeta guardada.', 'ok'); pintar(); }
+  catch (e) { mensaje('msgCarpeta', e.message, 'error'); }
+};
+$('btnProbarCarpeta').onclick = async () => {
+  try { const r = await api('/api/impresora/probar', { id: 'carpeta' }); mensaje('msgCarpeta', r.mensaje, 'ok'); }
+  catch (e) { mensaje('msgCarpeta', e.message, 'error'); }
 };
 $('impTipo').onchange = camposVisibles;
 $('btnCancelarImp').onclick = limpiarForm;

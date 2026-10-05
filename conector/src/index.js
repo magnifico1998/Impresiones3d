@@ -6,6 +6,7 @@ import tls from 'node:tls';
 import { leerConfig, guardarConfig, nuevoId, carpetaDatos } from './config.js';
 import { crearNube, vincular } from './nube.js';
 import { DRIVERS, driverDe } from './drivers/index.js';
+import { carpetaPorDefecto, prepararCarpeta } from './drivers/carpeta.js';
 import { PAGINA } from './panel.js';
 
 // Manager3D Conector: corre en una PC del taller. Se vincula a la cuenta con
@@ -40,6 +41,14 @@ const registrar = (texto) => {
 
 const nube = crearNube({ registrar });
 
+// Guardar en una carpeta está siempre disponible, con o sin impresoras cargadas:
+// es un destino más que se le informa a Manager3D (id 'carpeta'), con la carpeta
+// elegida en el panel o, si no se eligió, Documentos\Manager3D-Archivos.
+const carpetaEfectiva = () => config.carpeta || carpetaPorDefecto();
+const destinoCarpeta = () => ({ id: 'carpeta', nombre: 'Guardar en una carpeta', tipo: 'guardar-en-carpeta', carpeta: carpetaEfectiva() });
+const todasLasImpresoras = () => [...config.impresoras, destinoCarpeta()];
+const buscarDestino = (id) => todasLasImpresoras().find((i) => i.id === id);
+
 const impresoraPublica = (i) => ({ id: i.id, nombre: i.nombre, tipo: i.tipo, host: i.host || '', serie: i.serie || '', tieneAce: !!i.tieneAce, conCodigo: !!i.codigoAcceso, programa: i.programa || '' });
 
 function estado() {
@@ -48,7 +57,9 @@ function estado() {
     conectado: nube.estaConectado(),
     equipo: config.vinculo?.equipo || os.hostname(),
     impresoras: config.impresoras.map(impresoraPublica),
-    tipos: Object.values(DRIVERS).map((d) => ({ tipo: d.tipo, nombre: d.nombre, campos: d.campos, puedeImprimir: d.puedeImprimir, puedeCancelar: !!d.puedeCancelar, puedeDiagnosticar: !!d.diagnosticar })),
+    carpeta: carpetaEfectiva(),
+    carpetaPropia: !!config.carpeta,
+    tipos: Object.values(DRIVERS).map((d) => ({ oculto: !!d.oculto, tipo: d.tipo, nombre: d.nombre, campos: d.campos, puedeImprimir: d.puedeImprimir, puedeCancelar: !!d.puedeCancelar, puedeDiagnosticar: !!d.diagnosticar })),
     log: log.slice(-60),
     datos: carpetaDatos
   };
@@ -93,7 +104,7 @@ async function manejarApi(req, res, url) {
       config = { ...config, vinculo };
       guardarConfig(config);
       registrar('Conector vinculado a la cuenta.');
-      await nube.conectar(config.vinculo, config.impresoras);
+      await nube.conectar(config.vinculo, todasLasImpresoras());
       return responder(200, estado());
     }
     if (url.pathname === '/api/desvincular') {
@@ -109,25 +120,35 @@ async function manejarApi(req, res, url) {
       const resto = config.impresoras.filter((i) => i.id !== id);
       config = { ...config, impresoras: [...resto, imp] };
       guardarConfig(config);
-      await nube.actualizarImpresoras(config.impresoras);
+      await nube.actualizarImpresoras(todasLasImpresoras());
       registrar(`Impresora guardada: ${imp.nombre}.`);
       return responder(200, estado());
     }
     if (url.pathname === '/api/impresora/borrar') {
       config = { ...config, impresoras: config.impresoras.filter((i) => i.id !== c.id) };
       guardarConfig(config);
-      await nube.actualizarImpresoras(config.impresoras);
+      await nube.actualizarImpresoras(todasLasImpresoras());
+      return responder(200, estado());
+    }
+    if (url.pathname === '/api/carpeta') {
+      const nueva = texto(c.carpeta, 300);
+      // Vacío = volver a la carpeta por defecto. Se comprueba antes de guardarla.
+      if (nueva) prepararCarpeta(nueva);
+      config = { ...config, carpeta: nueva };
+      guardarConfig(config);
+      await nube.actualizarImpresoras(todasLasImpresoras());
+      registrar(`Carpeta para guardar archivos: ${carpetaEfectiva()}`);
       return responder(200, estado());
     }
     if (url.pathname === '/api/impresora/probar') {
-      const imp = config.impresoras.find((i) => i.id === c.id);
+      const imp = buscarDestino(c.id);
       if (!imp) return responder(404, { error: 'No existe esa impresora.' });
       const resultado = await driverDe(imp.tipo).probar(imp);
       registrar(`Prueba ${imp.nombre}: ${resultado}`);
       return responder(200, { ok: true, mensaje: resultado });
     }
     if (url.pathname === '/api/impresora/diagnostico') {
-      const imp = config.impresoras.find((i) => i.id === c.id);
+      const imp = buscarDestino(c.id);
       if (!imp) return responder(404, { error: 'No existe esa impresora.' });
       const driver = driverDe(imp.tipo);
       if (!driver.diagnosticar) return responder(400, { error: 'Esta impresora no tiene diagnóstico.' });
@@ -136,7 +157,7 @@ async function manejarApi(req, res, url) {
       return responder(200, { ok: true, mensaje: texto });
     }
     if (url.pathname === '/api/impresora/cancelar') {
-      const imp = config.impresoras.find((i) => i.id === c.id);
+      const imp = buscarDestino(c.id);
       if (!imp) return responder(404, { error: 'No existe esa impresora.' });
       const driver = driverDe(imp.tipo);
       if (!driver.cancelar) return responder(400, { error: 'Esta impresora no permite cancelar desde acá.' });
@@ -187,6 +208,6 @@ servidor.listen(PUERTO, '127.0.0.1', async () => {
   if (!process.argv.includes('--sin-navegador') && process.platform === 'win32') {
     execFile('rundll32', ['url.dll,FileProtocolHandler', direccion], () => {});
   }
-  if (config.vinculo) await nube.conectar(config.vinculo, config.impresoras);
+  if (config.vinculo) await nube.conectar(config.vinculo, todasLasImpresoras());
   else registrar('Todavía no está vinculado: generá un código en Manager3D (Configuración → Impresión directa).');
 });
