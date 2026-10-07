@@ -447,8 +447,9 @@ Se guardan en `users/{uid}/presupuestos`. Código:
 - **Marca del catálogo:** en Catálogo web → "Marca del catálogo" se elige el
   **tamaño del logo** (chico 40 px, mediano 64, grande 96 o extra grande 128;
   `logoTamano`) y un **texto destacado** de hasta 120 caracteres, como un eslogan o
-  un gancho comercial (`eslogan`), que sale debajo del encabezado. La vista previa
-  usa los colores de la paleta del catálogo. Con un logo de más de 64 px el
+  un gancho comercial (`eslogan`), que ocupa el lugar de "Elegí tus productos y armá tu pedido"
+  debajo del nombre (si queda vacío, se muestra esa frase). La vista previa es el
+  encabezado con los colores de la paleta del catálogo. Con un logo de más de 64 px el
   encabezado deja de quedar fijo al desplazar, para no tapar la pantalla del
   celular. Se guardan en `catalogoTiendas/{uid}` (`src/utils/catalogoMarca.js`).
 - **Pedido enviado desde el catálogo:** la pantalla de confirmación ofrece "Avisar

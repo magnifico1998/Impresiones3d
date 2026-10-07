@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { paletas, paletasList } from '../utils/paletas';
-import { MAX_ESLOGAN, LOGO_MAX_ENCABEZADO_FIJO, TAMANOS_LOGO, esloganDe, tamanoLogoDe } from '../utils/catalogoMarca';
+import { MAX_ESLOGAN, LOGO_MAX_ENCABEZADO_FIJO, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, tamanoLogoDe } from '../utils/catalogoMarca';
 
 // Los mismos 5 roles editables que "Paleta personalizada" en Configuración
 // (ver ConfiguracionPage.jsx), pero acá para el catálogo web público -- se
@@ -311,7 +311,7 @@ export default function CatalogoAdminPage() {
       <div className="card">
         <div className="card-title">Marca del catálogo</div>
         <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>
-          Cómo se ve tu marca arriba del catálogo público. La vista previa usa los colores de la paleta del catálogo.
+          Cómo se ve tu marca arriba del catálogo público. La vista previa es el encabezado, con los colores de la paleta del catálogo.
         </div>
 
         <label className="fl" style={{ marginTop: 0 }}>Tamaño del logo</label>
@@ -342,14 +342,23 @@ export default function CatalogoAdminPage() {
               Todavía no cargaste un logo: subilo en Mi emprendimiento.
             </div>
           )}
-          <div style={{ minWidth: 0, fontWeight: 700, fontSize: '17px', color: paletaCatalogoActual('text') }}>
-            {catalogoConfig?.empresaNombre || 'Tu emprendimiento'}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: '17px', letterSpacing: '-.2px', color: paletaCatalogoActual('text') }}>
+              {catalogoConfig?.empresaNombre || 'Tu emprendimiento'}
+            </div>
+            {/* El texto destacado ocupa el lugar de "Elegí tus productos y armá tu pedido". */}
+            <div style={{ fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, marginTop: '1px', lineHeight: 1.35, overflowWrap: 'anywhere', color: paletaCatalogoActual('text'), opacity: 0.6 }}>
+              {esloganDe({ eslogan: esloganValor }) || TEXTO_ENCABEZADO_POR_DEFECTO}
+            </div>
           </div>
         </div>
 
         <div className="sep" style={{ marginTop: '16px' }}></div>
 
         <label className="fl">Texto destacado (eslogan o gancho comercial)</label>
+        <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '6px' }}>
+          Va debajo del nombre, en lugar de "{TEXTO_ENCABEZADO_POR_DEFECTO}". Si lo dejás vacío, se muestra esa frase.
+        </div>
         <input
           type="text"
           maxLength={MAX_ESLOGAN}
@@ -358,7 +367,7 @@ export default function CatalogoAdminPage() {
           placeholder="Ej: Impresiones 3D a medida — envíos a todo el país"
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{esloganValor.length}/{MAX_ESLOGAN} · se muestra debajo del encabezado</span>
+          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{esloganValor.length}/{MAX_ESLOGAN}</span>
           <div style={{ display: 'flex', gap: '6px' }}>
             {esloganValor && <button className="btn btn-sm" onClick={() => guardarEslogan('')}>Quitar</button>}
             <button className="btn btn-sm btn-primary" disabled={esloganBorrador === null || esloganDe({ eslogan: esloganBorrador }) === esloganGuardado} onClick={() => guardarEslogan(esloganValor)}>
@@ -366,11 +375,6 @@ export default function CatalogoAdminPage() {
             </button>
           </div>
         </div>
-        {esloganValor.trim() && (
-          <div style={{ marginTop: '10px', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', background: paletaCatalogoActual('bg'), textAlign: 'center', fontSize: '16px', fontWeight: 600, color: paletaCatalogoActual('text'), overflowWrap: 'anywhere' }}>
-            {esloganValor.replace(/\s+/g, ' ').trim()}
-          </div>
-        )}
       </div>
 
       {/* Paleta de colores del catálogo — independiente de la de la app */}

@@ -5,7 +5,7 @@ import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/paises';
 import { ordenarCategorias } from '../utils/categoriaOrden';
-import { LOGO_MAX_ENCABEZADO_FIJO, esloganDe, tamanoLogoDe } from '../utils/catalogoMarca';
+import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, tamanoLogoDe } from '../utils/catalogoMarca';
 
 const newLocalId = () => Date.now() + Math.random();
 
@@ -465,7 +465,11 @@ export default function CatalogoPublico() {
         )}
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '17px', letterSpacing: '-.2px' }}>{config.empresaNombre || 'Catálogo'}</div>
-          <div style={{ fontSize: '10.5px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, marginTop: '1px' }}>Elegí tus productos y armá tu pedido</div>
+          {/* Debajo del nombre: el texto destacado de la tienda (eslogan o gancho comercial) o, si no cargó
+              ninguno, la frase de siempre. */}
+          <div style={{ fontSize: '10.5px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, marginTop: '1px', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
+            {eslogan || TEXTO_ENCABEZADO_POR_DEFECTO}
+          </div>
         </div>
         {(urlFacebook(config.facebook) || urlInstagram(config.instagram) || config.telefono) && (
           <div style={{ display: 'flex', gap: '14px', marginLeft: 'auto', flexShrink: 0 }}>
@@ -502,16 +506,6 @@ export default function CatalogoPublico() {
           </div>
         )}
       </header>
-
-      {/* Texto destacado de la tienda (eslogan o gancho comercial), si lo cargó. */}
-      {eslogan && (
-        <div className="catalogo-eslogan" style={{
-          maxWidth: '640px', margin: '14px auto 0', padding: '0 16px', textAlign: 'center',
-          fontSize: '16px', fontWeight: 600, lineHeight: 1.4, color: 'var(--text)', overflowWrap: 'anywhere'
-        }}>
-          {eslogan}
-        </div>
-      )}
 
       {!aceptaPedidos && (
         <div role="status" style={{

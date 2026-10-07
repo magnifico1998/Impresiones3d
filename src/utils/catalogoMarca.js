@@ -1,5 +1,6 @@
 // Marca del catálogo web: tamaño del logo y texto destacado (eslogan / gancho
-// comercial). Se eligen en Catálogo web → "Marca del catálogo" y se guardan en
+// comercial, que ocupa el lugar de "Elegí tus productos y armá tu pedido" bajo el
+// nombre). Se eligen en Catálogo web → "Marca del catálogo" y se guardan en
 // catalogoTiendas/{uid} (logoTamano, eslogan); el catálogo público los lee ahí.
 
 export const TAMANOS_LOGO = [
@@ -13,6 +14,8 @@ export const LOGO_POR_DEFECTO = 40;
 // va con la página para no tapar la pantalla del celular.
 export const LOGO_MAX_ENCABEZADO_FIJO = 64;
 export const MAX_ESLOGAN = 120;
+// Lo que dice el encabezado debajo del nombre si la tienda no cargó un texto propio.
+export const TEXTO_ENCABEZADO_POR_DEFECTO = 'Elegí tus productos y armá tu pedido';
 
 // Tamaño elegido, siempre dentro de lo razonable aunque el dato venga raro.
 export const tamanoLogoDe = (config) => {
