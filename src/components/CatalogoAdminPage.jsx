@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { paletas, paletasList } from '../utils/paletas';
-import { MAX_ESLOGAN, LOGO_MAX_ENCABEZADO_FIJO, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, tamanoLogoDe } from '../utils/catalogoMarca';
+import { LOGO_MAX_ENCABEZADO_FIJO, MAX_CARACTERES_LINEA, MAX_LINEAS_ESLOGAN, TAMANOS_ESLOGAN, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, recortarBorradorEslogan, tamanoLogoDe } from '../utils/catalogoMarca';
 
 // Los mismos 5 roles editables que "Paleta personalizada" en Configuración
 // (ver ConfiguracionPage.jsx), pero acá para el catálogo web público -- se
@@ -135,6 +135,7 @@ export default function CatalogoAdminPage() {
   // borrador y se guarda con el botón (no una escritura por cada tecla).
   const tamanoLogo = tamanoLogoDe(catalogoConfig);
   const esloganGuardado = esloganDe(catalogoConfig);
+  const tamanoEslogan = esloganTamanoDe(catalogoConfig);
   const [esloganBorrador, setEsloganBorrador] = useState(null);
   const esloganValor = esloganBorrador ?? esloganGuardado;
   const guardarEslogan = async (texto) => {
@@ -331,48 +332,68 @@ export default function CatalogoAdminPage() {
             Con este tamaño el encabezado se va con la página al desplazar (no queda fijo), para no tapar la pantalla del celular.
           </div>
         )}
-        <div style={{
-          marginTop: '10px', padding: '14px 16px', borderRadius: '8px', border: '1px solid var(--border)',
-          background: paletaCatalogoActual('bg'), display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden'
-        }}>
-          {catalogoConfig?.logo ? (
-            <img src={catalogoConfig.logo} alt="" style={{ width: `${tamanoLogo}px`, height: `${tamanoLogo}px`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
-          ) : (
-            <div style={{ fontSize: '12px', color: paletaCatalogoActual('text'), opacity: 0.7 }}>
-              Todavía no cargaste un logo: subilo en Mi emprendimiento.
-            </div>
-          )}
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: '17px', letterSpacing: '-.2px', color: paletaCatalogoActual('text') }}>
-              {catalogoConfig?.empresaNombre || 'Tu emprendimiento'}
-            </div>
-            {/* El texto destacado ocupa el lugar de "Elegí tus productos y armá tu pedido". */}
-            <div style={{ fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, marginTop: '1px', lineHeight: 1.35, overflowWrap: 'anywhere', color: paletaCatalogoActual('text'), opacity: 0.6 }}>
-              {esloganDe({ eslogan: esloganValor }) || TEXTO_ENCABEZADO_POR_DEFECTO}
-            </div>
-          </div>
-        </div>
 
         <div className="sep" style={{ marginTop: '16px' }}></div>
 
         <label className="fl">Texto destacado (eslogan o gancho comercial)</label>
         <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '6px' }}>
-          Va debajo del nombre, en lugar de "{TEXTO_ENCABEZADO_POR_DEFECTO}". Si lo dejás vacío, se muestra esa frase.
+          Va debajo del nombre, en el encabezado. Hasta {MAX_LINEAS_ESLOGAN} líneas de {MAX_CARACTERES_LINEA} caracteres; cada Enter es una línea nueva.
         </div>
-        <input
-          type="text"
-          maxLength={MAX_ESLOGAN}
+        <textarea
+          rows={MAX_LINEAS_ESLOGAN}
           value={esloganValor}
-          onChange={(e) => setEsloganBorrador(e.target.value)}
-          placeholder="Ej: Impresiones 3D a medida — envíos a todo el país"
+          onChange={(e) => setEsloganBorrador(recortarBorradorEslogan(e.target.value))}
+          placeholder={'Ej: Impresiones 3D a medida\nEnvíos a todo el país'}
+          style={{ width: '100%', resize: 'vertical' }}
         />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{esloganValor.length}/{MAX_ESLOGAN}</span>
+          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+            {esloganValor.split('\n').length} de {MAX_LINEAS_ESLOGAN} líneas
+          </span>
           <div style={{ display: 'flex', gap: '6px' }}>
             {esloganValor && <button className="btn btn-sm" onClick={() => guardarEslogan('')}>Quitar</button>}
             <button className="btn btn-sm btn-primary" disabled={esloganBorrador === null || esloganDe({ eslogan: esloganBorrador }) === esloganGuardado} onClick={() => guardarEslogan(esloganValor)}>
               Guardar texto
             </button>
+          </div>
+        </div>
+
+        <label className="fl">Tamaño del texto</label>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {TAMANOS_ESLOGAN.map((t) => (
+            <button
+              key={t.px}
+              className={`btn btn-sm ${tamanoEslogan === t.px ? 'btn-primary' : ''}`}
+              onClick={() => guardarCatalogoConfig({ esloganTamano: t.px })}
+            >
+              {t.nombre}
+            </button>
+          ))}
+        </div>
+
+        {/* Vista previa: el encabezado y, debajo de la línea divisoria, la frase de siempre. */}
+        <div style={{ marginTop: '14px', borderRadius: '8px', border: '1px solid var(--border)', background: paletaCatalogoActual('bg'), overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border)' }}>
+            {catalogoConfig?.logo ? (
+              <img src={catalogoConfig.logo} alt="" style={{ width: `${tamanoLogo}px`, height: `${tamanoLogo}px`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
+            ) : (
+              <div style={{ fontSize: '12px', color: paletaCatalogoActual('text'), opacity: 0.7 }}>
+                Todavía no cargaste un logo: subilo en Mi emprendimiento.
+              </div>
+            )}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: '17px', letterSpacing: '-.2px', color: paletaCatalogoActual('text') }}>
+                {catalogoConfig?.empresaNombre || 'Tu emprendimiento'}
+              </div>
+              {esloganDe({ eslogan: esloganValor }) && (
+                <div style={{ fontSize: `${tamanoEslogan}px`, fontWeight: 500, marginTop: '3px', lineHeight: 1.3, whiteSpace: 'pre-line', overflowWrap: 'anywhere', color: paletaCatalogoActual('text'), opacity: 0.75 }}>
+                  {esloganDe({ eslogan: esloganValor })}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ padding: '10px 16px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, color: paletaCatalogoActual('text'), opacity: 0.6 }}>
+            {TEXTO_ENCABEZADO_POR_DEFECTO}
           </div>
         </div>
       </div>

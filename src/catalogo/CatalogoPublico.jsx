@@ -5,7 +5,7 @@ import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/paises';
 import { ordenarCategorias } from '../utils/categoriaOrden';
-import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, tamanoLogoDe } from '../utils/catalogoMarca';
+import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe } from '../utils/catalogoMarca';
 
 const newLocalId = () => Date.now() + Math.random();
 
@@ -399,6 +399,7 @@ export default function CatalogoPublico() {
   // Marca elegida por la tienda (Catálogo web → "Marca del catálogo").
   const tamanoLogo = tamanoLogoDe(config);
   const eslogan = esloganDe(config);
+  const tamanoEslogan = esloganTamanoDe(config);
 
   if (enviado) {
     const { payload } = enviado;
@@ -465,11 +466,13 @@ export default function CatalogoPublico() {
         )}
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '17px', letterSpacing: '-.2px' }}>{config.empresaNombre || 'Catálogo'}</div>
-          {/* Debajo del nombre: el texto destacado de la tienda (eslogan o gancho comercial) o, si no cargó
-              ninguno, la frase de siempre. */}
-          <div style={{ fontSize: '10.5px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, marginTop: '1px', lineHeight: 1.35, overflowWrap: 'anywhere' }}>
-            {eslogan || TEXTO_ENCABEZADO_POR_DEFECTO}
-          </div>
+          {/* Debajo del nombre: el texto destacado de la tienda (eslogan o gancho comercial), en
+              hasta 3 líneas y con el tamaño que eligió. Sin texto, no se muestra nada. */}
+          {eslogan && (
+            <div style={{ fontSize: `${tamanoEslogan}px`, color: 'var(--text2)', fontWeight: 500, marginTop: '3px', lineHeight: 1.3, whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
+              {eslogan}
+            </div>
+          )}
         </div>
         {(urlFacebook(config.facebook) || urlInstagram(config.instagram) || config.telefono) && (
           <div style={{ display: 'flex', gap: '14px', marginLeft: 'auto', flexShrink: 0 }}>
@@ -518,6 +521,12 @@ export default function CatalogoPublico() {
       )}
 
       <div className="catalogo-content" style={{ maxWidth: '640px', margin: '0 auto', padding: '8px 16px 16px' }}>
+        {/* La frase de siempre, debajo de la línea divisoria del encabezado. */}
+        {aceptaPedidos && (
+          <div className="catalogo-instruccion" style={{ padding: '10px 0 2px', fontSize: '10.5px', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600 }}>
+            {TEXTO_ENCABEZADO_POR_DEFECTO}
+          </div>
+        )}
         {!productos.length && (
           <div className="empty" style={{ marginTop: '20px' }}>Todavía no hay productos publicados.</div>
         )}
