@@ -56,6 +56,7 @@ function App() {
     setActivePage,
     showToast,
     loadError,
+    loadErrorDetalle,
     datosCargadosOk,
     reintentarCargaDatos,
     logout,
@@ -502,6 +503,11 @@ function App() {
           <p style={{ fontFamily: 'var(--sans)', fontSize: '13px', color: 'var(--text2)', maxWidth: '360px', lineHeight: 1.5 }}>
             No se pudo conectar con la nube para traer tu información. Por seguridad, no dejamos continuar para evitar sobrescribir tus datos guardados. Revisá tu conexión a internet y volvé a intentar.
           </p>
+          {loadErrorDetalle && (
+            <p style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--text3)', maxWidth: '360px', marginTop: '10px', wordBreak: 'break-word' }}>
+              Detalle técnico: {loadErrorDetalle}
+            </p>
+          )}
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button

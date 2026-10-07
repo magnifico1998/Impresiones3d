@@ -221,6 +221,15 @@ se ven en Firebase Authentication y se borran solos al desvincular.
 
 ## Qué revisar si...
 
+**La app muestra "No pudimos cargar tus datos".**
+Falló la lectura inicial de `users/{uid}/meta/config`. La pantalla muestra abajo el
+**Detalle técnico** (también queda en la consola del navegador y en el log de soporte):
+- `unavailable`, `failed-precondition` o "client is offline": **red o navegador** (sin
+  internet, proxy o firewall de empresa, antivirus; probar Ctrl+F5, otra ventana o
+  otro navegador). Con Reintentar suele volver sola.
+- `permission-denied`: **reglas de Firestore**; comparar lo publicado con
+  `firestore.rules` y revisar el estado de la suscripción de esa cuenta.
+
 **Una subida de imágenes o del logo falla con "storage/unauthorized".**
 Revisá `storage.rules` con `node scripts/probar-reglas-storage.cjs`, que evalúa casos
 reales sin publicar nada. `firebase deploy` sólo valida que las reglas compilen: una

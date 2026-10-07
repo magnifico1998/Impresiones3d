@@ -201,6 +201,9 @@ export const AppProvider = ({ children }) => {
   // true, la app no debe permitir edición normal, porque cualquier cambio
   // dispararía un guardado que pisaría la nube con el estado default vacío.
   const [loadError, setLoadError] = useState(false);
+  // Motivo técnico de la falla ("unavailable", "permission-denied"…): se muestra en
+  // la pantalla de error para saber si fue la red, un permiso u otra cosa.
+  const [loadErrorDetalle, setLoadErrorDetalle] = useState('');
   
   // Toasts
   const [toasts, setToasts] = useState([]);
@@ -752,9 +755,11 @@ export const AppProvider = ({ children }) => {
       // volver a guardar lo que ya está guardado.
       skipNextAutosaveRefMeta.current = true;
       setLoadError(false);
+      setLoadErrorDetalle('');
       setDatosCargadosOk(true);
     } catch (e) {
       console.error("Error al cargar datos de Firestore:", e);
+      setLoadErrorDetalle(String(e?.code || e?.message || e).slice(0, 160));
 
       // CRÍTICO: a propósito NO marcamos datosCargadosOk como true acá.
       // pedidos/compras/biblioteca/etc. siguen en sus valores default
@@ -1837,6 +1842,7 @@ export const AppProvider = ({ children }) => {
     consumoActual,
     loading,
     loadError,
+    loadErrorDetalle,
     datosCargadosOk,
     reintentarCargaDatos,
     loginWithGoogle,
