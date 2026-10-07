@@ -20,9 +20,16 @@ service firebase.storage {
       );
     }
 
-    // Acceso total, sin roles, salvo los archivos G-code (abajo).
-    match /users/{userId}/{allPaths=**} {
-      allow read, write: if esDeLaCuenta(userId) && !allPaths.matches('^gcode(-entrada)?/.*');
+    // Acceso total, sin roles, salvo los archivos G-code (abajo). La subcarpeta
+    // (biblioteca, catálogo, logo…) es una variable para poder excluir las del
+    // G-code: en estas reglas allPaths es una ruta, no un texto, y no admite
+    // .matches() (con eso se rechazaban TODAS las imágenes, ver TKT-0004).
+    match /users/{userId}/{carpeta}/{allPaths=**} {
+      allow read, write: if esDeLaCuenta(userId) && carpeta != 'gcode' && carpeta != 'gcode-entrada';
+    }
+    // Archivos sueltos directamente en users/{uid}/, sin subcarpeta.
+    match /users/{userId}/{archivo} {
+      allow read, write: if esDeLaCuenta(userId);
     }
 
     // Archivos G-code de la Biblioteca (functions/triggers/onGcodeSubido.js):

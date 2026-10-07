@@ -221,6 +221,13 @@ se ven en Firebase Authentication y se borran solos al desvincular.
 
 ## Qué revisar si...
 
+**Una subida de imágenes o del logo falla con "storage/unauthorized".**
+Revisá `storage.rules` con `node scripts/probar-reglas-storage.cjs`, que evalúa casos
+reales sin publicar nada. `firebase deploy` sólo valida que las reglas compilen: una
+función que no existe para ese tipo (por ejemplo `.matches()` sobre una ruta) compila
+y después rechaza todo (pasó el 4/10, TKT-0004). Correr el script **antes de publicar**
+cualquier cambio de reglas de Storage.
+
 **Un botón "no hace nada" (generar PDF, recorrido, exportar Excel) después de un deploy.**
 La pestaña quedó abierta con la versión anterior: lo que se descarga al usarlo
 tiene otro nombre en la nueva y Vercel devuelve la página principal en su
