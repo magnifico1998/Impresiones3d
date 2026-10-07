@@ -7,6 +7,16 @@
 
 export const NOVEDADES = [
   {
+    version: 13,
+    fecha: '2026-10-06',
+    items: [
+      { texto: 'Catálogo web, nueva tarjeta "Marca del catálogo": elegí el tamaño de tu logo (para que se vea bien aunque tenga colores claros) y escribí un texto destacado debajo del nombre, como un eslogan o un gancho comercial: hasta 3 líneas y con el tamaño que quieras.' },
+      { texto: 'Cuando un cliente te manda un pedido desde el catálogo, ahora tiene un botón "Volver al catálogo" para seguir mirando.' },
+      { texto: 'BETA, todavía en desarrollo: impresión directa. Guardá el G-code de tus productos en la Biblioteca (botón 📄) y mandalo a tu impresora desde ahí. Para eso instalás el Manager3D Conector en una PC de tu taller (lo bajás en Configuración → Impresión directa). Funciona con Anycubic Kobra y con Bambu Lab (abriendo el archivo en Bambu Studio); las impresoras con Klipper, como las Creality, están en prueba. Con cualquier otra podés guardar el archivo en una carpeta, por ejemplo la tarjeta SD. El espacio para G-code depende de tu plan; durante la prueba tenés 200 MB.' },
+      { texto: 'BETA: en el detalle de un pedido, las piezas cuyo producto tiene G-code muestran el botón 🖨 Enviar para mandarlo a imprimir, con los colores pedidos como recordatorio.' }
+    ]
+  },
+  {
     version: 12,
     fecha: '2026-10-03',
     items: [
