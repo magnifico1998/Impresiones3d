@@ -55,6 +55,7 @@ export default function SelectorConAlta({ value, onChange, opciones, placeholder
       e.preventDefault();
       elegir(items[resaltada]);
     } else if (e.key === 'Escape') {
+      if (abierto) e.preventDefault(); // cierra la lista, no el modal que la contiene
       setAbierto(false);
     }
   };

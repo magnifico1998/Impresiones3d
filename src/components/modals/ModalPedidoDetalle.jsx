@@ -9,8 +9,10 @@ import SeccionFacturaPedido from '../SeccionFacturaPedido';
 import SeccionInventarioPedido from '../SeccionInventarioPedido';
 import ModalEnviarPieza from './ModalEnviarPieza';
 import { archivosListosDe, escucharArchivosGcode, productoDePieza } from '../../utils/archivosGcode';
+import { useCapaModal } from '../CapaModal';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const {
     pedidos,
     updatePedido,
@@ -852,7 +854,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', gap: '12px' }}>
           <div>

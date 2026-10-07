@@ -7,6 +7,7 @@ import { armarInventario, formatoCantidad } from '../../utils/inventario';
 import { estimarConsumoPedido, sugerirFilamento, sugerirInsumo } from '../../utils/consumoPedido';
 import SelectorBuscable from '../SelectorBuscable';
 import { confirmar as confirmarDialogo } from '../Dialogos';
+import { useCapaModal } from '../CapaModal';
 
 // "Descontar del inventario" de un pedido: propone cuánto filamento usó
 // cada versión de cada producto (en los multicolor, por material) y los
@@ -15,6 +16,7 @@ import { confirmar as confirmarDialogo } from '../Dialogos';
 // artículo. Todo se puede corregir antes de confirmar.
 
 export default function ModalConsumoPedido({ pedido, onClose }) {
+  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: guardando });
   const { compras, biblioteca, cfg, showToast } = useApp();
   const { movimientos, agregarMovimiento } = useMovimientosInventario();
   const [guardando, setGuardando] = useState(false);
@@ -111,7 +113,7 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
   };
 
   return createPortal(
-    <div className="modal-overlay open" onClick={guardando ? undefined : onClose} style={{ zIndex: 120, padding: '20px 16px' }}>
+    <div className="modal-overlay open" {...capaModal} style={{ zIndex: 120, padding: '20px 16px' }}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()} style={{ margin: 'auto', maxWidth: '820px' }}>
         <div className="modal-title">Descontar del inventario · Pedido #{String(pedido.id).padStart(4, '0')}</div>
         <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '12px' }}>

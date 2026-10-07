@@ -5,6 +5,7 @@ import { functions } from '../../firebase';
 import { useApp } from '../../context/AppContext';
 import { confirmar, avisar } from '../Dialogos';
 import { CONDICIONES_IVA, pesosAR, receptorDesdeCliente } from '../../utils/facturacion';
+import { useCapaModal } from '../CapaModal';
 
 // Arma la Factura C de un pedido, precargada con sus piezas, la
 // bonificación y el envío, y el receptor desde la ficha del cliente. Todo
@@ -35,6 +36,7 @@ function armarInicial(pedido, cliente, precioVentaNeto) {
 }
 
 export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, onClose }) {
+  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: emitiendo });
   const { updateCliente, showToast } = useApp();
   const [form, setForm] = useState(() => armarInicial(pedido, cliente, precioVentaNeto));
   const [emitiendo, setEmitiendo] = useState(false);
@@ -96,7 +98,7 @@ export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, 
   // vez de a la pantalla. margin auto lo centra y, si es más alto que la
   // pantalla, deja scrollear sin cortar el principio.
   return createPortal(
-    <div className="modal-overlay open" onClick={emitiendo ? undefined : onClose} style={{ zIndex: 120, padding: '20px 16px' }}>
+    <div className="modal-overlay open" {...capaModal} style={{ zIndex: 120, padding: '20px 16px' }}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()} style={{ margin: 'auto' }}>
         <div className="modal-title">Facturar pedido #{String(pedido.id).padStart(4, '0')}</div>
 

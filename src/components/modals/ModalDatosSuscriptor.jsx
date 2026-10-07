@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { db } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import SelectorCondicionImpositiva from '../SelectorCondicionImpositiva';
+import { useCapaModal } from '../CapaModal';
 
 const FORM_VACIO = {
   nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '', condicionImpositiva: '',
@@ -29,6 +30,7 @@ const FORM_VACIO = {
 // sirve para el primer contacto, pero una vez que el admin ya está
 // gestionando al suscriptor no aporta nada.
 export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta, solicitudInicial }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { showToast } = useApp();
   const [form, setForm] = useState(FORM_VACIO);
   const [cargando, setCargando] = useState(true);
@@ -119,7 +121,7 @@ export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Datos del suscriptor</div>
         <p className="modal-sub">{emailCuenta || uid}</p>

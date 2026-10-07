@@ -3,6 +3,7 @@ import { confirmar, pedirTexto } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
+import { useCapaModal } from '../CapaModal';
 
 // Mismo wrapper que arma functions/emailTemplates.js -> layout(): si cambia
 // uno, hay que cambiar el otro para que la vista previa no mienta.
@@ -49,6 +50,7 @@ const HERRAMIENTAS = [
 // Ver functions/emailTemplates.js para el registro de plantillas y
 // functions/http/plantillasEmail.js para guardar los cambios.
 export default function ModalPlantillaEmail({ isOpen, onClose, plantilla, onGuardado }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { showToast } = useApp();
   const [subject, setSubject] = useState('');
   const [bodyHtml, setBodyHtml] = useState('');
@@ -174,7 +176,7 @@ export default function ModalPlantillaEmail({ isOpen, onClose, plantilla, onGuar
   const botonHerramienta = { fontSize: '12px', padding: '4px 9px' };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" style={{ maxWidth: '920px', width: '95vw' }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
           <div className="modal-title" style={{ marginBottom: 0 }}>Editar plantilla: {plantilla.label}</div>

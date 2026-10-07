@@ -5,6 +5,7 @@ import {
   CATEGORIAS_INVENTARIO, PESO_ROLLO_DEFAULT, esLineaFilamento, juntarMarcas, lineasDeCompra, marcasUsadas, resumenCompra, subtotalLinea
 } from '../../utils/inventario';
 import SelectorConAlta from '../SelectorConAlta';
+import { useCapaModal } from '../CapaModal';
 
 // Una compra es un ingreso tipo carrito: varias líneas, cada una con su
 // categoría (un mismo pedido al proveedor puede traer filamentos y
@@ -33,6 +34,7 @@ const hexDe = (x) => (typeof x === 'string' ? '' : x?.hex || '');
 const igual = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
 
 export default function ModalCompra({ isOpen, onClose, editId }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { compras, addCompra, updateCompra, getNewId, showToast, cfg, setCfg } = useApp();
 
   const filamentos = (cfg.filamentos || []).map((f) => ({ nombre: nombreDe(f), precio: Number(f?.precio) || 0 })).filter((f) => f.nombre);
@@ -269,7 +271,7 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
   });
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" style={{ maxWidth: '1100px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">
           {editId !== null ? 'Editar compra' : 'Nueva compra'}

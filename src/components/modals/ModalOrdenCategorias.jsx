@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ordenarCategorias } from '../../utils/categoriaOrden';
+import { useCapaModal } from '../CapaModal';
 
 /**
  * Modal para definir el orden manual en el que las categorías aparecen en
@@ -11,6 +12,7 @@ import { ordenarCategorias } from '../../utils/categoriaOrden';
  * botones de subir/bajar en cada fila.
  */
 export default function ModalOrdenCategorias({ isOpen, onClose }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { biblioteca, cfg, setCfg, showToast } = useApp();
   const [orden, setOrden] = useState([]);
   const dragIndex = useRef(null);
@@ -74,7 +76,7 @@ export default function ModalOrdenCategorias({ isOpen, onClose }) {
   };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" style={{ maxWidth: '460px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Ordenar categorías</div>
         <div className="modal-sub">

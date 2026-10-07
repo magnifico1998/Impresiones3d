@@ -5,6 +5,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { motivoTelefonoInvalido } from '../../utils/paises';
 import SelectorCondicionImpositiva, { condicionImpositivaValida } from '../SelectorCondicionImpositiva';
+import { useCapaModal } from '../CapaModal';
 
 // Formulario de contacto, que es también el "perfil" que da acceso al plan
 // gratuito Boceto. Dos modos, mismo formulario:
@@ -26,6 +27,7 @@ const formVacio = {
 };
 
 export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { user, cuentaId, showToast, paisActual, empresa, setEmpresa, suscripcion } = useApp();
   const esBoceto = modo === 'boceto';
 
@@ -207,7 +209,7 @@ export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
     : (yaEnviado ? 'Actualizar solicitud' : 'Enviar solicitud');
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">{titulo}</div>
 

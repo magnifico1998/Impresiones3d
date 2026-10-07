@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { CONDICIONES_IVA } from '../../utils/facturacion';
+import { useCapaModal } from '../CapaModal';
 
 export default function ModalCliente({ isOpen, onClose, editId }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { clientes, addCliente, updateCliente, updatePedidosBulk, getNewId, showToast, cfg } = useApp();
   const nombreMetodo = (m) => (typeof m === 'string' ? m : m?.nombre) || '';
   const metodos = (cfg.metodosEnvio || []).map(nombreMetodo).filter(Boolean);
@@ -137,7 +139,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">
           {editId !== null ? 'Editar cliente' : 'Nuevo cliente'}

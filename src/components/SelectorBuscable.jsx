@@ -63,6 +63,7 @@ export default function SelectorBuscable({ value, onChange, opciones, textoVacio
       e.preventDefault();
       elegir(items[resaltada]);
     } else if (e.key === 'Escape') {
+      if (abierto) e.preventDefault(); // cierra la lista, no el modal que la contiene
       setAbierto(false);
       inputRef.current?.blur();
     }

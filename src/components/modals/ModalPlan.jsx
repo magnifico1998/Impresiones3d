@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { db } from '../../firebase';
 import { doc, setDoc, collection } from 'firebase/firestore';
+import { useCapaModal } from '../CapaModal';
 
 const FORM_VACIO = {
   nombre: '',
@@ -17,6 +18,7 @@ const FORM_VACIO = {
 // métrica (así queda reflejado en cuentaPuedeEscribir/dentroDelLimiteDePedidos
 // de firestore.rules, que tratan null como "no hay tope").
 export default function ModalPlan({ isOpen, onClose, plan }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { showToast } = useApp();
   const [form, setForm] = useState(FORM_VACIO);
   const [guardando, setGuardando] = useState(false);
@@ -94,7 +96,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">{plan ? 'Editar plan' : 'Nuevo plan'}</div>
 

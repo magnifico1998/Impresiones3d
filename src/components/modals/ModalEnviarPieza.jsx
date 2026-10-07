@@ -1,5 +1,6 @@
 import React from 'react';
 import { PanelEnvio, ListaEnvios } from '../EnvioImpresora';
+import { useCapaModal } from '../CapaModal';
 
 // Mandar a la impresora el archivo G-code de una pieza de un pedido (el botón
 // "🖨 Enviar" del detalle del pedido, que sólo aparece si el producto tiene
@@ -8,6 +9,7 @@ import { PanelEnvio, ListaEnvios } from '../EnvioImpresora';
 //   archivos: sus archivos listos.
 
 export default function ModalEnviarPieza({ pieza, producto, archivos, soloLectura, onClose }) {
+  const capaModal = useCapaModal({ onClose, activo: true });
   if (!pieza || !producto) return null;
 
   // Qué filamento cargar: las versiones de color del pedido.
@@ -19,7 +21,7 @@ export default function ModalEnviarPieza({ pieza, producto, archivos, soloLectur
   // Este modal va dentro del del pedido: el stopPropagation evita que un clic
   // afuera cierre a los dos.
   return (
-    <div className="modal-overlay open" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Enviar a imprimir · {pieza.nombre}</div>
         <div className="modal-sub" style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '14px' }}>

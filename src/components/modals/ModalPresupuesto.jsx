@@ -4,6 +4,7 @@ import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { generarPdfPresupuesto } from '../../utils/presupuestoPDF';
 import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../../utils/estadosPresupuesto';
 import { datosConsumoPieza } from '../../utils/piezaPedido';
+import { useCapaModal } from '../CapaModal';
 
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
 // siempre, sin guardar nada) o guardarlo en la sección Presupuestos, desde
@@ -46,6 +47,7 @@ const copiaCalculo = (pz) => ({
 const nuevoIdLinea = () => Date.now() + Math.random();
 
 export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, presupuestoActual, presupuestoEditar }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const {
     biblioteca, clientes, empresa, fmt, showToast, getNewId,
     presupuestos, addPresupuesto, updatePresupuesto, siguienteNumeroPresupuesto
@@ -284,7 +286,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
   };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">
           {presupuestoEditar ? `Presupuesto N° ${presupuestoEditar.numero}` : destinoExistente ? `Agregar al presupuesto N° ${destinoExistente.numero}` : 'Nuevo presupuesto'}

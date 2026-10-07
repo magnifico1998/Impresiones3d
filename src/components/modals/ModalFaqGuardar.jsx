@@ -3,8 +3,10 @@ import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 import { obtenerBloques } from '../../utils/faqBloques';
 import { rutaDeFaq } from '../../utils/faqCategoriaPath';
+import { useCapaModal } from '../CapaModal';
 
 export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { faq, addFaq, updateFaq, getNewId, showToast, cuentaId } = useApp();
   const [pregunta, setPregunta] = useState('');
   // Ruta completa de categoría en un solo campo, niveles separados por "/"
@@ -185,7 +187,7 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
   };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">{editId !== null ? 'Editar pregunta' : 'Agregar pregunta'}</div>
 

@@ -3,8 +3,10 @@ import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 import { cupoGcode, formatoBytes, subirArchivoGcode } from '../../utils/archivosGcode';
+import { useCapaModal } from '../CapaModal';
 
 export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, onGuardado }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado, suscripcion, fmt } = useApp();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
@@ -232,7 +234,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Guardar en biblioteca</div>
         <div className="modal-sub">Guardá este producto para reutilizarlo en futuros pedidos.</div>

@@ -6,6 +6,7 @@ import { useMovimientosInventario } from '../../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { armarInventario, entrada, esLineaFilamento, formatoCantidad, juntarMarcas, nombreLinea } from '../../utils/inventario';
 import { descargarPlantillaInventario, leerCSVInventario } from '../../utils/importarInventario';
+import { useCapaModal } from '../CapaModal';
 
 // Carga inicial del inventario desde un CSV (formato en
 // utils/importarInventario.js): lo que ya se tenía antes de cargar compras.
@@ -34,6 +35,7 @@ async function leerArchivo(archivo) {
 }
 
 export default function ModalImportarInventario({ onClose }) {
+  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: guardando });
   const { compras, cfg, setCfg, fmt, showToast } = useApp();
   const { movimientos, agregarMovimientos, borrarMovimientos } = useMovimientosInventario();
   const [archivo, setArchivo] = useState('');
@@ -136,7 +138,7 @@ export default function ModalImportarInventario({ onClose }) {
   };
 
   return createPortal(
-    <div className="modal-overlay open" onClick={guardando ? undefined : onClose} style={{ zIndex: 120, padding: '20px 16px' }}>
+    <div className="modal-overlay open" {...capaModal} style={{ zIndex: 120, padding: '20px 16px' }}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()} style={{ margin: 'auto', maxWidth: '860px' }}>
         <div className="modal-title">Importar inventario inicial</div>
         <div className="modal-sub">

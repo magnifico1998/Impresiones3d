@@ -5,6 +5,7 @@ import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/fires
 import { httpsCallable } from 'firebase/functions';
 import { motivoTelefonoInvalido } from '../../utils/paises';
 import SelectorCondicionImpositiva from '../SelectorCondicionImpositiva';
+import { useCapaModal } from '../CapaModal';
 
 const DATOS_VACIOS = {
   nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '',
@@ -40,6 +41,7 @@ const limiteTexto = (valor, singular, plural) =>
 // se acredita (lo aplica el webhook), y la app lo refleja sola porque
 // escucha suscripcion/actual en vivo.
 export default function ModalSuscribirse({ isOpen, onClose }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { showToast, suscripcion, user, empresa, cuentaId, paisActual } = useApp();
   const [planes, setPlanes] = useState([]);
   const [cargando, setCargando] = useState(false);
@@ -139,7 +141,7 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
 
   if (paso === 2) {
     return (
-      <div className="modal-overlay open" onClick={onClose}>
+      <div className="modal-overlay open" {...capaModal}>
         <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
           <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '4px' }}>Paso 2 de 3</div>
           <div className="modal-title">Tus datos de facturación</div>
@@ -216,7 +218,7 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
 
   if (paso === 3) {
     return (
-      <div className="modal-overlay open" onClick={onClose}>
+      <div className="modal-overlay open" {...capaModal}>
         <div className="modal" onClick={(e) => e.stopPropagation()}>
           <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '4px' }}>Paso 3 de 3</div>
           <div className="modal-title">Confirmá tu email de Mercado Pago</div>
@@ -291,7 +293,7 @@ export default function ModalSuscribirse({ isOpen, onClose }) {
   }
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '4px' }}>Paso 1 de 3</div>
         <div className="modal-title">{debitoActivo ? 'Cambiar de plan' : 'Contratar un plan'}</div>

@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
+import { useCapaModal } from '../CapaModal';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { biblioteca, updateProducto, showToast, cuentaId, fmt } = useApp();
   const [categoria, setCategoria] = useState('');
   const [subcategoria, setSubcategoria] = useState('');
@@ -192,7 +194,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Editar producto</div>
         <div className="modal-sub" style={{ fontWeight: 500, color: 'var(--text)' }}>

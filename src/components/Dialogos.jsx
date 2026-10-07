@@ -16,6 +16,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 const pendientes = [];
 let mostrarSiguienteMontado = null;
+let dialogoAbierto = false;
+
+// Para que otras capas (modales) no reaccionen a Esc mientras hay un diálogo encima.
+export const hayDialogoAbierto = () => dialogoAbierto || pendientes.length > 0;
 
 function abrir(opciones) {
   return new Promise((resolve) => {
@@ -53,6 +57,7 @@ export default function Dialogos() {
   const mostrarSiguiente = useCallback(() => {
     if (actualRef.current || pendientes.length === 0) return;
     actualRef.current = pendientes.shift();
+    dialogoAbierto = true;
     setTexto(actualRef.current.valorInicial || '');
     setActual(actualRef.current);
   }, []);
@@ -69,6 +74,7 @@ export default function Dialogos() {
     const dialogo = actualRef.current;
     if (!dialogo) return;
     actualRef.current = null;
+    dialogoAbierto = false;
     setActual(null);
     dialogo.resolve(valor);
     mostrarSiguiente();

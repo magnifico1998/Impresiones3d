@@ -3,8 +3,10 @@ import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { piezaDesdeBiblioteca } from '../../utils/piezaPedido';
+import { useCapaModal } from '../CapaModal';
 
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const {
     pedidos,
     addPedido,
@@ -291,7 +293,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
   const fixedOrder = fixedOrderId ? pedidos.find(p => p.id === fixedOrderId) : null;
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Armar pedido desde biblioteca</div>
         <div className="modal-sub">Revisá cantidades y precios estimados antes de crear el pedido.</div>

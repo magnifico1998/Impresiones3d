@@ -3,6 +3,7 @@ import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { datosConsumoPieza } from '../../utils/piezaPedido';
+import { useCapaModal } from '../CapaModal';
 
 // Igual que ModalArmarPedido.jsx (el que arma pedidos desde Biblioteca):
 // el pedido destino puede ser uno existente o "+ Crear pedido nuevo", y la
@@ -10,6 +11,7 @@ import { datosConsumoPieza } from '../../utils/piezaPedido';
 // -- antes esto sólo se podía hacer armando el pedido desde Biblioteca, acá
 // se agrega la misma capacidad para la pieza que sale de la Calculadora.
 export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, defaultPedidoId, onConfirm }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast, cfg, fmt } = useApp();
   const [nombre, setNombre] = useState('');
   const [destino, setDestino] = useState('nuevo');
@@ -183,7 +185,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
   };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Agregar pieza a pedido</div>
         <div className="modal-sub">Nombrá la pieza y elegí a qué pedido va (o creá uno nuevo).</div>

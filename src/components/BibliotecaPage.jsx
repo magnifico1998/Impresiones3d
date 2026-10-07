@@ -7,6 +7,7 @@ import { ordenarCategorias } from '../utils/categoriaOrden';
 import ModalOrdenCategorias from './modals/ModalOrdenCategorias';
 import ModalArchivosGcode from './modals/ModalArchivosGcode';
 import { escucharArchivosGcode } from '../utils/archivosGcode';
+import { useCapaModal } from './CapaModal';
 
 /**
  * Recalcula costos de un producto manteniendo estructura física pero actualizando precios
@@ -145,6 +146,7 @@ function recalcularProducto(prod, cfg) {
  * Modal de confirmación: muestra antes/después y permite seleccionar qué actualizar
  */
 function ModalRecalcular({ items, onConfirm, onClose }) {
+  const capaModal = useCapaModal({ onClose });
   const { fmt } = useApp();
   const [selectedIds, setSelectedIds] = useState(new Set(items.map(it => it.prod.id)));
 
@@ -170,7 +172,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
     <div
       className="modal-overlay open"
       style={{ zIndex: 200 }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      {...capaModal}
     >
       <div
         className="modal modal-wide"
@@ -908,6 +910,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 }
 
 function ModalAjustarPrecio({ items, onConfirm, onClose }) {
+  const capaModal = useCapaModal({ onClose });
   const { fmt } = useApp();
   const [selectedIds, setSelectedIds] = useState(new Set(items.map(it => it.prod.id)));
   const [mode, setMode] = useState('percent');
@@ -925,7 +928,7 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
   const handleConfirm = () => onConfirm(selectedIds, items, mode, value);
 
   return (
-    <div className="modal-overlay open" style={{ zIndex: 210 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-overlay open" style={{ zIndex: 210 }} {...capaModal}>
       <div className="modal modal-wide" style={{ width: 'min(1600px, 98vw)', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div className="modal-header">
           <div className="modal-title">✎ Ajustar precio de venta</div>

@@ -8,6 +8,7 @@ import {
   MINUTOS_SIN_GRABAR, esError, estadoGrabacion, iniciarGrabacion, obtenerEventos, suscribirRegistro, terminarGrabacion
 } from '../../utils/registroSoporte';
 import { CATEGORIAS_TICKET, lineasLog, numeroTicket } from '../../utils/formatoTicket';
+import { useCapaModal } from '../CapaModal';
 
 // Nuevo ticket de soporte, montado una vez en App. Se abre con el evento
 // 'abrir-ticket' (Soporte → Nuevo ticket, o "Reportar" en un aviso de
@@ -54,6 +55,7 @@ export default function CentroSoporte() {
     setAbierto(false);
     reiniciar();
   };
+  const capaModal = useCapaModal({ onClose: cerrar, activo: abierto, bloqueado: enviando });
 
   const grabar = () => {
     iniciarGrabacion();
@@ -127,7 +129,7 @@ export default function CentroSoporte() {
   const cambiar = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.value }));
 
   return createPortal(
-    <div className="modal-overlay open" onClick={enviando ? undefined : cerrar} style={{ zIndex: 130, padding: '20px 16px' }}>
+    <div className="modal-overlay open" {...capaModal} style={{ zIndex: 130, padding: '20px 16px' }}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()} style={{ margin: 'auto' }}>
         <div className="modal-title">Nuevo ticket de soporte</div>
         <div className="modal-sub">

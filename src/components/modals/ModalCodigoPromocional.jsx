@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
+import { useCapaModal } from '../CapaModal';
 
 // Canje de un código promocional de un comercio (ver
 // functions/http/codigosPromocionales.js: sólo se puede activar durante el
@@ -9,6 +10,7 @@ import { httpsCallable } from 'firebase/functions';
 // de revendedor (que sólo se registra en la solicitud de contacto para que
 // un admin lo procese después), este lo aplica el propio usuario al toque.
 export default function ModalCodigoPromocional({ isOpen, onClose }) {
+  const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { showToast } = useApp();
   const [codigo, setCodigo] = useState('');
   const [activando, setActivando] = useState(false);
@@ -37,7 +39,7 @@ export default function ModalCodigoPromocional({ isOpen, onClose }) {
   };
 
   return (
-    <div className="modal-overlay open" onClick={onClose}>
+    <div className="modal-overlay open" {...capaModal}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Activar código promocional</div>
         <p style={{ fontSize: '13px', color: 'var(--text2)', marginBottom: '14px', lineHeight: 1.5 }}>
