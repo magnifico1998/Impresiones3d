@@ -52,10 +52,11 @@ export default function Header({ onToggleMenu }) {
               src={empresa.logo} 
               alt="Logo empresa" 
               style={{
-                width: '26px',
                 height: '26px',
+                width: 'auto',
+                maxWidth: '64px',
                 borderRadius: '6px',
-                objectFit: 'cover',
+                objectFit: 'contain',
                 border: '1px solid var(--border)',
                 flexShrink: 0
               }} 

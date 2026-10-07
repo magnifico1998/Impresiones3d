@@ -10,6 +10,7 @@ import SeccionInventarioPedido from '../SeccionInventarioPedido';
 import ModalEnviarPieza from './ModalEnviarPieza';
 import { archivosListosDe, escucharArchivosGcode, productoDePieza } from '../../utils/archivosGcode';
 import { useCapaModal } from '../CapaModal';
+import { ajustarLogo, tamanoLogoPdfDe } from '../../utils/logoPdf';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
@@ -540,15 +541,18 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
     // Logo (if exists) + Title
     let titleX = marginX;
+    let logoAlto = 0;
     if (empresa.logo) {
       try {
         // empresa.logo es una URL de Firebase Storage, no base64 — jsPDF
         // necesita los datos ya convertidos, por eso se carga acá (esto
         // es lo que faltaba: antes se le pasaba la URL directo a
         // addImage y fallaba en silencio, el logo nunca aparecía).
-        const { dataUrl } = await loadImageAsBase64(empresa.logo);
-        doc.addImage(dataUrl, 'JPEG', marginX, y - 9, 14, 14);
-        titleX = marginX + 18;
+        const { dataUrl, width, height } = await loadImageAsBase64(empresa.logo);
+        const { w, h } = ajustarLogo(width, height, tamanoLogoPdfDe(empresa));
+        doc.addImage(dataUrl, 'JPEG', marginX, y - 2 - h / 2, w, h);
+        titleX = marginX + w + 4;
+        logoAlto = h;
       } catch (err) {
         console.error('No se pudo cargar el logo para el PDF del pedido:', err);
       }
@@ -570,7 +574,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     if (empresa.telefono) { doc.text(empresa.telefono, pageW - marginX, ey, { align: 'right' }); ey += 4.2; }
     if (empresa.email) { doc.text(empresa.email, pageW - marginX, ey, { align: 'right' }); }
 
-    y += 10;
+    y += 10 + Math.max(0, logoAlto / 2 - 12);
     doc.setDrawColor(210); doc.setLineWidth(0.3); doc.line(marginX, y, pageW - marginX, y);
     y += 7;
 

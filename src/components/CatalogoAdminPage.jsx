@@ -375,7 +375,7 @@ export default function CatalogoAdminPage() {
         <div style={{ marginTop: '14px', borderRadius: '8px', border: '1px solid var(--border)', background: paletaCatalogoActual('bg'), overflow: 'hidden' }}>
           <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid var(--border)' }}>
             {catalogoConfig?.logo ? (
-              <img src={catalogoConfig.logo} alt="" style={{ width: `${tamanoLogo}px`, height: `${tamanoLogo}px`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
+              <img src={catalogoConfig.logo} alt="" style={{ height: `${tamanoLogo}px`, width: 'auto', maxWidth: `min(${tamanoLogo * 3}px, 70vw)`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
             ) : (
               <div style={{ fontSize: '12px', color: paletaCatalogoActual('text'), opacity: 0.7 }}>
                 Todavía no cargaste un logo: subilo en Mi emprendimiento.

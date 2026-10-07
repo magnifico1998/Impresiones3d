@@ -455,7 +455,7 @@ export default function CatalogoPublico() {
         display: 'flex', alignItems: 'center', gap: '12px'
       }} className="catalogo-header-inner">
         {config.logo ? (
-          <img src={config.logo} alt="" style={{ width: `${tamanoLogo}px`, height: `${tamanoLogo}px`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
+          <img src={config.logo} alt="" style={{ height: `${tamanoLogo}px`, width: 'auto', maxWidth: `min(${tamanoLogo * 3}px, 70vw)`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
         ) : (
           <div style={{
             width: `${tamanoLogo}px`, height: `${tamanoLogo}px`, borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0, background: 'var(--text)', color: 'var(--bg)',

@@ -1,5 +1,6 @@
 import { loadImageAsBase64 } from './loadImageAsBase64';
 import { dibujarDatosBancarios } from './datosBancarios';
+import { ajustarLogo, tamanoLogoPdfDe } from './logoPdf';
 
 // PDF de un presupuesto. Lo usan ModalPresupuesto (al generarlo desde la
 // Calculadora o la Biblioteca) y PresupuestosPage (para volver a bajar uno
@@ -23,11 +24,14 @@ export async function generarPdfPresupuesto({ empresa, fmt, numero = null, fecha
 
   // Logo (if exists) + Title
   let titleX = marginX;
+  let logoAlto = 0;
   if (empresa.logo) {
     try {
-      const { dataUrl } = await loadImageAsBase64(empresa.logo);
-      doc.addImage(dataUrl, 'JPEG', marginX, y - 9, 14, 14);
-      titleX = marginX + 18;
+      const { dataUrl, width, height } = await loadImageAsBase64(empresa.logo);
+      const { w, h } = ajustarLogo(width, height, tamanoLogoPdfDe(empresa));
+      doc.addImage(dataUrl, 'JPEG', marginX, y - 2 - h / 2, w, h);
+      titleX = marginX + w + 4;
+      logoAlto = h;
     } catch (err) {
       console.error('No se pudo cargar el logo para el PDF del presupuesto:', err);
     }
@@ -49,7 +53,7 @@ export async function generarPdfPresupuesto({ empresa, fmt, numero = null, fecha
   if (empresa.telefono) { doc.text(empresa.telefono, pageW - marginX, ey, { align: 'right' }); ey += 4.2; }
   if (empresa.email) { doc.text(empresa.email, pageW - marginX, ey, { align: 'right' }); }
 
-  y += 10;
+  y += 10 + Math.max(0, logoAlto / 2 - 12);
   doc.setDrawColor(210); doc.setLineWidth(0.3); doc.line(marginX, y, pageW - marginX, y);
   y += 7;
 

@@ -12,6 +12,7 @@ import TotalizadorMonotributo from './TotalizadorMonotributo';
 import { PESTANAS_EMPRESA, pestanaEmpresaGuardada, guardarPestanaEmpresa } from '../utils/facturacion';
 import { sincronizarPagoMP } from '../utils/pagosMP';
 import { cupoGcode, formatoBytes } from '../utils/archivosGcode';
+import { TAMANOS_LOGO_PDF, tamanoLogoPdfDe } from '../utils/logoPdf';
 
 // Texto del estado del débito automático de Mercado Pago
 // (suscripcion.cobro.estado, lo mantiene el webhook).
@@ -252,7 +253,7 @@ export default function EmpresaPage() {
                   }}
                 >
                   {empresa.logo ? (
-                    <img src={empresa.logo} alt="Logo preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={empresa.logo} alt="Logo preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
                     <svg viewBox="0 0 20 20" fill="none" stroke="var(--text3)" strokeWidth="1.5" style={{ width: '28px', height: '28px' }}>
                       <polygon points="10,2 18,6 18,14 10,18 2,14 2,6" />
@@ -280,6 +281,25 @@ export default function EmpresaPage() {
                   onChange={handleLogoUpload} 
                 />
               </div>
+              {empresa.logo && (
+                <>
+                  <label className="fl">Tamaño del logo en los PDF</label>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {TAMANOS_LOGO_PDF.map((t) => (
+                      <button
+                        key={t.mm}
+                        className={`btn btn-sm ${tamanoLogoPdfDe(empresa) === t.mm ? 'btn-primary' : ''}`}
+                        onClick={() => setEmpresa((prev) => ({ ...prev, logoPdfTamano: t.mm }))}
+                      >
+                        {t.nombre}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>
+                    El logo entra entero, sin deformarse, en un cuadrado de ese tamaño: si es rectangular queda más chico que uno cuadrado, subí el tamaño para agrandarlo. El del catálogo web se elige en Catálogo web.
+                  </div>
+                </>
+              )}
             </div>
 
             {/* General business profile metadata card */}

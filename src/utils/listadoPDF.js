@@ -4,6 +4,7 @@ import { ordenarCategorias } from './categoriaOrden';
 import { loadImageAsBase64 } from './loadImageAsBase64';
 import { formatearMoneda } from './paises';
 import { fechaLocalHoy } from './fechaCompletado';
+import { ajustarLogo, tamanoLogoPdfDe } from './logoPdf';
 
 // Colores "neutros" que no dependen de la paleta: el precio se mantiene
 // siempre en verde (significado semántico) y los grises de texto/bordes
@@ -126,13 +127,15 @@ export async function generarListadoProductosPDF(biblioteca, empresa, paletaId, 
 
     if (empresa?.logo) {
       try {
-        const { dataUrl } = await loadImageAsBase64(empresa.logo);
-        const logoSize = 15;
-        const logoY = (headerBandHeight - logoSize) / 2;
+        const { dataUrl, width, height } = await loadImageAsBase64(empresa.logo);
+        // El logo entra entero (sin deformarse) en una caja del tamaño elegido, con tope por la franja.
+        const caja = Math.min(tamanoLogoPdfDe(empresa) + 1, headerBandHeight - 4) - 2;
+        const { w, h } = ajustarLogo(width, height, caja);
+        const logoY = (headerBandHeight - h - 2) / 2;
         setFill(COLOR.white);
-        pdf.roundedRect(margin, logoY, logoSize, logoSize, 2, 2, 'F');
-        pdf.addImage(dataUrl, 'JPEG', margin + 1, logoY + 1, logoSize - 2, logoSize - 2);
-        tituloX = margin + logoSize + 6;
+        pdf.roundedRect(margin, logoY, w + 2, h + 2, 2, 2, 'F');
+        pdf.addImage(dataUrl, 'JPEG', margin + 1, logoY + 1, w, h);
+        tituloX = margin + w + 2 + 6;
       } catch (err) {
         console.warn('No se pudo cargar el logo de la empresa en el PDF:', err.message);
       }
