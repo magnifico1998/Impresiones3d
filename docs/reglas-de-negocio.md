@@ -432,7 +432,7 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   3 V2 / S1 en modo LAN (solo imprime; con ACE se lee qué hay
   cargado y cada color va a un lugar con el mismo material; si la impresora
   rechaza la orden, se cancela para que no quede calentando), y
-  **Guardar en una carpeta** siempre disponible para cualquier impresora (tarjeta SD, pendrive o carpeta de red; no hace falta cargar nada), Anycubic Kobra **sin modo LAN** abriendo el `.gcode.3mf` en Anycubic Slicer Next (lo manda el propio programa, con la cuenta Anycubic; no sirve un `.gcode` suelto), y
+  **Guardar en una carpeta** siempre disponible para cualquier impresora (tarjeta SD, pendrive o carpeta de red; no hace falta cargar nada), impresoras con **Klipper/Moonraker** (Creality SparkX i7 y K1/K2, Elegoo Neptune 4, Sovol, Voron…) directo por su API (solo `.gcode`, arranca a imprimir), Anycubic Kobra **sin modo LAN** abriendo el `.gcode.3mf` en Anycubic Slicer Next (lo manda el propio programa, con la cuenta Anycubic; no sirve un `.gcode` suelto), y
   Bambu Lab abriendo el archivo en Bambu Studio / Orca (lo manda a la impresora el propio programa), por Bambu Connect o, experimental, por modo LAN + desarrollador. Un envío
   para **imprimir vence a los 10 minutos** en cola (con el conector cerrado, por
   ejemplo): pasado ese tiempo no se imprime y queda "Venció"; lo hacen cumplir las

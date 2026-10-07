@@ -107,6 +107,7 @@ export const PAGINA = `<!doctype html>
 <script>
 const AYUDA = {
   'anycubic-lan': 'Kobra 3, Kobra 3 V2 o Kobra S1 con el firmware original, en "modo LAN" (pantalla de la impresora → Ajustes → Red). La IP también está en esa pantalla.',
+  'moonraker': 'Impresoras con Klipper + Moonraker: Creality SparkX i7, K1, K2, Ender-3 V3 KE, Elegoo Neptune 4, Sovol, Voron… Solo hace falta la IP (si usa otro puerto que el 7125, ponelo así: 192.168.0.50:7125). Sube el .gcode y arranca a imprimir; antes mira que Klipper esté listo y la impresora libre. Solo recibe .gcode.',
   'explorar-impresora': 'Solo lectura: mira qué puertos y protocolos tiene tu impresora (Moonraker, OctoPrint, WebSocket de Creality…) para poder armar su soporte. No manda nada ni cambia nada. Cargala con su IP y tocá Diagnóstico.',
   'abrir-en-anycubic': 'Para cualquier Kobra, SIN modo LAN. Guarda el archivo y lo abre en Anycubic Slicer Next en esta PC; desde ahí lo mandás a la impresora con tu cuenta Anycubic, como ya lo hacés. Solo sirve con archivos .gcode.3mf laminados en Anycubic Slicer Next (Exportar archivo de la placa laminada). El programa se busca solo; si no lo encuentra, indicá la ruta de su .exe.',
   'abrir-en-programa': 'Guarda el archivo y lo abre en Bambu Studio (u Orca, el programa que tengas para los .3mf) en esta PC. Desde ahí lo mandás a la impresora como siempre. No necesita Bambu Connect ni el modo LAN.',
