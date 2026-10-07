@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { paletas, paletasList } from '../utils/paletas';
+import { MAX_ESLOGAN, LOGO_MAX_ENCABEZADO_FIJO, TAMANOS_LOGO, esloganDe, tamanoLogoDe } from '../utils/catalogoMarca';
 
 // Los mismos 5 roles editables que "Paleta personalizada" en Configuración
 // (ver ConfiguracionPage.jsx), pero acá para el catálogo web público -- se
@@ -129,6 +130,18 @@ export default function CatalogoAdminPage() {
   };
 
   const activo = catalogoConfig?.activo ?? false;
+
+  // Marca: tamaño del logo y texto destacado. El texto se escribe en un
+  // borrador y se guarda con el botón (no una escritura por cada tecla).
+  const tamanoLogo = tamanoLogoDe(catalogoConfig);
+  const esloganGuardado = esloganDe(catalogoConfig);
+  const [esloganBorrador, setEsloganBorrador] = useState(null);
+  const esloganValor = esloganBorrador ?? esloganGuardado;
+  const guardarEslogan = async (texto) => {
+    await guardarCatalogoConfig({ eslogan: esloganDe({ eslogan: texto }) });
+    setEsloganBorrador(null);
+    showToast(texto.trim() ? 'Texto destacado guardado.' : 'Texto destacado quitado.');
+  };
 
   const handleToggleActivo = () => {
     guardarCatalogoConfig({ activo: !activo });
@@ -292,6 +305,72 @@ export default function CatalogoAdminPage() {
           {' · '}Colores publicados: <strong style={{ color: 'var(--text)' }}>{(catalogoConfig?.colores || []).length}</strong>
           <div style={{ marginTop: '4px' }}>Se toma siempre en vivo de "Mi emprendimiento" — no hace falta actualizarlo a mano.</div>
         </div>
+      </div>
+
+      {/* Marca del catálogo: tamaño del logo y texto destacado */}
+      <div className="card">
+        <div className="card-title">Marca del catálogo</div>
+        <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>
+          Cómo se ve tu marca arriba del catálogo público. La vista previa usa los colores de la paleta del catálogo.
+        </div>
+
+        <label className="fl" style={{ marginTop: 0 }}>Tamaño del logo</label>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {TAMANOS_LOGO.map((t) => (
+            <button
+              key={t.px}
+              className={`btn btn-sm ${tamanoLogo === t.px ? 'btn-primary' : ''}`}
+              onClick={() => guardarCatalogoConfig({ logoTamano: t.px })}
+            >
+              {t.nombre}
+            </button>
+          ))}
+        </div>
+        {tamanoLogo > LOGO_MAX_ENCABEZADO_FIJO && (
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>
+            Con este tamaño el encabezado se va con la página al desplazar (no queda fijo), para no tapar la pantalla del celular.
+          </div>
+        )}
+        <div style={{
+          marginTop: '10px', padding: '14px 16px', borderRadius: '8px', border: '1px solid var(--border)',
+          background: paletaCatalogoActual('bg'), display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden'
+        }}>
+          {catalogoConfig?.logo ? (
+            <img src={catalogoConfig.logo} alt="" style={{ width: `${tamanoLogo}px`, height: `${tamanoLogo}px`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
+          ) : (
+            <div style={{ fontSize: '12px', color: paletaCatalogoActual('text'), opacity: 0.7 }}>
+              Todavía no cargaste un logo: subilo en Mi emprendimiento.
+            </div>
+          )}
+          <div style={{ minWidth: 0, fontWeight: 700, fontSize: '17px', color: paletaCatalogoActual('text') }}>
+            {catalogoConfig?.empresaNombre || 'Tu emprendimiento'}
+          </div>
+        </div>
+
+        <div className="sep" style={{ marginTop: '16px' }}></div>
+
+        <label className="fl">Texto destacado (eslogan o gancho comercial)</label>
+        <input
+          type="text"
+          maxLength={MAX_ESLOGAN}
+          value={esloganValor}
+          onChange={(e) => setEsloganBorrador(e.target.value)}
+          placeholder="Ej: Impresiones 3D a medida — envíos a todo el país"
+        />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{esloganValor.length}/{MAX_ESLOGAN} · se muestra debajo del encabezado</span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {esloganValor && <button className="btn btn-sm" onClick={() => guardarEslogan('')}>Quitar</button>}
+            <button className="btn btn-sm btn-primary" disabled={esloganBorrador === null || esloganDe({ eslogan: esloganBorrador }) === esloganGuardado} onClick={() => guardarEslogan(esloganValor)}>
+              Guardar texto
+            </button>
+          </div>
+        </div>
+        {esloganValor.trim() && (
+          <div style={{ marginTop: '10px', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', background: paletaCatalogoActual('bg'), textAlign: 'center', fontSize: '16px', fontWeight: 600, color: paletaCatalogoActual('text'), overflowWrap: 'anywhere' }}>
+            {esloganValor.replace(/\s+/g, ' ').trim()}
+          </div>
+        )}
       </div>
 
       {/* Paleta de colores del catálogo — independiente de la de la app */}

@@ -444,6 +444,17 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   PDF del presupuesto y el del pedido suman "Datos para transferencia" al pie
   de la última página, arriba del nombre del emprendimiento y con un estilo
   liviano (separado del comprobante). En el pedido, **sólo si queda saldo  pendiente** (`src/utils/datosBancarios.js`).
+- **Marca del catálogo:** en Catálogo web → "Marca del catálogo" se elige el
+  **tamaño del logo** (chico 40 px, mediano 64, grande 96 o extra grande 128;
+  `logoTamano`) y un **texto destacado** de hasta 120 caracteres, como un eslogan o
+  un gancho comercial (`eslogan`), que sale debajo del encabezado. La vista previa
+  usa los colores de la paleta del catálogo. Con un logo de más de 64 px el
+  encabezado deja de quedar fijo al desplazar, para no tapar la pantalla del
+  celular. Se guardan en `catalogoTiendas/{uid}` (`src/utils/catalogoMarca.js`).
+- **Pedido enviado desde el catálogo:** la pantalla de confirmación ofrece "Avisar
+  por WhatsApp" y **"Volver al catálogo"**, que vacía el carrito (el pedido ya se
+  mandó, así no se repite por error) y conserva el nombre y el contacto por si arma
+  otro.
 - **Catálogo web público:** cada tienda tiene su catálogo en
   `/catalogo/{uid}`, que se ve sin login. Solo se publica lo que el dueño
   elige: nunca costos ni pedidos. Los visitantes pueden mandar solicitudes solo

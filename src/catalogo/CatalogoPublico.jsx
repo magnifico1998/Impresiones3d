@@ -5,6 +5,7 @@ import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/paises';
 import { ordenarCategorias } from '../utils/categoriaOrden';
+import { LOGO_MAX_ENCABEZADO_FIJO, esloganDe, tamanoLogoDe } from '../utils/catalogoMarca';
 
 const newLocalId = () => Date.now() + Math.random();
 
@@ -395,6 +396,10 @@ export default function CatalogoPublico() {
     );
   }
 
+  // Marca elegida por la tienda (Catálogo web → "Marca del catálogo").
+  const tamanoLogo = tamanoLogoDe(config);
+  const eslogan = esloganDe(config);
+
   if (enviado) {
     const { payload } = enviado;
     const waTexto = `Hola! Te acabo de mandar un pedido desde el catálogo (${payload.cliente}). Total estimado: ${fmt(payload.totalEstimado)}.`;
@@ -415,6 +420,22 @@ export default function CatalogoPublico() {
             Avisar por WhatsApp
           </a>
         )}
+        {/* Seguir mirando el catálogo. El pedido ya se mandó: se vacía el carrito para que
+            no se repita por error (el nombre y el contacto quedan por si arma otro). */}
+        <div style={{ marginTop: waLink ? '10px' : 0 }}>
+          <button
+            className="btn"
+            onClick={() => {
+              setCarrito([]);
+              setCarritoAbierto(false);
+              setComentarioGeneral('');
+              setEnviado(null);
+              window.scrollTo?.({ top: 0 });
+            }}
+          >
+            ← Volver al catálogo
+          </button>
+        </div>
       </EstadoCentrado>
     );
   }
@@ -427,16 +448,17 @@ export default function CatalogoPublico() {
       <Dialogos />
 
       <header style={{
-        position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg)',
+        // Con un logo grande el encabezado se va con la página: fijo taparía la pantalla del celular.
+        position: tamanoLogo <= LOGO_MAX_ENCABEZADO_FIJO ? 'sticky' : 'static', top: 0, zIndex: 10, background: 'var(--bg)',
         borderBottom: '1px solid var(--border)', padding: '16px 18px',
         display: 'flex', alignItems: 'center', gap: '12px'
       }} className="catalogo-header-inner">
         {config.logo ? (
-          <img src={config.logo} alt="" style={{ width: '40px', height: '40px', objectFit: 'contain', borderRadius: '10px', flexShrink: 0 }} />
+          <img src={config.logo} alt="" style={{ width: `${tamanoLogo}px`, height: `${tamanoLogo}px`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
         ) : (
           <div style={{
-            width: '40px', height: '40px', borderRadius: '10px', flexShrink: 0, background: 'var(--text)', color: 'var(--bg)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '16px'
+            width: `${tamanoLogo}px`, height: `${tamanoLogo}px`, borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0, background: 'var(--text)', color: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: `${Math.round(tamanoLogo * 0.4)}px`
           }}>
             {(config.empresaNombre || 'C')[0].toUpperCase()}
           </div>
@@ -480,6 +502,16 @@ export default function CatalogoPublico() {
           </div>
         )}
       </header>
+
+      {/* Texto destacado de la tienda (eslogan o gancho comercial), si lo cargó. */}
+      {eslogan && (
+        <div className="catalogo-eslogan" style={{
+          maxWidth: '640px', margin: '14px auto 0', padding: '0 16px', textAlign: 'center',
+          fontSize: '16px', fontWeight: 600, lineHeight: 1.4, color: 'var(--text)', overflowWrap: 'anywhere'
+        }}>
+          {eslogan}
+        </div>
+      )}
 
       {!aceptaPedidos && (
         <div role="status" style={{
