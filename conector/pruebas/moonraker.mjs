@@ -1,13 +1,15 @@
 // Prueba el driver de Klipper/Moonraker contra una impresora simulada (sin hardware).
 //   node conector/pruebas/moonraker.mjs
 import http from 'node:http';
-import { moonraker as d } from '../src/drivers/moonraker.js';
+// El arranque se vigila 6 s en vez de 60 para que la prueba sea corta.
+process.env.MANAGER3D_VIGILAR_MS = '6000';
+const { moonraker: d } = await import('../src/drivers/moonraker.js');
 
 let fallas = 0;
 const ok = (cond, texto) => { console.log(cond ? 'OK   ' : 'FALLA', texto); if (!cond) fallas++; };
 
 // Impresora simulada: estado configurable y registro de lo que le llega.
-const sim = { klippy: 'ready', estado: 'standby', mensaje: '', tras: null, subidas: [], inicios: [], cancelaciones: 0, auth: false };
+const sim = { klippy: 'ready', estado: 'standby', mensaje: '', tras: null, subidas: [], inicios: [], cancelaciones: 0, auth: false, consola: [] };
 const servidor = http.createServer((req, res) => {
   const partes = [];
   req.on('data', (c) => partes.push(c));
@@ -30,6 +32,9 @@ const servidor = http.createServer((req, res) => {
       return responder(200, { result: 'ok' });
     }
     if (url.pathname === '/printer/print/cancel') { sim.cancelaciones++; return responder(200, { result: 'ok' }); }
+    if (url.pathname === '/server/gcode_store') return responder(200, { result: { gcode_store: sim.consola.map((m) => ({ message: m, type: 'response' })) } });
+    if (url.pathname === '/server/files/logs/klippy.log') { res.writeHead(206, { 'Content-Type': 'text/plain' }); return res.end('linea 1\nlinea 2\nShutdown due to M112 ejemplo\n'); }
+    if (url.pathname === '/printer/objects/list') return responder(200, { result: { objects: ['print_stats', 'box', 'heater_bed'] } });
     if (url.pathname === '/server/files/roots') return responder(200, { result: [{ name: 'gcodes', path: '/gcodes' }] });
     if (url.pathname === '/server/files/list') return responder(200, { result: [{ path: 'a.gcode', size: 10 }, { path: 'b.gcode', size: 20 }] });
     return responder(404, { error: { code: 404, message: 'Not Found' } });
@@ -37,7 +42,7 @@ const servidor = http.createServer((req, res) => {
 });
 await new Promise((r) => servidor.listen(0, '127.0.0.1', r));
 const imp = { nombre: 'SparkX i7', host: `127.0.0.1:${servidor.address().port}` };
-const reiniciar = () => Object.assign(sim, { klippy: 'ready', estado: 'standby', mensaje: '', tras: null, subidas: [], inicios: [], cancelaciones: 0, auth: false });
+const reiniciar = () => Object.assign(sim, { klippy: 'ready', estado: 'standby', mensaje: '', tras: null, subidas: [], inicios: [], cancelaciones: 0, auth: false, consola: [] });
 const mensajes = [];
 const trabajo = { nombre: 'TORNILLO.gcode', contenido: Buffer.from('G28\nG1 X10 Y10\n; fin\n'), accion: 'imprimir', avisar: (m) => mensajes.push(m) };
 
@@ -66,6 +71,23 @@ ok(sim.subidas.length === 0, 'Klipper caído: no se subió nada');
 reiniciar(); sim.tras = () => { sim.estado = 'error'; sim.mensaje = 'Move out of range: 410.0 0.0'; };
 try { await d.enviar(imp, trabajo); ok(false, 'el error de Klipper tendría que fallar'); } catch (e) { ok(/Move out of range/.test(e.message), 'muestra el mensaje de error de Klipper'); }
 
+// 4b) Arranca bien y a los pocos segundos se pausa (lo que le pasó a la SparkX i7).
+reiniciar();
+sim.consola = ['// Klipper listo', '!! Filament runout: CFS no detecta material en el lugar 1', 'echo: pausando'];
+sim.tras = () => { sim.estado = 'printing'; setTimeout(() => { sim.estado = 'paused'; }, 3000); };
+try { await d.enviar(imp, trabajo); ok(false, 'la pausa tendría que fallar'); } catch (e) {
+  ok(/pausó el trabajo/.test(e.message), 'si se pausa al arrancar, lo avisa');
+  ok(/Filament runout/.test(e.message), 'dice por qué, con lo que escribió la consola de la impresora');
+  ok(/cancelalo desde el panel/.test(e.message), 'avisa que hay que cancelarlo antes de mandar otro');
+}
+
+// 4c) Arranca y se mantiene: se vigila el arranque y recién ahí se da por bueno.
+reiniciar();
+sim.tras = () => { sim.estado = 'printing'; };
+const t0 = Date.now();
+r = await d.enviar(imp, trabajo);
+ok(r.estado === 'imprimiendo' && /vigiló/.test(r.mensaje) && Date.now() - t0 >= 5000, 'si sigue imprimiendo, se vigila el arranque y recién después se confirma');
+
 // 5) Sólo imprimir.
 reiniciar();
 try { await d.enviar(imp, { ...trabajo, accion: 'subir' }); ok(false, 'subir tendría que rechazarse'); } catch (e) { ok(/sólo recibe envíos para imprimir/.test(e.message), '"solo subir" se rechaza'); }
@@ -81,6 +103,7 @@ ok(/Orden de cancelar enviada/.test(await d.cancelar(imp)) && sim.cancelaciones 
 reiniciar();
 const diag = await d.diagnosticar(imp);
 ok(/klippy_state/.test(diag) && /archivos en gcodes: 2/.test(diag), 'el diagnóstico muestra el estado y los archivos');
+ok(/Shutdown due to M112/.test(diag) && /objetos de Klipper:.*box/.test(diag) && /consola de la impresora/.test(diag), 'el diagnóstico trae el final del registro, la consola y los objetos (por ejemplo el CFS)');
 
 // 8) Errores de red y de autorización.
 try { await d.probar({ nombre: 'x', host: '127.0.0.1:1' }); ok(false, 'puerto cerrado tendría que fallar'); } catch (e) { ok(/Revisá la IP/.test(e.message), 'IP o puerto sin respuesta: avisa que revise la IP'); }

@@ -18,10 +18,10 @@ const MS_CORTO = 10000;
 // "192.168.0.50" o "192.168.0.50:7125".
 const direccion = (host) => (String(host).includes(':') ? host : `${host}:${PUERTO}`);
 
-async function api(impresora, metodo, ruta, { cuerpo, ms = MS_CORTO } = {}) {
+async function api(impresora, metodo, ruta, { cuerpo, ms = MS_CORTO, encabezados } = {}) {
   let r;
   try {
-    r = await fetch(`http://${direccion(impresora.host)}${ruta}`, { method: metodo, body: cuerpo, signal: AbortSignal.timeout(ms) });
+    r = await fetch(`http://${direccion(impresora.host)}${ruta}`, { method: metodo, body: cuerpo, headers: encabezados, signal: AbortSignal.timeout(ms) });
   } catch (e) {
     throw new Error(`No se pudo hablar con la impresora en ${direccion(impresora.host)}: ${e.cause?.code || e.message}. Revisá la IP y que esté prendida y en la misma red.`, { cause: e });
   }
@@ -30,7 +30,7 @@ async function api(impresora, metodo, ruta, { cuerpo, ms = MS_CORTO } = {}) {
   try { datos = JSON.parse(texto); } catch { /* respuesta que no es JSON */ }
   if (r.status === 401 || r.status === 403) throw new Error('La impresora pide autorización (API key) para esto: por ahora el conector no la maneja. Avisá para sumarla.');
   if (!r.ok) throw new Error(`La impresora contestó ${r.status}: ${datos?.error?.message || texto.slice(0, 200) || 'sin detalle'}`);
-  return datos?.result ?? datos;
+  return datos?.result ?? datos ?? texto;
 }
 
 // Estado del trabajo y temperaturas objetivo.
@@ -49,6 +49,23 @@ async function estadoDe(impresora) {
 }
 
 const TEXTO_ESTADO = { standby: 'libre', complete: 'libre (terminó el último trabajo)', cancelled: 'libre (se canceló el último)', error: 'con un error del último trabajo', printing: 'imprimiendo', paused: 'en pausa con un trabajo' };
+
+// Lo último que escribió la consola de Klipper (respuestas y errores), para explicar
+// una pausa o un error. Devuelve las líneas más útiles, de la más vieja a la más nueva.
+async function consolaDe(impresora, cuantas = 25) {
+  try {
+    const r = await api(impresora, 'GET', `/server/gcode_store?count=${cuantas}`);
+    const lineas = (r?.gcode_store || []).map((x) => String(x.message || '').replace(/\s+/g, ' ').trim().slice(0, 220)).filter(Boolean);
+    const importantes = lineas.filter((l) => /!!|error|fail|filament|runout|pause|cfs|box|timeout|can't|cannot|unknown|not ready/i.test(l));
+    return (importantes.length ? importantes : lineas).slice(-4);
+  } catch {
+    return [];
+  }
+}
+
+// Cuánto se vigila el arranque después de mandar a imprimir. Hay impresoras que
+// aceptan la orden y se pausan al rato (Creality SparkX i7: "Error desconocido").
+const vigilarArranqueMs = () => Number(process.env.MANAGER3D_VIGILAR_MS) || 60000;
 
 async function klipperListo(impresora) {
   const info = await api(impresora, 'GET', '/server/info');
@@ -99,15 +116,32 @@ export const moonraker = {
     avisar?.('Archivo subido. Mandando la orden de imprimir…');
     await api(impresora, 'POST', `/printer/print/start?filename=${encodeURIComponent(ruta)}`);
 
-    // Que de verdad haya empezado (Klipper pasa a "printing" enseguida; un error
-    // del archivo o de la impresora aparece en print_stats.message).
-    for (let i = 0; i < 10; i++) {
+    // Que de verdad haya empezado y siga: Klipper pasa a "printing" enseguida, pero hay
+    // impresoras que aceptan la orden y se pausan al rato. Se vigila el arranque y, si se
+    // pausa o falla, se dice por qué con lo que escribió su consola.
+    const inicio = Date.now();
+    const vigilar = vigilarArranqueMs();
+    let vistoImprimiendo = false;
+    while (Date.now() - inicio < vigilar) {
       await new Promise((resolver) => setTimeout(resolver, 2000));
       const e = await estadoDe(impresora);
-      if (e.estado === 'printing') return { estado: 'imprimiendo', mensaje: `Imprimiendo en ${impresora.nombre} (${ruta}).` };
-      if (e.estado === 'error') throw new Error(`La impresora no pudo empezar: ${e.mensaje || 'error de Klipper (mirá su pantalla)'}`);
+      const seg = Math.round((Date.now() - inicio) / 1000);
+      if (e.estado === 'printing') {
+        vistoImprimiendo = true;
+        avisar?.(`Imprimiendo: vigilando el arranque (${seg} s de ${Math.round(vigilar / 1000)})…`);
+      } else if (['paused', 'error', 'cancelled'].includes(e.estado)) {
+        const consola = await consolaDe(impresora);
+        const que = e.estado === 'paused' ? 'pausó el trabajo' : (e.estado === 'cancelled' ? 'canceló el trabajo' : 'dio error');
+        throw new Error(`La impresora ${que} a los ${seg} s de arrancar${e.mensaje ? `: ${e.mensaje}` : ''}${consola.length ? `. Lo último que escribió: ${consola.join(' | ')}` : ''}. Quedó con el trabajo: cancelalo desde el panel antes de mandar otro.`);
+      } else if (e.estado === 'complete') {
+        return { estado: 'imprimiendo', mensaje: `${impresora.nombre}: el trabajo ${ruta} ya terminó.` };
+      } else if (!vistoImprimiendo && seg >= 20) {
+        break;
+      }
     }
-    return { estado: 'enviado', mensaje: `Subido y orden de imprimir enviada a ${impresora.nombre} (${ruta}), pero no pasó a "imprimiendo": revisá su pantalla.` };
+    return vistoImprimiendo
+      ? { estado: 'imprimiendo', mensaje: `Imprimiendo en ${impresora.nombre} (${ruta}); el arranque se vigiló ${Math.round((Date.now() - inicio) / 1000)} s sin problemas.` }
+      : { estado: 'enviado', mensaje: `Subido y orden de imprimir enviada a ${impresora.nombre} (${ruta}), pero no pasó a "imprimiendo": revisá su pantalla.` };
   },
 
   async diagnosticar(impresora) {
@@ -120,6 +154,26 @@ export const moonraker = {
     await pedir('/printer/info', '/printer/info', 400);
     await pedir('estado del trabajo', '/printer/objects/query?print_stats&virtual_sdcard&heater_bed&extruder', 700);
     await pedir('carpetas (roots)', '/server/files/roots', 400);
+    // Para entender una pausa o un error: lo que escribió la consola y el final del registro de Klipper.
+    try {
+      const consola = await consolaDe(impresora, 40);
+      lineas.push(`consola de la impresora (últimas líneas útiles): ${consola.length ? consola.join(' | ') : '(vacía)'}`);
+    } catch (e) {
+      lineas.push(`consola de la impresora: error (${e.message})`);
+    }
+    try {
+      const registro = await api(impresora, 'GET', '/server/files/logs/klippy.log', { ms: 20000, encabezados: { Range: 'bytes=-12000' } });
+      const fin = String(registro || '').split(/\r?\n/).filter(Boolean).slice(-25).map((l) => l.slice(0, 200));
+      lineas.push(`final del registro klippy.log:\n  ${fin.join('\n  ')}`);
+    } catch (e) {
+      lineas.push(`registro klippy.log: error (${e.message})`);
+    }
+    try {
+      const objetos = await api(impresora, 'GET', '/printer/objects/list');
+      lineas.push(`objetos de Klipper: ${corto(objetos?.objects, 900)}`);
+    } catch (e) {
+      lineas.push(`objetos de Klipper: error (${e.message})`);
+    }
     try {
       const lista = await api(impresora, 'GET', '/server/files/list?root=gcodes');
       const archivos = Array.isArray(lista) ? lista : [];
