@@ -36,10 +36,10 @@ function armarInicial(pedido, cliente, precioVentaNeto) {
 }
 
 export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, onClose }) {
-  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: emitiendo });
   const { updateCliente, showToast } = useApp();
   const [form, setForm] = useState(() => armarInicial(pedido, cliente, precioVentaNeto));
   const [emitiendo, setEmitiendo] = useState(false);
+  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: emitiendo });
 
   const r = form.receptor;
   const subtotal = form.items.reduce((s, it) => s + (Number(it.cantidad) || 0) * (Number(it.precioUnitario) || 0), 0);

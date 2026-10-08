@@ -35,7 +35,6 @@ async function leerArchivo(archivo) {
 }
 
 export default function ModalImportarInventario({ onClose }) {
-  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: guardando });
   const { compras, cfg, setCfg, fmt, showToast } = useApp();
   const { movimientos, agregarMovimientos, borrarMovimientos } = useMovimientosInventario();
   const [archivo, setArchivo] = useState('');
@@ -43,6 +42,7 @@ export default function ModalImportarInventario({ onClose }) {
   const [fecha, setFecha] = useState(fechaLocalHoy());
   const [agregarACfg, setAgregarACfg] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: guardando });
 
   const colores = useMemo(() => (cfg.colores || []).map((c) => ({ nombre: nombreDe(c), hex: hexDe(c) })).filter((c) => c.nombre), [cfg.colores]);
   const inventario = useMemo(() => armarInventario(compras, movimientos), [compras, movimientos]);

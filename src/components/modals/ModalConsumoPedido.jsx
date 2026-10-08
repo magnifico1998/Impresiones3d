@@ -16,10 +16,10 @@ import { useCapaModal } from '../CapaModal';
 // artículo. Todo se puede corregir antes de confirmar.
 
 export default function ModalConsumoPedido({ pedido, onClose }) {
-  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: guardando });
   const { compras, biblioteca, cfg, showToast } = useApp();
   const { movimientos, agregarMovimiento } = useMovimientosInventario();
   const [guardando, setGuardando] = useState(false);
+  const capaModal = useCapaModal({ onClose, activo: true, bloqueado: guardando });
 
   const inventario = useMemo(() => armarInventario(compras, movimientos), [compras, movimientos]);
   const filamentos = inventario.filter((a) => a.filamento);
