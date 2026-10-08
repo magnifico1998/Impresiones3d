@@ -738,7 +738,7 @@ export const AppProvider = ({ children }) => {
   };
 
   // Load data from Firestore
-  const cargarDatosDeFirestore = async (uid) => {
+  const cargarDatosDeFirestore = async (uid, reintento = false) => {
     try {
       console.log("Cargando datos desde Firebase...");
       // Cada sección vive en su propia subcolección (meta/config, clientes,
@@ -758,8 +758,25 @@ export const AppProvider = ({ children }) => {
       setLoadErrorDetalle('');
       setDatosCargadosOk(true);
     } catch (e) {
+      // "permission-denied" con una cuenta que sí tiene acceso suele ser un token
+      // de sesión vencido o que no llegó a renovarse (red inestable, equipo que
+      // estuvo suspendido): se fuerza una renovación y se reintenta una vez antes
+      // de mostrar el error.
+      if (e?.code === 'permission-denied' && !reintento && auth.currentUser) {
+        try {
+          await auth.currentUser.getIdToken(true);
+          await new Promise((r) => setTimeout(r, 600));
+          return cargarDatosDeFirestore(uid, true);
+        } catch (errToken) {
+          console.error('No se pudo renovar la sesión:', errToken);
+        }
+      }
       console.error("Error al cargar datos de Firestore:", e);
-      setLoadErrorDetalle(String(e?.code || e?.message || e).slice(0, 160));
+      // Detalle para soporte: qué sesión y qué cuenta se estaban usando (sólo el
+      // comienzo de cada id), por si no coinciden o la sesión no está verificada.
+      const sesion = auth.currentUser;
+      const quien = sesion ? ` · sesión ${String(sesion.uid).slice(0, 6)}, cuenta ${String(uid).slice(0, 6)}, email ${sesion.emailVerified ? 'verificado' : 'sin verificar'}` : ' · sin sesión';
+      setLoadErrorDetalle(`${String(e?.code || e?.message || e).slice(0, 100)}${quien}`.slice(0, 220));
 
       // CRÍTICO: a propósito NO marcamos datosCargadosOk como true acá.
       // pedidos/compras/biblioteca/etc. siguen en sus valores default
