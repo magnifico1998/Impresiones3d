@@ -8,20 +8,16 @@ import {
 import { getStorage, ref, getBytes } from 'firebase/storage';
 import { unzipSync, zipSync } from 'fflate';
 import { driverDe, DRIVERS } from './drivers/index.js';
+import { FIREBASE, URL_VINCULAR } from './entorno.js';
 
 // Conexión con Manager3D (Firebase) usando el usuario técnico del conector
 // (ver functions/http/conectores.js). Escucha la cola
 // users/{cuenta}/trabajosImpresion de este conector, baja cada archivo,
 // lo descomprime y se lo pasa al driver de la impresora.
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyAcDCdC5eMraPo7hwGKhojXb8EnONZWiH0',
-  authDomain: 'print3d-manager-73846.firebaseapp.com',
-  projectId: 'print3d-manager-73846',
-  storageBucket: 'print3d-manager-73846.firebasestorage.app',
-  appId: '1:534221073184:web:4f2e0cfda14ff4fd514545'
-};
-export const URL_VINCULAR = 'https://us-central1-print3d-manager-73846.cloudfunctions.net/vincularConector';
+// Proyecto de Firebase (producción o prueba): ver entorno.js.
+const firebaseConfig = FIREBASE;
+export { URL_VINCULAR };
 
 const brotli = promisify(zlib.brotliDecompress);
 const app = initializeApp(firebaseConfig);

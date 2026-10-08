@@ -1,12 +1,14 @@
 // Panel local del conector (http://127.0.0.1:18930): vincular la cuenta,
 // cargar las impresoras y ver lo que va pasando. HTML y JS sin dependencias.
 
+import { TITULO_PROGRAMA } from './entorno.js';
+
 export const PAGINA = `<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Manager3D Conector</title>
+<title>${TITULO_PROGRAMA}</title>
 <style>
   :root { --bg:#0f1418; --bg2:#161d22; --bg3:#1e272e; --text:#e8eef2; --text2:#a9b6bf; --text3:#73828c; --accent:#2dd4a7; --danger:#f87171; --border:#2a353d; }
   * { box-sizing: border-box; }
@@ -41,7 +43,7 @@ export const PAGINA = `<!doctype html>
 </head>
 <body>
 <main>
-  <h1>Manager3D Conector</h1>
+  <h1>${TITULO_PROGRAMA}</h1>
   <div class="sub">Manda a tus impresoras los archivos que elegís en Manager3D → Biblioteca → 📄 → Mandar a impresora.</div>
 
   <div class="card">

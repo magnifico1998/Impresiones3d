@@ -5,6 +5,10 @@
 //   npm --prefix conector run empaquetar     arma conector/dist/Manager3D-Conector.zip
 //   node scripts/subir-conector.mjs          lo sube (reemplaza al anterior)
 //
+// Versión de PRUEBA (se conecta a manager3d-test y se baja desde la app de prueba):
+//   npm --prefix conector run empaquetar -- --test
+//   node scripts/subir-conector.mjs test
+//
 // Usa la sesión del Firebase CLI (`firebase login`) y la copia global de
 // firebase-tools para obtener el permiso: no hace falta una clave de servicio.
 // Las reglas de Storage dejan leer conector/* a cualquier usuario logueado.
@@ -15,14 +19,16 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
+const prueba = process.argv[2] === 'test';
 const raiz = new URL('..', import.meta.url);
-const zip = new URL('conector/dist/Manager3D-Conector.zip', raiz);
+const archivoZip = prueba ? 'Manager3D-Conector-PRUEBA.zip' : 'Manager3D-Conector.zip';
+const zip = new URL(`conector/dist/${archivoZip}`, raiz);
 if (!existsSync(zip)) {
-  console.error('No existe conector/dist/Manager3D-Conector.zip: corré antes `npm --prefix conector run empaquetar`.');
+  console.error(`No existe conector/dist/${archivoZip}: corré antes \`npm --prefix conector run empaquetar${prueba ? ' -- --test' : ''}\`.`);
   process.exit(1);
 }
 
-const proyecto = JSON.parse(readFileSync(new URL('.firebaserc', raiz), 'utf8')).projects.Manager3d;
+const proyecto = JSON.parse(readFileSync(new URL('.firebaserc', raiz), 'utf8')).projects[prueba ? 'test' : 'prod'];
 const bucket = `${proyecto}.firebasestorage.app`;
 const destino = 'conector/Manager3D-Conector.zip';
 

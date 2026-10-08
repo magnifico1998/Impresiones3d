@@ -1,6 +1,7 @@
 // Arma el conector para entregarlo: un único Manager3D-Conector.exe (no hace
 // falta tener Node.js) y un .zip con el .exe y las instrucciones.
-//   npm run empaquetar   →   dist/Manager3D-Conector.zip
+//   npm run empaquetar            →   dist/Manager3D-Conector.zip           (producción)
+//   npm run empaquetar -- --test  →   dist/Manager3D-Conector-PRUEBA.zip    (se conecta a manager3d-test)
 //
 // Todo se arma en conector/build (se borra cada vez) y en dist queda sólo el .zip:
 // así no choca con un Manager3D-Conector.exe que esté corriendo desde dist (Windows
@@ -21,6 +22,8 @@ import { zipSync } from 'fflate';
 const raiz = path.dirname(fileURLToPath(import.meta.url));
 const trabajo = path.join(raiz, 'build');
 const dist = path.join(raiz, 'dist');
+const prueba = process.argv.includes('--test');
+const nombre = prueba ? 'Manager3D-Conector-PRUEBA' : 'Manager3D-Conector';
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const correr = (cmd, args, cwd = raiz) => execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
 
@@ -29,16 +32,16 @@ fs.mkdirSync(trabajo, { recursive: true });
 fs.mkdirSync(dist, { recursive: true });
 
 console.log('1/4 Juntando el código en un solo archivo…');
-correr(npx, ['--yes', 'esbuild', 'src/index.js', '--bundle', '--platform=node', '--format=cjs', '--target=node22', '--outfile=build/conector.cjs', '--log-level=warning']);
+correr(npx, ['--yes', 'esbuild', 'src/index.js', '--bundle', '--platform=node', '--format=cjs', '--target=node22', '--outfile=build/conector.cjs', '--log-level=warning', ...(prueba ? ['--define:ES_PRUEBA_CONECTOR=true'] : [])]);
 
 console.log('2/4 Preparando el ejecutable…');
 fs.writeFileSync(path.join(trabajo, 'sea-config.json'), JSON.stringify({ main: 'conector.cjs', output: 'sea.blob', disableExperimentalSEAWarning: true }));
 correr('node', ['--experimental-sea-config', 'sea-config.json'], trabajo);
-const exe = path.join(trabajo, 'Manager3D-Conector.exe');
+const exe = path.join(trabajo, `${nombre}.exe`);
 fs.copyFileSync(process.execPath, exe);
 
 console.log('3/4 Metiendo el programa dentro del .exe…');
-correr(npx, ['--yes', 'postject', 'Manager3D-Conector.exe', 'NODE_SEA_BLOB', 'sea.blob', '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2'], trabajo);
+correr(npx, ['--yes', 'postject', `${nombre}.exe`, 'NODE_SEA_BLOB', 'sea.blob', '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2'], trabajo);
 
 console.log('4/4 Armando el .zip…');
 fs.writeFileSync(path.join(trabajo, 'LEEME.txt'), `Manager3D Conector
@@ -47,7 +50,7 @@ fs.writeFileSync(path.join(trabajo, 'LEEME.txt'), `Manager3D Conector
 Manda a tus impresoras los archivos G-code que elegís en Manager3D.
 
 PRIMER USO
-1. Abrí Manager3D-Conector.exe (doble clic). Si Windows muestra un aviso azul,
+1. Abrí ${nombre}.exe (doble clic). Si Windows muestra un aviso azul,
    tocá "Más información" y después "Ejecutar de todas formas".
    Se abre una ventana negra (dejala abierta) y el panel en el navegador:
    http://127.0.0.1:18930
@@ -70,13 +73,13 @@ NOTAS
   Para cerrar el conector, cerrá esa ventana (no la pagina del navegador).
 - Para reiniciarlo: cerrá la ventana negra y volvé a abrir el .exe.
 - Tus datos y los códigos de acceso de las impresoras quedan sólo en esta PC
-  (carpeta %APPDATA%\\Manager3D-Conector).
+  (carpeta %APPDATA%\\${nombre}).
 `);
 // Zip armado acá (no con el tar del sistema: según la PC es el de Git, que no
 // hace zips y deja un archivo que Windows no abre).
-const zip = path.join(dist, 'Manager3D-Conector.zip');
+const zip = path.join(dist, `${nombre}.zip`);
 fs.writeFileSync(zip, zipSync({
-  'Manager3D-Conector.exe': [fs.readFileSync(exe), { level: 9 }],
+  [`${nombre}.exe`]: [fs.readFileSync(exe), { level: 9 }],
   'LEEME.txt': [fs.readFileSync(path.join(trabajo, 'LEEME.txt')), { level: 9 }]
 }));
 console.log(`\nListo: ${zip} (${(fs.statSync(zip).size / 1024 / 1024).toFixed(1)} MB)`);

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { NOMBRE_PROGRAMA } from './entorno.js';
 
 // Configuración del conector en esta PC (nunca sube a la nube):
 //   %APPDATA%\Manager3D-Conector\config.json
@@ -10,7 +11,7 @@ import crypto from 'node:crypto';
 // El código de acceso de las Bambu y la contraseña del usuario técnico
 // quedan sólo acá.
 
-const CARPETA = path.join(process.env.APPDATA || path.join(os.homedir(), '.config'), 'Manager3D-Conector');
+const CARPETA = path.join(process.env.APPDATA || path.join(os.homedir(), '.config'), NOMBRE_PROGRAMA);
 const ARCHIVO = path.join(CARPETA, 'config.json');
 
 export const carpetaDatos = CARPETA;
