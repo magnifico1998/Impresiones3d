@@ -712,7 +712,8 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
 
 ## Conexión inestable
 
-- Al abrir, si la nube no contesta (12 s) o no hay red pero el equipo tiene la copia de la última vez, la app **abre con esos datos** y muestra un cartel; comprueba cada 15 s si la nube volvió. Si no hay copia, muestra la pantalla de error y **reintenta sola cada 10 s**.
+- **Guardar siempre se confirma.** Toda escritura (pedidos, clientes, compras, biblioteca, presupuestos, configuración…) se da por hecha **sólo cuando la nube la confirma**; no hay cola local que la aplique después. Si no hay conexión o la nube no contesta en 20 s, el guardado **falla en ese momento** con un aviso (y no se muestra nada como guardado). Con el aviso queda dicho que, si el corte llegó justo al enviar, conviene revisar antes de repetirlo.
+- **Leer:** al abrir, si la nube no contesta (12 s) o no hay red pero el equipo tiene la copia de la última vez, la app abre **para mirar** con esos datos, con un cartel de que pueden no estar al día y que no se guarda nada hasta recuperar la conexión; comprueba cada 15 s si la nube volvió. Si no hay copia, muestra la pantalla de error y **reintenta sola cada 10 s**. Durante la carga, si tarda más de 6 s, avisa que la conexión es lenta o que no hay red.
 - Qué cuenta usa una persona (la suya o la de otra a la que fue invitada) se recuerda en el equipo; sin conexión y sin ese dato **no se adivina**: se muestra el error de carga en vez de abrir una cuenta vacía.
-- Las escrituras esperan hasta 6 s la confirmación de la nube; pasado ese tiempo se dan por guardadas en el equipo (cartel "cambios pendientes") y se sincronizan solas. Si la nube después las rechaza (regla o límite del plan), un aviso lo informa y el cambio se descarta.
 - Los listeners en tiempo real que fallan renuevan la sesión y vuelven a engancharse (hasta 5 intentos).
+- El cartel de conexión deficiente se limpia con la próxima escritura confirmada.

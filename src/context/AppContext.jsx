@@ -2,9 +2,11 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { confirmar, pedirTexto } from '../components/Dialogos';
 import { auth, db, googleProvider, functions } from '../firebase';
 import { escucharConReintento } from '../utils/escuchaResiliente';
-import { guardarDoc, actualizarDoc, borrarDoc, confirmarLote, configurarEscrituraTolerante } from '../utils/escrituraTolerante';
+// Toda escritura de la app se confirma en la nube o falla en el momento (ver utils/escrituraConfirmada.js):
+// setDoc/deleteDoc/writeBatch de acá son esas versiones, con los mismos nombres y argumentos.
+import { guardarDoc, actualizarDoc, borrarDoc, guardarDoc as setDoc, borrarDoc as deleteDoc, nuevoLote as writeBatch, configurarEscrituraConfirmada, MENSAJE_SIN_CONEXION } from '../utils/escrituraConfirmada';
 import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
-import { doc, getDoc, getDocFromCache, getDocFromServer, setDoc, deleteField, deleteDoc, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
+import { doc, getDoc, getDocFromCache, getDocFromServer, deleteField, collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
 import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
@@ -205,12 +207,12 @@ export const AppProvider = ({ children }) => {
   const [loadError, setLoadError] = useState(false);
   // Conexión inestable: sinRed (el navegador dice que no hay internet),
   // usandoCopiaLocal (la nube no contestó al abrir y se arrancó con los datos
-  // guardados en este equipo) y cambiosPendientes (hay cambios guardados acá que
-  // la nube todavía no confirmó). Ver components/AvisoConexion.jsx.
+  // guardados en este equipo, sólo para mirar) y conexionDeficiente (un guardado no
+  // se pudo confirmar o una carga no contestó; se limpia con la próxima escritura
+  // confirmada). Ver components/AvisoConexion.jsx.
   const [sinRed, setSinRed] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
   const [usandoCopiaLocal, setUsandoCopiaLocal] = useState(false);
-  const [cambiosPendientes, setCambiosPendientes] = useState(false);
-  const pendientesRef = useRef(0);
+  const [conexionDeficiente, setConexionDeficiente] = useState(false);
   const errorYaAvisadoRef = useRef(false);
   const cargandoRef = useRef(false);
   const ultimoAccesoRegistradoRef = useRef(false);
@@ -279,8 +281,10 @@ export const AppProvider = ({ children }) => {
   // explica por qué y le ofrece el plan gratuito Boceto para seguir
   // cargando datos sin costo. Cualquier otro error (ej. de red) sigue
   // mostrando el mensaje original.
-  const mostrarErrorGuardado = (mensajeDefault) => {
-    if (suscripcion?.estado === 'lectura') {
+  const mostrarErrorGuardado = (mensajeDefault, error) => {
+    if (error?.code === 'conexion') {
+      showToast(`⚠ ${MENSAJE_SIN_CONEXION}`, 'error', 12000);
+    } else if (suscripcion?.estado === 'lectura') {
       showToast('⚠ Tu cuenta está en modo lectura por falta de pago. Pedinos el plan gratuito Boceto desde "Contactate con el área comercial" (en Resumen) para seguir cargando datos sin costo.', 'error');
     } else {
       showToast(mensajeDefault, 'error');
@@ -297,7 +301,7 @@ export const AppProvider = ({ children }) => {
       await guardarDoc(compraDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar compra:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar la compra en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo guardar la compra en la nube.', e);
     }
   };
 
@@ -310,7 +314,7 @@ export const AppProvider = ({ children }) => {
       if (hayCambios(cambios)) await actualizarDoc(compraDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar compra:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar la compra en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo actualizar la compra en la nube.', e);
     }
   };
 
@@ -319,7 +323,7 @@ export const AppProvider = ({ children }) => {
       await borrarDoc(compraDocRef(id));
     } catch (e) {
       console.error("Error al eliminar compra:", e);
-      mostrarErrorGuardado('⚠ No se pudo eliminar la compra en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo eliminar la compra en la nube.', e);
     }
   };
 
@@ -343,7 +347,7 @@ export const AppProvider = ({ children }) => {
       return true;
     } catch (e) {
       console.error("Error al guardar presupuesto:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar el presupuesto en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo guardar el presupuesto en la nube.', e);
       return false;
     }
   };
@@ -358,7 +362,7 @@ export const AppProvider = ({ children }) => {
       return true;
     } catch (e) {
       console.error("Error al actualizar presupuesto:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar el presupuesto en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo actualizar el presupuesto en la nube.', e);
       return false;
     }
   };
@@ -368,7 +372,7 @@ export const AppProvider = ({ children }) => {
       await borrarDoc(presupuestoDocRef(id));
     } catch (e) {
       console.error("Error al eliminar presupuesto:", e);
-      mostrarErrorGuardado('⚠ No se pudo eliminar el presupuesto en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo eliminar el presupuesto en la nube.', e);
     }
   };
 
@@ -396,7 +400,7 @@ export const AppProvider = ({ children }) => {
       await guardarDoc(clienteDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar cliente:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar el cliente en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo guardar el cliente en la nube.', e);
     }
   };
 
@@ -409,7 +413,7 @@ export const AppProvider = ({ children }) => {
       if (hayCambios(cambios)) await actualizarDoc(clienteDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar cliente:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar el cliente en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo actualizar el cliente en la nube.', e);
     }
   };
 
@@ -418,7 +422,7 @@ export const AppProvider = ({ children }) => {
       await borrarDoc(clienteDocRef(id));
     } catch (e) {
       console.error("Error al eliminar cliente:", e);
-      mostrarErrorGuardado('⚠ No se pudo eliminar el cliente en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo eliminar el cliente en la nube.', e);
     }
   };
 
@@ -445,7 +449,7 @@ export const AppProvider = ({ children }) => {
       await guardarDoc(productoDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar producto:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar el producto en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo guardar el producto en la nube.', e);
     }
   };
 
@@ -465,13 +469,13 @@ export const AppProvider = ({ children }) => {
         const batch = writeBatch(db);
         batch.update(productoDocRef(id), cambios);
         batch.set(catalogoProductoDocRef(id), proyeccionCatalogoProducto(nuevo));
-        await confirmarLote(batch);
+        await batch.commit();
       } else {
         await actualizarDoc(productoDocRef(id), cambios);
       }
     } catch (e) {
       console.error("Error al actualizar producto:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar el producto en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo actualizar el producto en la nube.', e);
       // Antes este error se atrapaba acá y nunca se volvía a lanzar, así que
       // quien llamaba a updateProducto no tenía forma de saber que la
       // escritura había fallado — por eso el modal de edición mostraba
@@ -493,10 +497,10 @@ export const AppProvider = ({ children }) => {
       const batch = writeBatch(db);
       batch.delete(productoDocRef(id));
       batch.delete(catalogoProductoDocRef(id));
-      await confirmarLote(batch);
+      await batch.commit();
     } catch (e) {
       console.error("Error al eliminar producto:", e);
-      mostrarErrorGuardado('⚠ No se pudo eliminar el producto en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo eliminar el producto en la nube.', e);
     }
   };
 
@@ -577,10 +581,10 @@ export const AppProvider = ({ children }) => {
         }
       });
       batches.push(batch);
-      await Promise.all(batches.map(confirmarLote));
+      await Promise.all(batches.map(b => b.commit()));
     } catch (e) {
       console.error("Error al actualizar productos en lote:", e);
-      mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.', e);
     }
   };
 
@@ -635,7 +639,7 @@ export const AppProvider = ({ children }) => {
       return true;
     } catch (e) {
       console.error("Error al guardar pedido:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar el pedido en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo guardar el pedido en la nube.', e);
       return false;
     }
   };
@@ -649,7 +653,7 @@ export const AppProvider = ({ children }) => {
       if (hayCambios(cambios)) await actualizarDoc(pedidoDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar pedido:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar el pedido en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo actualizar el pedido en la nube.', e);
     }
   };
 
@@ -669,11 +673,11 @@ export const AppProvider = ({ children }) => {
       for (let i = 0; i < cambiosPorPedido.length; i += 400) {
         const batch = writeBatch(db);
         cambiosPorPedido.slice(i, i + 400).forEach(([id, cambios]) => batch.update(pedidoDocRef(id), cambios));
-        await confirmarLote(batch);
+        await batch.commit();
       }
     } catch (e) {
       console.error("Error al actualizar pedidos en lote:", e);
-      mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.');
+      mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.', e);
     }
   };
 
@@ -983,16 +987,11 @@ export const AppProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    configurarEscrituraTolerante({
-      pendiente: () => { pendientesRef.current += 1; setCambiosPendientes(true); },
-      sincronizado: () => { pendientesRef.current = Math.max(0, pendientesRef.current - 1); setCambiosPendientes(pendientesRef.current > 0); },
-      errorTardio: () => {
-        pendientesRef.current = Math.max(0, pendientesRef.current - 1);
-        setCambiosPendientes(pendientesRef.current > 0);
-        mostrarErrorGuardado('⚠ Un cambio que había quedado pendiente no se pudo guardar en la nube, así que se descartó. Revisá lo último que cargaste.');
-      }
+    configurarEscrituraConfirmada({
+      falloDeRed: () => setConexionDeficiente(true),
+      confirmada: () => setConexionDeficiente(false)
     });
-  });
+  }, []);
 
   // Si la carga falló, reintenta sola cada 10 segundos (sin la pantalla de carga).
   useEffect(() => {
@@ -1605,7 +1604,7 @@ export const AppProvider = ({ children }) => {
           for (let i = 0; i < operaciones.length; i += 400) {
             const batch = writeBatch(db);
             operaciones.slice(i, i + 400).forEach(op => op(batch));
-            await confirmarLote(batch);
+            await batch.commit();
           }
         };
 
@@ -1710,7 +1709,7 @@ export const AppProvider = ({ children }) => {
         }
       });
 
-      await confirmarLote(batch);
+      await batch.commit();
       showToast('✓ Catálogo publicado.');
       return true;
     } catch (e) {
@@ -1985,7 +1984,7 @@ export const AppProvider = ({ children }) => {
     loadErrorDetalle,
     sinRed,
     usandoCopiaLocal,
-    cambiosPendientes,
+    conexionDeficiente,
     datosCargadosOk,
     reintentarCargaDatos,
     loginWithGoogle,

@@ -5,6 +5,7 @@ import { useApp } from './context/AppContext';
 // Layout and views
 import Header from './components/Header';
 import AvisoConexion from './components/AvisoConexion';
+import AvisoCargaLenta from './components/AvisoCargaLenta';
 import Sidebar from './components/Sidebar';
 import ResumenPage from './components/ResumenPage';
 import PedidosPage from './components/PedidosPage';
@@ -236,6 +237,7 @@ function App() {
           borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }}></div>
+        <AvisoCargaLenta />
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes spin {
             to { transform: rotate(360deg); }

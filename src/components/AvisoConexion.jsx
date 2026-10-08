@@ -1,20 +1,20 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 
-// Cartel de conexión inestable, debajo del encabezado. No bloquea nada: avisa que
-// se sigue trabajando con los datos de este equipo y que los cambios se mandan
-// solos a la nube cuando vuelve la conexión (la copia local es de Firestore; ver
-// utils/escrituraTolerante.js y el arranque en AppContext.jsx).
+// Cartel de conexión inestable, debajo del encabezado. No bloquea nada: avisa que no
+// hay red o que es deficiente. Los guardados se confirman siempre en la nube (ver
+// utils/escrituraConfirmada.js) y el arranque con la copia local es sólo para mirar
+// (ver AppContext.jsx).
 export default function AvisoConexion() {
-  const { sinRed, usandoCopiaLocal, cambiosPendientes } = useApp();
+  const { sinRed, usandoCopiaLocal, conexionDeficiente } = useApp();
 
   let texto = null;
   if (sinRed) {
-    texto = 'Sin conexión a internet. Podés seguir trabajando: los cambios se guardan en este equipo y se sincronizan solos cuando vuelva la conexión.';
+    texto = 'Sin conexión a internet. Los cambios NO se guardan hasta que vuelva la conexión.';
   } else if (usandoCopiaLocal) {
-    texto = 'No se pudo conectar con la nube: estás viendo los datos guardados en este equipo. Los cambios se sincronizan solos cuando se recupere la conexión.';
-  } else if (cambiosPendientes) {
-    texto = 'La conexión está lenta: hay cambios guardados en este equipo esperando sincronizarse con la nube. No cierres la ventana todavía.';
+    texto = 'No se pudo conectar con la nube: estás viendo los datos guardados en este equipo, que pueden no estar al día. Los cambios no se guardan hasta que se recupere la conexión.';
+  } else if (conexionDeficiente) {
+    texto = 'La conexión con la nube es deficiente: el último cambio no se pudo confirmar. Seguimos intentando; no se da nada por guardado hasta que la nube lo confirme.';
   }
   if (!texto) return null;
 
