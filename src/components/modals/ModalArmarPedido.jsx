@@ -494,7 +494,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
               <label className="fl" style={{ marginTop: 0 }}>
                 Envío ($) <span style={{ color: 'var(--text3)', textTransform: 'none' }}>opcional</span>
               </label>
-              <input 
+              <CampoMoneda sinSimbolo 
                 type="number" 
                 value={envio} 
                 placeholder="0" 

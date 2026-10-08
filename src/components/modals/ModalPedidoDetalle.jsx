@@ -1338,7 +1338,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
               <label className="fl" style={{ marginTop: 0 }}>
                 Envío ($) <span style={{ color: 'var(--text3)', textTransform: 'none' }}>opcional, no se cuenta como venta</span>
               </label>
-              <input
+              <CampoMoneda
                 type="number"
                 value={draft.envio || ''}
                 placeholder="0"

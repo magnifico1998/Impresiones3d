@@ -1388,7 +1388,7 @@ export default function CalculadoraPage({
           />
 
           <label className="fl">Gastos extra ($)</label>
-          <input 
+          <CampoMoneda sinSimbolo 
             type="number" 
             id="extras"
             value={extras} 

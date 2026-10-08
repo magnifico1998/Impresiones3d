@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { db } from '../../firebase';
 import { doc, setDoc, collection } from 'firebase/firestore';
 import { useCapaModal } from '../CapaModal';
+import CampoMoneda from '../CampoMoneda';
 
 const FORM_VACIO = {
   nombre: '',
@@ -107,7 +108,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
           </div>
           <div>
             <label className="fl">Precio mensual ($)</label>
-            <input type="number" id="precioMensual" value={form.precioMensual} onChange={handleChange} min="0" />
+            <CampoMoneda sinSimbolo type="number" id="precioMensual" value={form.precioMensual} onChange={handleChange} min="0" />
           </div>
           <div>
             <label className="fl">Orden (para mostrarlo en listas)</label>
@@ -151,7 +152,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
           </div>
           <div>
             <label className="fl">Monto facturado / mes ($)</label>
-            <input type="number" id="montoFacturadoMes" value={form.limites.montoFacturadoMes} onChange={handleChangeLimite} min="0" />
+            <CampoMoneda sinSimbolo type="number" id="montoFacturadoMes" value={form.limites.montoFacturadoMes} onChange={handleChangeLimite} min="0" />
           </div>
           <div>
             {/* Archivos G-code de la Biblioteca (src/utils/archivosGcode.js). */}

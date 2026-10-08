@@ -529,7 +529,7 @@ export default function ConfiguracionPage() {
                       />
                       <div className="input-money">
                         <span className="input-money-prefix">$</span>
-                        <input
+                        <CampoMoneda sinSimbolo
                           type="number"
                           value={imp.mant || 0}
                           title="Amortización $/hora"
@@ -697,7 +697,7 @@ export default function ConfiguracionPage() {
                 />
                 
                 <label className="fl">Costo Mano de obra ($/hora)</label>
-                <input 
+                <CampoMoneda sinSimbolo 
                   type="number" 
                   value={cfg.mo} 
                   step="50" 

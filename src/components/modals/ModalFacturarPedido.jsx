@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext';
 import { confirmar, avisar } from '../Dialogos';
 import { CONDICIONES_IVA, pesosAR, receptorDesdeCliente } from '../../utils/facturacion';
 import { useCapaModal } from '../CapaModal';
+import CampoMoneda from '../CampoMoneda';
 
 // Arma la Factura C de un pedido, precargada con sus piezas, la
 // bonificación y el envío, y el receptor desde la ficha del cliente. Todo
@@ -150,7 +151,7 @@ export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, 
             <div key={i} style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
               <input type="text" style={{ flex: '1 1 220px', width: 'auto' }} placeholder="Descripción" value={it.descripcion} onChange={cambiarItem(i, 'descripcion')} />
               <input type="number" style={{ width: '80px' }} min="1" placeholder="Cant." value={it.cantidad} onChange={cambiarItem(i, 'cantidad')} />
-              <input type="number" style={{ width: '130px' }} min="0" step="0.01" placeholder="Precio unit." value={it.precioUnitario} onChange={cambiarItem(i, 'precioUnitario')} />
+              <CampoMoneda sinSimbolo type="number" style={{ width: '130px' }} min="0" step="0.01" placeholder="Precio unit." value={it.precioUnitario} onChange={cambiarItem(i, 'precioUnitario')} />
               {form.items.length > 1 && (
                 <button className="btn btn-ghost btn-sm" onClick={() => setForm((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}>Quitar</button>
               )}
@@ -164,7 +165,7 @@ export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', marginTop: '12px' }}>
           <div style={{ width: '160px' }}>
             <label className="fl">Bonificación ($)</label>
-            <input type="number" min="0" step="0.01" value={form.descuento} onChange={(e) => setForm((p) => ({ ...p, descuento: e.target.value }))} />
+            <CampoMoneda sinSimbolo type="number" min="0" step="0.01" value={form.descuento} onChange={(e) => setForm((p) => ({ ...p, descuento: e.target.value }))} />
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text2)' }}>Subtotal {pesosAR(subtotal)}</div>
           <div style={{ fontSize: '16px', fontWeight: 600 }}>Total {pesosAR(total)}</div>
