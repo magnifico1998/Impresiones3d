@@ -6,6 +6,9 @@ import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../../utils/estadosPresup
 import { datosConsumoPieza } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
+import AdjuntosPresupuesto from '../AdjuntosPresupuesto';
+import { adjuntoParaGuardar, porHojaDe } from '../../utils/adjuntosPresupuesto';
+import { borrarImagenDeFirebase, subirImagenAFirebase } from '../../utils/imageCompress';
 
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
 // siempre, sin guardar nada) o guardarlo en la sección Presupuestos, desde
@@ -50,7 +53,7 @@ const nuevoIdLinea = () => Date.now() + Math.random();
 export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, presupuestoActual, presupuestoEditar }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
   const {
-    biblioteca, clientes, empresa, fmt, showToast, getNewId,
+    biblioteca, clientes, empresa, fmt, showToast, getNewId, cuentaId,
     presupuestos, addPresupuesto, updatePresupuesto, siguienteNumeroPresupuesto
   } = useApp();
 
@@ -66,6 +69,9 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
   const [email, setEmail] = useState('');
   const [notas, setNotas] = useState('');
   const [guardando, setGuardando] = useState(false);
+  // Imágenes adjuntas (anexo del PDF) y cuántas entran por hoja.
+  const [adjuntos, setAdjuntos] = useState([]);
+  const [adjuntosPorHoja, setAdjuntosPorHoja] = useState(1);
   // Selector de productos de la Biblioteca dentro del modal (a diferencia
   // del pedido, que manda a la Biblioteca a seleccionar: acá se perdería lo
   // ya cargado en el formulario).
@@ -94,6 +100,8 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
       setTelefono(presupuestoEditar.telefono || '');
       setEmail(presupuestoEditar.email || '');
       setNotas(presupuestoEditar.notas || '');
+      setAdjuntos((presupuestoEditar.adjuntos || []).map((a) => ({ ...a })));
+      setAdjuntosPorHoja(porHojaDe(presupuestoEditar.adjuntosPorHoja));
       return;
     }
 
@@ -126,6 +134,8 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     setTelefono('');
     setEmail('');
     setNotas('');
+    setAdjuntos([]);
+    setAdjuntosPorHoja(1);
     // A propósito sin `biblioteca`/`selectedProdIds`/`presupuestoActual`
     // como disparadores reales -- mismo motivo que ModalArmarPedido.jsx.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,6 +162,8 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
       setTelefono('');
       setEmail('');
       setNotas('');
+      setAdjuntos([]);
+      setAdjuntosPorHoja(1);
       return;
     }
     setItems([
@@ -162,6 +174,8 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     setTelefono(existente.telefono || '');
     setEmail(existente.email || '');
     setNotas(existente.notas || '');
+    setAdjuntos((existente.adjuntos || []).map((a) => ({ ...a })));
+    setAdjuntosPorHoja(porHojaDe(existente.adjuntosPorHoja));
   };
 
   const handleItemChange = (id, campo, valor) => {
@@ -228,10 +242,10 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
       return linea;
     });
 
-  const bajarPdf = (numero, fecha, lineas) => generarPdfPresupuesto({
+  const bajarPdf = (numero, fecha, lineas, adjuntosPdf = adjuntos) => generarPdfPresupuesto({
     empresa, fmt, numero, fecha,
     cliente: nombreCliente.trim(), telefono: telefono.trim(), email: email.trim(), notas: notas.trim(),
-    items: lineas
+    items: lineas, adjuntos: adjuntosPdf, adjuntosPorHoja
   }).then(() => showToast('PDF generado correctamente'));
 
   const handleSoloPdf = () => {
@@ -244,7 +258,30 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     if (!validar()) return;
     setGuardando(true);
     const lineas = itemsParaGuardar();
+
+    // Las imágenes nuevas se suben a Storage recién al guardar (con "Sólo PDF" no se sube nada).
+    let adjuntosGuardados;
+    const subidas = [];
+    try {
+      adjuntosGuardados = [];
+      for (const a of adjuntos) {
+        if (a.dataUrl) {
+          const url = await subirImagenAFirebase(a.dataUrl, { userId: cuentaId, fileName: `presupuesto-${a.id}.jpg`, folder: 'presupuestos' });
+          subidas.push(url);
+          adjuntosGuardados.push(adjuntoParaGuardar({ ...a, url }));
+        } else {
+          adjuntosGuardados.push(adjuntoParaGuardar(a));
+        }
+      }
+    } catch (err) {
+      subidas.forEach((u) => borrarImagenDeFirebase(u));
+      setGuardando(false);
+      showToast(err.message || 'No se pudieron subir las imágenes.', 'error');
+      return;
+    }
     const datos = {
+      adjuntos: adjuntosGuardados,
+      adjuntosPorHoja,
       cliente: nombreCliente.trim(),
       telefono: telefono.trim(),
       email: email.trim(),
@@ -282,7 +319,9 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     if (!ok) return;
 
     showToast(editando ? `✓ Presupuesto N° ${numero} actualizado.` : `✓ Presupuesto N° ${numero} guardado en Presupuestos.`);
-    if (conPdf) bajarPdf(numero, fecha.split('-').reverse().join('/'), lineas);
+    // Imágenes que se quitaron de un presupuesto ya guardado: se borran de Storage.
+    if (editando) (objetivo.adjuntos || []).filter((a) => !adjuntosGuardados.some((g) => g.url === a.url)).forEach((a) => borrarImagenDeFirebase(a.url));
+    if (conPdf) bajarPdf(numero, fecha.split('-').reverse().join('/'), lineas, adjuntosGuardados);
     onClose();
   };
 
@@ -417,6 +456,8 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
             </div>
           </div>
         )}
+
+        <AdjuntosPresupuesto adjuntos={adjuntos} setAdjuntos={setAdjuntos} porHoja={adjuntosPorHoja} setPorHoja={setAdjuntosPorHoja} showToast={showToast} />
 
         <div className="sep"></div>
 

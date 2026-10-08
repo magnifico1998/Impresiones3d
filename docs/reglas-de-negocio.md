@@ -363,6 +363,7 @@ Se guardan en `users/{uid}/presupuestos`. Código:
 - Se puede **guardar**, **guardar y generar el PDF**, o generar **solo el
   PDF** sin guardar (como antes; solo en presupuestos nuevos).
 - Numeración correlativa visible (N° 1, 2, 3…), que aparece en el PDF.
+- **Imágenes adjuntas (anexo):** hasta 8 imágenes por presupuesto (un render, una foto, un plano), cada una con un comentario opcional de hasta 300 caracteres. Salen en hojas de anexo al final del PDF, de **1, 2 o 4 imágenes por hoja** a elección (1 para imágenes con detalle, 4 para cosas simples); la imagen entra entera, sin deformarse. Se guardan en `adjuntos` (`{ id, url, comentario }`) y `adjuntosPorHoja` del presupuesto; los archivos están en Storage, `users/{uid}/presupuestos/`, y se borran al quitar la imagen o eliminar el presupuesto. Con "Sólo PDF" no se sube nada. Aprobar el presupuesto no traslada las imágenes al pedido. Código: `AdjuntosPresupuesto.jsx`, `utils/adjuntosPresupuesto.js`, `utils/presupuestoPDF.js`.
 - **Aprobar crea el pedido** en estado pendiente, con descripción
   "Presupuesto N° X", las notas del presupuesto y el total como precio de
   venta. Las líneas que vinieron de la Biblioteca o de la Calculadora

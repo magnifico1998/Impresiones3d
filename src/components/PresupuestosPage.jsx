@@ -5,6 +5,7 @@ import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { generarPdfPresupuesto } from '../utils/presupuestoPDF';
 import { piezaDesdeBiblioteca, piezaDesdeCalculadora, piezaLibre } from '../utils/piezaPedido';
 import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../utils/estadosPresupuesto';
+import { borrarImagenDeFirebase } from '../utils/imageCompress';
 
 // Presupuestos guardados (users/{uid}/presupuestos), separados de los
 // pedidos: un presupuesto todavía no es una venta. Ciclo:
@@ -120,6 +121,8 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
   const eliminar = async (p) => {
     if (!(await confirmar(`Se borra el presupuesto N° ${p.numero} de ${p.cliente}. No se puede deshacer.`, { titulo: '¿Eliminar el presupuesto?', textoConfirmar: 'Eliminar', peligro: true }))) return;
     await removePresupuesto(p.id);
+    // Las imágenes adjuntas no quedan huérfanas en Storage.
+    for (const a of p.adjuntos || []) borrarImagenDeFirebase(a.url);
   };
 
   const bajarPdf = (p) => generarPdfPresupuesto({
@@ -127,7 +130,8 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
     numero: p.numero,
     fecha: fechaVisible(p.fecha),
     cliente: p.cliente, telefono: p.telefono, email: p.email, notas: p.notas,
-    items: p.items || []
+    items: p.items || [],
+    adjuntos: p.adjuntos || [], adjuntosPorHoja: p.adjuntosPorHoja
   }).then(() => showToast('PDF generado correctamente'));
 
   const existePedido = (id) => pedidos.some(pd => pd.id === id);

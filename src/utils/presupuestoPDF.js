@@ -1,12 +1,13 @@
 import { loadImageAsBase64 } from './loadImageAsBase64';
 import { dibujarDatosBancarios } from './datosBancarios';
 import { ajustarLogo, tamanoLogoPdfDe } from './logoPdf';
+import { hojasDeAnexo, porHojaDe } from './adjuntosPresupuesto';
 
 // PDF de un presupuesto. Lo usan ModalPresupuesto (al generarlo desde la
 // Calculadora o la Biblioteca) y PresupuestosPage (para volver a bajar uno
 // guardado). `numero` es el correlativo del presupuesto guardado; si no se
 // guardó, el PDF sale sin N°. `fecha` es un texto ya formateado (es-AR).
-export async function generarPdfPresupuesto({ empresa, fmt, numero = null, fecha, cliente, telefono, email, notas, items }) {
+export async function generarPdfPresupuesto({ empresa, fmt, numero = null, fecha, cliente, telefono, email, notas, items, adjuntos = [], adjuntosPorHoja = 1 }) {
   // Import dinámico: jsPDF sólo se descarga al generar el PDF.
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -181,6 +182,60 @@ export async function generarPdfPresupuesto({ empresa, fmt, numero = null, fecha
   // Footer
   doc.setFontSize(9); doc.setTextColor(130, 130, 130); doc.setFont('helvetica', 'normal');
   doc.text(empresa.nombre || '', marginX, pageH - 14);
+
+  // Hojas de anexo con las imágenes adjuntas: de a 1, 2 o 4 por hoja, cada una con su
+  // comentario debajo. La imagen entra entera (sin deformarse) en su recuadro.
+  if (adjuntos.length) {
+    const porHoja = porHojaDe(adjuntosPorHoja);
+    const hojas = hojasDeAnexo(adjuntos.length, porHoja);
+    const columnas = porHoja === 4 ? 2 : 1;
+    const filas = porHoja === 1 ? 1 : 2;
+    const sepCeldas = 6, arriba = 32, abajo = pageH - 20;
+    const celdaW = (contentW - sepCeldas * (columnas - 1)) / columnas;
+    const celdaH = (abajo - arriba - sepCeldas * (filas - 1)) / filas;
+    const altoComentario = porHoja === 1 ? 26 : porHoja === 2 ? 16 : 22;
+    const altoLinea = porHoja === 1 ? 4.6 : 4;
+    const altoImagen = celdaH - altoComentario - 2;
+
+    for (let hoja = 0; hoja < hojas; hoja++) {
+      doc.addPage();
+      doc.setFillColor(...navy);
+      doc.rect(marginX, 14, contentW, 8, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+      doc.text(`ANEXO${numero != null ? ` · PRESUPUESTO N° ${numero}` : ''}${hojas > 1 ? ` · HOJA ${hoja + 1} DE ${hojas}` : ''}`, marginX + 3, 19.3);
+
+      for (let k = 0; k < porHoja; k++) {
+        const a = adjuntos[hoja * porHoja + k];
+        if (!a) break;
+        const x = marginX + (k % columnas) * (celdaW + sepCeldas);
+        const yy = arriba + Math.floor(k / columnas) * (celdaH + sepCeldas);
+        doc.setDrawColor(215); doc.setLineWidth(0.3); doc.rect(x, yy, celdaW, altoImagen);
+        try {
+          const { dataUrl, width, height } = await loadImageAsBase64(a.dataUrl || a.url);
+          const escala = Math.min((celdaW - 4) / width, (altoImagen - 4) / height);
+          const w = width * escala, h = height * escala;
+          doc.addImage(dataUrl, 'JPEG', x + (celdaW - w) / 2, yy + (altoImagen - h) / 2, w, h);
+        } catch (err) {
+          console.warn('No se pudo cargar una imagen adjunta del presupuesto:', err.message);
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
+          doc.text('No se pudo cargar la imagen', x + celdaW / 2, yy + altoImagen / 2, { align: 'center' });
+        }
+        const comentario = String(a.comentario || '').trim();
+        if (comentario) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(porHoja === 1 ? 9.5 : 8.5); doc.setTextColor(40, 40, 40);
+          let lineas = doc.splitTextToSize(comentario, celdaW - 2);
+          const maxLineas = Math.floor((altoComentario - 2) / altoLinea);
+          if (lineas.length > maxLineas) {
+            lineas = lineas.slice(0, maxLineas);
+            lineas[maxLineas - 1] = lineas[maxLineas - 1].replace(/\s*\S{0,3}$/, '') + '…';
+          }
+          doc.text(lineas, x + 1, yy + altoImagen + 5);
+        }
+      }
+      doc.setFontSize(9); doc.setTextColor(130, 130, 130); doc.setFont('helvetica', 'normal');
+      doc.text(empresa.nombre || '', marginX, pageH - 14);
+    }
+  }
 
   const sufijo = numero != null ? `N${numero}` : String(Date.now());
   const nameFile = `Presupuesto_${(cliente || 'cliente')}_${sufijo}`.replace(/[^a-zA-Z0-9_.-]/g, '_');
