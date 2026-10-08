@@ -6,6 +6,7 @@ import {
 } from '../../utils/inventario';
 import SelectorConAlta from '../SelectorConAlta';
 import { useCapaModal } from '../CapaModal';
+import CampoMoneda from '../CampoMoneda';
 
 // Una compra es un ingreso tipo carrito: varias líneas, cada una con su
 // categoría (un mismo pedido al proveedor puede traer filamentos y
@@ -364,7 +365,7 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                       </div>
                     </td>
                     <td><input type="number" min="1" step="1" value={l.qty} onChange={(e) => cambiarLinea(i, 'qty', e.target.value)} /></td>
-                    <td><input type="number" min="0" step="100" value={l.precio} placeholder="0" onChange={(e) => cambiarLinea(i, 'precio', e.target.value)} /></td>
+                    <td><CampoMoneda sinSimbolo type="number" min="0" step="100" value={l.precio} placeholder="0" onChange={(e) => cambiarLinea(i, 'precio', e.target.value)} /></td>
                     <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
                       {fmtPesos((parseFloat(l.qty) || 0) * (parseFloat(l.precio) || 0))}
                     </td>

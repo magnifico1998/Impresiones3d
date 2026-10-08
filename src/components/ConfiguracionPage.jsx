@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import ConectoresImpresion from './ConectoresImpresion';
 import { paletas, paletasList } from '../utils/paletas';
+import CampoMoneda from './CampoMoneda';
 
 // La configuración se divide en dos pestañas: las herramientas de trabajo
 // del taller (materiales, impresoras, costos de la Calculadora) y cómo
@@ -481,7 +482,7 @@ export default function ConfiguracionPage() {
                       />
                       <div className="input-money">
                         <span className="input-money-prefix">$</span>
-                        <input
+                        <CampoMoneda sinSimbolo
                           type="number"
                           value={f.precio}
                           onChange={(e) => handleUpdateField('filamentos', i, 'precio', parseFloat(e.target.value) || 0)}
@@ -646,7 +647,7 @@ export default function ConfiguracionPage() {
                       />
                       <div className="input-money">
                         <span className="input-money-prefix">$</span>
-                        <input
+                        <CampoMoneda sinSimbolo
                           type="number"
                           value={ins.precio}
                           onChange={(e) => handleUpdateField('insumos', i, 'precio', parseFloat(e.target.value) || 0)}
@@ -688,7 +689,7 @@ export default function ConfiguracionPage() {
                 <div className="sep"></div>
                 
                 <label className="fl">Precio Electricidad ($/kWh)</label>
-                <input 
+                <CampoMoneda sinSimbolo 
                   type="number" 
                   value={cfg.kwh} 
                   step="1" 

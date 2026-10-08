@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import AvisoModoLectura from './AvisoModoLectura';
 import { formatoNumero } from '../utils/numeros';
+import CampoMoneda from './CampoMoneda';
 
 // Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
 // al índice correspondiente de cfg.impresoras, o null si no hay ninguna
@@ -1048,7 +1049,7 @@ export default function CalculadoraPage({
                             <option key={fi} value={fi}>{f.nombre}</option>
                           ))}
                         </select>
-                        <input 
+                        <CampoMoneda sinSimbolo 
                           type="number" 
                           value={matState.precioKg} 
                           step="100" 
@@ -1209,7 +1210,7 @@ export default function CalculadoraPage({
                       style={{ fontSize: '12px', padding: '4px 6px' }}
                       onChange={(e) => handleBambuMatWeightChange(i, e.target.value)} 
                     />
-                    <input 
+                    <CampoMoneda sinSimbolo 
                       type="number" 
                       value={m.precioKg} 
                       step="100" 
@@ -1233,7 +1234,7 @@ export default function CalculadoraPage({
                 {selFilamento === 'manual' && (
                   <div id="fil-precio-wrap">
                     <label className="fl">Precio del rollo ($/kg)</label>
-                    <input 
+                    <CampoMoneda sinSimbolo 
                       type="number" 
                       id="precio-rollo"
                       value={precioRollo} 
@@ -1312,7 +1313,7 @@ export default function CalculadoraPage({
           )}
 
           <label className="fl">Costo electricidad ($/kWh)</label>
-          <input 
+          <CampoMoneda sinSimbolo 
             type="number" 
             id="precio-kwh"
             value={precioKwh} 
@@ -1369,7 +1370,7 @@ export default function CalculadoraPage({
           <div className="card-title">Mano de obra y margen</div>
           
           <label className="fl">Mano de obra ($/hora)</label>
-          <input 
+          <CampoMoneda sinSimbolo 
             type="number" 
             id="mano-obra"
             value={manoObra} 
@@ -1520,7 +1521,7 @@ export default function CalculadoraPage({
                 Precio venta <span style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'none' }}>(editable)</span>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <input 
+                <CampoMoneda sinSimbolo 
                   type="number" 
                   id="r-precio-input"
                   value={Math.round(calcOutput.finalPrice)} 

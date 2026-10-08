@@ -5,6 +5,7 @@ import { generarPdfPresupuesto } from '../../utils/presupuestoPDF';
 import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../../utils/estadosPresupuesto';
 import { datosConsumoPieza } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
+import CampoMoneda from '../CampoMoneda';
 
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
 // siempre, sin guardar nada) o guardarlo en la sección Presupuestos, desde
@@ -357,7 +358,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
                 <div key={it.id} style={{ display: 'grid', gridTemplateColumns: '1fr 64px 100px 90px 24px', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
                   <input type="text" value={it.nombre} placeholder="Nombre del producto" onChange={(e) => handleItemChange(it.id, 'nombre', e.target.value)} />
                   <input type="number" min="0" value={it.cantidad} onChange={(e) => handleItemChange(it.id, 'cantidad', e.target.value)} />
-                  <input type="number" min="0" value={it.precioUnitario} onChange={(e) => handleItemChange(it.id, 'precioUnitario', e.target.value)} />
+                  <CampoMoneda sinSimbolo type="number" min="0" value={it.precioUnitario} onChange={(e) => handleItemChange(it.id, 'precioUnitario', e.target.value)} />
                   <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, textAlign: 'right' }}>{fmt(it.cantidad * it.precioUnitario)}</div>
                   <button className="btn btn-danger btn-sm" style={{ padding: '2px 5px' }} aria-label="Quitar línea" onClick={() => handleRemoveItem(it.id)}>✕</button>
                 </div>

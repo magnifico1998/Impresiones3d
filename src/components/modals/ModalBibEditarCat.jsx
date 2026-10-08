@@ -3,6 +3,7 @@ import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 import { useCapaModal } from '../CapaModal';
+import CampoMoneda from '../CampoMoneda';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
@@ -210,7 +211,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         />
 
         <label className="fl">Precio sugerido por unidad</label>
-        <input
+        <CampoMoneda
           type="number"
           value={precio}
           onChange={(e) => setPrecio(e.target.value)}

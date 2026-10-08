@@ -11,6 +11,7 @@ import ModalEnviarPieza from './ModalEnviarPieza';
 import { archivosListosDe, escucharArchivosGcode, productoDePieza } from '../../utils/archivosGcode';
 import { useCapaModal } from '../CapaModal';
 import { ajustarLogo, tamanoLogoPdfDe } from '../../utils/logoPdf';
+import CampoMoneda from '../CampoMoneda';
 
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
@@ -977,7 +978,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                        <input 
+                        <CampoMoneda 
                           type="number" 
                           value={Math.round(ventaSubtotal)} 
                           min="0" 
@@ -1268,7 +1269,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
               </div>
               <div>
                 <label className="fl" style={{ marginTop: 0 }}>Monto de descuento ($)</label>
-                <input 
+                <CampoMoneda 
                   type="number" 
                   min="0" 
                   step="0.01" 
@@ -1347,7 +1348,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label className="fl">Monto abonado ($)</label>
-                  <input
+                  <CampoMoneda
                     type="number"
                     min="0"
                     step="0.01"

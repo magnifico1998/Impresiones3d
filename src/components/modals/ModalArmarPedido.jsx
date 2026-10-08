@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { piezaDesdeBiblioteca } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
+import CampoMoneda from '../CampoMoneda';
 
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
@@ -393,7 +394,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
                     </div>
                     <div>
                       <label className="fl" style={{ marginTop: 0 }}>Precio est. /u ($)</label>
-                      <input 
+                      <CampoMoneda sinSimbolo 
                         type="number" 
                         min="0" 
                         value={it.precioEstimado} 
@@ -479,7 +480,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '12px' }}>
             <div>
               <label className="fl" style={{ marginTop: 0 }}>Monto final ($)</label>
-              <input 
+              <CampoMoneda sinSimbolo 
                 type="number" 
                 value={montoFinal} 
                 placeholder="0" 
