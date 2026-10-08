@@ -39,24 +39,29 @@ sección de la documentación cambió.
 ## Versión (obligatorio)
 
 La versión visible en el encabezado sale de `version` en `package.json`
-(se muestra como `vMAYOR.MENOR`). **Cada cambio que se publica sube la
-versión**, en el mismo commit (o en el último commit de la rama antes de
-pasarla a producción):
+(se muestra como `vMAYOR.MENOR`). **La versión sube una vez por cada deploy a
+producción** (la rama que se pasa a `main`), no por cada commit ni por cada
+cambio dentro de la rama. Se sube en el último commit de la rama, antes de
+pasarla a producción. Lo que manda es lo que trae ese deploy:
 
-- **Cambio funcional o de negocio** (una función nueva, una regla de negocio,
-  un flujo distinto): sube el **mayor** y el menor vuelve a 0.
-  `5.3` → `6.0` (`package.json`: `6.0.0`).
-- **Correctivo o menor** (un error, un texto, estilos, ajustes chicos): sube
-  el **menor**. `5.0` → `5.1` (`package.json`: `5.1.0`).
+- **El deploy trae funciones nuevas** (una función, una regla de negocio, un
+  flujo distinto): es una **versión nueva**. Sube el **mayor** y el menor vuelve
+  a 0, sin importar cuántas funciones traiga. `13.2` → `14.0`
+  (`package.json`: `14.0.0`).
+- **El deploy trae sólo arreglos o cambios estéticos** (un error, un texto,
+  estilos, ajustes chicos): sigue siendo la **misma versión madre** y sólo sube
+  el número después del punto. `14.0` → `14.1` → `14.2`
+  (`package.json`: `14.1.0`).
 
-Si una rama junta de los dos tipos, manda el funcional. Al final de la
-respuesta, avisale al usuario a qué versión quedó.
+Si un deploy junta de los dos tipos, manda el de funciones nuevas. Las pruebas
+en `develop` o en la base de prueba no cambian la versión: se cuenta al pasar
+a `main`. Al final de la respuesta, avisale al usuario a qué versión quedó.
 
-Cada versión **mayor** suma su entrada en `src/utils/novedades.js` (en el
-mismo commit): lo que cambió para el usuario, en lenguaje de usuario, sin lo
+Cada versión **nueva** (mayor) suma su entrada en `src/utils/novedades.js` (en
+el mismo commit): lo que cambió para el usuario, en lenguaje de usuario, sin lo
 estético ni lo correctivo, ni lo que sólo afecta al panel de administración.
-Es lo que muestra el aviso "Novedades" al entrar. Si la versión no trae nada
-para los suscriptores, no lleva entrada.
+Es lo que muestra el aviso "Novedades" al entrar. Los arreglos (mismo mayor)
+no llevan entrada.
 
 ## Cómo trabaja el usuario
 
@@ -66,7 +71,7 @@ para los suscriptores, no lleva entrada.
 - **Los `firebase deploy`, `functions:secrets:set` y los merges/push a
   `develop` y `main` los corre el usuario.** Pasale los comandos para
   PowerShell, **de a uno por línea** (su PowerShell no acepta `&&`).
-- En local la app usa el Firebase real: no guardes ni envíes nada sin su OK.
+- En local (`npm run dev`) y en `develop` (Vercel Preview) la app usa la base de **prueba** (`manager3d-test`); producción es sólo `main`. Ver "Entornos" en `docs/operacion.md`. Los `firebase deploy` a prod (`--project prod`) y los merges/push a `main` necesitan su OK explícito.
 
 ## Convenciones de código
 
