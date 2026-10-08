@@ -299,3 +299,13 @@ la contraseña de la cuenta) y los logs de la función que manda el mail.
   editar → tildar "Facturación electrónica".
 - **Facturar a revendedores:** después del día 1, en panel Admin → revendedor
   → historial: descargar el PDF del mes y marcarlo como "Facturado".
+
+## Entornos: producción y prueba
+
+Hay dos proyectos de Firebase con la misma estructura (alias en `.firebaserc`): **prod** = `print3d-manager-73846` (datos reales) y **test** = `manager3d-test` (para desarrollar y probar).
+
+- **Qué usa cada uno:** `npm run dev` (localhost) usa **test** (para mirar prod desde localhost: `VITE_ENTORNO=prod` en `.env.local`, con cuidado). Vercel: `main` usa **prod**; `develop` y los previews usan **test** si en Vercel está la variable `VITE_ENTORNO=test` con alcance *Preview*. En la app con test aparece la etiqueta **PRUEBA** junto a la versión. La función `api/catalogo-meta.js` elige sola según `VERCEL_ENV`.
+- **Flujo de cambios en reglas, índices o functions:** primero a test (`firebase deploy --only firestore,storage,functions --project test`), probar, y recién después a prod (`--project prod`). Firestore no tiene esquema: el formato de los datos es lo que escribe el código, así que test y prod quedan iguales mientras se desplieguen los mismos reglas, índices y functions.
+- **Servicios externos en test:** los secretos (`ARCA_CERT`, `ARCA_KEY`, `GMAIL_APP_PASSWORD`, `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`) valen "desactivado-en-prueba": ni cobra, ni factura, ni manda mails. Para probar uno de esos flujos hay que cargar credenciales de prueba (Mercado Pago de prueba, ARCA homologación, una casilla propia) con `firebase functions:secrets:set NOMBRE --project test`. `functions/.env.manager3d-test` (no se versiona) tiene `MP_PAYER_EMAIL_PRUEBA`.
+- **Datos de prueba:** `node scripts/copiar-config-a-prueba.cjs` copia de prod a test sólo la configuración (planes, FAQ, monotributo); nunca datos de clientes. Las cuentas de prueba se crean entrando a la versión de test.
+- **Conector de impresión:** sigue apuntando a producción (`conector/src/nube.js`); para probarlo contra test habría que armar una versión aparte.

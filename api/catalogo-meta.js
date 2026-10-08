@@ -17,7 +17,8 @@
 // El catálogo es por tienda: sin el uid en el path no hay forma de saber
 // de qué negocio se trata, así que en ese caso se sirve un preview genérico.
 
-const FIRESTORE_PROJECT_ID = 'print3d-manager-73846';
+// En producción (main) lee la base real; en los previews (develop), la de prueba.
+const FIRESTORE_PROJECT_ID = process.env.VERCEL_ENV === 'production' || !process.env.VERCEL_ENV ? 'print3d-manager-73846' : 'manager3d-test';
 
 // Dominio contra el que esta función se pide a sí misma /index.html. OJO:
 // tiene que ser un valor de confianza del servidor, nunca las cabeceras

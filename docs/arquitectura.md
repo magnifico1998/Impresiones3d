@@ -18,7 +18,7 @@ Navegador ──► Vercel (frontend React + /api/catalogo-meta)
                  └──► Gmail (mails automáticos)
 ```
 
-- **Proyecto Firebase:** `print3d-manager-73846`.
+- **Proyectos Firebase:** producción `print3d-manager-73846` y prueba `manager3d-test` (misma estructura, sin datos reales; ver `docs/operacion.md`, "Entornos"). La config sale de `src/entornoFirebase.js`.
 - **Frontend en producción:** https://manager3d.com.ar (Vercel publica la
   rama `main`; https://manager3d.vercel.app sigue siendo el dominio interno
   de Vercel).

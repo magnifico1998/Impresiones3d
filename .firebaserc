@@ -1,5 +1,8 @@
 {
   "projects": {
+    "default": "print3d-manager-73846",
+    "prod": "print3d-manager-73846",
+    "test": "manager3d-test",
     "Manager3d": "print3d-manager-73846"
   },
   "targets": {},

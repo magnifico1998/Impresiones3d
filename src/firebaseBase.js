@@ -1,20 +1,13 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
+import { firebaseConfig } from "./entornoFirebase";
 
 // Núcleo de Firebase (app + Firestore + Functions) separado de Auth y
 // Storage: el catálogo público importa sólo esto, así su bundle no arrastra
 // los SDK de login ni de Storage que no usa. La app con login importa
 // ../firebase, que re-exporta esto y suma Auth/Storage.
-const firebaseConfig = {
-  apiKey: "AIzaSyAcDCdC5eMraPo7hwGKhojXb8EnONZWiH0",
-  authDomain: "print3d-manager-73846.firebaseapp.com",
-  projectId: "print3d-manager-73846",
-  storageBucket: "print3d-manager-73846.firebasestorage.app",
-  messagingSenderId: "534221073184",
-  appId: "1:534221073184:web:4f2e0cfda14ff4fd514545",
-  measurementId: "G-C0SREN7R2Y"
-};
+// La config sale de entornoFirebase.js (producción o prueba según el entorno).
 
 export const app = initializeApp(firebaseConfig);
 
