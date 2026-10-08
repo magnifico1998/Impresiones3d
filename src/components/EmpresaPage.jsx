@@ -13,6 +13,7 @@ import { PESTANAS_EMPRESA, pestanaEmpresaGuardada, guardarPestanaEmpresa } from 
 import { sincronizarPagoMP } from '../utils/pagosMP';
 import { cupoGcode, formatoBytes } from '../utils/archivosGcode';
 import { TAMANOS_LOGO_PDF, tamanoLogoPdfDe } from '../utils/logoPdf';
+import { formatearMoneda } from '../utils/paises';
 
 // Texto del estado del débito automático de Mercado Pago
 // (suscripcion.cobro.estado, lo mantiene el webhook).
@@ -28,7 +29,7 @@ function textoDebito(suscripcion) {
 // Manager3D), no un monto del negocio del usuario -- se muestra siempre
 // en pesos argentinos independientemente del país elegido más abajo (ver
 // selector de país), igual que el panel de AdminPage.
-const fmtMoneda = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+const fmtMoneda = (n) => formatearMoneda(n, 'AR');
 
 // Barra de consumo de un ítem del plan. limite === null/undefined significa
 // "sin límite" -- se muestra sin barra, sólo el número usado.

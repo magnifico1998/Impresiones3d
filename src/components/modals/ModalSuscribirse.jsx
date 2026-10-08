@@ -6,6 +6,7 @@ import { httpsCallable } from 'firebase/functions';
 import { motivoTelefonoInvalido } from '../../utils/paises';
 import SelectorCondicionImpositiva from '../SelectorCondicionImpositiva';
 import { useCapaModal } from '../CapaModal';
+import { formatearMoneda } from '../../utils/paises';
 
 const DATOS_VACIOS = {
   nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '',
@@ -30,7 +31,7 @@ function errorDatos(d, pais) {
 
 // Precio del plan de Manager3D, siempre en pesos (mismo criterio que
 // EmpresaPage.jsx).
-const fmtMoneda = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+const fmtMoneda = (n) => formatearMoneda(n, 'AR');
 
 const limiteTexto = (valor, singular, plural) =>
   valor === null || valor === undefined ? `${plural} ilimitados` : `${valor.toLocaleString('es-AR')} ${valor === 1 ? singular : plural}`;

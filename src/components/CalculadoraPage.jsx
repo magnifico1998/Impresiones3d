@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import AvisoModoLectura from './AvisoModoLectura';
+import { formatoNumero } from '../utils/numeros';
 
 // Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
 // al índice correspondiente de cfg.impresoras, o null si no hay ninguna
@@ -313,7 +314,7 @@ export default function CalculadoraPage({
       });
 
       const parsedData = { tipo: 'bambu', placas: placasData, matMap, totalSeg, nombre };
-      setStatus(`✓ ${placasData.length} placas · ${Object.keys(matMap).length} material${Object.keys(matMap).length > 1 ? 'es' : ''} · ${Object.values(matMap).reduce((s, m) => s + m.totalG, 0).toFixed(1)}g · ${formatH(totalSeg)}`, 'success');
+      setStatus(`✓ ${placasData.length} placas · ${Object.keys(matMap).length} material${Object.keys(matMap).length > 1 ? 'es' : ''} · ${formatoNumero(Object.values(matMap).reduce((s, m) => s + m.totalG, 0), 1)}g · ${formatH(totalSeg)}`, 'success');
       setPrecioVentaTocado(false);
       setPrecioVentaManual('');
 
@@ -409,7 +410,7 @@ export default function CalculadoraPage({
 
     const placa = { idx: '1', nombre, pred: totalSeg, fils, sel: true };
     const parsedData = { tipo: 'bambu', placas: [placa], matMap, totalSeg, nombre };
-    setStatus(`✓ G-code multi-material detectado · ${Object.keys(matMap).length} material${Object.keys(matMap).length > 1 ? 'es' : ''} · ${Object.values(matMap).reduce((s, m) => s + m.totalG, 0).toFixed(1)}g · ${formatH(totalSeg)}`, 'success');
+    setStatus(`✓ G-code multi-material detectado · ${Object.keys(matMap).length} material${Object.keys(matMap).length > 1 ? 'es' : ''} · ${formatoNumero(Object.values(matMap).reduce((s, m) => s + m.totalG, 0), 1)}g · ${formatH(totalSeg)}`, 'success');
     setPrecioVentaTocado(false);
     setPrecioVentaManual('');
 
@@ -760,7 +761,7 @@ export default function CalculadoraPage({
         const p = m.precioKg;
         const c = (g * (1 + dsp / 100) / 1000) * p;
         costeFil += c;
-        filDetalle.push({ label: `${m.type} (${g.toFixed(1)}g)`, costo: c, color: m.color });
+        filDetalle.push({ label: `${m.type} (${formatoNumero(g, 1)}g)`, costo: c, color: m.color });
       });
     } else {
       costeFil = (gramos * (1 + dsp / 100) / 1000) * precioRollo;
@@ -962,7 +963,7 @@ export default function CalculadoraPage({
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 500, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.nombre}</div>
                   <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-                    {item.tipo === 'bambu' ? `${item.placas.length} placas · ${formatH(item.totalSeg)}` : `${item.gramos?.toFixed(1) ?? '—'}g · ${item.tiempo ? formatH(item.tiempo * 3600) : '—'}`}
+                    {item.tipo === 'bambu' ? `${item.placas.length} placas · ${formatH(item.totalSeg)}` : `${item.gramos != null ? formatoNumero(item.gramos, 1) : '—'}g · ${item.tiempo ? formatH(item.tiempo * 3600) : '—'}`}
                   </div>
                 </div>
                 <button className="btn btn-sm btn-danger" onClick={() => handleRemoveGcodeItem(idx)}>
@@ -987,7 +988,7 @@ export default function CalculadoraPage({
                   </div>
                   <div className="chip">
                     <small>Filamento</small>
-                    <span>{selectedPlatesTotalGrams.toFixed(2)}g</span>
+                    <span>{formatoNumero(selectedPlatesTotalGrams, 2)}g</span>
                   </div>
                   <div className="chip">
                     <small>Tiempo</small>
@@ -1012,7 +1013,7 @@ export default function CalculadoraPage({
                   )}
                   <div className="chip">
                     <small>Filamento</small>
-                    <span>{gcodeData.gramos !== null ? gcodeData.gramos.toFixed(2) + 'g' : '—'}</span>
+                    <span>{gcodeData.gramos !== null ? formatoNumero(gcodeData.gramos, 2) + 'g' : '—'}</span>
                   </div>
                   <div className="chip">
                     <small>Tiempo</small>
@@ -1036,7 +1037,7 @@ export default function CalculadoraPage({
                         <span>
                           <strong>{m.type}</strong>{' '}
                           <span style={{ color: 'var(--text3)', fontSize: '11px', fontFamily: 'var(--mono)' }}>{m.color}</span>{' '}
-                          — <span>{currentGrams.toFixed(2)}g</span>
+                          — <span>{formatoNumero(currentGrams, 2)}g</span>
                         </span>
                         <select 
                           value={matState.selFil || 'manual'} 
@@ -1108,7 +1109,7 @@ export default function CalculadoraPage({
                                   )}
                                 </td>
                                 <td style={{ fontFamily: 'var(--mono)' }}>
-                                  {p.fils.reduce((s, f) => s + f.usedG, 0).toFixed(2)}g
+                                  {formatoNumero(p.fils.reduce((s, f) => s + f.usedG, 0), 2)}g
                                 </td>
                                 <td style={{ fontFamily: 'var(--mono)', color: 'var(--text2)' }}>
                                   {formatH(p.pred)}
@@ -1123,7 +1124,7 @@ export default function CalculadoraPage({
                                     <span className="color-dot" style={{ background: f.color, marginRight: '4px' }}></span>
                                     <span style={{ fontSize: '11px', fontFamily: 'var(--mono)' }}>{f.color}</span>
                                   </td>
-                                  <td style={{ fontFamily: 'var(--mono)' }}>{f.usedG.toFixed(2)}g</td>
+                                  <td style={{ fontFamily: 'var(--mono)' }}>{formatoNumero(f.usedG, 2)}g</td>
                                   <td></td>
                                 </tr>
                               ))}
@@ -1172,7 +1173,7 @@ export default function CalculadoraPage({
         </div>
         <div className="metric">
           <div className="metric-label">Margen</div>
-          <div className="metric-value" id="sc-margen">{calcOutput.margenEfectivo.toFixed(0)}%</div>
+          <div className="metric-value" id="sc-margen">{formatoNumero(calcOutput.margenEfectivo, 0)}%</div>
         </div>
       </div>
 

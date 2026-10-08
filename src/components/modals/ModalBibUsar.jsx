@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { formatoNumero } from '../../utils/numeros';
 
 export default function ModalBibUsar({ isOpen, onClose, onSelectProduct }) {
   const { biblioteca, fmt } = useApp();
@@ -78,7 +79,7 @@ export default function ModalBibUsar({ isOpen, onClose, onSelectProduct }) {
                     {p.cat || 'General'}
                   </span>
                   <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-                    {p.horas?.toFixed(1) || '?'}h impresión
+                    {p.horas ? formatoNumero(p.horas, 1) : '?'}h impresión
                   </span>
                   {p.impresoraNombre && (
                     <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>

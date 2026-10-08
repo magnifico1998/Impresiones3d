@@ -12,6 +12,7 @@ import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { inventarioResuelto, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
 import ModalConsumoPedido from './modals/ModalConsumoPedido';
 import { ESTADOS_PEDIDO, textoEstadoPedido } from '../utils/estadosPedido';
+import { formatoNumero } from '../utils/numeros';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, clientes, cfg, updatePedido, showToast, fmt, cuentaId, planContratado } = useApp();
@@ -378,7 +379,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
                     Hs total
                   </div>
                   <div style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--mono)' }}>
-                    {detalle ? `${detalle.horasTotales.toFixed(1)}h` : '-'}
+                    {detalle ? `${formatoNumero(detalle.horasTotales, 1)}h` : '-'}
                   </div>
                 </div>
 

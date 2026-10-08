@@ -8,6 +8,7 @@ import ModalSuscribirse from './modals/ModalSuscribirse';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { movimientosVenta, pendienteDePedido } from '../utils/finanzasPedido';
 import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
+import { formatoNumero } from '../utils/numeros';
 
 // Cuántos días faltan hasta un Timestamp de Firestore, redondeado para
 // arriba (así "faltan 0 días" nunca se muestra como "ya venció" de
@@ -625,7 +626,7 @@ export default function ResumenPage() {
         <div className="metric">
           <div className="metric-label">Rentabilidad</div>
           <div className="metric-value" style={{ color: rentab >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
-            {rentab.toFixed(1)}%
+            {formatoNumero(rentab, 1)}%
           </div>
         </div>
         <div className="metric">

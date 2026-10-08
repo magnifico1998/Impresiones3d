@@ -8,6 +8,7 @@ import ModalOrdenCategorias from './modals/ModalOrdenCategorias';
 import ModalArchivosGcode from './modals/ModalArchivosGcode';
 import { escucharArchivosGcode } from '../utils/archivosGcode';
 import { useCapaModal } from './CapaModal';
+import { formatoNumero } from '../utils/numeros';
 
 /**
  * Recalcula costos de un producto manteniendo estructura física pero actualizando precios
@@ -249,7 +250,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                     <td style={{ padding: '8px', fontWeight: 500, maxWidth: '200px' }}>
                       <div>{prod.nombre}</div>
                       <div style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
-                        {prod.cat || 'General'}{prod.subcat ? ` / ${prod.subcat}` : ''} · {prod.horas?.toFixed(1)}h
+                        {prod.cat || 'General'}{prod.subcat ? ` / ${prod.subcat}` : ''} · {formatoNumero(prod.horas, 1)}h
                       </div>
                     </td>
                     <td style={{ padding: '8px', fontFamily: 'var(--mono)', textAlign: 'right', color: 'var(--text2)' }}>
@@ -266,7 +267,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                       color: diff > 0 ? 'var(--danger)' : diff < 0 ? 'var(--accent)' : 'var(--text3)',
                     }}>
                       <div>{diff > 0 ? '+' : ''}{fmt(diff)}</div>
-                      <div style={{ fontSize: '9px', color: 'var(--text3)' }}>({pctDiff > 0 ? '+' : ''}{pctDiff.toFixed(1)}%)</div>
+                      <div style={{ fontSize: '9px', color: 'var(--text3)' }}>({pctDiff > 0 ? '+' : ''}{formatoNumero(pctDiff, 1)}%)</div>
                     </td>
                     <td style={{
                       padding: '8px',
@@ -275,20 +276,20 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                       fontWeight: 600,
                     }}>
                       <div style={{ color: margenNuevo >= margenAnterior ? 'var(--accent)' : 'var(--danger)' }}>
-                        {margenNuevo.toFixed(1)}%
+                        {formatoNumero(margenNuevo, 1)}%
                       </div>
                       <div style={{
                         fontSize: '9px',
                         color: margenDiff > 0 ? 'var(--accent)' : margenDiff < 0 ? 'var(--danger)' : 'var(--text3)',
                         fontWeight: 500,
                       }}>
-                        {margenDiff > 0 ? '+' : ''}{margenDiff.toFixed(1)}pp
+                        {margenDiff > 0 ? '+' : ''}{formatoNumero(margenDiff, 1)}pp
                       </div>
                     </td>
                     <td style={{ padding: '8px', fontSize: '9px' }}>
                       {nuevos._desglose.filInfo.map((f, i) => (
                         <div key={i} style={{ color: f.matched ? 'var(--accent)' : 'var(--warn)', fontFamily: 'var(--mono)' }}>
-                          {f.matched ? '✓' : '⚠'} {f.matchNombre} @ ${Math.round(f.precioKg).toLocaleString('es-AR')}/kg
+                          {f.matched ? '✓' : '⚠'} {f.matchNombre} @ ${formatoNumero(f.precioKg)}/kg
                         </div>
                       ))}
                     </td>
@@ -752,7 +753,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                             </span>
                           )}
                           <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
-                            ⏱ {p.horas ? p.horas.toFixed(1) + 'h' : '—'}
+                            ⏱ {p.horas ? formatoNumero(p.horas, 1) + 'h' : '—'}
                           </span>
                           <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
                             💲 {fmt(p.precioSugUnitario || p.costoUnitario || 0)}
@@ -978,7 +979,7 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
                     <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)' }}>{fmt(old)}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{fmt(nuevo)}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: margenNew >= margenOld ? 'var(--accent)' : 'var(--danger)' }}>{margenOld.toFixed(1)}% → {margenNew.toFixed(1)}%</div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: margenNew >= margenOld ? 'var(--accent)' : 'var(--danger)' }}>{formatoNumero(margenOld, 1)}% → {formatoNumero(margenNew, 1)}%</div>
                     </td>
                     <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--mono)', color: diff > 0 ? 'var(--danger)' : 'var(--accent)', whiteSpace: 'nowrap' }}>{diff >= 0 ? '+' : ''}{fmt(diff)}</td>
                   </tr>
