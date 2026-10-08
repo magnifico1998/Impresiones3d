@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { confirmar, pedirTexto } from '../components/Dialogos';
 import { auth, db, googleProvider, functions } from '../firebase';
+import { escucharConReintento } from '../utils/escuchaResiliente';
+import { guardarDoc, actualizarDoc, borrarDoc, confirmarLote, configurarEscrituraTolerante } from '../utils/escrituraTolerante';
 import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, deleteField, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
+import { doc, getDoc, getDocFromCache, getDocFromServer, setDoc, deleteField, deleteDoc, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
 import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
@@ -201,6 +203,17 @@ export const AppProvider = ({ children }) => {
   // true, la app no debe permitir edición normal, porque cualquier cambio
   // dispararía un guardado que pisaría la nube con el estado default vacío.
   const [loadError, setLoadError] = useState(false);
+  // Conexión inestable: sinRed (el navegador dice que no hay internet),
+  // usandoCopiaLocal (la nube no contestó al abrir y se arrancó con los datos
+  // guardados en este equipo) y cambiosPendientes (hay cambios guardados acá que
+  // la nube todavía no confirmó). Ver components/AvisoConexion.jsx.
+  const [sinRed, setSinRed] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
+  const [usandoCopiaLocal, setUsandoCopiaLocal] = useState(false);
+  const [cambiosPendientes, setCambiosPendientes] = useState(false);
+  const pendientesRef = useRef(0);
+  const errorYaAvisadoRef = useRef(false);
+  const cargandoRef = useRef(false);
+  const ultimoAccesoRegistradoRef = useRef(false);
   // Motivo técnico de la falla ("unavailable", "permission-denied"…): se muestra en
   // la pantalla de error para saber si fue la red, un permiso u otra cosa.
   const [loadErrorDetalle, setLoadErrorDetalle] = useState('');
@@ -281,7 +294,7 @@ export const AppProvider = ({ children }) => {
 
   const addCompra = async (item) => {
     try {
-      await setDoc(compraDocRef(item.id), item);
+      await guardarDoc(compraDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar compra:", e);
       mostrarErrorGuardado('⚠ No se pudo guardar la compra en la nube.');
@@ -294,7 +307,7 @@ export const AppProvider = ({ children }) => {
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(compraDocRef(id), cambios);
+      if (hayCambios(cambios)) await actualizarDoc(compraDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar compra:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar la compra en la nube.');
@@ -303,7 +316,7 @@ export const AppProvider = ({ children }) => {
 
   const removeCompra = async (id) => {
     try {
-      await deleteDoc(compraDocRef(id));
+      await borrarDoc(compraDocRef(id));
     } catch (e) {
       console.error("Error al eliminar compra:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar la compra en la nube.');
@@ -326,7 +339,7 @@ export const AppProvider = ({ children }) => {
 
   const addPresupuesto = async (item) => {
     try {
-      await setDoc(presupuestoDocRef(item.id), item);
+      await guardarDoc(presupuestoDocRef(item.id), item);
       return true;
     } catch (e) {
       console.error("Error al guardar presupuesto:", e);
@@ -341,7 +354,7 @@ export const AppProvider = ({ children }) => {
       if (!actual) return false;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(presupuestoDocRef(id), cambios);
+      if (hayCambios(cambios)) await actualizarDoc(presupuestoDocRef(id), cambios);
       return true;
     } catch (e) {
       console.error("Error al actualizar presupuesto:", e);
@@ -352,7 +365,7 @@ export const AppProvider = ({ children }) => {
 
   const removePresupuesto = async (id) => {
     try {
-      await deleteDoc(presupuestoDocRef(id));
+      await borrarDoc(presupuestoDocRef(id));
     } catch (e) {
       console.error("Error al eliminar presupuesto:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar el presupuesto en la nube.');
@@ -380,7 +393,7 @@ export const AppProvider = ({ children }) => {
 
   const addCliente = async (item) => {
     try {
-      await setDoc(clienteDocRef(item.id), item);
+      await guardarDoc(clienteDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar cliente:", e);
       mostrarErrorGuardado('⚠ No se pudo guardar el cliente en la nube.');
@@ -393,7 +406,7 @@ export const AppProvider = ({ children }) => {
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(clienteDocRef(id), cambios);
+      if (hayCambios(cambios)) await actualizarDoc(clienteDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar cliente:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar el cliente en la nube.');
@@ -402,7 +415,7 @@ export const AppProvider = ({ children }) => {
 
   const removeCliente = async (id) => {
     try {
-      await deleteDoc(clienteDocRef(id));
+      await borrarDoc(clienteDocRef(id));
     } catch (e) {
       console.error("Error al eliminar cliente:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar el cliente en la nube.');
@@ -429,7 +442,7 @@ export const AppProvider = ({ children }) => {
 
   const addProducto = async (item) => {
     try {
-      await setDoc(productoDocRef(item.id), item);
+      await guardarDoc(productoDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar producto:", e);
       mostrarErrorGuardado('⚠ No se pudo guardar el producto en la nube.');
@@ -452,9 +465,9 @@ export const AppProvider = ({ children }) => {
         const batch = writeBatch(db);
         batch.update(productoDocRef(id), cambios);
         batch.set(catalogoProductoDocRef(id), proyeccionCatalogoProducto(nuevo));
-        await batch.commit();
+        await confirmarLote(batch);
       } else {
-        await updateDoc(productoDocRef(id), cambios);
+        await actualizarDoc(productoDocRef(id), cambios);
       }
     } catch (e) {
       console.error("Error al actualizar producto:", e);
@@ -480,7 +493,7 @@ export const AppProvider = ({ children }) => {
       const batch = writeBatch(db);
       batch.delete(productoDocRef(id));
       batch.delete(catalogoProductoDocRef(id));
-      await batch.commit();
+      await confirmarLote(batch);
     } catch (e) {
       console.error("Error al eliminar producto:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar el producto en la nube.');
@@ -496,7 +509,7 @@ export const AppProvider = ({ children }) => {
 
   const addFaq = async (item) => {
     try {
-      await setDoc(faqDocRef(item.id), item);
+      await guardarDoc(faqDocRef(item.id), item);
     } catch (e) {
       console.error("Error al guardar pregunta frecuente:", e);
       showToast('⚠ No se pudo guardar la pregunta en la nube.', 'error');
@@ -510,7 +523,7 @@ export const AppProvider = ({ children }) => {
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(faqDocRef(id), cambios);
+      if (hayCambios(cambios)) await actualizarDoc(faqDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar pregunta frecuente:", e);
       showToast('⚠ No se pudo actualizar la pregunta en la nube.', 'error');
@@ -520,7 +533,7 @@ export const AppProvider = ({ children }) => {
 
   const removeFaq = async (id) => {
     try {
-      await deleteDoc(faqDocRef(id));
+      await borrarDoc(faqDocRef(id));
     } catch (e) {
       console.error("Error al eliminar pregunta frecuente:", e);
       showToast('⚠ No se pudo eliminar la pregunta en la nube.', 'error');
@@ -564,7 +577,7 @@ export const AppProvider = ({ children }) => {
         }
       });
       batches.push(batch);
-      await Promise.all(batches.map(b => b.commit()));
+      await Promise.all(batches.map(confirmarLote));
     } catch (e) {
       console.error("Error al actualizar productos en lote:", e);
       mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.');
@@ -618,7 +631,7 @@ export const AppProvider = ({ children }) => {
       return false;
     }
     try {
-      await setDoc(pedidoDocRef(item.id), item);
+      await guardarDoc(pedidoDocRef(item.id), item);
       return true;
     } catch (e) {
       console.error("Error al guardar pedido:", e);
@@ -633,7 +646,7 @@ export const AppProvider = ({ children }) => {
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(pedidoDocRef(id), cambios);
+      if (hayCambios(cambios)) await actualizarDoc(pedidoDocRef(id), cambios);
     } catch (e) {
       console.error("Error al actualizar pedido:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar el pedido en la nube.');
@@ -656,7 +669,7 @@ export const AppProvider = ({ children }) => {
       for (let i = 0; i < cambiosPorPedido.length; i += 400) {
         const batch = writeBatch(db);
         cambiosPorPedido.slice(i, i + 400).forEach(([id, cambios]) => batch.update(pedidoDocRef(id), cambios));
-        await batch.commit();
+        await confirmarLote(batch);
       }
     } catch (e) {
       console.error("Error al actualizar pedidos en lote:", e);
@@ -707,9 +720,26 @@ export const AppProvider = ({ children }) => {
   // la app por primera vez), lo crea con los valores default — ver el
   // comentario de users/{uid}/meta en firestore.rules: esa creación tiene
   // que poder pasar siempre.
+  // Códigos de error que indican un problema de conexión (no de permisos ni de datos).
+  const esErrorDeRed = (e) => ['unavailable', 'deadline-exceeded', 'cancelled'].includes(e?.code) || /offline/i.test(String(e?.message || ''));
+
   const cargarConfigDeFirestore = async (uid) => {
     const metaRef = doc(db, "users", uid, "meta", "config");
-    const metaSnap = await getDoc(metaRef);
+    let metaSnap;
+    try {
+      // Con una conexión mala getDoc puede quedarse esperando mucho: se le da un
+      // tiempo y, si no contesta, se usa la copia que este equipo guardó la última vez.
+      metaSnap = await Promise.race([
+        getDoc(metaRef),
+        new Promise((_, rechazar) => setTimeout(() => rechazar(Object.assign(new Error('La nube no contestó a tiempo'), { code: 'deadline-exceeded' })), 12000))
+      ]);
+    } catch (e) {
+      if (!esErrorDeRed(e)) throw e;
+      const copia = await getDocFromCache(metaRef).catch(() => null);
+      if (!copia?.exists()) throw e;
+      metaSnap = copia;
+      setUsandoCopiaLocal(true);
+    }
 
     if (metaSnap.exists()) {
       const meta = metaSnap.data();
@@ -754,6 +784,7 @@ export const AppProvider = ({ children }) => {
       // la nube recién, no una edición real del usuario — no hace falta
       // volver a guardar lo que ya está guardado.
       skipNextAutosaveRefMeta.current = true;
+      errorYaAvisadoRef.current = false;
       setLoadError(false);
       setLoadErrorDetalle('');
       setDatosCargadosOk(true);
@@ -785,20 +816,25 @@ export const AppProvider = ({ children }) => {
       // con ese estado vacío, borrando todo el historial real del usuario
       // por lo que puede ser un simple corte de red momentáneo.
       setLoadError(true);
-      showToast(
-        '⚠ No se pudieron cargar tus datos desde la nube. No seguimos para evitar sobrescribir tu información — probá reintentar.',
-        'error',
-        10000
-      );
+      // Sólo se avisa la primera vez: la app reintenta sola cada pocos segundos.
+      if (!errorYaAvisadoRef.current) {
+        errorYaAvisadoRef.current = true;
+        showToast(
+          '⚠ No se pudieron cargar tus datos desde la nube. No seguimos para evitar sobrescribir tu información — probá reintentar.',
+          'error',
+          10000
+        );
+      }
     }
   };
 
   // Permite reintentar la carga manualmente (botón "Reintentar" en la
   // pantalla de error) sin tener que recargar toda la página.
   const reintentarCargaDatos = async () => {
-    if (!cuentaId) return;
+    const usuario = auth.currentUser;
+    if (!usuario) return;
     setLoading(true);
-    await cargarDatosDeFirestore(cuentaId);
+    await iniciarCarga(usuario);
     setLoading(false);
   };
 
@@ -808,12 +844,21 @@ export const AppProvider = ({ children }) => {
   // "Usuarios con acceso"). El ID del doc es el email en minúsculas, así
   // que es un getDoc puntual, sin queries -- ver firestore.rules y
   // functions/http/gestionarMiembros.js para cómo se crea ese vínculo.
+  // La respuesta se recuerda en este equipo: si después no hay conexión, se sigue
+  // con la misma cuenta. Sin conexión y sin nada recordado no se adivina (una
+  // persona que trabaja en la cuenta de otra caería en la suya, vacía): se devuelve
+  // `incierto` y se muestra el error de carga, que reintenta solo.
+  const claveCuenta = (uid) => `m3d:cuenta:${uid}`;
+  const recordarCuenta = (uid, res) => {
+    try { window.localStorage.setItem(claveCuenta(uid), JSON.stringify(res)); } catch { /* sin almacenamiento */ }
+    return res;
+  };
   const resolverCuentaId = async (currentUser) => {
     if (!currentUser.email) return { idEfectivo: currentUser.uid, miembro: false };
     try {
       const invSnap = await getDoc(doc(db, 'invitacionesMiembro', currentUser.email.toLowerCase()));
       if (invSnap.exists() && invSnap.data().estado === 'activo') {
-        return { idEfectivo: invSnap.data().ownerUid, miembro: true };
+        return recordarCuenta(currentUser.uid, { idEfectivo: invSnap.data().ownerUid, miembro: true });
       }
       // Invitación todavía sin aceptar (ver gestionarMiembros.js): se le
       // pregunta a la persona antes de pasarla a la cuenta ajena. "Ahora
@@ -828,14 +873,51 @@ export const AppProvider = ({ children }) => {
         if (acepta) {
           const res = await httpsCallable(functions, 'responderInvitacion')({ aceptar: true });
           if (res.data?.estado === 'activo') {
-            return { idEfectivo: inv.ownerUid, miembro: true };
+            return recordarCuenta(currentUser.uid, { idEfectivo: inv.ownerUid, miembro: true });
           }
         }
       }
     } catch (e) {
       console.error('Error al resolver el vínculo de equipo:', e);
+      if (esErrorDeRed(e)) {
+        let recordada = null;
+        try { recordada = JSON.parse(window.localStorage.getItem(claveCuenta(currentUser.uid)) || 'null'); } catch { /* sin dato */ }
+        if (recordada?.idEfectivo) return recordada;
+        return { incierto: true };
+      }
     }
-    return { idEfectivo: currentUser.uid, miembro: false };
+    return recordarCuenta(currentUser.uid, { idEfectivo: currentUser.uid, miembro: false });
+  };
+
+  // Resuelve la cuenta con la que se trabaja y carga sus datos. Lo usan el ingreso
+  // y el reintento (manual o automático).
+  const iniciarCarga = async (currentUser) => {
+    if (cargandoRef.current) return;
+    cargandoRef.current = true;
+    try {
+      const { idEfectivo, miembro, incierto } = await resolverCuentaId(currentUser);
+      if (incierto) {
+        setLoadErrorDetalle('sin conexión con la nube (no se pudo comprobar a qué cuenta pertenecés)');
+        setLoadError(true);
+        return;
+      }
+      setCuentaId(idEfectivo);
+      setEsMiembro(miembro);
+      // Una vez por sesión, para que el admin/revendedor pueda ver "hace
+      // cuánto no entra" en su panel de consumo (ver
+      // registrarUltimoAcceso.js -- no puede ser un write directo acá
+      // porque suscripcion/actual tiene escritura cerrada para el
+      // cliente). No bloquea el login si falla.
+      if (!ultimoAccesoRegistradoRef.current) {
+        ultimoAccesoRegistradoRef.current = true;
+        httpsCallable(functions, 'registrarUltimoAcceso')().catch((e) => {
+          console.error('Error al registrar el último acceso:', e);
+        });
+      }
+      await cargarDatosDeFirestore(idEfectivo);
+    } finally {
+      cargandoRef.current = false;
+    }
   };
 
   // Completa el login por link mágico cuando el usuario vuelve del mail.
@@ -874,27 +956,68 @@ export const AppProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const { idEfectivo, miembro } = await resolverCuentaId(currentUser);
-        setCuentaId(idEfectivo);
-        setEsMiembro(miembro);
-        // Una vez por sesión, para que el admin/revendedor pueda ver "hace
-        // cuánto no entra" en su panel de consumo (ver
-        // registrarUltimoAcceso.js -- no puede ser un write directo acá
-        // porque suscripcion/actual tiene escritura cerrada para el
-        // cliente). No bloquea el login si falla.
-        httpsCallable(functions, 'registrarUltimoAcceso')().catch((e) => {
-          console.error('Error al registrar el último acceso:', e);
-        });
-        await cargarDatosDeFirestore(idEfectivo);
+        await iniciarCarga(currentUser);
       } else {
         setCuentaId(null);
         setEsMiembro(false);
+        ultimoAccesoRegistradoRef.current = false;
       }
       setLoading(false);
     });
 
     return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Estado de la conexión: eventos del navegador, escrituras que tardan en confirmarse
+  // y reintentos automáticos. Nada de esto toca los datos: sólo avisa y reintenta.
+  useEffect(() => {
+    const alVolver = () => setSinRed(false);
+    const alIrse = () => setSinRed(true);
+    window.addEventListener('online', alVolver);
+    window.addEventListener('offline', alIrse);
+    return () => {
+      window.removeEventListener('online', alVolver);
+      window.removeEventListener('offline', alIrse);
+    };
+  }, []);
+
+  useEffect(() => {
+    configurarEscrituraTolerante({
+      pendiente: () => { pendientesRef.current += 1; setCambiosPendientes(true); },
+      sincronizado: () => { pendientesRef.current = Math.max(0, pendientesRef.current - 1); setCambiosPendientes(pendientesRef.current > 0); },
+      errorTardio: () => {
+        pendientesRef.current = Math.max(0, pendientesRef.current - 1);
+        setCambiosPendientes(pendientesRef.current > 0);
+        mostrarErrorGuardado('⚠ Un cambio que había quedado pendiente no se pudo guardar en la nube, así que se descartó. Revisá lo último que cargaste.');
+      }
+    });
+  });
+
+  // Si la carga falló, reintenta sola cada 10 segundos (sin la pantalla de carga).
+  useEffect(() => {
+    if (!loadError) return undefined;
+    const t = setInterval(() => {
+      const usuario = auth.currentUser;
+      if (usuario) iniciarCarga(usuario);
+    }, 10000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadError]);
+
+  // Si se arrancó con la copia de este equipo, comprueba cada 15 segundos si la nube
+  // ya contesta; cuando contesta, vuelve al modo normal.
+  useEffect(() => {
+    if (!usandoCopiaLocal || !cuentaId) return undefined;
+    const t = setInterval(async () => {
+      try {
+        await getDocFromServer(doc(db, "users", cuentaId, "meta", "config"));
+        setUsandoCopiaLocal(false);
+        showToast('✓ Conexión con la nube recuperada.', 'success');
+      } catch { /* sigue sin conexión */ }
+    }, 15000);
+    return () => clearInterval(t);
+  }, [usandoCopiaLocal, cuentaId]);
 
   // Chequeo de permisos de administrador: escuchamos en tiempo real el doc
   // admins/{email} (ID = email en minúsculas). Si existe, el usuario es
@@ -908,7 +1031,7 @@ export const AppProvider = ({ children }) => {
       return;
     }
     const adminRef = doc(db, 'admins', user.email.toLowerCase());
-    const unsubscribeAdmin = onSnapshot(
+    const unsubscribeAdmin = escucharConReintento(
       adminRef,
       (snap) => setIsAdmin(snap.exists()),
       (err) => {
@@ -930,7 +1053,7 @@ export const AppProvider = ({ children }) => {
       return;
     }
     const subRef = doc(db, 'users', cuentaId, 'suscripcion', 'actual');
-    const unsubscribeSub = onSnapshot(
+    const unsubscribeSub = escucharConReintento(
       subRef,
       (snap) => setSuscripcion(snap.exists() ? snap.data() : null),
       (err) => {
@@ -951,7 +1074,7 @@ export const AppProvider = ({ children }) => {
       return;
     }
     const planRef = doc(db, 'planes', suscripcion.planId);
-    const unsubscribePlan = onSnapshot(
+    const unsubscribePlan = escucharConReintento(
       planRef,
       (snap) => setPlanContratado(snap.exists() ? { id: snap.id, ...snap.data() } : null),
       (err) => {
@@ -972,7 +1095,7 @@ export const AppProvider = ({ children }) => {
       return;
     }
     const contadorRef = doc(db, 'users', cuentaId, 'suscripcion', 'actual', 'contadores', suscripcion.cicloId);
-    const unsubscribeContador = onSnapshot(
+    const unsubscribeContador = escucharConReintento(
       contadorRef,
       (snap) => setConsumoActual(snap.exists() ? snap.data() : { pedidosCreados: 0, aperturasCatalogo: 0, montoFacturado: 0 }),
       (err) => {
@@ -993,7 +1116,7 @@ export const AppProvider = ({ children }) => {
       return;
     }
     const q = query(collection(db, 'invitacionesMiembro'), where('ownerUid', '==', cuentaId));
-    const unsubscribeMiembros = onSnapshot(
+    const unsubscribeMiembros = escucharConReintento(
       q,
       (snapshot) => setMiembros(snapshot.docs.map(d => ({ ...d.data(), _docId: d.id }))),
       (err) => {
@@ -1125,7 +1248,7 @@ export const AppProvider = ({ children }) => {
 
     const colRef = collection(db, "users", cuentaId, "compras");
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       colRef,
       (snapshot) => {
         setCompras(snapshot.docs.map(d => d.data()));
@@ -1145,7 +1268,7 @@ export const AppProvider = ({ children }) => {
 
     const colRef = collection(db, "users", cuentaId, "presupuestos");
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       colRef,
       (snapshot) => {
         setPresupuestos(snapshot.docs.map(d => d.data()));
@@ -1168,7 +1291,7 @@ export const AppProvider = ({ children }) => {
 
     const metaRef = doc(db, "users", cuentaId, "meta", "config");
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       metaRef,
       (snapshot) => {
         if (snapshot.metadata.hasPendingWrites) return;
@@ -1221,7 +1344,7 @@ export const AppProvider = ({ children }) => {
 
     const colRef = collection(db, "users", cuentaId, "clientes");
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       colRef,
       (snapshot) => {
         setClientes(snapshot.docs.map(d => d.data()));
@@ -1246,7 +1369,7 @@ export const AppProvider = ({ children }) => {
 
     const colRef = collection(db, "faq");
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       colRef,
       (snapshot) => {
         setFaq(snapshot.docs.map(d => d.data()));
@@ -1269,7 +1392,7 @@ export const AppProvider = ({ children }) => {
 
     const colRef = collection(db, "users", cuentaId, "biblioteca");
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       colRef,
       (snapshot) => {
         setBiblioteca(snapshot.docs.map(d => d.data()));
@@ -1291,7 +1414,7 @@ export const AppProvider = ({ children }) => {
 
     const colRef = collection(db, "users", cuentaId, "pedidos");
 
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       colRef,
       (snapshot) => {
         setPedidos(snapshot.docs.map(d => d.data()));
@@ -1350,7 +1473,7 @@ export const AppProvider = ({ children }) => {
     if (!cuentaId || !datosCargadosOk) return;
 
     const ref = doc(db, "catalogoTiendas", cuentaId);
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       ref,
       (snap) => {
         setCatalogoConfig(snap.exists() ? snap.data() : null);
@@ -1371,7 +1494,7 @@ export const AppProvider = ({ children }) => {
     if (!cuentaId || !datosCargadosOk) return;
 
     const colRef = query(collection(db, "catalogoTiendas", cuentaId, "solicitudes"), orderBy("creado", "desc"));
-    const unsubscribe = onSnapshot(
+    const unsubscribe = escucharConReintento(
       colRef,
       (snapshot) => {
         setSolicitudesWeb(snapshot.docs.map(d => ({ ...d.data(), _docId: d.id })));
@@ -1482,7 +1605,7 @@ export const AppProvider = ({ children }) => {
           for (let i = 0; i < operaciones.length; i += 400) {
             const batch = writeBatch(db);
             operaciones.slice(i, i + 400).forEach(op => op(batch));
-            await batch.commit();
+            await confirmarLote(batch);
           }
         };
 
@@ -1587,7 +1710,7 @@ export const AppProvider = ({ children }) => {
         }
       });
 
-      await batch.commit();
+      await confirmarLote(batch);
       showToast('✓ Catálogo publicado.');
       return true;
     } catch (e) {
@@ -1860,6 +1983,9 @@ export const AppProvider = ({ children }) => {
     loading,
     loadError,
     loadErrorDetalle,
+    sinRed,
+    usandoCopiaLocal,
+    cambiosPendientes,
     datosCargadosOk,
     reintentarCargaDatos,
     loginWithGoogle,

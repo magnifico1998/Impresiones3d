@@ -709,3 +709,10 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
     **pausado** para reanudarlo otro día. Nunca se le manda dos veces a la
     misma persona en un mismo envío.
   - Las respuestas van al mail del admin.
+
+## Conexión inestable
+
+- Al abrir, si la nube no contesta (12 s) o no hay red pero el equipo tiene la copia de la última vez, la app **abre con esos datos** y muestra un cartel; comprueba cada 15 s si la nube volvió. Si no hay copia, muestra la pantalla de error y **reintenta sola cada 10 s**.
+- Qué cuenta usa una persona (la suya o la de otra a la que fue invitada) se recuerda en el equipo; sin conexión y sin ese dato **no se adivina**: se muestra el error de carga en vez de abrir una cuenta vacía.
+- Las escrituras esperan hasta 6 s la confirmación de la nube; pasado ese tiempo se dan por guardadas en el equipo (cartel "cambios pendientes") y se sincronizan solas. Si la nube después las rechaza (regla o límite del plan), un aviso lo informa y el cambio se descarta.
+- Los listeners en tiempo real que fallan renuevan la sesión y vuelven a engancharse (hasta 5 intentos).

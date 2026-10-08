@@ -44,6 +44,9 @@ React 19 + Vite, sin router: la navegación es por estado.
 | `components/admin/`, `components/modals/` | Paneles y modales |
 | `components/Dialogos.jsx` | Confirmaciones y avisos propios (reemplazan a `alert`/`confirm`) |
 | `components/CapaModal.jsx` | Hook `useCapaModal` de los modales con formularios: un clic afuera no los cierra, Esc sí (con confirmación si hay cambios sin guardar). Los modales nuevos con formularios tienen que usarlo |
+| `utils/escrituraTolerante.js` | Escrituras de Firestore (`guardarDoc`, `actualizarDoc`, `borrarDoc`, `confirmarLote`) que esperan hasta 6 s la confirmación de la nube y, si no llega (conexión mala), dan el cambio por guardado en el equipo; el SDK lo sincroniza solo. Toda escritura de colecciones de la cuenta en AppContext pasa por acá |
+| `utils/escuchaResiliente.js` | `escucharConReintento`: onSnapshot que renueva la sesión y se reengancha solo (hasta 5 intentos) cuando falla. Los listeners de AppContext lo usan |
+| `components/AvisoConexion.jsx` | Cartel de conexión inestable (sin internet, datos del equipo, cambios pendientes) debajo del encabezado |
 | `utils/` | Cálculos (finanzas del pedido, precio neto, capacidad), PDFs (`presupuestoPDF.js`, `listadoPDF.js`), armado de piezas de pedido (`piezaPedido.js`), WhatsApp, paletas |
 | `SeccionFacturaPedido.jsx`, `modals/ModalFacturarPedido.jsx`, `TarjetaFacturacionCuenta.jsx`, `utils/facturacion.js` | Facturación de pedidos: bloque en el detalle del pedido, modal para emitir y configuración en "Mi emprendimiento" |
 | `TablaComprobantes.jsx`, `ComprobantesCuenta.jsx`, `SelectorRangoFechas.jsx`, `utils/exportarExcel.js` | Listado de comprobantes con filtros, rango de fechas y exportación a Excel; lo usan el panel admin y la pestaña "Facturación ARCA" de cada emprendimiento |
