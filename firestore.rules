@@ -674,5 +674,14 @@ service cloud.firestore {
                     (request.auth.token.email.lower() == email || esAdmin());
       allow write: if false;
     }
+
+    // ---- Aviso de actualización programada ----
+    // avisoSistema/actualizacion: cuándo se va a actualizar Manager3D, para mostrar un cartel
+    // a todos los que tengan la app abierta (ver AvisoActualizacion.jsx). Lo lee cualquier
+    // usuario con sesión; sólo un admin lo escribe, desde el panel de administración.
+    match /avisoSistema/{docId} {
+      allow read: if request.auth != null;
+      allow write: if esAdmin();
+    }
   }
 }

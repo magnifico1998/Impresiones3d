@@ -1,0 +1,119 @@
+# Pase programado a producción.
+#
+# Lee release/programado.json de la rama develop (ver scripts/pase-programado.mjs): si
+# toca (la hora ya llegó y está dentro de las 12 horas siguientes), prueba ESE commit y,
+# sólo si todo da bien, lo pasa a main. Vercel publica main solo, y la app avisa a quien la
+# tenga abierta que hay una versión nueva. Si algo falla, main no se toca y GitHub avisa por
+# mail del fallo.
+#
+# Pase del domingo 11/10/2026 a las 08:00 de Argentina = 11:00 UTC (GitHub programa en UTC y
+# puede demorar unos minutos). Para otro día, cambiar el cron y "desdeUtc" del archivo.
+# Mano a mano: Actions → "Pase programado a producción" → Run workflow → escribir PASAR.
+#
+# Los cron de GitHub sólo corren desde la rama por defecto (main): por eso este archivo
+# tiene que estar en main antes de la fecha.
+name: Pase programado a producción
+
+on:
+  schedule:
+    - cron: '0 11 11 10 *'
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: 'Escribí PASAR para ejecutar el pase ahora (usa lo que dice release/programado.json de develop)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pase-a-produccion
+  cancel-in-progress: false
+
+jobs:
+  pase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Bajar main y develop
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Leer el pase aprobado
+        id: pase
+        env:
+          EVENTO: ${{ github.event_name }}
+          FORZAR: ${{ github.event.inputs.forzar }}
+        run: |
+          git fetch origin develop
+          git show origin/develop:release/programado.json > "$RUNNER_TEMP/programado.json" || echo '{}' > "$RUNNER_TEMP/programado.json"
+          node scripts/pase-programado.mjs "$RUNNER_TEMP/programado.json"
+
+      - name: Comprobar que el commit se puede publicar
+        if: steps.pase.outputs.accion == 'pasar'
+        env:
+          SHA: ${{ steps.pase.outputs.sha }}
+        run: |
+          git cat-file -e "$SHA^{commit}" || { echo "El commit $SHA no existe en el repositorio."; exit 1; }
+          git merge-base --is-ancestor "$SHA" origin/develop || { echo "El commit $SHA no está en develop."; exit 1; }
+          git merge-base --is-ancestor origin/main "$SHA" || { echo "main tiene commits que $SHA no incluye: no se puede avanzar sin mezclar. Hay que traer main a develop y volver a aprobar el commit."; exit 1; }
+          if [ "$(git rev-parse origin/main)" = "$SHA" ]; then echo "main ya está en $SHA: no hay nada que pasar."; fi
+
+      - name: Pasar a esa versión
+        if: steps.pase.outputs.accion == 'pasar'
+        run: git checkout --detach "${{ steps.pase.outputs.sha }}"
+
+      - uses: actions/setup-node@v4
+        if: steps.pase.outputs.accion == 'pasar'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        if: steps.pase.outputs.accion == 'pasar'
+        run: npm ci
+
+      - name: Verificar el commit (lint, pruebas, build, versión y novedades)
+        if: steps.pase.outputs.accion == 'pasar'
+        run: npm run verificar-pase
+
+      - name: Publicar en main
+        if: steps.pase.outputs.accion == 'pasar'
+        env:
+          SHA: ${{ steps.pase.outputs.sha }}
+        run: |
+          git push origin "$SHA:refs/heads/main"
+          {
+            echo "### Pase a producción hecho"
+            echo "main quedó en \`$SHA\`. Vercel lo publica solo; la app avisa a quien la tenga abierta."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Marcar el pase como hecho en develop
+        if: steps.pase.outputs.accion == 'pasar'
+        continue-on-error: true
+        run: |
+          git fetch origin develop
+          git checkout -B develop origin/develop
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('release/programado.json', 'utf8'));
+            p.activo = false;
+            p.ejecutadoUtc = new Date().toISOString();
+            fs.writeFileSync('release/programado.json', JSON.stringify(p, null, 2) + '\n');
+          "
+          git config user.name 'pase-programado'
+          git config user.email 'pase-programado@users.noreply.github.com'
+          git add release/programado.json
+          git commit -m 'Pase programado ejecutado: se desactiva release/programado.json'
+          git push origin develop
+
+      - name: Resumen
+        if: always()
+        env:
+          ACCION: ${{ steps.pase.outputs.accion }}
+          MOTIVO: ${{ steps.pase.outputs.motivo }}
+        run: |
+          echo "Resultado del pase: $ACCION — $MOTIVO" >> "$GITHUB_STEP_SUMMARY"
