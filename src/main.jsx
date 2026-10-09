@@ -1,9 +1,11 @@
 import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import { instalarAvisoVersionNueva } from './utils/avisoVersionNueva'
+import { instalarAvisoVersionNueva, vigilarVersionNueva } from './utils/avisoVersionNueva'
 
 instalarAvisoVersionNueva()
+// El catálogo público no se interrumpe con avisos de versión: lo ve gente armando un pedido.
+if (!window.location.pathname.startsWith('/catalogo')) vigilarVersionNueva()
 
 // App instalable: el service worker (public/sw.js) sólo guarda la pantalla de la app para
 // que abra rápido y sin red; no toca los datos. Ver docs/arquitectura.md.
