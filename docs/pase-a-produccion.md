@@ -74,6 +74,8 @@ git push origin develop
 
 También se puede lanzar a mano: GitHub → Actions → "Pase programado a producción" → Run workflow → escribir `PASAR`.
 
+**Ensayo sin tocar producción (recomendado una vez, antes de la fecha):** con un pase aprobado (`activo: true`, aunque sea para dentro de unos días), Run workflow → `PASAR` y destino `ensayo-pase`. Recorre todo (permisos, verificación, publicación) pero deja el resultado en la rama `ensayo-pase`, no en `main`. Después se borra esa rama y se vuelve a aprobar el pase real.
+
 Requisitos del repositorio: Actions habilitado, y la rama `main` **sin** protección que obligue a pull requests
 (el workflow empuja directo con el permiso del repositorio).
 
