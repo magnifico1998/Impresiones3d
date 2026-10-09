@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { confirmar, pedirTexto } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
@@ -13,8 +13,12 @@ import { useCapaModal } from '../CapaModal';
 import { ajustarLogo, tamanoLogoPdfDe } from '../../utils/logoPdf';
 import CampoMoneda from '../CampoMoneda';
 
-export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct }) {
-  const capaModal = useCapaModal({ onClose, activo: isOpen });
+// deshacerAgregado: { pedidoId, antes } cuando se llega a este pedido recién después de
+// agregarle productos (desde la Biblioteca o la Calculadora): "antes" es el pedido tal
+// como estaba. Cerrar sin guardar (Cerrar, ✕, Esc) quita lo agregado; "Guardar cambios"
+// lo deja. onDeshacerResuelto avisa a quien lo guarda que ya no hace falta.
+export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct, deshacerAgregado, onDeshacerResuelto }) {
+  const capaModal = useCapaModal({ onClose: () => cerrarSinGuardar(), activo: isOpen });
   const {
     pedidos,
     updatePedido,
@@ -30,6 +34,23 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   } = useApp();
 
   const [draft, setDraft] = useState(null);
+
+  const aplicaDeshacer = !!deshacerAgregado && deshacerAgregado.pedidoId === pedidoId;
+  const cerrarSinGuardar = () => {
+    if (aplicaDeshacer) {
+      // Vuelve el pedido a como estaba antes de agregar los productos.
+      updatePedido(deshacerAgregado.antes.id, () => deshacerAgregado.antes);
+      showToast('Se quitaron los productos que acababas de agregar.', 'info');
+    }
+    onClose();
+  };
+  // Al cerrarse el modal (por Guardar o por cancelar) el aviso de "deshacer" ya no aplica.
+  const estabaAbiertoRef = useRef(false);
+  useEffect(() => {
+    if (estabaAbiertoRef.current && !isOpen) onDeshacerResuelto?.();
+    estabaAbiertoRef.current = isOpen;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Archivos G-code de la Biblioteca: si el producto de una pieza tiene, la
   // pieza muestra "🖨 Enviar" (sólo así: no se ofrece lo que no está disponible).
@@ -903,9 +924,15 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                 persistDraft() de recién (misma familia de race que el fix
                 de "Evita perder cambios sin guardar al usar Editar"). */}
             <button className="btn btn-sm" onClick={() => { persistDraft(); onClose(); onEditOrder(draft.id, draft); }}>Editar</button>
-            <button className="btn btn-ghost btn-sm" onClick={onClose}>✕</button>
+            <button className="btn btn-ghost btn-sm" onClick={cerrarSinGuardar}>✕</button>
           </div>
         </div>
+
+        {aplicaDeshacer && (
+          <div style={{ marginBottom: '14px', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', background: 'var(--accentDim)', border: '1px solid var(--accent)', color: 'var(--text)' }}>
+            Acabás de agregar productos a este pedido. <b>Guardar cambios</b> los deja; <b>Cerrar</b> los quita y el pedido vuelve a como estaba.
+          </div>
+        )}
 
         {/* Pieces checklist section */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -1484,7 +1511,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             Generar PDF
           </button>
           
-          <button className="btn" onClick={onClose}>Cerrar</button>
+          <button className="btn" onClick={cerrarSinGuardar}>Cerrar</button>
           
           <button className="btn btn-primary" onClick={handleSave}>Guardar cambios</button>
         </div>

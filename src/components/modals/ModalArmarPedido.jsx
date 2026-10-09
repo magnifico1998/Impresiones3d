@@ -6,7 +6,7 @@ import { piezaDesdeBiblioteca } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
 
-export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder }) {
+export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder, onAgregadoAPedido }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
   const {
     pedidos,
@@ -266,6 +266,9 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
       }
     } else {
       const targetId = parseInt(destino, 10);
+      // Se recuerda cómo estaba el pedido: si después, al verlo, se cierra sin guardar, se deshace.
+      const antes = pedidos.find(p => p.id === targetId);
+      if (antes) onAgregadoAPedido?.({ pedidoId: targetId, antes });
       updatePedido(targetId, (p) => ({
         ...p,
         piezas: [...p.piezas, ...nuevasPiezas],

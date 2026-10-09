@@ -10,7 +10,7 @@ import { useCapaModal } from '../CapaModal';
 // pieza soporta versiones (color/comentario) repartiendo la cantidad total
 // -- antes esto sólo se podía hacer armando el pedido desde Biblioteca, acá
 // se agrega la misma capacidad para la pieza que sale de la Calculadora.
-export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, defaultPedidoId, onConfirm }) {
+export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, defaultPedidoId, onConfirm, onAgregadoAPedido }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast, cfg, fmt } = useApp();
   const [nombre, setNombre] = useState('');
@@ -165,6 +165,8 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
       }
     } else {
       const targetPedidoId = parseInt(destino, 10);
+      const antes = pedidos.find(p => p.id === targetPedidoId);
+      if (antes) onAgregadoAPedido?.({ pedidoId: targetPedidoId, antes });
       updatePedido(targetPedidoId, (p) => {
         const piezas = [...p.piezas, nuevaPieza];
         const newPrecioVenta = piezas.reduce((s, x) => {

@@ -209,6 +209,9 @@ function App() {
 
   // Link selected products context targeting order
   const [pedidoObjetivoBib, setPedidoObjetivoBib] = useState(null);
+  // Pedido al que se le acaban de agregar productos y cómo estaba antes: si se lo cierra sin
+  // guardar, ModalPedidoDetalle lo deshace.
+  const [deshacerAgregado, setDeshacerAgregado] = useState(null);
 
   // Drawer de navegación en mobile (el sidebar de desktop se oculta con
   // CSS por debajo de 700px; este estado controla el hamburguesa/drawer
@@ -770,6 +773,8 @@ function App() {
         isOpen={modalPedidoDetalleOpen} 
         onClose={() => setModalPedidoDetalleOpen(false)} 
         pedidoId={modalPedidoDetalleId}
+        deshacerAgregado={deshacerAgregado}
+        onDeshacerResuelto={() => setDeshacerAgregado(null)}
         onEditOrder={(id, borrador) => {
           setModalPedidoDetalleOpen(false);
           setModalPedidoEditId(id);
@@ -794,6 +799,7 @@ function App() {
         }}
         presupuestoActual={window._currentPresupuesto || null}
         defaultPedidoId={modalAgregarPiezaPedidoId}
+        onAgregadoAPedido={setDeshacerAgregado}
         onConfirm={async (name, orderId) => {
           setCalcResetTick(t => t + 1);
           // Confirm window redirect workflow
@@ -803,6 +809,9 @@ function App() {
               setModalPedidoDetalleId(orderId);
               setModalPedidoDetalleOpen(true);
             }, 100);
+          } else {
+            // No se abre el pedido: ya no hay nada que deshacer al cerrarlo.
+            setDeshacerAgregado(null);
           }
         }}
       />
@@ -851,6 +860,7 @@ function App() {
         onClose={() => setModalArmarPedidoOpen(false)}
         selectedProdIds={modalArmarPedidoSelectedIds}
         fixedOrderId={pedidoObjetivoBib}
+        onAgregadoAPedido={setDeshacerAgregado}
         onClearSelection={(nextSet) => {
           setModalArmarPedidoSelectedIds(nextSet);
           if (nextSet.size === 0) {

@@ -715,3 +715,7 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
 - El botón "🖨 Enviar" de una pieza lista **todos** los archivos G-code de su producto (no sólo uno), cada uno con su botón Enviar.
 - Cada envío queda registrado en la pieza (`gcodeEnvios`: archivo, trabajo, fecha, impresora y tipo: imprimir, subir a la impresora, guardado en carpeta o abierto en el programa). Los archivos ya mandados se **marcan** con el estado (en cola, imprimiendo, enviado, guardado…) y la fecha, y el botón pasa a "Mandar de nuevo", que pide confirmación. Un envío que falló, venció o se canceló NO cuenta como enviado. El botón del pedido muestra "✓ n/total".
 - El estado en vivo sale del trabajo de impresión mientras exista; si se lo quitó de la lista de envíos, la marca queda como enviado.
+
+## Agregar productos a un pedido existente
+
+- Al agregar productos a un pedido que ya existe (desde la Biblioteca con "Agregar producto", o una pieza de la Calculadora), se guardan enseguida y se abre el detalle del pedido con un aviso. Ahí, **Guardar cambios** los deja; **Cerrar**, la ✕ o Esc los **quitan** y el pedido vuelve a como estaba antes de agregarlos (sólo lo último agregado). Si desde la Calculadora se elige "Seguir acá" en lugar de ver el pedido, ya no hay nada que deshacer.
