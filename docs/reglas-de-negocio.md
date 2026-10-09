@@ -717,3 +717,9 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
 - Qué cuenta usa una persona (la suya o la de otra a la que fue invitada) se recuerda en el equipo; sin conexión y sin ese dato **no se adivina**: se muestra el error de carga en vez de abrir una cuenta vacía.
 - Los listeners en tiempo real que fallan renuevan la sesión y vuelven a engancharse (hasta 5 intentos).
 - El cartel de conexión deficiente se limpia con la próxima escritura confirmada.
+
+## Envío de G-code desde un pedido
+
+- El botón "🖨 Enviar" de una pieza lista **todos** los archivos G-code de su producto (no sólo uno), cada uno con su botón Enviar.
+- Cada envío queda registrado en la pieza (`gcodeEnvios`: archivo, trabajo, fecha, impresora y tipo: imprimir, subir a la impresora, guardado en carpeta o abierto en el programa). Los archivos ya mandados se **marcan** con el estado (en cola, imprimiendo, enviado, guardado…) y la fecha, y el botón pasa a "Mandar de nuevo", que pide confirmación. Un envío que falló, venció o se canceló NO cuenta como enviado. El botón del pedido muestra "✓ n/total".
+- El estado en vivo sale del trabajo de impresión mientras exista; si se lo quitó de la lista de envíos, la marca queda como enviado.
