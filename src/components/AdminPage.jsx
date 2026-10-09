@@ -12,6 +12,7 @@ import SeccionFacturacion from './admin/SeccionFacturacion';
 import SeccionTickets from './admin/SeccionTickets';
 import SeccionBoletin from './admin/SeccionBoletin';
 import SeccionMonotributo from './admin/SeccionMonotributo';
+import SeccionAvisoActualizacion from './admin/SeccionAvisoActualizacion';
 import { useTicketsPendientes } from './soporte/AvisosTicketsAdmin';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { cupoGcode, formatoBytes } from '../utils/archivosGcode';
@@ -1711,6 +1712,8 @@ export default function AdminPage({ modoRevendedor = false }) {
       {!modoRevendedor && pestana === 'arca' && <SeccionFacturacion showToast={showToast} />}
 
       {!modoRevendedor && pestana === 'tickets' && <SeccionTickets showToast={showToast} />}
+
+      {!modoRevendedor && pestana === 'negocio' && <SeccionAvisoActualizacion showToast={showToast} />}
 
       {!modoRevendedor && pestana === 'negocio' && <SeccionBoletin showToast={showToast} />}
 

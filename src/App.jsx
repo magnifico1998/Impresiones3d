@@ -4,6 +4,7 @@ import { useApp } from './context/AppContext';
 
 // Layout and views
 import Header from './components/Header';
+import AvisoActualizacion from './components/AvisoActualizacion';
 import Sidebar from './components/Sidebar';
 import ResumenPage from './components/ResumenPage';
 import PedidosPage from './components/PedidosPage';
@@ -709,6 +710,7 @@ function App() {
   return (
     <>
       <Header onToggleMenu={() => setMobileMenuOpen(o => !o)} />
+      <AvisoActualizacion />
       <div className="layout">
         <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
         <main className="main">
