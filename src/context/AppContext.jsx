@@ -146,6 +146,11 @@ const camposCambiados = (antes, despues) => {
 
 const hayCambios = (cambios) => Object.keys(cambios).length > 0;
 
+// Después de que la nube CONFIRMA una escritura (utils/escrituraConfirmada.js) se aplica en
+// el acto a la lista que se ve en pantalla, sin esperar el aviso del listener (que llega
+// uno o dos segundos después según la conexión). El listener vuelve a traer lo mismo.
+const upsertPorId = (lista, item) => (lista.some((x) => x.id === item.id) ? lista.map((x) => (x.id === item.id ? item : x)) : [...lista, item]);
+
 export const AppProvider = ({ children }) => {
   const [pedidos, setPedidos] = useState([]);
   const [compras, setCompras] = useState([]);
@@ -299,6 +304,7 @@ export const AppProvider = ({ children }) => {
   const addCompra = async (item) => {
     try {
       await guardarDoc(compraDocRef(item.id), item);
+      setCompras(prev => upsertPorId(prev, item));
     } catch (e) {
       console.error("Error al guardar compra:", e);
       mostrarErrorGuardado('⚠ No se pudo guardar la compra en la nube.', e);
@@ -311,7 +317,10 @@ export const AppProvider = ({ children }) => {
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await actualizarDoc(compraDocRef(id), cambios);
+      if (hayCambios(cambios)) {
+        await actualizarDoc(compraDocRef(id), cambios);
+        setCompras(prev => prev.map(x => (x.id === id ? nuevo : x)));
+      }
     } catch (e) {
       console.error("Error al actualizar compra:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar la compra en la nube.', e);
@@ -321,6 +330,7 @@ export const AppProvider = ({ children }) => {
   const removeCompra = async (id) => {
     try {
       await borrarDoc(compraDocRef(id));
+      setCompras(prev => prev.filter(x => x.id !== id));
     } catch (e) {
       console.error("Error al eliminar compra:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar la compra en la nube.', e);
@@ -344,6 +354,7 @@ export const AppProvider = ({ children }) => {
   const addPresupuesto = async (item) => {
     try {
       await guardarDoc(presupuestoDocRef(item.id), item);
+      setPresupuestos(prev => upsertPorId(prev, item));
       return true;
     } catch (e) {
       console.error("Error al guardar presupuesto:", e);
@@ -358,7 +369,10 @@ export const AppProvider = ({ children }) => {
       if (!actual) return false;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await actualizarDoc(presupuestoDocRef(id), cambios);
+      if (hayCambios(cambios)) {
+        await actualizarDoc(presupuestoDocRef(id), cambios);
+        setPresupuestos(prev => prev.map(x => (x.id === id ? nuevo : x)));
+      }
       return true;
     } catch (e) {
       console.error("Error al actualizar presupuesto:", e);
@@ -370,6 +384,7 @@ export const AppProvider = ({ children }) => {
   const removePresupuesto = async (id) => {
     try {
       await borrarDoc(presupuestoDocRef(id));
+      setPresupuestos(prev => prev.filter(x => x.id !== id));
     } catch (e) {
       console.error("Error al eliminar presupuesto:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar el presupuesto en la nube.', e);
@@ -398,6 +413,7 @@ export const AppProvider = ({ children }) => {
   const addCliente = async (item) => {
     try {
       await guardarDoc(clienteDocRef(item.id), item);
+      setClientes(prev => upsertPorId(prev, item));
     } catch (e) {
       console.error("Error al guardar cliente:", e);
       mostrarErrorGuardado('⚠ No se pudo guardar el cliente en la nube.', e);
@@ -410,7 +426,10 @@ export const AppProvider = ({ children }) => {
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await actualizarDoc(clienteDocRef(id), cambios);
+      if (hayCambios(cambios)) {
+        await actualizarDoc(clienteDocRef(id), cambios);
+        setClientes(prev => prev.map(x => (x.id === id ? nuevo : x)));
+      }
     } catch (e) {
       console.error("Error al actualizar cliente:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar el cliente en la nube.', e);
@@ -420,6 +439,7 @@ export const AppProvider = ({ children }) => {
   const removeCliente = async (id) => {
     try {
       await borrarDoc(clienteDocRef(id));
+      setClientes(prev => prev.filter(x => x.id !== id));
     } catch (e) {
       console.error("Error al eliminar cliente:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar el cliente en la nube.', e);
@@ -447,6 +467,7 @@ export const AppProvider = ({ children }) => {
   const addProducto = async (item) => {
     try {
       await guardarDoc(productoDocRef(item.id), item);
+      setBiblioteca(prev => upsertPorId(prev, item));
     } catch (e) {
       console.error("Error al guardar producto:", e);
       mostrarErrorGuardado('⚠ No se pudo guardar el producto en la nube.', e);
@@ -473,6 +494,7 @@ export const AppProvider = ({ children }) => {
       } else {
         await actualizarDoc(productoDocRef(id), cambios);
       }
+      setBiblioteca(prev => prev.map(x => (x.id === id ? nuevo : x)));
     } catch (e) {
       console.error("Error al actualizar producto:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar el producto en la nube.', e);
@@ -498,6 +520,7 @@ export const AppProvider = ({ children }) => {
       batch.delete(productoDocRef(id));
       batch.delete(catalogoProductoDocRef(id));
       await batch.commit();
+      setBiblioteca(prev => prev.filter(x => x.id !== id));
     } catch (e) {
       console.error("Error al eliminar producto:", e);
       mostrarErrorGuardado('⚠ No se pudo eliminar el producto en la nube.', e);
@@ -636,6 +659,7 @@ export const AppProvider = ({ children }) => {
     }
     try {
       await guardarDoc(pedidoDocRef(item.id), item);
+      setPedidos(prev => upsertPorId(prev, item));
       return true;
     } catch (e) {
       console.error("Error al guardar pedido:", e);
@@ -650,7 +674,10 @@ export const AppProvider = ({ children }) => {
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
       const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await actualizarDoc(pedidoDocRef(id), cambios);
+      if (hayCambios(cambios)) {
+        await actualizarDoc(pedidoDocRef(id), cambios);
+        setPedidos(prev => prev.map(x => (x.id === id ? nuevo : x)));
+      }
     } catch (e) {
       console.error("Error al actualizar pedido:", e);
       mostrarErrorGuardado('⚠ No se pudo actualizar el pedido en la nube.', e);
