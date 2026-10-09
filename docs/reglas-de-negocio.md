@@ -710,14 +710,6 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
     misma persona en un mismo envío.
   - Las respuestas van al mail del admin.
 
-## Conexión inestable
-
-- **Guardar siempre se confirma.** Toda escritura (pedidos, clientes, compras, biblioteca, presupuestos, configuración…) se da por hecha **sólo cuando la nube la confirma**; no hay cola local que la aplique después. Si no hay conexión o la nube no contesta en 20 s, el guardado **falla en ese momento** con un aviso (y no se muestra nada como guardado). Con el aviso queda dicho que, si el corte llegó justo al enviar, conviene revisar antes de repetirlo.
-- **Leer:** al abrir, si la nube no contesta (12 s) o no hay red pero el equipo tiene la copia de la última vez, la app abre **para mirar** con esos datos, con un cartel de que pueden no estar al día y que no se guarda nada hasta recuperar la conexión; comprueba cada 15 s si la nube volvió. Si no hay copia, muestra la pantalla de error y **reintenta sola cada 10 s**. Durante la carga, si tarda más de 6 s, avisa que la conexión es lenta o que no hay red.
-- Qué cuenta usa una persona (la suya o la de otra a la que fue invitada) se recuerda en el equipo; sin conexión y sin ese dato **no se adivina**: se muestra el error de carga en vez de abrir una cuenta vacía.
-- Los listeners en tiempo real que fallan renuevan la sesión y vuelven a engancharse (hasta 5 intentos).
-- El cartel de conexión deficiente se limpia con la próxima escritura confirmada.
-
 ## Envío de G-code desde un pedido
 
 - El botón "🖨 Enviar" de una pieza lista **todos** los archivos G-code de su producto (no sólo uno), cada uno con su botón Enviar.

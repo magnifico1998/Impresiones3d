@@ -4,8 +4,6 @@ import { useApp } from './context/AppContext';
 
 // Layout and views
 import Header from './components/Header';
-import AvisoConexion from './components/AvisoConexion';
-import AvisoCargaLenta from './components/AvisoCargaLenta';
 import Sidebar from './components/Sidebar';
 import ResumenPage from './components/ResumenPage';
 import PedidosPage from './components/PedidosPage';
@@ -237,7 +235,6 @@ function App() {
           borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }}></div>
-        <AvisoCargaLenta />
         <style dangerouslySetInnerHTML={{__html: `
           @keyframes spin {
             to { transform: rotate(360deg); }
@@ -504,7 +501,7 @@ function App() {
             No pudimos cargar tus datos
           </h1>
           <p style={{ fontFamily: 'var(--sans)', fontSize: '13px', color: 'var(--text2)', maxWidth: '360px', lineHeight: 1.5 }}>
-            No se pudo conectar con la nube para traer tu información. Por seguridad, no dejamos continuar para evitar sobrescribir tus datos guardados. Revisá tu conexión a internet: la app reintenta sola cada pocos segundos, o podés tocar Reintentar.
+            No se pudo conectar con la nube para traer tu información. Por seguridad, no dejamos continuar para evitar sobrescribir tus datos guardados. Revisá tu conexión a internet y volvé a intentar.
           </p>
           {loadErrorDetalle && (
             <p style={{ fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--text3)', maxWidth: '360px', marginTop: '10px', wordBreak: 'break-word' }}>
@@ -709,7 +706,6 @@ function App() {
   return (
     <>
       <Header onToggleMenu={() => setMobileMenuOpen(o => !o)} />
-      <AvisoConexion />
       <div className="layout">
         <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
         <main className="main">
