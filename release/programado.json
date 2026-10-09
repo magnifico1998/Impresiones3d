@@ -1,0 +1,7 @@
+{
+  "activo": false,
+  "sha": "",
+  "desdeUtc": "2026-10-11T11:00:00Z",
+  "version": "",
+  "descripcion": "Pase del domingo 11/10/2026 08:00 hs (Argentina). Se completa con: npm run programar-pase -- --sha HEAD --desde 2026-10-11T11:00:00Z"
+}

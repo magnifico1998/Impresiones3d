@@ -63,6 +63,10 @@ estético ni lo correctivo, ni lo que sólo afecta al panel de administración.
 Es lo que muestra el aviso "Novedades" al entrar. Los arreglos (mismo mayor)
 no llevan entrada.
 
+## Pase a producción
+
+El recorrido completo está en `docs/pase-a-produccion.md` y la lista de pruebas en `docs/pruebas-de-humo.md`. Antes de pasar `develop` a `main`: `npm run verificar-pase -- --con-reglas` (lint, pruebas automáticas de `pruebas/`, build, versión, novedades y reglas). Al agregar una función con lógica de negocio, sumale pruebas en `pruebas/*.test.js` (`npm test`). El pase puede programarse con `npm run programar-pase` (GitHub Actions, ver ese documento).
+
 ## Cómo trabaja el usuario
 
 - Escribile en español rioplatense.
