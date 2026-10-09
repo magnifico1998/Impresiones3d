@@ -8,7 +8,9 @@
 #
 # Pase del domingo 11/10/2026 a las 08:00 de Argentina = 11:00 UTC (GitHub programa en UTC y
 # puede demorar unos minutos). Para otro día, cambiar el cron y "desdeUtc" del archivo.
-# Mano a mano: Actions → "Pase programado a producción" → Run workflow → escribir PASAR.
+# A mano: Actions → "Pase programado a producción" → Run workflow → escribir PASAR.
+# ENSAYO sin tocar producción: mismo botón, PASAR y destino "ensayo-pase": prueba todo el recorrido
+# (permisos, verificación, publicación) pero deja el resultado en la rama ensayo-pase, no en main.
 #
 # Los cron de GitHub sólo corren desde la rama por defecto (main): por eso este archivo
 # tiene que estar en main antes de la fecha.
@@ -23,6 +25,10 @@ on:
         description: 'Escribí PASAR para ejecutar el pase ahora (usa lo que dice release/programado.json de develop)'
         required: false
         default: ''
+      destino:
+        description: 'Rama donde se publica. Por defecto main (producción). Para un ensayo: ensayo-pase'
+        required: false
+        default: 'main'
 
 permissions:
   contents: write
@@ -35,6 +41,8 @@ jobs:
   pase:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      DESTINO: ${{ github.event.inputs.destino || 'main' }}
     steps:
       - name: Bajar main y develop
         uses: actions/checkout@v4
@@ -64,7 +72,9 @@ jobs:
 
       - name: Pasar a esa versión
         if: steps.pase.outputs.accion == 'pasar'
-        run: git checkout --detach "${{ steps.pase.outputs.sha }}"
+        env:
+          SHA: ${{ steps.pase.outputs.sha }}
+        run: git checkout --detach "$SHA"
 
       - uses: actions/setup-node@v4
         if: steps.pase.outputs.accion == 'pasar'
@@ -80,19 +90,27 @@ jobs:
         if: steps.pase.outputs.accion == 'pasar'
         run: npm run verificar-pase
 
-      - name: Publicar en main
+      - name: Publicar
         if: steps.pase.outputs.accion == 'pasar'
         env:
           SHA: ${{ steps.pase.outputs.sha }}
         run: |
-          git push origin "$SHA:refs/heads/main"
-          {
-            echo "### Pase a producción hecho"
-            echo "main quedó en \`$SHA\`. Vercel lo publica solo; la app avisa a quien la tenga abierta."
-          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$DESTINO" = main ]; then
+            git push origin "$SHA:refs/heads/main"
+            {
+              echo "### Pase a producción hecho"
+              echo "main quedó en \`$SHA\`. Vercel lo publica solo; la app avisa a quien la tenga abierta."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            git push --force origin "$SHA:refs/heads/$DESTINO"
+            {
+              echo "### Ensayo hecho (no se tocó producción)"
+              echo "La rama \`$DESTINO\` quedó en \`$SHA\`. Se puede borrar."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Marcar el pase como hecho en develop
-        if: steps.pase.outputs.accion == 'pasar'
+        if: steps.pase.outputs.accion == 'pasar' && env.DESTINO == 'main'
         continue-on-error: true
         run: |
           git fetch origin develop
@@ -116,4 +134,4 @@ jobs:
           ACCION: ${{ steps.pase.outputs.accion }}
           MOTIVO: ${{ steps.pase.outputs.motivo }}
         run: |
-          echo "Resultado del pase: $ACCION — $MOTIVO" >> "$GITHUB_STEP_SUMMARY"
+          echo "Resultado del pase ($DESTINO): $ACCION — $MOTIVO" >> "$GITHUB_STEP_SUMMARY"
