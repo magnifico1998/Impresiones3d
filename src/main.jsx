@@ -5,6 +5,14 @@ import { instalarAvisoVersionNueva } from './utils/avisoVersionNueva'
 
 instalarAvisoVersionNueva()
 
+// App instalable: el service worker (public/sw.js) sólo guarda la pantalla de la app para
+// que abra rápido y sin red; no toca los datos. Ver docs/arquitectura.md.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((e) => console.warn('No se pudo registrar el service worker:', e));
+  });
+}
+
 // El catálogo público (/catalogo/{uid}) lo abre gente sin cuenta desde un
 // link de WhatsApp, así que se monta AFUERA de AppProvider/App: App.jsx
 // exige login de Google antes de renderizar cualquier página, y acá

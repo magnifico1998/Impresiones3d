@@ -2,12 +2,14 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 import { version } from '../../package.json';
 import { ES_PRUEBA } from '../entornoFirebase';
+import useInstalarApp from '../hooks/useInstalarApp';
 
 // Versión visible: mayor.menor de package.json (ver "Versión" en CLAUDE.md).
 const VERSION = version.split('.').slice(0, 2).join('.');
 
 export default function Header({ onToggleMenu }) {
   const { user, logout, empresa, syncError } = useApp();
+  const { puedeInstalar, instalar } = useInstalarApp();
 
   return (
     <header className="header">
@@ -38,6 +40,9 @@ export default function Header({ onToggleMenu }) {
       >
         v{VERSION}
       </button>
+      {puedeInstalar && (
+        <button type="button" className="btn btn-sm" onClick={instalar} title="Instalá Manager3D como app con acceso directo en tu equipo" style={{ marginLeft: '10px' }}>⬇ Instalar app</button>
+      )}
       {ES_PRUEBA && (
         <span title="Estás en el entorno de prueba: los datos no son los reales" style={{ marginLeft: '10px', padding: '2px 8px', borderRadius: '10px', background: 'var(--amber, #d97706)', color: '#fff', fontSize: '11px', fontWeight: 700, letterSpacing: '.5px' }}>PRUEBA</span>
       )}
