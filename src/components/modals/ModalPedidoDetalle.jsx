@@ -147,6 +147,15 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     }
   };
 
+  // Un G-code de una pieza se mandó a la impresora: queda marcado en la pieza (para no
+  // repetirlo por error, ver utils/enviosPieza.js). Se guarda enseguida en el pedido y
+  // también en el borrador, así un 'Guardar' posterior no lo pisa.
+  const marcarEnvio = (piezaId, marca) => {
+    const conMarca = (pz) => (pz.id === piezaId ? { ...pz, gcodeEnvios: [...(pz.gcodeEnvios || []), marca] } : pz);
+    setDraft(prev => ({ ...prev, piezas: prev.piezas.map(conMarca) }));
+    updatePedido(draft.id, (p) => ({ ...p, piezas: (p.piezas || []).map(conMarca) }));
+  };
+
   const handleFieldChange = (field, val) => {
     setDraft(prev => ({ ...prev, [field]: val }));
   };
@@ -946,6 +955,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                 // Producto de la Biblioteca y sus archivos listos para mandar a una impresora.
                 const productoPz = productoDePieza(pz, biblioteca);
                 const archivosPz = productoPz ? archivosListosDe(productoPz.id, fichasGcode) : [];
+                const enviadosPz = archivosPz.filter(a => (pz.gcodeEnvios || []).some(m => m.archivoId === a.id)).length;
                 const precioVentaUnit = pz.precioVenta !== undefined ? pz.precioVenta : (pz.precioEstimado || 0);
                 const ventaSubtotal = precioVentaUnit * pz.cantidad;
 
@@ -1004,7 +1014,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                             title={`Mandar ${archivosPz.length === 1 ? 'el archivo G-code' : 'un archivo G-code'} de este producto a una impresora`}
                             onClick={() => setPiezaEnvio({ pieza: pz, producto: productoPz, archivos: archivosPz })}
                           >
-                            🖨 Enviar
+                            🖨 Enviar{enviadosPz > 0 ? ` · ✓ ${enviadosPz}/${archivosPz.length}` : ''}
                           </button>
                         )}
                         <button className="btn btn-danger btn-sm" onClick={() => handleDeletePart(pz.id)}>✕</button>
@@ -1483,10 +1493,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
       {/* Mandar el G-code de una pieza a la impresora (sólo si su producto tiene archivos). */}
       {piezaEnvio && (
         <ModalEnviarPieza
-          pieza={piezaEnvio.pieza}
+          pieza={draft.piezas.find(p => p.id === piezaEnvio.pieza.id) || piezaEnvio.pieza}
           producto={piezaEnvio.producto}
           archivos={piezaEnvio.archivos}
           soloLectura={soloLecturaEnvio}
+          onEnviado={(marca) => marcarEnvio(piezaEnvio.pieza.id, marca)}
           onClose={() => setPiezaEnvio(null)}
         />
       )}

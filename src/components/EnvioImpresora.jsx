@@ -14,7 +14,7 @@ const clave = (d) => `${d.conector.id}|${d.impresora.id}`;
 // Panel para elegir archivo, impresora y qué hacer (subir o imprimir).
 //   archivos: fichas del producto en estado 'listo'.
 //   archivoInicialId: archivo que arranca elegido (si no, el primero).
-//   alTerminar: se llama al mandar o al cancelar.
+//   alTerminar(enviado, info): se llama al mandar (true, { trabajoId, impresora, accion }) o al cancelar (false).
 export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
   const { cuentaId, user, showToast } = useApp();
   const [conectores, setConectores] = useState([]);
@@ -59,9 +59,10 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
     }
     setEnviando(true);
     try {
-      await mandarAImpresora({ cuentaId, uid: user?.uid || null, archivo, conector: elegido.conector, impresora: elegido.impresora, accion });
+      const trabajo = await mandarAImpresora({ cuentaId, uid: user?.uid || null, archivo, conector: elegido.conector, impresora: elegido.impresora, accion });
       showToast(`Trabajo en cola para ${elegido.impresora.nombre}.`, 'info');
-      alTerminar?.(true);
+      // Segundo parámetro: qué se mandó (el detalle del pedido lo marca como enviado).
+      alTerminar?.(true, { trabajoId: trabajo.id, impresora: elegido.impresora, accion });
     } catch (err) {
       console.error('No se pudo mandar el trabajo a la impresora:', err);
       showToast('No se pudo poner el trabajo en la cola.', 'error');
