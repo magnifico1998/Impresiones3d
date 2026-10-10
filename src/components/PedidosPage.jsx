@@ -13,6 +13,7 @@ import { inventarioResuelto, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido
 import ModalConsumoPedido from './modals/ModalConsumoPedido';
 import { ESTADOS_PEDIDO, textoEstadoPedido } from '../utils/estadosPedido';
 import { formatoNumero } from '../utils/numeros';
+import { esUnible, pedidosAbiertosDelCliente } from '../utils/unirPedidos';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
   const { pedidos, clientes, cfg, updatePedido, showToast, fmt, cuentaId, planContratado } = useApp();
@@ -297,6 +298,14 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {p.cliente}
+              {esUnible(p) && pedidosAbiertosDelCliente(pedidos, p.cliente, p.id).length > 0 && (
+                <span
+                  title={`Este cliente tiene ${pedidosAbiertosDelCliente(pedidos, p.cliente, p.id).length} pedido(s) abierto(s) más. Se pueden unir desde el detalle del pedido ("Unir pedidos").`}
+                  style={{ marginLeft: '8px', fontSize: '10px', fontWeight: 600, color: 'var(--warn)' }}
+                >
+                  ⚠ +{pedidosAbiertosDelCliente(pedidos, p.cliente, p.id).length} abierto{pedidosAbiertosDelCliente(pedidos, p.cliente, p.id).length === 1 ? '' : 's'}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {p.desc || 'Sin descripción'}

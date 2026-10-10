@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { datosConsumoPieza } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
+import { confirmarPedidoNuevoDeCliente } from '../../utils/unirPedidos';
 
 // Igual que ModalArmarPedido.jsx (el que arma pedidos desde Biblioteca):
 // el pedido destino puede ser uno existente o "+ Crear pedido nuevo", y la
@@ -121,6 +122,8 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
 
     if (destino === 'nuevo') {
       const clienteTrim = cliente.trim();
+      // Si el cliente ya tiene un pedido abierto se avisa (se puede elegir sumarlo a ese en "Pedido destino", o unirlos después).
+      if (!(await confirmarPedidoNuevoDeCliente({ pedidos, cliente: clienteTrim, confirmar, fmt }))) return;
       const newIdVal = getNewId();
       const nuevo = {
         id: newIdVal,

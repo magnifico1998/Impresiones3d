@@ -5,6 +5,7 @@ import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { piezaDesdeBiblioteca } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
+import { confirmarPedidoNuevoDeCliente } from '../../utils/unirPedidos';
 
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder, onAgregadoAPedido }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
@@ -222,6 +223,8 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
       const clienteTrim = cliente.trim();
       const cName = clienteTrim || 'Sin nombre';
       const orderDesc = desc.trim();
+      // Si el cliente ya tiene un pedido abierto se avisa (se puede elegir sumarlo a ese en "Pedido destino", o unirlos después).
+      if (clienteTrim && !(await confirmarPedidoNuevoDeCliente({ pedidos, cliente: cName, confirmar, fmt }))) return;
       const newIdVal = getNewId();
 
       const nuevo = {

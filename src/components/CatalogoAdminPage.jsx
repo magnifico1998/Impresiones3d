@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { paletas, paletasList } from '../utils/paletas';
 import { LOGO_MAX_ENCABEZADO_FIJO, MAX_CARACTERES_LINEA, MAX_LINEAS_ESLOGAN, TAMANOS_ESLOGAN, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, recortarBorradorEslogan, tamanoLogoDe } from '../utils/catalogoMarca';
+import { confirmar } from './Dialogos';
+import { clienteDeSolicitud, confirmarPedidoNuevoDeCliente } from '../utils/unirPedidos';
 
 // Los mismos 5 roles editables que "Paleta personalizada" en Configuración
 // (ver ConfiguracionPage.jsx), pero acá para el catálogo web público -- se
@@ -25,6 +27,7 @@ export default function CatalogoAdminPage() {
     importarSolicitudComoPedido,
     descartarSolicitud,
     pedidos,
+    clientes,
     showToast,
     fmt,
     planContratado,
@@ -189,6 +192,8 @@ export default function CatalogoAdminPage() {
   const activePedidos = pedidos.filter(p => p.estado !== 'cancelado' && p.estado !== 'completado');
 
   const handleImportar = async (solicitud, destino) => {
+    // Pedido nuevo para alguien que ya tiene uno abierto: se avisa. Para sumarlo al existente se elige en "Agregar a un pedido"; si no, se pueden unir después.
+    if (destino === 'nuevo' && !(await confirmarPedidoNuevoDeCliente({ pedidos, cliente: clienteDeSolicitud(clientes, solicitud), confirmar, fmt }))) return;
     setImportandoId(solicitud._docId);
     await importarSolicitudComoPedido(solicitud, destino);
     setImportandoId(null);

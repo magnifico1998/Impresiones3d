@@ -13,6 +13,8 @@ import { archivosListosDe, escucharArchivosGcode, productoDePieza } from '../../
 import { useCapaModal } from '../CapaModal';
 import { ajustarLogo, tamanoLogoPdfDe } from '../../utils/logoPdf';
 import CampoMoneda from '../CampoMoneda';
+import ModalUnirPedido from './ModalUnirPedido';
+import { esUnible } from '../../utils/unirPedidos';
 
 // deshacerAgregado: { pedidoId, antes } cuando se llega a este pedido recién después de
 // agregarle productos (desde la Biblioteca o la Calculadora): "antes" es el pedido tal
@@ -65,6 +67,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   // pieza muestra "🖨 Enviar" (sólo así: no se ofrece lo que no está disponible).
   const [fichasGcode, setFichasGcode] = useState([]);
   const [piezaEnvio, setPiezaEnvio] = useState(null); // { pieza, producto, archivos }
+  const [unirAbierto, setUnirAbierto] = useState(false); // unir otro pedido abierto en este
   const [productoNotas, setProductoNotas] = useState(null); // producto de la Biblioteca cuyas notas se están viendo
   useEffect(() => (isOpen && cuentaId ? escucharArchivosGcode(cuentaId, setFichasGcode) : undefined), [isOpen, cuentaId]);
   const soloLecturaEnvio = ['lectura', 'suspendida'].includes(suscripcion?.estado) && !isAdmin;
@@ -934,6 +937,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                 persistDraft() de recién (misma familia de race que el fix
                 de "Evita perder cambios sin guardar al usar Editar"). */}
             <button className="btn btn-sm" onClick={() => { persistDraft(); onClose(); onEditOrder(draft.id, draft); }}>Editar</button>
+            {esUnible(draft) && !soloLecturaEnvio && (
+              <button className="btn btn-sm" title="Sumar a este pedido otro pedido abierto (por ejemplo, del mismo cliente)" onClick={() => { persistDraft(); setUnirAbierto(true); }}>Unir pedidos</button>
+            )}
             <button className="btn btn-ghost btn-sm" onClick={cerrarSinGuardar}>✕</button>
           </div>
         </div>
@@ -1531,6 +1537,15 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           <button className="btn btn-primary" onClick={handleSave}>Guardar cambios</button>
         </div>
       </div>
+
+      {/* Unir otro pedido abierto en este. */}
+      {unirAbierto && (
+        <ModalUnirPedido
+          pedido={pedidos.find(p => p.id === draft.id) || draft}
+          onClose={() => setUnirAbierto(false)}
+          onUnido={() => { setUnirAbierto(false); onClose(); }}
+        />
+      )}
 
       {/* Notas internas del producto de una pieza (sólo si tiene). */}
       {productoNotas && <ModalNotasProducto producto={productoNotas} onClose={() => setProductoNotas(null)} />}
