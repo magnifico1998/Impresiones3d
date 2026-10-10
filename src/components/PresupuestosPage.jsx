@@ -6,6 +6,8 @@ import { generarPdfPresupuesto } from '../utils/presupuestoPDF';
 import { piezaDesdeBiblioteca, piezaDesdeCalculadora, piezaLibre } from '../utils/piezaPedido';
 import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../utils/estadosPresupuesto';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
+import { doc, getDocFromServer } from 'firebase/firestore';
+import { db } from '../firebase';
 
 // Presupuestos guardados (users/{uid}/presupuestos), separados de los
 // pedidos: un presupuesto todavía no es una venta. Ciclo:
@@ -27,6 +29,7 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
     presupuestos, updatePresupuesto, removePresupuesto,
     addPedido, pedidos, biblioteca, cfg, clientes, addCliente,
     getNewId, empresa, fmt, showToast
+    , cuentaId
   } = useApp();
 
   const [filtroEstado, setFiltroEstado] = useState('abiertos');
@@ -121,8 +124,12 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
   const eliminar = async (p) => {
     if (!(await confirmar(`Se borra el presupuesto N° ${p.numero} de ${p.cliente}. No se puede deshacer.`, { titulo: '¿Eliminar el presupuesto?', textoConfirmar: 'Eliminar', peligro: true }))) return;
     await removePresupuesto(p.id);
-    // Las imágenes adjuntas no quedan huérfanas en Storage.
-    for (const a of p.adjuntos || []) borrarImagenDeFirebase(a.url);
+    // Las imágenes adjuntas no quedan huérfanas en Storage, pero sólo se borran si el presupuesto
+    // de verdad se eliminó (removePresupuesto avisa del error pero no lo devuelve).
+    try {
+      const sigue = await getDocFromServer(doc(db, 'users', cuentaId, 'presupuestos', String(p.id)));
+      if (!sigue.exists()) for (const a of p.adjuntos || []) borrarImagenDeFirebase(a.url);
+    } catch { /* sin conexión: las imágenes quedan, no se pierde nada */ }
   };
 
   const bajarPdf = (p) => generarPdfPresupuesto({

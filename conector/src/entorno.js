@@ -2,7 +2,8 @@
 // PRUEBA (manager3d-test), para poder probar sin tocar datos reales. La versión de
 // prueba se arma con `npm run empaquetar -- --test` (esbuild define
 // ES_PRUEBA_CONECTOR=true); sin empaquetar, se elige con MANAGER3D_ENTORNO=test.
-// Cada una guarda su vínculo en su propia carpeta, así pueden convivir en una PC.
+// Cada una guarda su vínculo y sus archivos temporales en su propia carpeta, así pueden convivir en una PC.
+// OJO: estas claves se repiten en src/entornoFirebase.js (la app web); si cambia un proyecto, cambiar los dos.
 
 /* global ES_PRUEBA_CONECTOR */
 const compilado = typeof ES_PRUEBA_CONECTOR !== 'undefined' ? ES_PRUEBA_CONECTOR : false;

@@ -7,6 +7,20 @@
 
 export const NOVEDADES = [
   {
+    version: 15,
+    fecha: '2026-10-11',
+    items: [
+      { texto: 'Presupuestos con imágenes: adjuntá renders, fotos o planos, cada uno con su comentario. Salen en hojas de anexo al final del PDF, de 1, 2 o 4 imágenes por hoja a elección (una grande para lo que tiene detalle, cuatro para cosas simples).' },
+      { texto: 'Los logos rectangulares ya no se deforman en los PDF: se ven enteros y podés elegir su tamaño en Mi emprendimiento → Logo. En el catálogo web el logo también respeta su proporción.' },
+      { texto: 'Desde un pedido, el botón 🖨 Enviar muestra todos los archivos G-code del producto y marca los que ya mandaste, para no repetirlos por error (podés mandarlos de nuevo si querés).' },
+      { texto: 'Si agregás productos a un pedido y lo cerrás sin guardar, esos productos se quitan y el pedido vuelve a como estaba.' },
+      { texto: 'Los formularios ya no se cierran al hacer clic afuera por error: se cierran con sus botones o con Esc (si tocaste algo, te pregunta antes de cerrar sin guardar).' },
+      { texto: 'Números y plata con separador de miles en toda la app, y los campos de plata se ven con formato ($ 15.000) cuando no los estás editando.' },
+      { texto: 'Podés instalar Manager3D como app, con acceso directo en tu PC (botón "Instalar app" arriba, en Chrome o Edge).' },
+      { texto: 'Cuando hay una versión nueva, la app te avisa para que recargues; y si programamos una actualización, te avisa con anticipación para que guardes y cierres antes.' }
+    ]
+  },
+  {
     version: 13,
     fecha: '2026-10-06',
     items: [

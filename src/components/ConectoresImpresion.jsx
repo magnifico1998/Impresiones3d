@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { confirmar } from './Dialogos';
+import { ES_PRUEBA } from '../entornoFirebase';
+
+// En la app de prueba el conector es otro programa (se conecta a la base de prueba).
+const NOMBRE_CONECTOR = ES_PRUEBA ? 'Manager3D-Conector-PRUEBA' : 'Manager3D-Conector';
 import {
   conectorActivo, datosDescargaConector, desvincularConector, escucharConectores, pedirCodigoConector, renombrarConector
 } from '../utils/impresionDirecta';
@@ -51,11 +55,11 @@ export default function ConectoresImpresion() {
       const { url } = await datosDescargaConector();
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'Manager3D-Conector.zip';
+      a.download = `${NOMBRE_CONECTOR}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      showToast('Descargando el conector. Abrí el .zip y ejecutá Manager3D-Conector.exe.', 'info');
+      showToast(`Descargando el conector. Abrí el .zip y ejecutá ${NOMBRE_CONECTOR}.exe.`, 'info');
     } catch (e) {
       console.error('No se pudo bajar el conector:', e);
       showToast('No se pudo preparar la descarga del conector. Probá de nuevo en un momento.', 'error');
@@ -135,7 +139,7 @@ export default function ConectoresImpresion() {
         </div>
       )}
       <p style={{ fontSize: '11px', color: 'var(--text3)', margin: '10px 0 0' }}>
-        1) Descargá el conector y abrí el .zip. 2) Ejecutá <b>Manager3D-Conector.exe</b> en la PC del taller (si Windows muestra un aviso azul: "Más información" → "Ejecutar de todas formas"). 3) Tocá "Vincular un conector" y escribí el código en su panel.
+        1) Descargá el conector y abrí el .zip. 2) Ejecutá <b>{NOMBRE_CONECTOR}.exe</b> en la PC del taller (si Windows muestra un aviso azul: "Más información" → "Ejecutar de todas formas"). 3) Tocá "Vincular un conector" y escribí el código en su panel.
       </p>
     </div>
   );

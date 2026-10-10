@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { NOMBRE_PROGRAMA } from '../entorno.js';
 
 // Bambu Lab por Bambu Connect: el camino oficial de Bambu para programas de
 // terceros. Se guarda el archivo en esta PC y se abre Bambu Connect con él
@@ -12,7 +13,7 @@ import { promisify } from 'node:util';
 //   https://wiki.bambulab.com/en/software/third-party-integration
 
 const ejecutar = promisify(execFile);
-const CARPETA = path.join(os.tmpdir(), 'Manager3D-Conector');
+const CARPETA = path.join(os.tmpdir(), NOMBRE_PROGRAMA);
 const MENSAJE_SIN_CONNECT = 'No encontré Bambu Connect en esta PC. Instalalo desde wiki.bambulab.com, o cambiá el tipo de esta impresora a "Abrir en Bambu Studio" en el panel del conector.';
 
 async function bambuConnectInstalado() {

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { NOMBRE_PROGRAMA } from '../entorno.js';
 
 // Lo común de los drivers "Abrir en…" (Bambu Studio, Anycubic Slicer Next): se
 // guarda el archivo laminado en una carpeta temporal de esta PC y se abre con un
@@ -11,7 +12,7 @@ import { promisify } from 'node:util';
 // impresora.
 
 export const ejecutar = promisify(execFile);
-const CARPETA = path.join(os.tmpdir(), 'Manager3D-Conector');
+const CARPETA = path.join(os.tmpdir(), NOMBRE_PROGRAMA);
 
 // Guarda el contenido con su nombre y devuelve la ruta.
 export function guardarTemporal(nombre, contenido) {

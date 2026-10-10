@@ -13,7 +13,7 @@
 //   - Este archivo no se cachea (ver vercel.json): el navegador lo revisa en cada visita.
 // No intercepta /api ni /catalogo (el catálogo público arma su vista en el servidor).
 
-const CACHE = 'manager3d-pantalla-v1';
+const CACHE = 'manager3d-pantalla-v2';
 const MAX_ENTRADAS = 150;
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -51,8 +51,9 @@ self.addEventListener('fetch', (evento) => {
     return;
   }
 
-  // Archivos del build y del sitio: lo guardado primero, si no, la red (y se guarda).
-  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/') || url.pathname === '/favicon.svg') {
+  // Archivos del build (/assets, con el nombre cambiado por contenido): lo guardado primero, si no, la red
+  // (y se guarda). Los íconos y el favicon no, porque conservan el nombre aunque cambien.
+  if (url.pathname.startsWith('/assets/')) {
     evento.respondWith(
       caches.match(pedido).then((guardada) => guardada || fetch(pedido).then((respuesta) => {
         // Vercel contesta con la página principal cuando falta un archivo viejo: eso no se guarda.

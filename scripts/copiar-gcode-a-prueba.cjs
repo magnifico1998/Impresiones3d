@@ -30,9 +30,15 @@ const DESTINO = 'manager3d-test';
   const uidOrigen = await uidDe(ORIGEN);
   const uidDestino = await uidDe(DESTINO);
 
-  const r = await fetch(`${base(ORIGEN)}/users/${uidOrigen}/gcode?pageSize=100`, { headers: h });
-  if (!r.ok) throw new Error(`leer gcode: ${r.status} ${(await r.text()).slice(0, 200)}`);
-  const docs = (await r.json()).documents || [];
+  const docs = [];
+  let pagina = '';
+  do {
+    const r = await fetch(`${base(ORIGEN)}/users/${uidOrigen}/gcode?pageSize=100${pagina ? `&pageToken=${pagina}` : ''}`, { headers: h });
+    if (!r.ok) throw new Error(`leer gcode: ${r.status} ${(await r.text()).slice(0, 200)}`);
+    const j = await r.json();
+    docs.push(...(j.documents || []));
+    pagina = j.nextPageToken || '';
+  } while (pagina);
   let n = 0;
   for (const d of docs) {
     const id = d.name.split('/').pop();

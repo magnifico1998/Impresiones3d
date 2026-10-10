@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { confirmar } from './Dialogos';
 import { useApp } from '../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../utils/imageCompress';
-import { paisesList, PAIS_DEFAULT } from '../utils/paises';
+import { formatearMoneda, paisesList, PAIS_DEFAULT } from '../utils/paises';
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import ModalSuscribirse from './modals/ModalSuscribirse';
@@ -13,7 +13,6 @@ import { PESTANAS_EMPRESA, pestanaEmpresaGuardada, guardarPestanaEmpresa } from 
 import { sincronizarPagoMP } from '../utils/pagosMP';
 import { cupoGcode, formatoBytes } from '../utils/archivosGcode';
 import { TAMANOS_LOGO_PDF, tamanoLogoPdfDe } from '../utils/logoPdf';
-import { formatearMoneda } from '../utils/paises';
 
 // Texto del estado del débito automático de Mercado Pago
 // (suscripcion.cobro.estado, lo mantiene el webhook).

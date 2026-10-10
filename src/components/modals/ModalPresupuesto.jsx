@@ -7,7 +7,7 @@ import { datosConsumoPieza } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
 import AdjuntosPresupuesto from '../AdjuntosPresupuesto';
-import { adjuntoParaGuardar, porHojaDe } from '../../utils/adjuntosPresupuesto';
+import { MAX_ADJUNTOS, adjuntoParaGuardar, porHojaDe } from '../../utils/adjuntosPresupuesto';
 import { borrarImagenDeFirebase, subirImagenAFirebase } from '../../utils/imageCompress';
 
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
@@ -162,7 +162,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
       setTelefono('');
       setEmail('');
       setNotas('');
-      setAdjuntos([]);
+      setAdjuntos((prev) => prev.filter((a) => a.dataUrl)); // quedan las que todavía no se guardaron
       setAdjuntosPorHoja(1);
       return;
     }
@@ -174,7 +174,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     setTelefono(existente.telefono || '');
     setEmail(existente.email || '');
     setNotas(existente.notas || '');
-    setAdjuntos((existente.adjuntos || []).map((a) => ({ ...a })));
+    setAdjuntos((prev) => [...(existente.adjuntos || []).map((a) => ({ ...a })), ...prev.filter((a) => a.dataUrl)].slice(0, MAX_ADJUNTOS));
     setAdjuntosPorHoja(porHojaDe(existente.adjuntosPorHoja));
   };
 
@@ -316,7 +316,11 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
       });
     }
     setGuardando(false);
-    if (!ok) return;
+    if (!ok) {
+      // No se guardó: las imágenes que recién se subieron no quedan huérfanas (al reintentar se vuelven a subir).
+      subidas.forEach((u) => borrarImagenDeFirebase(u));
+      return;
+    }
 
     showToast(editando ? `✓ Presupuesto N° ${numero} actualizado.` : `✓ Presupuesto N° ${numero} guardado en Presupuestos.`);
     // Imágenes que se quitaron de un presupuesto ya guardado: se borran de Storage.

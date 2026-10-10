@@ -129,12 +129,14 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
 
 // Últimos envíos de un producto, con su estado y la opción de cancelarlos o
 // quitarlos de la lista.
-export function ListaEnvios({ productoId, soloLectura }) {
+// `trabajos`: si quien la usa ya los escucha, se los pasa y no se abre otro listener (cada uno lee toda la colección).
+export function ListaEnvios({ productoId, soloLectura, trabajos: trabajosDados }) {
   const { cuentaId, showToast } = useApp();
-  const [trabajos, setTrabajos] = useState([]);
+  const [propios, setPropios] = useState([]);
+  const trabajos = trabajosDados || propios;
   const [ahora, setAhora] = useState(() => Date.now());
 
-  useEffect(() => (cuentaId ? escucharTrabajos(cuentaId, setTrabajos) : undefined), [cuentaId]);
+  useEffect(() => (cuentaId && !trabajosDados ? escucharTrabajos(cuentaId, setPropios) : undefined), [cuentaId, trabajosDados]);
   useEffect(() => {
     const t = setInterval(() => setAhora(Date.now()), 30000);
     return () => clearInterval(t);

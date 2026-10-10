@@ -104,7 +104,7 @@ export default function ModalEnviarPieza({ pieza, producto, archivos, soloLectur
           </>
         )}
 
-        <ListaEnvios productoId={producto.id} soloLectura={soloLectura} />
+        <ListaEnvios productoId={producto.id} soloLectura={soloLectura} trabajos={trabajos} />
 
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cerrar</button>

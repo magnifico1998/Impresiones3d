@@ -21,7 +21,8 @@ import { fileURLToPath } from 'node:url';
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const conReglas = process.argv.includes('--con-reglas');
-const ERRORES_DE_LINT_PERMITIDOS = 1; // AdminPage: "Existing memoization could not be preserved" (preexistente)
+// Único error de lint conocido (anterior a todo esto); cualquier otro error hace fallar la verificación.
+const ERROR_CONOCIDO = (ruta, mensaje) => /AdminPage\.jsx$/.test(ruta) && /Existing memoization/.test(mensaje);
 const resultados = [];
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const node = process.execPath;
@@ -46,12 +47,10 @@ paso('Lint', () => {
   const r = correr(npx, ['eslint', 'src', '-f', 'json']);
   let datos;
   try { datos = JSON.parse(r.stdout); } catch { throw new Error(`ESLint no devolvió un resultado válido: ${(r.stderr || r.stdout || '').slice(0, 300)}`); }
-  const errores = datos.reduce((s, f) => s + f.errorCount, 0);
-  if (errores > ERRORES_DE_LINT_PERMITIDOS) {
-    const lista = datos.flatMap((f) => f.messages.filter((m) => m.severity === 2).map((m) => `${path.relative(raiz, f.filePath)}:${m.line} ${m.message}`)).slice(0, 8);
-    throw new Error(`${errores} errores de lint (se permiten ${ERRORES_DE_LINT_PERMITIDOS}):\n    ${lista.join('\n    ')}`);
-  }
-  return `${errores} error(es) (permitidos ${ERRORES_DE_LINT_PERMITIDOS}), ${datos.reduce((s, f) => s + f.warningCount, 0)} advertencias`;
+  const errores = datos.flatMap((f) => f.messages.filter((m) => m.severity === 2).map((m) => ({ donde: `${path.relative(raiz, f.filePath)}:${m.line}`, ruta: f.filePath, mensaje: m.message })));
+  const nuevos = errores.filter((e) => !ERROR_CONOCIDO(e.ruta, e.mensaje));
+  if (nuevos.length) throw new Error(`${nuevos.length} error(es) de lint nuevos:\n    ${nuevos.slice(0, 8).map((e) => `${e.donde} ${e.mensaje}`).join('\n    ')}`);
+  return `sin errores nuevos (${errores.length} conocido), ${datos.reduce((s, f) => s + f.warningCount, 0)} advertencias`;
 });
 
 paso('Pruebas automáticas', () => {

@@ -3,10 +3,9 @@ import { useApp } from '../../context/AppContext';
 import { db, functions } from '../../firebase';
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { motivoTelefonoInvalido } from '../../utils/paises';
+import { formatearMoneda, motivoTelefonoInvalido } from '../../utils/paises';
 import SelectorCondicionImpositiva from '../SelectorCondicionImpositiva';
 import { useCapaModal } from '../CapaModal';
-import { formatearMoneda } from '../../utils/paises';
 
 const DATOS_VACIOS = {
   nombre: '', apellido: '', tipoDocumento: 'DNI', numeroDocumento: '',

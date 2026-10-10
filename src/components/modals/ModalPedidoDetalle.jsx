@@ -38,8 +38,16 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   const aplicaDeshacer = !!deshacerAgregado && deshacerAgregado.pedidoId === pedidoId;
   const cerrarSinGuardar = () => {
     if (aplicaDeshacer) {
-      // Vuelve el pedido a como estaba antes de agregar los productos.
-      updatePedido(deshacerAgregado.antes.id, () => deshacerAgregado.antes);
+      // Quita sólo las piezas que se agregaron y vuelve el precio y el envío de antes. Lo demás que
+      // se haya guardado mientras tanto (factura emitida, envíos de G-code marcados…) no se toca.
+      const { antes } = deshacerAgregado;
+      const idsDeAntes = new Set((antes.piezas || []).map((x) => x.id));
+      updatePedido(antes.id, (p) => ({
+        ...p,
+        piezas: (p.piezas || []).filter((x) => idsDeAntes.has(x.id)),
+        precioVenta: antes.precioVenta,
+        envio: antes.envio
+      }));
       showToast('Se quitaron los productos que acababas de agregar.', 'info');
     }
     onClose();
