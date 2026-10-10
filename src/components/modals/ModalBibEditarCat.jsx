@@ -13,6 +13,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [productName, setProductName] = useState('');
   const [desc, setDesc] = useState('');
   const [descLarga, setDescLarga] = useState('');
+  const [notasInternas, setNotasInternas] = useState('');
   const [precio, setPrecio] = useState('');
   const [modoColorSecundario, setModoColorSecundario] = useState('');
   const [imagenes, setImagenes] = useState([]);
@@ -41,6 +42,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setSubcategoria(prod.subcat || '');
         setDesc(prod.desc || '');
         setDescLarga(prod.descLarga || '');
+        setNotasInternas(prod.notasInternas || '');
         setPrecio(prod.precioSugUnitario !== undefined ? String(prod.precioSugUnitario) : '');
         // Fallback al booleano viejo (permiteColorSecundario) para productos
         // marcados antes de este cambio -- mismo criterio que
@@ -146,6 +148,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     const cleanName = productName.trim() || 'Sin nombre';
     const cleanDesc = desc.trim();
     const cleanDescLarga = descLarga.trim();
+    const cleanNotas = notasInternas.trim();
     const cleanPrecio = parseFloat(precio) || 0;
 
     const prodAnterior = biblioteca.find(p => p.id === editId);
@@ -174,6 +177,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         nombre: cleanName,
         desc: cleanDesc,
         descLarga: cleanDescLarga,
+        notasInternas: cleanNotas,
         precioSugUnitario: cleanPrecio,
         modoColorSecundario,
         imagenes,
@@ -234,6 +238,15 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           onChange={(e) => setDescLarga(e.target.value)}
           placeholder="Detalle más largo del producto: materiales, medidas, usos..."
           rows={3}
+        />
+
+        <label className="fl">Notas internas (privadas: sólo las ves vos y tu equipo)</label>
+        <textarea
+          value={notasInternas}
+          onChange={(e) => setNotasInternas(e.target.value)}
+          placeholder="Ej: PLA negro, boquilla 0,4, relleno 15 %, 2 h por placa, sacar el soporte con cuidado…"
+          rows={4}
+          maxLength={2000}
         />
 
         <label className="fl">Categoría del producto</label>

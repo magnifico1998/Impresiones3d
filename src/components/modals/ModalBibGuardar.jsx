@@ -11,6 +11,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [descLarga, setDescLarga] = useState('');
+  const [notasInternas, setNotasInternas] = useState('');
   const [cat, setCat] = useState('');
   const [subcat, setSubcat] = useState('');
   const [imagenes, setImagenes] = useState([]);
@@ -33,6 +34,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       setNombre(nombreSug);
       setDesc('');
       setDescLarga('');
+      setNotasInternas('');
       setCat('');
       setSubcat('');
       setImagenes([]);
@@ -149,6 +151,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       nombre: nameTrimmed,
       desc: desc.trim(),
       descLarga: descLarga.trim(),
+      notasInternas: notasInternas.trim(),
       cat: cat.trim() || 'General',
       subcat: subcat.trim(),
       fechaGuardado: new Date().toLocaleDateString('es-AR'),
@@ -204,6 +207,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
             id: existente.id,
             desc: snap.desc || existente.desc || '',
             descLarga: snap.descLarga || existente.descLarga || '',
+            notasInternas: snap.notasInternas || existente.notasInternas || '',
             cat: cat.trim() || existente.cat || 'General',
             subcat: snap.subcat || existente.subcat || '',
             imagenes: imagenesFinales,
@@ -261,6 +265,15 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
           onChange={(e) => setDescLarga(e.target.value)}
           placeholder="Detalle más largo del producto: materiales, medidas, usos..."
           rows={3}
+        />
+
+        <label className="fl">Notas internas (privadas: sólo las ves vos y tu equipo)</label>
+        <textarea
+          value={notasInternas}
+          onChange={(e) => setNotasInternas(e.target.value)}
+          placeholder="Ej: PLA negro, boquilla 0,4, relleno 15 %, 2 h por placa, sacar el soporte con cuidado…"
+          rows={4}
+          maxLength={2000}
         />
 
         <label className="fl">Categoría del producto</label>

@@ -8,6 +8,7 @@ import { buildWaLink, findClientePedido } from '../../utils/whatsapp';
 import SeccionFacturaPedido from '../SeccionFacturaPedido';
 import SeccionInventarioPedido from '../SeccionInventarioPedido';
 import ModalEnviarPieza from './ModalEnviarPieza';
+import ModalNotasProducto from './ModalNotasProducto';
 import { archivosListosDe, escucharArchivosGcode, productoDePieza } from '../../utils/archivosGcode';
 import { useCapaModal } from '../CapaModal';
 import { ajustarLogo, tamanoLogoPdfDe } from '../../utils/logoPdf';
@@ -64,6 +65,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   // pieza muestra "🖨 Enviar" (sólo así: no se ofrece lo que no está disponible).
   const [fichasGcode, setFichasGcode] = useState([]);
   const [piezaEnvio, setPiezaEnvio] = useState(null); // { pieza, producto, archivos }
+  const [productoNotas, setProductoNotas] = useState(null); // producto de la Biblioteca cuyas notas se están viendo
   useEffect(() => (isOpen && cuentaId ? escucharArchivosGcode(cuentaId, setFichasGcode) : undefined), [isOpen, cuentaId]);
   const soloLecturaEnvio = ['lectura', 'suspendida'].includes(suscripcion?.estado) && !isAdmin;
 
@@ -1043,6 +1045,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                           }}
                           onChange={(e) => handleUpdatePartVenta(pz.id, e.target.value)}
                         />
+                        {String(productoPz?.notasInternas || '').trim() && (
+                          <button className="btn btn-sm" title="Ver las notas internas de este producto (filamento, detalles de la impresión…)" onClick={() => setProductoNotas(productoPz)}>
+                            📝 Notas
+                          </button>
+                        )}
                         {archivosPz.length > 0 && (
                           <button
                             className="btn btn-sm"
@@ -1524,6 +1531,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           <button className="btn btn-primary" onClick={handleSave}>Guardar cambios</button>
         </div>
       </div>
+
+      {/* Notas internas del producto de una pieza (sólo si tiene). */}
+      {productoNotas && <ModalNotasProducto producto={productoNotas} onClose={() => setProductoNotas(null)} />}
 
       {/* Mandar el G-code de una pieza a la impresora (sólo si su producto tiene archivos). */}
       {piezaEnvio && (

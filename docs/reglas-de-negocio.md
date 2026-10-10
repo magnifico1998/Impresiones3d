@@ -719,3 +719,8 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
 ## Agregar productos a un pedido existente
 
 - Al agregar productos a un pedido que ya existe (desde la Biblioteca con "Agregar producto", o una pieza de la Calculadora), se guardan enseguida y se abre el detalle del pedido con un aviso. Ahí, **Guardar cambios** los deja; **Cerrar**, la ✕ o Esc los **quitan** y el pedido vuelve a como estaba antes de agregarlos (sólo lo último agregado). Si desde la Calculadora se elige "Seguir acá" en lugar de ver el pedido, ya no hay nada que deshacer.
+
+## Notas internas de un producto
+
+- Cada producto de la Biblioteca tiene un campo **Notas internas** (`notasInternas`, hasta 2.000 caracteres), en "Editar producto" y al guardar un producto nuevo desde la Calculadora. Es **privado**: sólo lo ven el dueño y los miembros de la cuenta. A diferencia de "Descripción / notas" y "Descripción extendida", **nunca va al catálogo público**: `proyeccionCatalogoProducto` (AppContext) arma la copia pública con una lista explícita de campos, y una prueba automática (`pruebas/funciones-nuevas.test.js`) falla si alguien agrega ahí las notas o los costos.
+- En el detalle de un pedido, las piezas cuyo producto tiene notas muestran un botón **📝 Notas** (junto a 🖨 Enviar) que las abre en sólo lectura (`ModalNotasProducto.jsx`). Se leen del producto actual de la Biblioteca; se editan ahí. Al reemplazar un producto desde la Calculadora, si el formulario deja las notas vacías se conservan las que ya tenía.

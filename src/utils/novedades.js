@@ -13,6 +13,7 @@ export const NOVEDADES = [
       { texto: 'Presupuestos con imágenes: adjuntá renders, fotos o planos, cada uno con su comentario. Salen en hojas de anexo al final del PDF, de 1, 2 o 4 imágenes por hoja a elección (una grande para lo que tiene detalle, cuatro para cosas simples).' },
       { texto: 'Los logos rectangulares ya no se deforman en los PDF: se ven enteros y podés elegir su tamaño en Mi emprendimiento → Logo. En el catálogo web el logo también respeta su proporción.' },
       { texto: 'Desde un pedido, el botón 🖨 Enviar muestra todos los archivos G-code del producto y marca los que ya mandaste, para no repetirlos por error (podés mandarlos de nuevo si querés).' },
+      { texto: 'Notas internas en cada producto de la Biblioteca (tipo de filamento, detalles de la impresión…): son privadas, no se ven en el catálogo. Desde un pedido, el botón 📝 Notas de cada pieza las muestra.' },
       { texto: 'Si agregás productos a un pedido y lo cerrás sin guardar, esos productos se quitan y el pedido vuelve a como estaba.' },
       { texto: 'Los formularios ya no se cierran al hacer clic afuera por error: se cierran con sus botones o con Esc (si tocaste algo, te pregunta antes de cerrar sin guardar).' },
       { texto: 'Números y plata con separador de miles en toda la app, y los campos de plata se ven con formato ($ 15.000) cuando no los estás editando.' },
