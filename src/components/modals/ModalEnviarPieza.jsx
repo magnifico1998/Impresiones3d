@@ -7,6 +7,7 @@ import { confirmar } from '../Dialogos';
 import { escucharTrabajos } from '../../utils/impresionDirecta';
 import { fechaCorta, marcaDeEnvio, resumenDeArchivo } from '../../utils/enviosPieza';
 import { formatoBytes } from '../../utils/archivosGcode';
+import InsigniaArchivo from '../InsigniaArchivo';
 
 // Mandar a la impresora los archivos G-code de una pieza de un pedido (el botón
 // "🖨 Enviar" del detalle del pedido, que sólo aparece si el producto tiene
@@ -86,9 +87,9 @@ export default function ModalEnviarPieza({ pieza, producto, archivos, soloLectur
                   style={{ display: 'flex', gap: '10px', alignItems: 'center', border: `1px solid ${r.veces > 0 ? 'var(--accent)' : 'var(--border2)'}`, borderRadius: '8px', padding: '10px 12px', background: 'var(--bg3)' }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.archivo.nombre}>{r.archivo.nombre}</div>
+                    <div style={{ fontWeight: 600, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.archivo.nombre}><InsigniaArchivo archivo={r.archivo} /> {r.archivo.nombre}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-                      {[r.archivo.formato === '3mf' ? '.3mf' : '.gcode', r.archivo.impresora, r.archivo.bytesContenido || r.archivo.bytes ? formatoBytes(r.archivo.bytesContenido || r.archivo.bytes) : ''].filter(Boolean).join(' · ')}
+                      {[r.archivo.impresora, r.archivo.creadoEl?.toDate ? `subido el ${fechaCorta(r.archivo.creadoEl.toDate().toISOString())}` : '', r.archivo.bytesContenido || r.archivo.bytes ? formatoBytes(r.archivo.bytesContenido || r.archivo.bytes) : ''].filter(Boolean).join(' · ')}
                     </div>
                     {r.ultima && (
                       <div style={{ fontSize: '12px', marginTop: '3px', color: r.estado.color, fontWeight: 600 }}>

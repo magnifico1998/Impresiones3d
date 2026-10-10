@@ -260,7 +260,10 @@ service cloud.firestore {
       allow read: if tieneAcceso(uid) || esElConector(uid, conectorId);
       allow update: if (esElConector(uid, conectorId) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ultimaConexion', 'version', 'impresoras'])) ||
-        (tieneAcceso(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['equipo']));
+        // La cuenta renombra el conector ('equipo') y le deja los colores de su paleta ('tema', un mapa) para que el
+        // panel del conector se vea como la app.
+        (tieneAcceso(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['equipo', 'tema']) &&
+          request.resource.data.get('tema', {}) is map);
       allow delete: if tieneAcceso(uid);
     }
     // Cola de trabajos para los conectores. La cuenta pide (pendiente) o

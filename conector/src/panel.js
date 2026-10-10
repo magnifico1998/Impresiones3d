@@ -130,6 +130,15 @@ async function api(ruta, cuerpo) {
 }
 function mensaje(id, texto, tipo) { const el = $(id); el.textContent = texto || ''; el.className = 'msg ' + (tipo || ''); }
 
+// Colores de la paleta que se usa en la app: el panel se ve igual (los manda la app a este conector).
+let temaAplicado = '';
+function aplicarTema(tema) {
+  const firma = JSON.stringify(tema || null);
+  if (firma === temaAplicado) return;
+  temaAplicado = firma;
+  Object.entries(tema || {}).forEach(([k, v]) => document.documentElement.style.setProperty('--' + k, v));
+}
+
 function camposVisibles() {
   const tipo = $('impTipo').value;
   const t = datos.tipos.find((x) => x.tipo === tipo);
@@ -149,6 +158,7 @@ function limpiarForm() {
 }
 
 function pintar() {
+  aplicarTema(datos.tema);
   const c = $('cuenta');
   c.innerHTML = '';
   const fila = document.createElement('div');

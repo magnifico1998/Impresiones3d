@@ -5,6 +5,8 @@ import {
   impresorasPara, mandarAImpresora, trabajoVencido
 } from '../utils/impresionDirecta';
 import { esProyecto3mf } from '../utils/formatoEnvio';
+import InsigniaArchivo from './InsigniaArchivo';
+import { tipoDeArchivo } from '../utils/formatoEnvio';
 
 // Mandar un archivo G-code guardado a una impresora, con el conector
 // (utils/impresionDirecta.js). Lo usan el modal de archivos de un producto de
@@ -80,11 +82,11 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
         <>
           <label className="fl" style={{ marginTop: 0 }}>Archivo</label>
           <select value={archivo.id} onChange={(e) => { setArchivoId(e.target.value); setDestino(''); setLibre(false); }}>
-            {archivos.map((a) => <option key={a.id} value={a.id}>{a.nombre}{a.impresora ? ` · ${a.impresora}` : ''}</option>)}
+            {archivos.map((a) => <option key={a.id} value={a.id}>{tipoDeArchivo(a).icono} {a.nombre}{a.impresora ? ` · ${a.impresora}` : ''}</option>)}
           </select>
         </>
       ) : (
-        <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>Mandar "{archivo.nombre}" a una impresora</div>
+        <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}><InsigniaArchivo archivo={archivo} /> Mandar "{archivo.nombre}" a una impresora</div>
       )}
       <label className="fl" style={archivos.length > 1 ? undefined : { marginTop: 0 }}>Impresora</label>
       <select value={elegido ? clave(elegido) : ''} onChange={(e) => { setDestino(e.target.value); setLibre(false); }}>
@@ -172,7 +174,7 @@ export function ListaEnvios({ productoId, soloLectura, trabajos: trabajosDados }
           <div key={t.id} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', fontSize: '12px', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
             <span style={{ color: est.color, fontWeight: 600, minWidth: '90px' }}>{est.texto}</span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              {t.nombre} → {t.impresoraNombre}{t.accion === 'imprimir' ? ' (imprimir)' : ''}
+              <InsigniaArchivo archivo={t} solaIcono /> {t.nombre} → {t.impresoraNombre}{t.accion === 'imprimir' ? ' (imprimir)' : ''}
               {vencido && <span style={{ display: 'block', color: 'var(--text3)' }}>Pasaron más de {MINUTOS_VENCE_IMPRIMIR} minutos sin que el conector lo tomara: no se imprime. Abrí el conector y volvé a mandarlo.</span>}
               {t.mensaje && <span style={{ display: 'block', color: ['error', 'vencido'].includes(t.estado) ? 'var(--danger)' : 'var(--text3)' }}>{t.mensaje}</span>}
             </span>

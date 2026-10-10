@@ -44,6 +44,7 @@ import ModalContacto from './components/modals/ModalContacto';
 import ModalSuscribirse from './components/modals/ModalSuscribirse';
 import { sincronizarPagoMP } from './utils/pagosMP';
 import ModalFaqGuardar from './components/modals/ModalFaqGuardar';
+import SincronizarTemaConector from './components/SincronizarTemaConector';
 
 function App() {
   const {
@@ -711,6 +712,7 @@ function App() {
     <>
       <Header onToggleMenu={() => setMobileMenuOpen(o => !o)} />
       <AvisoActualizacion />
+      <SincronizarTemaConector />
       <div className="layout">
         <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
         <main className="main">

@@ -9,6 +9,7 @@ import { DRIVERS, driverDe } from './drivers/index.js';
 import { carpetaPorDefecto, prepararCarpeta } from './drivers/carpeta.js';
 import { PAGINA } from './panel.js';
 import { MARCAS, marcaDe } from './drivers/slicer.js';
+import { sanearTema } from './tema.js';
 
 // Manager3D Conector: corre en una PC del taller. Se vincula a la cuenta con
 // un código, toma los trabajos de "Mandar a impresora" y los manda a las
@@ -40,7 +41,17 @@ const registrar = (texto) => {
   console.log(linea);
 };
 
-const nube = crearNube({ registrar });
+// Los colores de la paleta de la app llegan por la nube y se guardan para que el panel los use aunque no haya conexión.
+const nube = crearNube({
+  registrar,
+  alCambiarTema: (tema) => {
+    const limpio = sanearTema(tema);
+    if (JSON.stringify(limpio) !== JSON.stringify(config.tema || null)) {
+      config = { ...config, tema: limpio };
+      guardarConfig(config);
+    }
+  }
+});
 
 // Guardar en una carpeta está siempre disponible, con o sin impresoras cargadas:
 // es un destino más que se le informa a Manager3D (id 'carpeta'), con la carpeta
@@ -60,6 +71,7 @@ function estado() {
     impresoras: config.impresoras.map(impresoraPublica),
     carpeta: carpetaEfectiva(),
     carpetaPropia: !!config.carpeta,
+    tema: config.tema || null,
     marcas: MARCAS.map((m) => ({ id: m.id, nombre: m.nombre, programa: m.programa })),
     tipos: Object.values(DRIVERS).map((d) => ({ oculto: !!d.oculto, tipo: d.tipo, nombre: d.nombre, campos: d.campos, puedeImprimir: d.puedeImprimir, puedeCancelar: !!d.puedeCancelar, puedeDiagnosticar: !!d.diagnosticar })),
     log: log.slice(-60),

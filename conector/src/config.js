@@ -19,9 +19,9 @@ export const carpetaDatos = CARPETA;
 export function leerConfig() {
   try {
     const c = JSON.parse(fs.readFileSync(ARCHIVO, 'utf8'));
-    return { vinculo: c.vinculo || null, impresoras: Array.isArray(c.impresoras) ? c.impresoras : [], carpeta: typeof c.carpeta === 'string' ? c.carpeta : '' };
+    return { vinculo: c.vinculo || null, impresoras: Array.isArray(c.impresoras) ? c.impresoras : [], carpeta: typeof c.carpeta === 'string' ? c.carpeta : '', tema: c.tema && typeof c.tema === 'object' ? c.tema : null };
   } catch {
-    return { vinculo: null, impresoras: [], carpeta: '' };
+    return { vinculo: null, impresoras: [], carpeta: '', tema: null };
   }
 }
 

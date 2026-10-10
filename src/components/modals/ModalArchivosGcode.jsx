@@ -6,6 +6,7 @@ import {
   esArchivoGcode, formatoBytes, subirArchivoGcode
 } from '../../utils/archivosGcode';
 import { PanelEnvio, ListaEnvios } from '../EnvioImpresora';
+import InsigniaArchivo from '../InsigniaArchivo';
 
 // Archivos G-code de un producto de la Biblioteca (utils/archivosGcode.js):
 // se suben, se comprimen al máximo en el servidor y se bajan con su nombre
@@ -149,7 +150,7 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
                   const procesando = a.estado === 'subiendo' && !(subiendo && subiendo.nombre === a.nombre);
                   return (
                     <tr key={a.id}>
-                      <td style={{ wordBreak: 'break-word' }}>{a.nombre}</td>
+                      <td style={{ wordBreak: 'break-word' }}><InsigniaArchivo archivo={a} /> {a.nombre}</td>
                       <td>
                         <select
                           value={a.impresora || ''}

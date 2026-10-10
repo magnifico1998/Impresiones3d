@@ -94,6 +94,11 @@ const mail = (uid) => `${uid}@gmail.com`.toLowerCase();
       mocks: [existe(`catalogoTiendas/${UID}`, true), trae(`catalogoTiendas/${UID}`, { activo: true }), ...suscripcion('trial')]
     }),
     caso('catálogo: sin login NO lee las solicitudes', 'DENY', 'get', `catalogoTiendas/${UID}/solicitudes/s1`, null, { mocks: suscripcion('trial') }),
+    // --- Conectores: el tema (paleta) ---
+    caso('conector: la cuenta le deja el tema de su paleta', 'ALLOW', 'update', `users/${UID}/conectores/c1`, dueno, { datos: { equipo: 'PC', tema: { bg: '#ffffff' } }, existente: { equipo: 'PC' }, mocks: suscripcion('activa') }),
+    caso('conector: el tema tiene que ser un mapa', 'DENY', 'update', `users/${UID}/conectores/c1`, dueno, { datos: { equipo: 'PC', tema: 'rojo' }, existente: { equipo: 'PC' }, mocks: suscripcion('activa') }),
+    caso('conector: la cuenta NO toca las impresoras que informa el conector', 'DENY', 'update', `users/${UID}/conectores/c1`, dueno, { datos: { equipo: 'PC', impresoras: [] }, existente: { equipo: 'PC' }, mocks: suscripcion('activa') }),
+    caso('conector: el propio conector NO escribe el tema', 'DENY', 'update', `users/${UID}/conectores/c1`, auth('tecnico1', { conectorDe: UID, conectorId: 'c1' }), { datos: { equipo: 'PC', tema: { bg: '#000000' } }, existente: { equipo: 'PC' }, mocks: suscripcion('activa') }),
     // --- Envíos a impresoras ---
     caso('envíos: el dueño pide un envío válido', 'ALLOW', 'create', `users/${UID}/trabajosImpresion/t1`, dueno, {
       datos: { archivoId: 'a', productoId: 'p', nombre: 'n', formato: 'gcode', conectorId: 'c', impresoraId: 'i', impresoraNombre: 'x', accion: 'imprimir', opciones: {}, estado: 'pendiente', creadoEl: ahora, creadoPor: UID, actualizadoEl: ahora },

@@ -67,10 +67,11 @@ async function bajarArchivo(cuentaId, archivoId, formato) {
   return Buffer.from(zipSync(unzipSync(new Uint8Array(contenido)), { level: 6 }));
 }
 
-export function crearNube({ registrar, alCambiarEstado }) {
+export function crearNube({ registrar, alCambiarEstado, alCambiarTema }) {
   let vinculo = null;
   let impresoras = [];
   let cortarCola = null;
+  let cortarTema = null;
   let latido = null;
   const enCurso = new Set();
   let conectado = false;
@@ -165,6 +166,9 @@ export function crearNube({ registrar, alCambiarEstado }) {
     await informarImpresoras();
     latido = setInterval(() => informarImpresoras(), LATIDO_MS);
 
+    // Colores de la paleta de la app (los deja la app en este documento): el panel los toma.
+    cortarTema = onSnapshot(conectorRef(), (snap) => { if (snap.data()?.tema) alCambiarTema?.(snap.data().tema); }, () => {});
+
     cortarCola = onSnapshot(
       query(collection(db, 'users', vinculo.cuentaId, 'trabajosImpresion'),
         where('conectorId', '==', vinculo.conectorId), where('estado', '==', 'pendiente')),
@@ -177,6 +181,8 @@ export function crearNube({ registrar, alCambiarEstado }) {
   async function desconectar() {
     cortarCola?.();
     cortarCola = null;
+    cortarTema?.();
+    cortarTema = null;
     clearInterval(latido);
     if (conectado) await signOut(auth).catch(() => {});
     conectado = false;

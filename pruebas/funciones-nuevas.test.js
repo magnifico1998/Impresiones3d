@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { paletas } from '../src/utils/paletas';
-import { esLaminado, esProyecto3mf, puedeRecibir } from '../src/utils/formatoEnvio';
+import { esLaminado, esProyecto3mf, puedeRecibir, tipoDeArchivo } from '../src/utils/formatoEnvio';
+import { paletaEfectiva } from '../src/utils/temaConector';
 import { describe, expect, it, vi } from 'vitest';
 import { ajustarLogo, tamanoLogoPdfDe } from '../src/utils/logoPdf';
 import { MAX_COMENTARIO_ADJUNTO, adjuntoParaGuardar, hojasDeAnexo, porHojaDe } from '../src/utils/adjuntosPresupuesto';
@@ -203,5 +204,42 @@ describe('qué impresora recibe cada archivo', () => {
   it('sin lista de formatos acepta lo que corresponda por tipo de archivo', () => {
     expect(puedeRecibir({}, gcode)).toBe(true);
     expect(puedeRecibir({ puedeImprimir: true }, proyecto)).toBe(false);
+  });
+});
+
+describe('tipos de archivo en las listas', () => {
+  it('cada tipo tiene su ícono y su color, y archivos con el mismo nombre se distinguen', () => {
+    const g = tipoDeArchivo({ nombre: 'Llavero.gcode', formato: 'gcode' });
+    const l = tipoDeArchivo({ nombre: 'Llavero.gcode.3mf', formato: '3mf' });
+    const p = tipoDeArchivo({ nombre: 'Llavero.3mf', formato: '3mf' });
+    expect([g.clave, l.clave, p.clave]).toEqual(['gcode', 'laminado', 'proyecto']);
+    expect(new Set([g.icono, l.icono, p.icono]).size).toBe(3);
+    expect(new Set([g.color, l.color, p.color]).size).toBe(3);
+    expect(g.color).toBe('var(--info)');
+    expect(l.color).toBe('var(--accent)');
+    expect(p.color).toBe('var(--warn)');
+  });
+  it('un trabajo de envío (sólo nombre y formato) también se clasifica; sin datos es G-code', () => {
+    expect(tipoDeArchivo({ nombre: 'x.GCODE.3MF' }).clave).toBe('laminado');
+    expect(tipoDeArchivo({ nombre: 'sin-extension', formato: '3mf' }).clave).toBe('proyecto');
+    expect(tipoDeArchivo(null).clave).toBe('gcode');
+  });
+});
+
+describe('paleta que se le manda al conector', () => {
+  it('es la paleta elegida con los retoques encima', () => {
+    const base = paletaEfectiva({ palette: 'tranqui' });
+    expect(base.accent).toBe(paletas.tranqui.accent);
+    const retocada = paletaEfectiva({ palette: 'tranqui', paletaCustom: { accent: '#112233', text3: '#445566' } });
+    expect(retocada.accent).toBe('#112233');
+    expect(retocada.text3).toBe('#445566');
+    expect(retocada.border).toBe(paletas.tranqui.border);
+  });
+  it('el fondo retocado también es el de las tarjetas y el encabezado (bg2)', () => {
+    expect(paletaEfectiva({ palette: 'tranqui', paletaCustom: { bg: '#000000' } }).bg2).toBe('#000000');
+  });
+  it('una paleta desconocida o sin configurar cae en la de siempre', () => {
+    expect(paletaEfectiva({ palette: 'no-existe' }).accent).toBe(paletas.lagoon.accent);
+    expect(paletaEfectiva(undefined).bg).toBe(paletas.lagoon.bg);
   });
 });
