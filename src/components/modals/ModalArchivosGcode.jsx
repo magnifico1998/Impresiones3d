@@ -99,7 +99,7 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
 
   return (
     <div className="modal-overlay open" onClick={onClose}>
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" style={{ maxWidth: '980px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Archivos G-code · {producto.nombre}</div>
         <div className="modal-sub" style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '14px' }}>
           El archivo laminado listo para imprimir (.gcode, o el .gcode.3mf de Bambu Studio). Se guarda comprimido al máximo y lo bajás tal cual lo subiste.
