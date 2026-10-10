@@ -2,16 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { paletas, paletasList } from '../utils/paletas';
-import { LOGO_MAX_ENCABEZADO_FIJO, MAX_CARACTERES_LINEA, MAX_LINEAS_ESLOGAN, TAMANOS_ESLOGAN, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, recortarBorradorEslogan, tamanoLogoDe } from '../utils/catalogoMarca';
+import { textosSecundariosDe, LOGO_MAX_ENCABEZADO_FIJO, MAX_CARACTERES_LINEA, MAX_LINEAS_ESLOGAN, TAMANOS_ESLOGAN, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, recortarBorradorEslogan, tamanoLogoDe } from '../utils/catalogoMarca';
 import { confirmar } from './Dialogos';
 import { clienteDeSolicitud, confirmarPedidoNuevoDeCliente } from '../utils/unirPedidos';
 
-// Los mismos 5 roles editables que "Paleta personalizada" en Configuración
+// Los mismos 7 roles editables que "Paleta personalizada" en Configuración
 // (ver ConfiguracionPage.jsx), pero acá para el catálogo web público -- se
 // guardan aparte (catalogoConfig.paletaCatalogo) porque el catálogo NO
 // tiene por qué compartir la paleta de la app: son públicos que ni
 // siquiera tienen cuenta acá, el criterio de marca puede ser otro.
-const ROLES_PALETA_CATALOGO = ['bg', 'accent', 'accent2', 'text', 'bg3'];
+const ROLES_PALETA_CATALOGO = ['bg', 'accent', 'accent2', 'text', 'text2', 'text3', 'bg3'];
 
 const CATALOGO_PATH = '/catalogo';
 
@@ -154,7 +154,12 @@ export default function CatalogoAdminPage() {
   // Paleta del catálogo: arranca (si nunca se tocó) desde 'lagoon', el
   // mismo default de la app -- pero es completamente independiente de la
   // paleta que use el dueño en su propia app.
-  const paletaCatalogoActual = (key) => catalogoConfig?.paletaCatalogo?.[key] ?? paletas.lagoon[key];
+  // Los dos textos secundarios de una paleta guardada antes de poder elegirlos se calculan igual que en el catálogo público.
+  const paletaCatalogoActual = (key) => {
+    const guardada = catalogoConfig?.paletaCatalogo;
+    if (guardada && (key === 'text2' || key === 'text3')) return textosSecundariosDe(guardada)[key] ?? paletas.lagoon[key];
+    return guardada?.[key] ?? paletas.lagoon[key];
+  };
 
   const handleElegirPaletaCatalogo = (paletteId) => {
     const base = paletas[paletteId];
@@ -382,7 +387,7 @@ export default function CatalogoAdminPage() {
             {catalogoConfig?.logo ? (
               <img src={catalogoConfig.logo} alt="" style={{ height: `${tamanoLogo}px`, width: 'auto', maxWidth: `min(${tamanoLogo * 3}px, 70vw)`, objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamanoLogo / 4))}px`, flexShrink: 0 }} />
             ) : (
-              <div style={{ fontSize: '12px', color: paletaCatalogoActual('text'), opacity: 0.7 }}>
+              <div style={{ fontSize: '12px', color: paletaCatalogoActual('text3') }}>
                 Todavía no cargaste un logo: subilo en Mi emprendimiento.
               </div>
             )}
@@ -391,13 +396,13 @@ export default function CatalogoAdminPage() {
                 {catalogoConfig?.empresaNombre || 'Tu emprendimiento'}
               </div>
               {esloganDe({ eslogan: esloganValor }) && (
-                <div style={{ fontSize: `${tamanoEslogan}px`, fontWeight: 500, marginTop: '3px', lineHeight: 1.3, whiteSpace: 'pre-line', overflowWrap: 'anywhere', color: paletaCatalogoActual('text'), opacity: 0.75 }}>
+                <div style={{ fontSize: `${tamanoEslogan}px`, fontWeight: 500, marginTop: '3px', lineHeight: 1.3, whiteSpace: 'pre-line', overflowWrap: 'anywhere', color: paletaCatalogoActual('text2') }}>
                   {esloganDe({ eslogan: esloganValor })}
                 </div>
               )}
             </div>
           </div>
-          <div style={{ padding: '10px 16px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, color: paletaCatalogoActual('text'), opacity: 0.6 }}>
+          <div style={{ padding: '10px 16px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, color: paletaCatalogoActual('text3') }}>
             {TEXTO_ENCABEZADO_POR_DEFECTO}
           </div>
         </div>
@@ -437,13 +442,18 @@ export default function CatalogoAdminPage() {
           })}
         </div>
 
+        <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
+          Texto: nombre del emprendimiento y títulos. Texto de apoyo: eslogan y descripciones. Etiquetas y frase: la frase de arriba de los productos y los textos más suaves.
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px' }}>
           {[
             { key: 'bg', label: 'Fondo' },
             { key: 'bg3', label: 'Tarjetas' },
             { key: 'accent', label: 'Acento 1' },
             { key: 'accent2', label: 'Acento 2' },
-            { key: 'text', label: 'Texto' }
+            { key: 'text', label: 'Texto' },
+            { key: 'text2', label: 'Texto de apoyo' },
+            { key: 'text3', label: 'Etiquetas y frase' }
           ].map(({ key, label }) => (
             <label
               key={key}

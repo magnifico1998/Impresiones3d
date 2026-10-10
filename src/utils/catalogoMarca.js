@@ -53,3 +53,23 @@ export const esloganTamanoDe = (config) => {
   const n = Number(config?.esloganTamano);
   return Number.isFinite(n) && n > 0 ? Math.min(32, Math.max(10, Math.round(n))) : ESLOGAN_TAMANO_POR_DEFECTO;
 };
+
+// Mezcla de dos colores hex: `pct` % de `a` y el resto de `b` (devuelve un hex).
+export function mezclarHex(a, b, pct) {
+  const leer = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : null; };
+  const x = leer(a); const y = leer(b);
+  if (!x || !y) return a;
+  const t = Math.max(0, Math.min(100, pct)) / 100;
+  return `#${x.map((v, i) => Math.round(v * t + y[i] * (1 - t)).toString(16).padStart(2, '0')).join('')}`;
+}
+
+// Los dos textos secundarios de una paleta del catálogo: los elegidos o, en catálogos con la paleta guardada
+// antes de poder elegirlos, una mezcla del texto con el fondo (así nunca quedan ilegibles sobre un fondo distinto
+// del de siempre). text2 = textos de apoyo (75 % texto); text3 = etiquetas y la frase de arriba (60 % texto).
+export function textosSecundariosDe(paleta) {
+  const p = paleta || {};
+  return {
+    text2: p.text2 || (p.text && p.bg ? mezclarHex(p.text, p.bg, 75) : undefined),
+    text3: p.text3 || (p.text && p.bg ? mezclarHex(p.text, p.bg, 60) : undefined)
+  };
+}

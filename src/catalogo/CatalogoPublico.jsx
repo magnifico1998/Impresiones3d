@@ -5,7 +5,7 @@ import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/paises';
 import { ordenarCategorias } from '../utils/categoriaOrden';
-import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe } from '../utils/catalogoMarca';
+import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe, textosSecundariosDe } from '../utils/catalogoMarca';
 
 const newLocalId = () => Date.now() + Math.random();
 
@@ -48,7 +48,7 @@ function linkificar(texto) {
 }
 
 // La paleta del catálogo (elegida en CatalogoAdminPage, independiente de la
-// paleta de la app) se guarda como 5 colores en catalogoConfig.paletaCatalogo.
+// paleta de la app) se guarda como 7 colores en catalogoConfig.paletaCatalogo.
 // Como React sí deja poner variables CSS custom en un style inline, alcanza
 // con setearlas en el div raíz de la página -- todo lo demás ya usa
 // var(--bg)/var(--accent)/etc, así que las toman solas por herencia. Si
@@ -63,6 +63,9 @@ function estiloPaleta(config) {
   if (p.accent) estilo['--accent'] = p.accent;
   if (p.accent2) estilo['--accent2'] = p.accent2;
   if (p.text) estilo['--text'] = p.text;
+  const { text2, text3 } = textosSecundariosDe(p);
+  if (text2) estilo['--text2'] = text2;
+  if (text3) estilo['--text3'] = text3;
   return estilo;
 }
 

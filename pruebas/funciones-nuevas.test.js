@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ajustarLogo, tamanoLogoPdfDe } from '../src/utils/logoPdf';
 import { MAX_COMENTARIO_ADJUNTO, adjuntoParaGuardar, hojasDeAnexo, porHojaDe } from '../src/utils/adjuntosPresupuesto';
 import { aCamposArgentina, aIsoArgentina, estadoDelAviso, textoPorDefecto } from '../src/utils/avisoActualizacion';
-import { esloganDe, esloganTamanoDe, recortarBorradorEslogan, tamanoLogoDe } from '../src/utils/catalogoMarca';
+import { esloganDe, esloganTamanoDe, mezclarHex, recortarBorradorEslogan, tamanoLogoDe, textosSecundariosDe } from '../src/utils/catalogoMarca';
 
 vi.mock('../src/utils/impresionDirecta', () => ({
   trabajoVencido: (t, ahora) => t.estado === 'pendiente' && t.accion === 'imprimir' && !!t.creadoMs && ahora - t.creadoMs > 10 * 60 * 1000
@@ -152,5 +152,21 @@ describe('paletas de colores', () => {
     for (const [id, paleta] of Object.entries(paletas)) {
       for (const rol of editables) expect(paleta[rol], `${id}.${rol}`).toMatch(/^#[0-9a-fA-F]{6}$/);
     }
+  });
+});
+
+describe('textos secundarios de la paleta del catálogo', () => {
+  it('mezclarHex mezcla dos colores', () => {
+    expect(mezclarHex('#000000', '#ffffff', 50)).toBe('#808080');
+    expect(mezclarHex('#102030', '#ffffff', 100)).toBe('#102030');
+    expect(mezclarHex('#102030', '#ffffff', 0)).toBe('#ffffff');
+    expect(mezclarHex('rojo', '#ffffff', 50)).toBe('rojo');
+  });
+  it('usa los elegidos y, si no están, los calcula desde el texto y el fondo', () => {
+    expect(textosSecundariosDe({ text: '#000000', bg: '#ffffff', text2: '#111111', text3: '#222222' })).toEqual({ text2: '#111111', text3: '#222222' });
+    const viejo = textosSecundariosDe({ text: '#000000', bg: '#ffffff' });
+    expect(viejo.text2).toBe(mezclarHex('#000000', '#ffffff', 75));
+    expect(viejo.text3).toBe(mezclarHex('#000000', '#ffffff', 60));
+    expect(textosSecundariosDe(null)).toEqual({ text2: undefined, text3: undefined });
   });
 });
