@@ -1,7 +1,7 @@
 {
-  "activo": false,
-  "sha": "",
+  "activo": true,
+  "sha": "a503670ea40044e2ec98106dd57a6bdf02308b30",
   "desdeUtc": "2026-10-11T11:00:00Z",
-  "version": "",
-  "descripcion": "Pase del domingo 11/10/2026 08:00 hs (Argentina). Se completa con: npm run programar-pase -- --sha HEAD --desde 2026-10-11T11:00:00Z"
+  "version": "15.0.0",
+  "descripcion": "v15.0 - domingo 11/10/2026 08:00 hs (Argentina)"
 }
