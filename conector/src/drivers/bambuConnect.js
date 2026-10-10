@@ -36,6 +36,7 @@ function abrirUrl(url) {
 
 export const bambuConnect = {
   tipo: 'bambu-connect',
+  oculto: true, // reemplazado por "Abrir en el slicer"; sigue funcionando en las impresoras ya cargadas
   nombre: 'Bambu Lab (por Bambu Connect)',
   formatos: ['3mf', 'gcode'],
   puedeImprimir: false, // la impresión se confirma en Bambu Connect

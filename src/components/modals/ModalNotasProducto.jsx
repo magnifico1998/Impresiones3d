@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useCapaModal } from '../CapaModal';
 
 // Notas internas de un producto de la Biblioteca (tipo de filamento, detalles de la impresión…),
@@ -10,8 +11,9 @@ export default function ModalNotasProducto({ producto, onClose }) {
 
   // Este modal va dentro del del pedido: el stopPropagation evita que un clic
   // afuera cierre a los dos (y el clic afuera no cierra, ver CapaModal).
-  return (
-    <div className="modal-overlay open" {...capaModal}>
+  // Va al <body> (no dentro del modal del pedido): así queda centrado en la pantalla, en cualquier parte del pedido.
+  return createPortal(
+    <div className="modal-overlay open centrado" {...capaModal}>
       <div className="modal" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Notas · {producto.nombre}</div>
         <div className="modal-sub" style={{ fontSize: '12px', color: 'var(--text3)' }}>
@@ -24,6 +26,7 @@ export default function ModalNotasProducto({ producto, onClose }) {
           <button className="btn btn-primary" onClick={onClose}>Cerrar</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

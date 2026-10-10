@@ -344,6 +344,7 @@ function explicarRechazo(msg) {
 
 export const anycubicLan = {
   tipo: 'anycubic-lan',
+  oculto: true, // reemplazado por "Abrir en el slicer"; sigue funcionando en las impresoras ya cargadas
   nombre: 'Anycubic Kobra 3 / S1 (modo LAN)',
   formatos: ['gcode', '3mf'],
   puedeImprimir: true,

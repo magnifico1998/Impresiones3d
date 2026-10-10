@@ -78,6 +78,7 @@ async function klipperListo(impresora) {
 
 export const moonraker = {
   tipo: 'moonraker',
+  oculto: true, // reemplazado por "Abrir en el slicer"; sigue funcionando en las impresoras ya cargadas
   nombre: 'Klipper / Moonraker (Elegoo Neptune 4, Sovol, Voron…) — para Creality usá "Abrir en Creality Print"',
   formatos: ['gcode'],
   puedeImprimir: true,

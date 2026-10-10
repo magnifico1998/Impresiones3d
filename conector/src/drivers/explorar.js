@@ -75,6 +75,7 @@ async function reconocer(host) {
 
 export const explorar = {
   tipo: 'explorar-impresora',
+  oculto: true, // reemplazado por "Abrir en el slicer"; sigue funcionando en las impresoras ya cargadas
   nombre: 'Otra marca: solo explorar cómo se conecta (para armar su soporte)',
   formatos: [], // no recibe envíos
   puedeImprimir: false,

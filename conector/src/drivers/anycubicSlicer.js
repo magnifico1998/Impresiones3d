@@ -94,6 +94,7 @@ async function programaDe(impresora) {
 
 export const anycubicSlicer = {
   tipo: 'abrir-en-anycubic',
+  oculto: true, // reemplazado por "Abrir en el slicer"; sigue funcionando en las impresoras ya cargadas
   nombre: 'Anycubic Kobra: abrir en Anycubic Slicer Next (no necesita modo LAN)',
   formatos: ['3mf'],
   puedeImprimir: false, // se manda desde el programa

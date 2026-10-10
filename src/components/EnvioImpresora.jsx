@@ -46,7 +46,7 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
       <div style={{ border: '1px solid var(--border2)', borderRadius: '8px', padding: '12px 14px', background: 'var(--bg3)', fontSize: '13px' }}>
         {conectores.length
           ? (esProyecto3mf(archivo)
-            ? 'Un proyecto .3mf (con el perfil de impresión, sin laminar) sólo se puede abrir en un programa de laminado: cargá en el conector "Abrir en Creality Print", "Abrir en Bambu Studio / Orca" o "Abrir en Anycubic Slicer Next" (o "Guardar en una carpeta").'
+            ? 'Un proyecto .3mf (con el perfil de impresión, sin laminar) sólo se puede abrir en un programa de laminado: cargá en el conector una impresora con "Abrir en el slicer de tu marca" (o "Guardar en una carpeta").'
             : `Ninguna impresora cargada en tus conectores recibe archivos .${archivo.formato === '3mf' ? '3mf' : 'gcode'}.`)
           : 'Para mandar a una impresora primero vinculá un conector en Configuración → Impresión directa.'}
         <div style={{ marginTop: '10px' }}><button className="btn btn-sm" onClick={() => alTerminar?.(false)}>Cerrar</button></div>
@@ -106,7 +106,7 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
           </div>
         ) : elegido?.impresora.abre ? (
           <div style={{ color: 'var(--text2)' }}>
-            Se abre en el programa de laminado de esa PC (Bambu Studio, Anycubic Slicer Next…) y desde ahí lo mandás a la impresora, como siempre.
+            Se abre en el programa de laminado de esa PC (Bambu Studio, Anycubic Slicer Next, Creality Print…) y desde ahí lo revisás, lo laminás y lo mandás a la impresora, como siempre.
           </div>
         ) : directo ? (
           <>

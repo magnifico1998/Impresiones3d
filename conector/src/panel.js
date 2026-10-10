@@ -72,10 +72,11 @@ export const PAGINA = `<!doctype html>
       <div><label>Tipo</label><select id="impTipo"></select></div>
     </div>
     <div class="fila">
+      <div data-campo="marca"><label>Marca de la impresora</label><select id="impMarca"></select></div>
       <div data-campo="host"><label>IP de la impresora</label><input id="impHost" placeholder="Ej: 192.168.0.50"></div>
       <div data-campo="codigoAcceso"><label>Código de acceso (pantalla de la impresora)</label><input id="impCodigo" placeholder="8 caracteres" autocomplete="off"></div>
       <div data-campo="serie"><label>Número de serie</label><input id="impSerie" placeholder="Ej: 03919C..."></div>
-      <div data-campo="programa"><label>Programa (opcional): ruta del .exe</label><input id="impPrograma" placeholder="Si lo dejás vacío se busca solo. Ej: C:\\Program Files\\AnycubicSlicerNext\\AnycubicSlicerNext.exe"></div>
+      <div data-campo="programa"><label>Programa (opcional): ruta del .exe</label><input id="impPrograma" placeholder="Si lo dejás vacío se busca solo. Ej: C:\\Program Files\\Creality\\Creality Print 6.0\\CrealityPrint.exe"></div>
     </div>
     <div data-campo="tieneAce"><label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="impAce" style="width:auto"> Tiene ACE (Combo): al imprimir, cada color va a un lugar del ACE que tenga ese material (lo lee de la impresora)</label></div>
     <div id="ayudaTipo" class="aviso"></div>
@@ -112,6 +113,7 @@ const AYUDA = {
   'moonraker': 'Impresoras con Klipper + Moonraker que NO son Creality: Elegoo Neptune 4, Sovol, Voron, Artillery… Solo hace falta la IP (si usa otro puerto que el 7125, ponelo así: 192.168.0.50:7125). Para Creality (K1, K2, SparkX i7, Ender-3 V3) usá "Abrir en Creality Print": el envío directo se pausaba al arrancar.',
   'explorar-impresora': 'Solo lectura: mira qué puertos y protocolos tiene tu impresora (Moonraker, OctoPrint, WebSocket de Creality…) para poder armar su soporte. No manda nada ni cambia nada. Cargala con su IP y tocá Diagnóstico.',
   'abrir-en-creality': 'Para cualquier Creality (K1, K2, SparkX i7, Ender-3 V3…). Guarda el archivo y lo abre en Creality Print en esta PC; ahí revisás el perfil, laminás y tocás Imprimir / Enviar. Es el camino recomendado: usa el flujo oficial de Creality y la impresora siempre arranca bien. Se busca solo; si no lo encuentra, escribí la ruta de su .exe en "Programa".',
+  'abrir-en-slicer': 'Elegí la marca de tu impresora: se busca sola su programa de laminado (Bambu Studio, Anycubic Slicer Next, Creality Print…) y el archivo se abre ahí, para que revises el perfil, lamines y mandes a imprimir con el flujo oficial de tu marca. Si no lo encuentra, o tu marca no está en la lista ("Otra marca"), escribí la ruta del .exe en "Programa".',
   'abrir-en-anycubic': 'Para cualquier Kobra, SIN modo LAN. Guarda el archivo y lo abre en Anycubic Slicer Next en esta PC; desde ahí lo mandás a la impresora con tu cuenta Anycubic, como ya lo hacés. Solo sirve con archivos .gcode.3mf laminados en Anycubic Slicer Next (Exportar archivo de la placa laminada). El programa se busca solo; si no lo encuentra, indicá la ruta de su .exe.',
   'abrir-en-programa': 'Guarda el archivo y lo abre en Bambu Studio (u Orca, el programa que tengas para los .3mf) en esta PC. Desde ahí lo mandás a la impresora como siempre. No necesita Bambu Connect ni el modo LAN.',
   'bambu-connect': 'Abre el archivo en Bambu Connect, en esta PC, para que elijas la impresora y confirmes. La impresora sigue con la nube y Bambu Handy. Instalá Bambu Connect desde wiki.bambulab.com.',
@@ -167,6 +169,7 @@ function pintar() {
   const sel = $('impTipo');
   if (!sel.options.length) {
     datos.tipos.filter((t) => !t.oculto).forEach((t) => { const o = document.createElement('option'); o.value = t.tipo; o.textContent = t.nombre; sel.append(o); });
+    (datos.marcas || []).forEach((m) => { const o = document.createElement('option'); o.value = m.id; o.textContent = m.nombre; $('impMarca').append(o); });
     camposVisibles();
   }
 
@@ -213,7 +216,9 @@ function pintar() {
     }
     const editar = document.createElement('button'); editar.textContent = 'Editar';
     editar.onclick = () => {
+      if (![...$('impTipo').options].some((o) => o.value === i.tipo)) { const o = document.createElement('option'); o.value = i.tipo; o.textContent = (tipo ? tipo.nombre : i.tipo) + ' (anterior)'; $('impTipo').append(o); }
       $('impId').value = i.id; $('impNombre').value = i.nombre; $('impTipo').value = i.tipo; $('impHost').value = i.host;
+      if (i.marca) $('impMarca').value = i.marca;
       $('impSerie').value = i.serie; $('impPrograma').value = i.programa || ''; $('impAce').checked = i.tieneAce; $('impCodigo').value = '';
       $('impCodigo').placeholder = i.conCodigo ? '(se mantiene el guardado)' : '8 caracteres';
       $('tituloForm').textContent = 'Editar ' + i.nombre; $('btnCancelarImp').classList.remove('oculto'); camposVisibles();
@@ -257,7 +262,7 @@ $('btnGuardarImp').onclick = async () => {
   try {
     datos = await api('/api/impresora', {
       id: $('impId').value, nombre: $('impNombre').value, tipo: $('impTipo').value, host: $('impHost').value,
-      codigoAcceso: $('impCodigo').value, serie: $('impSerie').value, programa: $('impPrograma').value, tieneAce: $('impAce').checked
+      codigoAcceso: $('impCodigo').value, serie: $('impSerie').value, programa: $('impPrograma').value, marca: $('impMarca').value, tieneAce: $('impAce').checked
     });
     mensaje('msgImp', 'Impresora guardada.', 'ok'); limpiarForm(); pintar();
   } catch (e) { mensaje('msgImp', e.message, 'error'); }

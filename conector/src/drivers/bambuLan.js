@@ -45,6 +45,7 @@ function placasDel3mf(contenido) {
 
 export const bambuLan = {
   tipo: 'bambu-lan',
+  oculto: true, // reemplazado por "Abrir en el slicer"; sigue funcionando en las impresoras ya cargadas
   nombre: 'Bambu Lab (modo LAN + desarrollador, experimental)',
   formatos: ['3mf'],
   puedeImprimir: true,

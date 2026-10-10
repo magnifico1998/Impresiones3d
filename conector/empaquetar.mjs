@@ -56,15 +56,12 @@ PRIMER USO
    http://127.0.0.1:18930
 2. En Manager3D: Configuración > Impresión directa > "Vincular un conector".
    Te muestra un código de 8 letras. Escribilo en el panel y tocá Vincular.
-3. En el panel, en "Impresoras", cargá cada una:
-   - Bambu Lab: elegí "Abrir en Bambu Studio / Orca" (necesita Bambu Studio
-     instalado). Tocá "Probar".
-   - Creality (K1, K2, SparkX i7, Ender-3 V3…): elegí "Abrir en Creality Print"
-     (necesita Creality Print instalado). Tocá "Probar".
-   - Anycubic Kobra: dos opciones. "Abrir en Anycubic Slicer Next" (sin modo
-     LAN, con archivos .gcode.3mf laminados en ese programa) o "Anycubic Kobra 3 /
-     S1 (modo LAN)": poné la IP y tildá "Tiene ACE" si es Combo (la impresora
-     tiene que estar en modo LAN).
+3. En el panel, en "Impresoras", cargá cada una: elegí "Abrir en el slicer de tu marca"
+   y la marca de tu impresora (Bambu Lab, Anycubic, Creality, Elegoo, Prusa…). El
+   programa de laminado de la marca se busca solo; si no lo encuentra, o tu marca no
+   está en la lista ("Otra marca"), escribí la ruta de su .exe en "Programa". Tocá
+   "Probar". Los archivos se abren ahí: revisás el perfil, laminás y mandás a imprimir
+   con el flujo oficial de tu marca.
 4. En Manager3D, en la Biblioteca, tocá el icono del archivo de un producto y
    después "Mandar" para elegir la impresora. Siempre está "Guardar en una
    carpeta" (para una impresora sin red: tarjeta SD o pendrive): la carpeta se

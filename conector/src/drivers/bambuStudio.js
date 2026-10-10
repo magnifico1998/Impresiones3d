@@ -9,6 +9,7 @@ import { abrirArchivo, guardarTemporal, programaPredeterminado3mf } from './abri
 
 export const bambuStudio = {
   tipo: 'abrir-en-programa',
+  oculto: true, // reemplazado por "Abrir en el slicer"; sigue funcionando en las impresoras ya cargadas
   nombre: 'Abrir en Bambu Studio / Orca (el programa de tus .3mf)',
   formatos: ['3mf', 'gcode'],
   puedeImprimir: false, // se imprime desde el programa

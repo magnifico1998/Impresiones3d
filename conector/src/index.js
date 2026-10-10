@@ -8,6 +8,7 @@ import { crearNube, vincular } from './nube.js';
 import { DRIVERS, driverDe } from './drivers/index.js';
 import { carpetaPorDefecto, prepararCarpeta } from './drivers/carpeta.js';
 import { PAGINA } from './panel.js';
+import { MARCAS, marcaDe } from './drivers/slicer.js';
 
 // Manager3D Conector: corre en una PC del taller. Se vincula a la cuenta con
 // un código, toma los trabajos de "Mandar a impresora" y los manda a las
@@ -49,7 +50,7 @@ const destinoCarpeta = () => ({ id: 'carpeta', nombre: 'Guardar en una carpeta',
 const todasLasImpresoras = () => [...config.impresoras, destinoCarpeta()];
 const buscarDestino = (id) => todasLasImpresoras().find((i) => i.id === id);
 
-const impresoraPublica = (i) => ({ id: i.id, nombre: i.nombre, tipo: i.tipo, host: i.host || '', serie: i.serie || '', tieneAce: !!i.tieneAce, conCodigo: !!i.codigoAcceso, programa: i.programa || '' });
+const impresoraPublica = (i) => ({ id: i.id, nombre: i.nombre, tipo: i.tipo, marca: i.marca || '', host: i.host || '', serie: i.serie || '', tieneAce: !!i.tieneAce, conCodigo: !!i.codigoAcceso, programa: i.programa || '' });
 
 function estado() {
   return {
@@ -59,6 +60,7 @@ function estado() {
     impresoras: config.impresoras.map(impresoraPublica),
     carpeta: carpetaEfectiva(),
     carpetaPropia: !!config.carpeta,
+    marcas: MARCAS.map((m) => ({ id: m.id, nombre: m.nombre, programa: m.programa })),
     tipos: Object.values(DRIVERS).map((d) => ({ oculto: !!d.oculto, tipo: d.tipo, nombre: d.nombre, campos: d.campos, puedeImprimir: d.puedeImprimir, puedeCancelar: !!d.puedeCancelar, puedeDiagnosticar: !!d.diagnosticar })),
     log: log.slice(-60),
     datos: carpetaDatos
@@ -79,11 +81,12 @@ const texto = (v, max) => String(v ?? '').trim().slice(0, max);
 function datosImpresora(c, id) {
   const tipo = texto(c.tipo, 40);
   driverDe(tipo);
-  const imp = { id, nombre: texto(c.nombre, 60) || 'Impresora', tipo, host: texto(c.host, 100), serie: texto(c.serie, 40), tieneAce: !!c.tieneAce, programa: texto(c.programa, 300) };
+  const marca = tipo === 'abrir-en-slicer' ? marcaDe(texto(c.marca, 20)) : null;
+  const imp = { id, nombre: texto(c.nombre, 60) || (marca && marca.id !== 'otra' ? marca.nombre : 'Impresora'), tipo, marca: marca ? marca.id : '', host: texto(c.host, 100), serie: texto(c.serie, 40), tieneAce: !!c.tieneAce, programa: texto(c.programa, 300) };
   const anterior = config.impresoras.find((i) => i.id === id);
   imp.codigoAcceso = texto(c.codigoAcceso, 40) || anterior?.codigoAcceso || '';
   const driver = driverDe(tipo);
-  const faltan = driver.campos.filter((campo) => campo !== 'tieneAce' && !(driver.opcionales || []).includes(campo) && !imp[campo]);
+  const faltan = driver.campos.filter((campo) => campo !== 'tieneAce' && campo !== 'marca' && !(driver.opcionales || []).includes(campo) && !imp[campo]);
   if (faltan.length) throw new Error(`Falta completar: ${faltan.join(', ')}.`);
   return imp;
 }

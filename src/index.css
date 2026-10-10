@@ -160,6 +160,9 @@ select option{background:var(--bg3)}
 .input-money-prefix{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:100;align-items:flex-start;justify-content:center;padding-top:60px;overflow-y:auto}
 .modal-overlay.open{display:flex}
+/* Modales que se abren encima del de un pedido (envío a la impresora, notas, unir): centrados en la pantalla, sin importar dónde esté el scroll. */
+.modal-overlay.centrado{align-items:center;padding:24px 16px;z-index:120}
+.modal-overlay.centrado .modal{margin-bottom:0;max-height:calc(100vh - 48px);overflow-y:auto}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius2);padding:24px;width:100%;max-width:520px;box-shadow:var(--shadow);animation:slideDown .2s ease;margin-bottom:40px}
 .modal-wide{max-width:700px}
 @keyframes slideDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}

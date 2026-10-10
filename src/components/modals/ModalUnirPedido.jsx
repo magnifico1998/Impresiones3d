@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useApp } from '../../context/AppContext';
@@ -82,8 +83,9 @@ export default function ModalUnirPedido({ pedido, onClose, onUnido }) {
 
   const total = (p) => parseFloat(p.precioVenta) || 0;
 
-  return (
-    <div className="modal-overlay open" {...capaModal}>
+  // Va al <body> (no dentro del modal del pedido): así queda centrado en la pantalla, en cualquier parte del pedido.
+  return createPortal(
+    <div className="modal-overlay open centrado" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Unir pedidos</div>
         <div className="modal-sub" style={{ fontSize: '12px', color: 'var(--text2)' }}>
@@ -129,6 +131,7 @@ export default function ModalUnirPedido({ pedido, onClose, onUnido }) {
           <button className="btn btn-primary" disabled={!elegido || !!motivo || uniendo} onClick={unir}>{uniendo ? 'Uniendo…' : 'Unir pedidos'}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
