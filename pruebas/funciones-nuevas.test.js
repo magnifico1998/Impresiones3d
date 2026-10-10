@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { paletas } from '../src/utils/paletas';
 import { describe, expect, it, vi } from 'vitest';
 import { ajustarLogo, tamanoLogoPdfDe } from '../src/utils/logoPdf';
 import { MAX_COMENTARIO_ADJUNTO, adjuntoParaGuardar, hojasDeAnexo, porHojaDe } from '../src/utils/adjuntosPresupuesto';
@@ -142,5 +143,14 @@ describe('notas internas del producto', () => {
     // El costo sólo puede aparecer como último recurso del precio de venta (producto sin precio sugerido).
     const conCosto = cuerpo.split('\n').filter((l) => l.includes('costoUnitario'));
     expect(conCosto.every((l) => l.trim().startsWith('precio:'))).toBe(true);
+  });
+});
+
+describe('paletas de colores', () => {
+  it('todas las paletas definen los 7 colores que se pueden retocar a mano (con un hex válido)', () => {
+    const editables = ['bg', 'bg3', 'accent', 'accent2', 'text', 'text2', 'text3'];
+    for (const [id, paleta] of Object.entries(paletas)) {
+      for (const rol of editables) expect(paleta[rol], `${id}.${rol}`).toMatch(/^#[0-9a-fA-F]{6}$/);
+    }
   });
 });

@@ -98,13 +98,13 @@ export default function ConfiguracionPage() {
     }));
   };
 
-  // Los 5 colores que se pueden retocar a mano en la tarjeta "Paleta
-  // personalizada" (los mismos que se ven en la vista previa de cada
-  // paleta de acá arriba). Se guardan aparte en cfg.paletaCustom y se
+  // Los 7 colores que se pueden retocar a mano en la tarjeta "Paleta
+  // personalizada": fondo, tarjetas, los dos acentos y los tres textos (el principal, el de
+  // apoyo y el de etiquetas/títulos de tarjeta). Se guardan aparte en cfg.paletaCustom y se
   // aplican por encima de la paleta base (ver AppContext.jsx) -- así no
-  // hace falta duplicar los otros 13 roles (border, warn, danger, etc.)
-  // para poder tocar sólo estos 5.
-  const ROLES_PERSONALIZABLES = ['bg', 'accent', 'accent2', 'text', 'bg3'];
+  // hace falta duplicar los otros 11 roles (border, warn, danger, etc.)
+  // para poder tocar sólo estos 7.
+  const ROLES_PERSONALIZABLES = ['bg', 'accent', 'accent2', 'text', 'text2', 'text3', 'bg3'];
 
   const handlePaletteSelect = (paletteId) => {
     const base = paletas[paletteId];
@@ -285,13 +285,18 @@ export default function ConfiguracionPage() {
                 <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
                   Retocá los colores de la paleta elegida en "Paletas de colores". Al elegir otra paleta, se reinicia con sus colores.
                 </div>
+                <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px', fontFamily: 'var(--mono)' }}>
+                  Texto: títulos de cada página, de los formularios y del encabezado. Texto de apoyo: subtítulos y descripciones. Etiquetas y títulos: títulos de las tarjetas, etiquetas de los campos y encabezados de las tablas.
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: '10px' }}>
                   {[
                     { key: 'bg', label: 'Fondo' },
                     { key: 'bg3', label: 'Tarjetas' },
                     { key: 'accent', label: 'Acento 1' },
                     { key: 'accent2', label: 'Acento 2' },
-                    { key: 'text', label: 'Texto' }
+                    { key: 'text', label: 'Texto' },
+                    { key: 'text2', label: 'Texto de apoyo' },
+                    { key: 'text3', label: 'Etiquetas y títulos' }
                   ].map(({ key, label }) => {
                     const base = paletas[cfg.palette] || paletas.lagoon;
                     const valor = cfg.paletaCustom?.[key] ?? base[key];

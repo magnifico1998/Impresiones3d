@@ -1008,7 +1008,7 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     if (cfg?.palette) {
       const base = paletas[cfg.palette] || paletas.lagoon;
-      // paletaCustom pisa sólo los 5 roles editables desde "Paleta
+      // paletaCustom pisa sólo los 7 roles editables desde "Paleta
       // personalizada" (Configuración) -- el resto de los roles (border,
       // warn, danger, etc.) siempre vienen de la paleta base elegida.
       const custom = cfg.paletaCustom || {};
