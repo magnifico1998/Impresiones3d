@@ -59,6 +59,8 @@ PRIMER USO
 3. En el panel, en "Impresoras", cargá cada una:
    - Bambu Lab: elegí "Abrir en Bambu Studio / Orca" (necesita Bambu Studio
      instalado). Tocá "Probar".
+   - Creality (K1, K2, SparkX i7, Ender-3 V3…): elegí "Abrir en Creality Print"
+     (necesita Creality Print instalado). Tocá "Probar".
    - Anycubic Kobra: dos opciones. "Abrir en Anycubic Slicer Next" (sin modo
      LAN, con archivos .gcode.3mf laminados en ese programa) o "Anycubic Kobra 3 /
      S1 (modo LAN)": poné la IP y tildá "Tiene ACE" si es Combo (la impresora

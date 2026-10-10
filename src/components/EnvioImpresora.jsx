@@ -4,6 +4,7 @@ import {
   ESTADOS_TRABAJO, MINUTOS_VENCE_IMPRIMIR, borrarTrabajo, cancelarTrabajo, escucharConectores, escucharTrabajos,
   impresorasPara, mandarAImpresora, trabajoVencido
 } from '../utils/impresionDirecta';
+import { esProyecto3mf } from '../utils/formatoEnvio';
 
 // Mandar un archivo G-code guardado a una impresora, con el conector
 // (utils/impresionDirecta.js). Lo usan el modal de archivos de un producto de
@@ -44,7 +45,9 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
     return (
       <div style={{ border: '1px solid var(--border2)', borderRadius: '8px', padding: '12px 14px', background: 'var(--bg3)', fontSize: '13px' }}>
         {conectores.length
-          ? `Ninguna impresora cargada en tus conectores recibe archivos .${archivo.formato === '3mf' ? '3mf' : 'gcode'}.`
+          ? (esProyecto3mf(archivo)
+            ? 'Un proyecto .3mf (con el perfil de impresión, sin laminar) sólo se puede abrir en un programa de laminado: cargá en el conector "Abrir en Creality Print", "Abrir en Bambu Studio / Orca" o "Abrir en Anycubic Slicer Next" (o "Guardar en una carpeta").'
+            : `Ninguna impresora cargada en tus conectores recibe archivos .${archivo.formato === '3mf' ? '3mf' : 'gcode'}.`)
           : 'Para mandar a una impresora primero vinculá un conector en Configuración → Impresión directa.'}
         <div style={{ marginTop: '10px' }}><button className="btn btn-sm" onClick={() => alTerminar?.(false)}>Cerrar</button></div>
       </div>

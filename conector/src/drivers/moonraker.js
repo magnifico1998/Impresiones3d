@@ -64,7 +64,8 @@ async function consolaDe(impresora, cuantas = 25) {
 }
 
 // Cuánto se vigila el arranque después de mandar a imprimir. Hay impresoras que
-// aceptan la orden y se pausan al rato (Creality SparkX i7: "Error desconocido").
+// aceptan la orden y se pausan al rato (Creality SparkX i7: "Error desconocido"): por eso, para
+// Creality se recomienda abrir el archivo en Creality Print (drivers/crealityPrint.js).
 const vigilarArranqueMs = () => Number(process.env.MANAGER3D_VIGILAR_MS) || 60000;
 
 async function klipperListo(impresora) {
@@ -77,7 +78,7 @@ async function klipperListo(impresora) {
 
 export const moonraker = {
   tipo: 'moonraker',
-  nombre: 'Klipper / Moonraker (Creality SparkX i7, K1, Elegoo Neptune 4, Sovol…)',
+  nombre: 'Klipper / Moonraker (Elegoo Neptune 4, Sovol, Voron…) — para Creality usá "Abrir en Creality Print"',
   formatos: ['gcode'],
   puedeImprimir: true,
   puedeCancelar: true,

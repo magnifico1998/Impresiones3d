@@ -2,6 +2,7 @@ import { addDoc, collection, deleteDoc, doc, onSnapshot, serverTimestamp, Timest
 import { httpsCallable } from 'firebase/functions';
 import { getDownloadURL, getMetadata, ref } from 'firebase/storage';
 import { db, functions, storage } from '../firebase';
+import { puedeRecibir } from './formatoEnvio';
 
 // Impresión directa: la app pone en una cola (users/{cuenta}/trabajosImpresion)
 // lo que hay que mandar, y el "Manager3D Conector" (carpeta conector/), que
@@ -90,7 +91,7 @@ export function impresorasPara(archivo, conectores) {
   const lista = [];
   conectores.forEach((c) => {
     (c.impresoras || []).forEach((i) => {
-      if (!i.formatos || i.formatos.includes(archivo.formato)) lista.push({ conector: c, impresora: i, activo: conectorActivo(c) });
+      if (puedeRecibir(i, archivo)) lista.push({ conector: c, impresora: i, activo: conectorActivo(c) });
     });
   });
   return lista;

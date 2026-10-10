@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { paletas } from '../src/utils/paletas';
+import { esLaminado, esProyecto3mf, puedeRecibir } from '../src/utils/formatoEnvio';
 import { describe, expect, it, vi } from 'vitest';
 import { ajustarLogo, tamanoLogoPdfDe } from '../src/utils/logoPdf';
 import { MAX_COMENTARIO_ADJUNTO, adjuntoParaGuardar, hojasDeAnexo, porHojaDe } from '../src/utils/adjuntosPresupuesto';
@@ -168,5 +169,39 @@ describe('textos secundarios de la paleta del catálogo', () => {
     expect(viejo.text2).toBe(mezclarHex('#000000', '#ffffff', 75));
     expect(viejo.text3).toBe(mezclarHex('#000000', '#ffffff', 60));
     expect(textosSecundariosDe(null)).toEqual({ text2: undefined, text3: undefined });
+  });
+});
+
+describe('qué impresora recibe cada archivo', () => {
+  const directa = { formatos: ['gcode', '3mf'], puedeImprimir: true };
+  const soloGcode = { formatos: ['gcode'], puedeImprimir: true };
+  const programa = { formatos: ['3mf', 'gcode'], abre: true, puedeImprimir: false };
+  const carpeta = { formatos: ['gcode', '3mf'], guarda: true };
+  const laminado = { nombre: 'Llavero.gcode.3mf', formato: '3mf' };
+  const proyecto = { nombre: 'Llavero.3mf', formato: '3mf' };
+  const gcode = { nombre: 'Llavero.gcode', formato: 'gcode' };
+
+  it('distingue el 3mf laminado del proyecto sin laminar', () => {
+    expect(esLaminado('Llavero.gcode.3mf')).toBe(true);
+    expect(esLaminado('LLAVERO.GCODE.3MF')).toBe(true);
+    expect(esLaminado('Llavero.3mf')).toBe(false);
+    expect(esProyecto3mf(proyecto)).toBe(true);
+    expect(esProyecto3mf(laminado)).toBe(false);
+    expect(esProyecto3mf(gcode)).toBe(false);
+  });
+  it('un proyecto 3mf sin laminar NUNCA va directo a una impresora: sólo a un programa o a una carpeta', () => {
+    expect(puedeRecibir(directa, proyecto)).toBe(false);
+    expect(puedeRecibir(programa, proyecto)).toBe(true);
+    expect(puedeRecibir(carpeta, proyecto)).toBe(true);
+  });
+  it('un 3mf laminado y un G-code sí pueden ir directo si la impresora acepta el formato', () => {
+    expect(puedeRecibir(directa, laminado)).toBe(true);
+    expect(puedeRecibir(directa, gcode)).toBe(true);
+    expect(puedeRecibir(soloGcode, laminado)).toBe(false);
+    expect(puedeRecibir(programa, gcode)).toBe(true);
+  });
+  it('sin lista de formatos acepta lo que corresponda por tipo de archivo', () => {
+    expect(puedeRecibir({}, gcode)).toBe(true);
+    expect(puedeRecibir({ puedeImprimir: true }, proyecto)).toBe(false);
   });
 });
