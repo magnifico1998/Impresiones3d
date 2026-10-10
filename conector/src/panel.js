@@ -69,7 +69,7 @@ export const PAGINA = `<!doctype html>
     <input type="hidden" id="impId">
     <div class="fila">
       <div><label>Nombre</label><input id="impNombre" placeholder="Ej: Kobra 3 Combo" maxlength="60"></div>
-      <div><label>Tipo</label><select id="impTipo"></select></div>
+      <div id="campoTipo"><label>Tipo</label><select id="impTipo"></select></div>
     </div>
     <div class="fila">
       <div data-campo="marca"><label>Marca de la impresora</label><select id="impMarca"></select></div>
@@ -135,9 +135,13 @@ function camposVisibles() {
   const t = datos.tipos.find((x) => x.tipo === tipo);
   document.querySelectorAll('[data-campo]').forEach((el) => el.classList.toggle('oculto', !t.campos.includes(el.dataset.campo)));
   $('ayudaTipo').textContent = AYUDA[tipo] || '';
+  // Con un solo tipo (abrir en el slicer) el selector no sirve para nada: se muestra sólo si hay más de una opción.
+  $('campoTipo').classList.toggle('oculto', $('impTipo').options.length <= 1);
 }
 
 function limpiarForm() {
+  [...$('impTipo').options].filter((o) => o.dataset.anterior).forEach((o) => o.remove());
+  if ($('impTipo').options.length) $('impTipo').selectedIndex = 0;
   $('impId').value = ''; $('impNombre').value = ''; $('impHost').value = ''; $('impCodigo').value = ''; $('impSerie').value = ''; $('impPrograma').value = ''; $('impAce').checked = false;
   $('impCodigo').placeholder = '8 caracteres';
   $('tituloForm').textContent = 'Agregar impresora'; $('btnCancelarImp').classList.add('oculto');
@@ -216,7 +220,7 @@ function pintar() {
     }
     const editar = document.createElement('button'); editar.textContent = 'Editar';
     editar.onclick = () => {
-      if (![...$('impTipo').options].some((o) => o.value === i.tipo)) { const o = document.createElement('option'); o.value = i.tipo; o.textContent = (tipo ? tipo.nombre : i.tipo) + ' (anterior)'; $('impTipo').append(o); }
+      if (![...$('impTipo').options].some((o) => o.value === i.tipo)) { const o = document.createElement('option'); o.value = i.tipo; o.textContent = (tipo ? tipo.nombre : i.tipo) + ' (anterior)'; o.dataset.anterior = '1'; $('impTipo').append(o); }
       $('impId').value = i.id; $('impNombre').value = i.nombre; $('impTipo').value = i.tipo; $('impHost').value = i.host;
       if (i.marca) $('impMarca').value = i.marca;
       $('impSerie').value = i.serie; $('impPrograma').value = i.programa || ''; $('impAce').checked = i.tieneAce; $('impCodigo').value = '';
