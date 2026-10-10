@@ -1,54 +1,55 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0f1117;
-  --color-bg2: #161922;
-  --color-bg3: #1e2230;
-  --color-border: #2a2f3e;
-  --color-border2: #343a4d;
-  --color-text: #e8eaf0;
-  --color-text2: #8b92a8;
-  --color-text3: #555d74;
-  --color-accent: #6ee7b7;
-  --color-accent2: #34d399;
-  --color-accent-dim: rgba(110,231,183,0.12);
-  --color-accent-dim2: rgba(110,231,183,0.06);
-  --color-warn: #fbbf24;
-  --color-warn-dim: rgba(251,191,36,0.12);
-  --color-danger: #f87171;
-  --color-danger-dim: rgba(248,113,113,0.12);
-  --color-info: #60a5fa;
-  --color-info-dim: rgba(96,165,250,0.12);
-  --radius-radius: 8px;
-  --radius-radius2: 12px;
-  --font-mono: 'DM Mono', monospace;
-  --font-sans: 'DM Sans', sans-serif;
+  --color-bg:#fafaf8;
+  --color-bg2:#ffffff;
+  --color-bg3:#f3f4f1;
+  --color-border:#e8eae5;
+  --color-border2:#d6dad2;
+  --color-text:#13271c;
+  --color-text2:#4b5a52;
+  --color-text3:#66726b;
+  --color-accent:#1a7f3c;
+  --color-accent2:#17692f;
+  --color-accent-dim:rgba(26,127,60,0.10);
+  --color-accent-dim2:rgba(26,127,60,0.05);
+  --color-warn:#a8530a;
+  --color-warn-dim:rgba(168,83,10,0.10);
+  --color-danger:#b93428;
+  --color-danger-dim:rgba(185,52,40,0.10);
+  --color-info:#235f9e;
+  --color-info-dim:rgba(35,95,158,0.10);
+  --radius-radius: 12px;
+  --radius-radius2: 20px;
+  --font-mono: 'Inter', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
 }
 
 :root{
-  --bg:#0f1117;
-  --bg2:#161922;
-  --bg3:#1e2230;
-  --border:#2a2f3e;
-  --border2:#343a4d;
-  --text:#e8eaf0;
-  --text2:#8b92a8;
-  --text3:#555d74;
-  --accent:#6ee7b7;
-  --accent2:#34d399;
-  --accentDim:rgba(110,231,183,.12);
-  --accentDim2:rgba(110,231,183,.06);
-  --warn:#fbbf24;
-  --warnDim:rgba(251,191,36,.12);
-  --danger:#f87171;
-  --dangerDim:rgba(248,113,113,.12);
-  --info:#60a5fa;
-  --infoDim:rgba(96,165,250,.12);
-  --radius:8px;
-  --radius2:12px;
-  --mono:'DM Mono',monospace;
-  --sans:'DM Sans',sans-serif;
-  --shadow:0 1px 3px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  --bg:#fafaf8;
+  --bg2:#ffffff;
+  --bg3:#f3f4f1;
+  --border:#e8eae5;
+  --border2:#d6dad2;
+  --text:#13271c;
+  --text2:#4b5a52;
+  --text3:#66726b;
+  --accent:#1a7f3c;
+  --accent2:#17692f;
+  --accentDim:rgba(26,127,60,0.10);
+  --accentDim2:rgba(26,127,60,0.05);
+  --warn:#a8530a;
+  --warnDim:rgba(168,83,10,0.10);
+  --danger:#b93428;
+  --dangerDim:rgba(185,52,40,0.10);
+  --info:#235f9e;
+  --infoDim:rgba(35,95,158,0.10);
+  --radius:12px;
+  --radius2:20px;
+  --mono:'Inter',system-ui,sans-serif;
+  --sans:'Inter',system-ui,sans-serif;
+  --display:'Plus Jakarta Sans','Inter',system-ui,sans-serif;
+  --shadow:0 1px 2px rgba(19,39,28,.04),0 8px 24px rgba(19,39,28,.08);
 }
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -329,3 +330,59 @@ select option{background:var(--bg3)}
 .driver-popover.recorrido-popover .driver-popover-arrow-side-left{border-left-color:var(--bg2)}
 .driver-popover.recorrido-popover .driver-popover-arrow-side-right{border-right-color:var(--bg2)}
 .recorrido-ruta{font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px}
+
+/* ==== Propuesta minimalista (rama propuesta-minimalista) ====
+   Se apoya en los mismos roles de color; sólo cambia forma y peso visual:
+   botones en píldora, cards sin sombra con borde fino y radios amplios,
+   títulos en Plus Jakarta Sans, y el degradé del botón primario pasa a un
+   verde plano con texto blanco. Todo lo de este bloque pisa lo anterior. */
+body{font-feature-settings:"tnum" 1;-webkit-font-smoothing:antialiased}
+.page-title,.header-title,.modal-title{font-family:var(--display);font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.page-title{font-size:26px;font-weight:800;letter-spacing:-.03em}
+.metric-value,.r-row.price{font-family:var(--display);font-weight:700;letter-spacing:-.02em}
+.card-title,label.fl,.metric-label,.nav-label,.data-table th,.plates-tbl th{text-transform:none;letter-spacing:0;font-weight:500;color:var(--text3)}
+.card-title{font-size:12px}
+label.fl{font-size:12px}
+.header{padding:14px 28px;background:var(--bg2)}
+.header-logo{background:var(--accentDim);border:none;border-radius:10px}
+.sidebar{background:var(--bg);padding:16px 12px}
+.nav-label{padding:0 12px}
+.nav-item{border-left:0;border-radius:999px;padding:9px 14px;margin-bottom:2px}
+.nav-item.active{background:var(--accentDim);color:var(--accent);font-weight:600}
+.nav-item:hover{background:var(--bg3)}
+.card,.pedido-card{border-radius:var(--radius2);background:var(--bg2);box-shadow:none}
+.pedido-card:hover,.bib-card:hover{border-color:var(--border2)}
+.bib-card.selected,.card.bib-selected{border-color:var(--accent);background:var(--accentDim2)}
+.metric,.result-box,.total-section,.pieza-card{background:var(--bg);border-radius:var(--radius)}
+.modal{border:1px solid var(--border);border-radius:24px;padding:28px}
+.modal-overlay{background:rgba(19,39,28,.35);backdrop-filter:blur(2px)}
+input[type=text],input[type=number],input[type=date],input[type=email],input[type=tel],select,textarea{background:var(--bg2);border:1px solid var(--border2);transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accentDim)}
+.total-section input[type=text],.total-section input[type=number],.total-section input[type=date],.total-section select{background:var(--bg2)}
+.btn{border-radius:999px;padding:9px 18px;background:var(--bg2);border-color:var(--border2);color:var(--text)}
+.btn:hover{background:var(--bg3);color:var(--text)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.btn-primary:disabled:hover,.btn-primary.btn-inactivo:hover{background:var(--accent);border-color:var(--accent)}
+.btn-ghost{background:none;border-color:transparent;color:var(--text2)}
+.btn-ghost:hover{background:var(--bg3);border-color:transparent}
+.btn-danger{background:none;border-color:transparent;color:var(--danger)}
+.btn-sm{padding:6px 14px}
+.status{border-radius:var(--radius)}
+.status.info{border-color:transparent}.status.success{border-color:transparent}.status.warning{border-color:transparent}.status.error{border-color:transparent}
+.periodo-btn{border-color:transparent}
+.periodo-btn.active{background:var(--accentDim);color:var(--accent);border-color:transparent;font-weight:600}
+.badge,.pill,.status-select{font-family:var(--sans);font-weight:500}
+.badge-listo{background:rgba(109,76,191,.10);color:#6d4cbf}
+.badge-ok{background:var(--accentDim);color:var(--accent)}
+.status-select.listo{background-color:rgba(109,76,191,.10);color:#6d4cbf}
+.status-select.enviado{background-color:rgba(14,116,144,.10);color:#0e7490}
+.status-select.en_verificacion{background-color:rgba(190,24,93,.08);color:#be185d}
+.chip{background:var(--bg2);border-radius:999px;padding:5px 12px}
+.drop-zone{background:var(--bg2);border-radius:var(--radius2)}
+.imp-bar-track{background:var(--bg3)}
+.data-table tbody tr:hover,.tabla-comprobantes tbody tr:hover{background:var(--bg)}
+.plates-tbl tr.fil-sub td{background:var(--bg)}
+.color-dot{border-color:rgba(19,39,28,.15)}
+.prod-control{background:var(--bg3)}
+.nav-contador,.soporte-grabando-punto{background:var(--danger)}

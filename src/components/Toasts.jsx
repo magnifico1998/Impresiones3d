@@ -8,19 +8,19 @@ export default function Toasts() {
 
   const colors = {
     success: {
-      background: '#1a2e20',
+      background: 'var(--accentDim)',
       color: 'var(--accent)',
-      border: '1px solid rgba(110,231,183,.3)'
+      border: '1px solid var(--accent)'
     },
     error: {
-      background: '#2e1a1a',
+      background: 'var(--dangerDim)',
       color: 'var(--danger)',
-      border: '1px solid rgba(248,113,113,.3)'
+      border: '1px solid var(--danger)'
     },
     info: {
-      background: '#1a1e2e',
+      background: 'var(--infoDim)',
       color: 'var(--info)',
-      border: '1px solid rgba(96,165,250,.3)'
+      border: '1px solid var(--info)'
     }
   };
 
@@ -47,7 +47,7 @@ export default function Toasts() {
               fontSize: '13px',
               fontFamily: 'var(--mono)',
               whiteSpace: 'nowrap',
-              boxShadow: '0 4px 16px rgba(0,0,0,.4)',
+              boxShadow: 'var(--shadow)', backdropFilter: 'blur(6px)',
               transition: 'opacity 0.3s',
               ...style
             }}

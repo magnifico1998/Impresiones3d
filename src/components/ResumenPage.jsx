@@ -435,7 +435,7 @@ export default function ResumenPage() {
       ctx.stroke();
 
       ctx.fillStyle = cText3;
-      ctx.font = '10px DM Mono,monospace';
+      ctx.font = '10px Inter,sans-serif';
       ctx.textAlign = 'right';
       const val = Math.round(maxAcum / 4 * i);
       ctx.fillText(val >= 1000 ? '$' + (val / 1000).toFixed(0) + 'k' : '$' + val, PAD.left - 6, y + 3);
@@ -479,7 +479,7 @@ export default function ResumenPage() {
 
     // Draw labels
     ctx.fillStyle = cText3;
-    ctx.font = '10px DM Mono,monospace';
+    ctx.font = '10px Inter,sans-serif';
     ctx.textAlign = 'center';
     labels.forEach((lbl, i) => {
       if (n <= 12 || i % Math.ceil(n / 12) === 0) {
@@ -493,7 +493,7 @@ export default function ResumenPage() {
     ctx.translate(12, PAD.top + gH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillStyle = cText3;
-    ctx.font = '10px DM Mono,monospace';
+    ctx.font = '10px Inter,sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Acumulado', 0, 0);
     ctx.restore();

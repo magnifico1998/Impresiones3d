@@ -109,7 +109,7 @@ function GraficoActivaciones({ titulo, fechas }) {
       ctx.stroke();
 
       ctx.fillStyle = cText3;
-      ctx.font = '10px DM Mono,monospace';
+      ctx.font = '10px Inter,sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText(String(Math.round(maxTotal / pasos * i)), PAD.left - 6, y + 3);
     }
@@ -137,7 +137,7 @@ function GraficoActivaciones({ titulo, fechas }) {
     });
 
     ctx.fillStyle = cText3;
-    ctx.font = '10px DM Mono,monospace';
+    ctx.font = '10px Inter,sans-serif';
     ctx.textAlign = 'center';
     puntos.forEach((p, i) => {
       if (n <= 12 || i % Math.ceil(n / 12) === 0) {

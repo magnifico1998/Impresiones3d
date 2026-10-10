@@ -12,7 +12,7 @@ import { registrarEvento } from '../utils/registroSoporte';
 const AppContext = createContext();
 
 const defaultCfg = {
-  palette: 'lagoon',
+  palette: 'tranqui',
   filamentos: [
     { nombre: 'PLA Blanco', precio: 17000 },
     { nombre: 'PLA Negro', precio: 18000 },

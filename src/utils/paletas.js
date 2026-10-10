@@ -5,6 +5,29 @@
 // salto). Cada paleta define los mismos 18 roles semánticos que consume el
 // resto de la app vía variables CSS (ver AppContext.jsx -> aplicarPaleta).
 export const paletas = {
+  // ---- Minimalista (propuesta, inspirada en tranquisalud.com) ----
+  // Fondo casi blanco, superficies blancas, bordes finísimos y un único
+  // verde de acento. Todos los textos cumplen 4.5:1 sobre bg, bg2 y bg3.
+  tranqui: {
+    bg: '#fafaf8',
+    bg2: '#ffffff',
+    bg3: '#f3f4f1',
+    border: '#e8eae5',
+    border2: '#d6dad2',
+    text: '#13271c',
+    text2: '#4b5a52',
+    text3: '#66726b',
+    accent: '#1a7f3c',
+    accent2: '#17692f',
+    accentDim: 'rgba(26,127,60,0.10)',
+    accentDim2: 'rgba(26,127,60,0.05)',
+    warn: '#a8530a',
+    warnDim: 'rgba(168,83,10,0.10)',
+    danger: '#b93428',
+    dangerDim: 'rgba(185,52,40,0.10)',
+    info: '#235f9e',
+    infoDim: 'rgba(35,95,158,0.10)'
+  },
   // ---- Pastel ----
   cotton: {
     bg: '#fdf6fb',
@@ -193,6 +216,7 @@ export const paletas = {
 };
 
 export const paletasList = [
+  { id: 'tranqui', label: 'Tranqui (minimalista)' },
   { id: 'cotton', label: 'Cotton' },
   { id: 'peach', label: 'Peach' },
   { id: 'cielo', label: 'Cielo' },
