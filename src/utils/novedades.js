@@ -18,6 +18,9 @@ export const NOVEDADES = [
       { texto: 'Si agregás productos a un pedido y lo cerrás sin guardar, esos productos se quitan y el pedido vuelve a como estaba.' },
       { texto: 'Los formularios ya no se cierran al hacer clic afuera por error: se cierran con sus botones o con Esc (si tocaste algo, te pregunta antes de cerrar sin guardar).' },
       { texto: 'Números y plata con separador de miles en toda la app, y los campos de plata se ven con formato ($ 15.000) cuando no los estás editando.' },
+      { texto: 'Impresión directa más simple: en el conector elegís la marca de tu impresora (Bambu, Anycubic, Creality, Elegoo, Prusa…) y el archivo se abre en el programa de laminado de esa marca, donde lo revisás y lo mandás a imprimir con su flujo oficial. Un proyecto .3mf sin laminar siempre va al slicer.' },
+      { texto: 'En las listas de archivos de tus productos, cada tipo se distingue con su ícono y su color: 📄 G-code, 📦 3MF laminado y 🧩 Proyecto 3MF.' },
+      { texto: 'Paletas de colores: nueva paleta minimalista "Tranqui" y, en la paleta personalizada de la app y en la del catálogo, ahora también podés elegir el color de los textos de apoyo y de las etiquetas. El panel del conector toma los colores de tu paleta.' },
       { texto: 'Podés instalar Manager3D como app, con acceso directo en tu PC (botón "Instalar app" arriba, en Chrome o Edge).' },
       { texto: 'Cuando hay una versión nueva, la app te avisa para que recargues; y si programamos una actualización, te avisa con anticipación para que guardes y cierres antes.' }
     ]
