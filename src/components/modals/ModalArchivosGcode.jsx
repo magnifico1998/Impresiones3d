@@ -112,7 +112,11 @@ export default function ModalArchivosGcode({ producto, archivos, onClose }) {
         <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '14px' }}>
           {cupo > 0
             ? <>Espacio usado: <b style={{ fontFamily: 'var(--mono)' }}>{formatoBytes(usado)}</b> de {formatoBytes(cupo)}{usado >= cupo && <span style={{ color: 'var(--danger)' }}> · no te queda espacio</span>}</>
-            : <span style={{ color: 'var(--warn)' }}>Tu plan no incluye espacio para archivos G-code.</span>}
+            : suscripcion?.planId && !planContratado
+              // El plan está asignado pero la app no lo pudo leer (caché viejo, sin
+              // conexión): no es que el plan no tenga espacio, y se distingue para soporte.
+              ? <span style={{ color: 'var(--warn)' }}>No se pudo cargar tu plan, así que no se sabe cuánto espacio tenés. Recargá la página (Ctrl + Shift + R); si sigue igual, avisanos.</span>
+              : <span style={{ color: 'var(--warn)' }}>Tu plan no incluye espacio para archivos G-code{planContratado?.nombre ? ` (plan ${planContratado.nombre}: 0 GB)` : ''}.</span>}
         </div>
 
         {!soloLectura && cupo > 0 && (
