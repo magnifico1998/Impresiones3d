@@ -377,6 +377,102 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .periodo-btn.active{background:var(--accentDim);color:var(--accent);border-color:transparent;font-weight:600}
 .badge,.pill,.status-select{font-family:var(--sans);font-weight:500}
 .badge-listo{background:rgba(109,76,191,.10);color:#6d4cbf}
+/* ==== Mejoras Visuales Modernas para el Dashboard y UI ==== */
+.metric-card-modern {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.03);
+}
+.metric-card-modern:hover {
+  transform: translateY(-2px);
+  border-color: var(--border2);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.03), 0 12px 24px rgba(0,0,0,0.06);
+}
+.metric-card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  transition: background 0.3s;
+}
+.metric-card-modern.accent-top::before { background: var(--accent); }
+.metric-card-modern.warn-top::before { background: var(--warn); }
+.metric-card-modern.danger-top::before { background: var(--danger); }
+.metric-card-modern.info-top::before { background: var(--info); }
+
+.metric-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.glow-card {
+  position: relative;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 6px 18px rgba(0,0,0,0.04);
+}
+
+.dashboard-main-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.printer-item-row {
+  padding: 12px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  transition: all 0.2s;
+}
+.printer-item-row:hover {
+  border-color: var(--border2);
+  background: var(--bg2);
+}
+
+.period-pill-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.period-pill-btn:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+.period-pill-btn.active {
+  background: var(--accentDim);
+  color: var(--accent);
+  font-weight: 600;
+  border-color: rgba(26,127,60,0.2);
+}
 .badge-ok{background:var(--accentDim);color:var(--accent)}
 .status-select.listo{background-color:rgba(109,76,191,.10);color:#6d4cbf}
 .status-select.enviado{background-color:rgba(14,116,144,.10);color:#0e7490}
@@ -389,3 +485,51 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 .color-dot{border-color:rgba(19,39,28,.15)}
 .prod-control{background:var(--bg3)}
 .nav-contador,.soporte-grabando-punto{background:var(--danger)}
+
+/* ==== Estilos Modernos Adicionales para Pedidos, Presupuestos y Biblioteca ==== */
+.order-card-modern {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.order-card-modern:hover {
+  transform: translateY(-2px);
+  border-color: var(--border2);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+}
+
+.search-input-modern {
+  background: var(--bg2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 999px !important;
+  padding: 8px 16px 8px 36px !important;
+  font-size: 13px !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+}
+.search-input-modern:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accentDim) !important;
+}
+
+.filter-bar-modern {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+

@@ -145,14 +145,19 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="page-title">Presupuestos</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Presupuestos</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Cotizaciones
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
             Seguí cada presupuesto hasta que lo aprueben: al aprobarlo se crea el pedido.
           </div>
         </div>
-        <button className="btn btn-primary" onClick={onOpenNuevo}>
+        <button className="btn btn-primary" onClick={onOpenNuevo} style={{ boxShadow: '0 2px 8px var(--accentDim)' }}>
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M10 4v12M4 10h12" />
           </svg>
@@ -160,28 +165,79 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
         </button>
       </div>
 
-      <div className="grid4">
-        <div className="metric">
-          <div className="metric-label">Total</div>
-          <div className="metric-value">{stats.total}</div>
+      <div className="grid4" style={{ marginBottom: '20px' }}>
+        <div className="metric-card-modern">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Total
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
+              📄
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {stats.total}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Cotizaciones creadas
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Aguardando respuesta</div>
-          <div className="metric-value" style={{ color: 'var(--warn)' }}>{stats.aguardando}</div>
+
+        <div className="metric-card-modern warn-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              En Espera
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--warnDim)', color: 'var(--warn)' }}>
+              ⏳
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--warn)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {stats.aguardando}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Aguardando respuesta
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Aprobados</div>
-          <div className="metric-value accent">{stats.aprobados}</div>
+
+        <div className="metric-card-modern accent-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Aprobados
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--accentDim)', color: 'var(--accent)' }}>
+              🎉
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {stats.aprobados}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Convertidos a pedidos
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Monto aprobado</div>
-          <div className="metric-value">{fmt(stats.montoAprobado)}</div>
+
+        <div className="metric-card-modern accent-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Monto Aprobado
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--accentDim)', color: 'var(--accent)' }}>
+              💵
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {fmt(stats.montoAprobado)}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Total cerrado
+          </div>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={{ width: 'auto' }} aria-label="Filtrar por estado">
+      <div className="filter-bar-modern">
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
+          <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} style={{ width: 'auto', borderRadius: '999px', padding: '7px 14px' }} aria-label="Filtrar por estado">
             <option value="abiertos">Abiertos (creados y aguardando respuesta)</option>
             <option value="todos">Todos</option>
             {Object.entries(ESTADOS_PRESUPUESTO).map(([id, e]) => <option key={id} value={id}>{e.texto}</option>)}
@@ -197,11 +253,12 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por cliente o N°..."
               aria-label="Buscar presupuesto"
-              style={{ fontSize: '13px' }}
+              className="search-input-modern"
             />
           </div>
         </div>
       </div>
+
 
       {!visibles.length ? (
         <div className="empty">

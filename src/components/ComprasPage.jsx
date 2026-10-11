@@ -95,32 +95,38 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="page-title">{cfg.inventarioHabilitado ? 'Compras / Inventario' : 'Compras'}</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>{cfg.inventarioHabilitado ? 'Compras / Inventario' : 'Control de Compras'}</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Gastos
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
             {cfg.inventarioHabilitado
               ? 'Registrá gastos en insumos, equipos, accesorios e impuestos, y controlá el stock de lo que tenés.'
               : 'Registrá gastos en insumos, equipos, accesorios e impuestos.'}
           </div>
         </div>
-        {pestanaVisible === 'compras' && <button className="btn btn-primary" onClick={onOpenNewCompra}>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M10 4v12M4 10h12" />
-          </svg>
-          Nueva compra
-        </button>}
+        {pestanaVisible === 'compras' && (
+          <button className="btn btn-primary" onClick={onOpenNewCompra} style={{ boxShadow: '0 2px 8px var(--accentDim)' }}>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M10 4v12M4 10h12" />
+            </svg>
+            Nueva compra
+          </button>
+        )}
       </div>
 
-      {/* Pestañas: aparecen cuando el inventario está habilitado en
-          Configuración → Aplicación. */}
+      {/* Pestañas: aparecen cuando el inventario está habilitado en Configuración */}
       {cfg.inventarioHabilitado && (
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '999px', padding: '4px 6px', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
           {PESTANAS_COMPRAS.map((p) => (
             <button
               key={p.id}
               type="button"
-              className={`btn btn-sm periodo-btn ${pestanaVisible === p.id ? 'active' : ''}`}
+              className={`period-pill-btn ${pestanaVisible === p.id ? 'active' : ''}`}
               onClick={() => elegirPestana(p.id)}
             >
               {p.nombre}
@@ -134,37 +140,101 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
 
       {pestanaVisible === 'compras' && (
         <>
-        {/* Metrics panel */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-          <div className="metric">
-            <div className="metric-label">Total gastado</div>
-            <div className="metric-value" style={{ color: 'var(--danger)' }}>{fmt(stats.total)}</div>
+        {/* KPI Cards de Compras */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+          <div className="metric-card-modern danger-top">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Total Gastado
+              </span>
+              <div className="metric-icon-wrap" style={{ background: 'var(--dangerDim)', color: 'var(--danger)' }}>
+                💳
+              </div>
+            </div>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--danger)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+              {fmt(stats.total)}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+              Egresos totales
+            </div>
           </div>
-          <div className="metric">
-            <div className="metric-label">Insumos</div>
-            <div className="metric-value">{fmt(stats.insumos)}</div>
+
+          <div className="metric-card-modern">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Insumos
+              </span>
+              <div className="metric-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
+                🧵
+              </div>
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+              {fmt(stats.insumos)}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+              Filamento y resina
+            </div>
           </div>
-          <div className="metric">
-            <div className="metric-label">Equipos</div>
-            <div className="metric-value">{fmt(stats.equipos)}</div>
+
+          <div className="metric-card-modern">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Equipos
+              </span>
+              <div className="metric-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
+                🖨️
+              </div>
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+              {fmt(stats.equipos)}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+              Impresoras y máquinas
+            </div>
           </div>
-          <div className="metric">
-            <div className="metric-label">Accesorios</div>
-            <div className="metric-value">{fmt(stats.accesorios)}</div>
+
+          <div className="metric-card-modern">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Accesorios
+              </span>
+              <div className="metric-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
+                🔧
+              </div>
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+              {fmt(stats.accesorios)}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+              Repuestos y partes
+            </div>
           </div>
-          <div className="metric">
-            <div className="metric-label">Impuestos</div>
-            <div className="metric-value">{fmt(stats.impuestos)}</div>
+
+          <div className="metric-card-modern">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Impuestos
+              </span>
+              <div className="metric-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
+                🏛️
+              </div>
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+              {fmt(stats.impuestos)}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+              Tasas y servicios
+            </div>
           </div>
         </div>
 
-        {/* Category selector filters */}
-        <div className="card" style={{ padding: '12px 16px', marginBottom: '12px' }}>
+        {/* Barra de Filtros de Categoría */}
+        <div className="filter-bar-modern" style={{ padding: '10px 16px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-              Categoría
+            <span style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginRight: '4px' }}>
+              Categoría:
             </span>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
               {[
                 { id: 'todas', name: 'Todas' },
                 { id: 'Insumos', name: 'Insumos' },
@@ -175,7 +245,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
               ].map(cat => (
                 <button 
                   key={cat.id} 
-                  className={`btn btn-sm periodo-btn ${filtroCat === cat.id ? 'active' : ''}`}
+                  className={`period-pill-btn ${filtroCat === cat.id ? 'active' : ''}`}
                   onClick={() => setFiltroCat(cat.id)}
                 >
                   {cat.name}
@@ -184,6 +254,7 @@ export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
             </div>
           </div>
         </div>
+
 
         {/* Purchases list table */}
         <div id="lista-compras">

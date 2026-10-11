@@ -147,33 +147,24 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="page-title">Clientes</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>Administrá tus clientes y su historial de pedidos.</div>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Cartera de Clientes</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Directorio
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            Administrá tus clientes y su historial de compras y pedidos.
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <input
-            type="text"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre…"
-            style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', minWidth: '180px' }}
-          />
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text2)', fontSize: '14px' }}>
-            Ordenar por:
-            <select
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value)}
-              style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', minWidth: '180px' }}
-            >
-              {sortOptions.map(option => (
-                <option key={option.id} value={option.id}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <button className="btn" onClick={exportClientesConResumen}>Exportar clientes</button>
-          <button className="btn btn-primary" onClick={onOpenNewClient}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button className="btn" onClick={exportClientesConResumen}>
+            📥 Exportar clientes
+          </button>
+          <button className="btn btn-primary" onClick={onOpenNewClient} style={{ boxShadow: '0 2px 8px var(--accentDim)' }}>
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 4v12M4 10h12" />
             </svg>
@@ -181,6 +172,37 @@ export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
           </button>
         </div>
       </div>
+
+      <div className="filter-bar-modern">
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+          <div className="bib-search" style={{ flex: 1, minWidth: '220px' }}>
+            <svg className="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px' }}>
+              <circle cx="9" cy="9" r="5" />
+              <path d="M15 15l-3-3" />
+            </svg>
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre, teléfono o email…"
+              className="search-input-modern"
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Ordenar por:</span>
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value)}
+              style={{ padding: '7px 12px', borderRadius: '999px', fontSize: '12px' }}
+            >
+              {sortOptions.map(option => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
 
       <div id="lista-clientes">
         {!clientes.length ? (

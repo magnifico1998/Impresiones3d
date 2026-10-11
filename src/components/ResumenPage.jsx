@@ -500,6 +500,23 @@ export default function ResumenPage() {
     ctx.restore();
   }, [movimientosVentaPeriodo, periodDates, cfg?.palette, cfg?.paletaCustom]);
 
+  // Listener para redibujar el canvas en caso de cambio de tamaño de pantalla
+  useEffect(() => {
+    const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas || !movimientosVentaPeriodo.length) return;
+      const W = canvas.parentElement.offsetWidth || 500;
+      const H = 200;
+      canvas.width = W * window.devicePixelRatio;
+      canvas.height = H * window.devicePixelRatio;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [movimientosVentaPeriodo]);
+
+
   // Printer utilization logic
   const printerHours = useMemo(() => {
     const mapa = {};
@@ -552,23 +569,33 @@ export default function ResumenPage() {
       <div className="page-title">Resumen</div>
       <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
       
-      {/* Date period selector card */}
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginRight: '4px' }}>
-            Período
+      {/* Encabezado y Selector de Período Moderno */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+        <div>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Panel de Rendimiento</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              3D Insights
+            </span>
           </div>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            Métricas clave de facturación, rentabilidad y actividad del taller.
+          </div>
+        </div>
+
+        {/* Date period selector moderno */}
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '999px', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+          <div style={{ display: 'flex', gap: '2px' }}>
             {[
-              { label: '7 días', val: 7 },
-              { label: '30 días', val: 30 },
-              { label: '90 días', val: 90 },
-              { label: '1 año', val: 365 },
+              { label: '7D', val: 7 },
+              { label: '30D', val: 30 },
+              { label: '90D', val: 90 },
+              { label: '1A', val: 365 },
               { label: 'Todo', val: 0 }
             ].map(btn => (
               <button 
                 key={btn.val} 
-                className={`btn btn-sm periodo-btn ${diasPeriodo === btn.val && !fechaDesde && !fechaHasta ? 'active' : ''}`}
+                className={`period-pill-btn ${diasPeriodo === btn.val && !fechaDesde && !fechaHasta ? 'active' : ''}`}
                 onClick={() => {
                   setDiasPeriodo(btn.val);
                   setFechaDesde('');
@@ -579,21 +606,24 @@ export default function ResumenPage() {
               </button>
             ))}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap' }}>
+
+          <div style={{ height: '16px', width: '1px', background: 'var(--border)', margin: '0 4px' }}></div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingRight: '4px' }}>
             <input 
               type="date" 
               value={fechaDesde} 
-              style={{ width: '140px', fontSize: '12px', padding: '5px 8px' }} 
+              style={{ width: '120px', fontSize: '11px', padding: '4px 8px', borderRadius: '999px', background: 'var(--bg3)', border: '1px solid var(--border2)' }} 
               onChange={(e) => {
                 setFechaDesde(e.target.value);
                 setDiasPeriodo(-1);
               }}
             />
-            <span style={{ fontSize: '12px', color: 'var(--text3)' }}>→</span>
+            <span style={{ fontSize: '11px', color: 'var(--text3)' }}>→</span>
             <input 
               type="date" 
               value={fechaHasta} 
-              style={{ width: '140px', fontSize: '12px', padding: '5px 8px' }} 
+              style={{ width: '120px', fontSize: '11px', padding: '4px 8px', borderRadius: '999px', background: 'var(--bg3)', border: '1px solid var(--border2)' }} 
               onChange={(e) => {
                 setFechaHasta(e.target.value);
                 setDiasPeriodo(-1);
@@ -603,70 +633,185 @@ export default function ResumenPage() {
         </div>
       </div>
 
-      {/* Statistics dashboard */}
-      <div className="grid6">
-        <div className="metric">
-          <div className="metric-label">Ventas</div>
-          <div className="metric-value accent">{fmt(totalVentas)}</div>
+      {/* Modern KPI Cards Grid */}
+      <div className="grid6" style={{ marginBottom: '20px' }}>
+        {/* Ventas */}
+        <div className="metric-card-modern accent-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Ventas
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--accentDim)', color: 'var(--accent)' }}>
+              📈
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {fmt(totalVentas)}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Ingresos en el período
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Costos</div>
-          <div className="metric-value">{fmt(totalCostos)}</div>
+
+        {/* Costos */}
+        <div className="metric-card-modern">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Costos Prod.
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
+              ⚙️
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {fmt(totalCostos)}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Mano obra / energía
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Ganancia</div>
-          <div className="metric-value" style={{ color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+
+        {/* Ganancia */}
+        <div className="metric-card-modern accent-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Ganancia Neta
+            </span>
+            <div className="metric-icon-wrap" style={{ background: ganancia >= 0 ? 'var(--accentDim)' : 'var(--dangerDim)', color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
+              💰
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: ganancia >= 0 ? 'var(--accent)' : 'var(--danger)', fontFamily: 'var(--display)', marginTop: '2px' }}>
             {fmt(ganancia)}
           </div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Gastos compras</div>
-          <div className="metric-value" style={{ color: 'var(--danger)' }}>{fmt(gastos)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Rentabilidad</div>
-          <div className="metric-value" style={{ color: rentab >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
-            {formatoNumero(rentab, 1)}%
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Margen real obtenido
           </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Pendiente</div>
-          <div className="metric-value" style={{ color: 'var(--warn)' }}>{fmt(totalPendienteGlobal)}</div>
+
+        {/* Gastos Compras */}
+        <div className="metric-card-modern danger-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Compras/Insumos
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--dangerDim)', color: 'var(--danger)' }}>
+              📦
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--danger)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {fmt(gastos)}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Filamentos y repuestos
+          </div>
+        </div>
+
+        {/* Rentabilidad */}
+        <div className="metric-card-modern info-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Rentabilidad
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--infoDim)', color: 'var(--info)' }}>
+              🎯
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: rentab >= 0 ? 'var(--info)' : 'var(--danger)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {formatoNumero(rentab, 1)}%
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Retorno s/ ventas
+          </div>
+        </div>
+
+        {/* Pendiente Global */}
+        <div className="metric-card-modern warn-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Por Cobrar
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--warnDim)', color: 'var(--warn)' }}>
+              ⏳
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--warn)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {fmt(totalPendienteGlobal)}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Saldos pendientes
+          </div>
         </div>
       </div>
 
-      {/* Graph and Printer Usage */}
-      <div className="grid2">
-        <div className="card">
-          <div className="card-title">Ventas acumuladas</div>
-          {!movimientosVentaPeriodo.length ? (
-            <div style={{ textAlignment: 'center', padding: '40px', color: 'var(--text3)', fontSize: '13px', fontFamily: 'var(--mono)', textAlign: 'center' }}>
-              Sin datos en el período
+      {/* Graph and Printer Usage (2/3 Ventas Acumuladas, 1/3 Carga de Impresoras) */}
+      <div className="dashboard-main-grid" style={{ marginBottom: '20px', alignItems: 'stretch' }}>
+        <div className="glow-card" style={{ padding: '22px', display: 'flex', flexDirection: 'column', minHeight: '310px' }}>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--display)' }}>
+                Curva de Ventas Acumuladas
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
+                Evolución de ingresos y cobros durante el rango seleccionado
+              </div>
             </div>
-          ) : (
-            <canvas ref={canvasRef} height="200"></canvas>
-          )}
+            <span style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 600, background: 'var(--accentDim)', padding: '3px 8px', borderRadius: '8px' }}>
+              ● Ventas
+            </span>
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
+            {!movimientosVentaPeriodo.length ? (
+              <div style={{ color: 'var(--text3)', fontSize: '13px', fontFamily: 'var(--mono)', textAlign: 'center' }}>
+                Sin movimientos registrados en este período.
+              </div>
+            ) : (
+              <canvas ref={canvasRef} height="200" style={{ width: '100%', height: '200px', display: 'block' }}></canvas>
+            )}
+          </div>
         </div>
         
-        <div className="card">
-          <div className="card-title">Horas de uso por impresora</div>
-          {!printerHours.length ? (
-            <div className="empty">Sin datos.</div>
-          ) : (
-            printerHours.map((imp, i) => (
-              <div key={i} className="imp-bar-wrap">
-                <div className="imp-bar-label">
-                  <span>{imp.nombre}</span>
-                  <span>{imp.label}</span>
-                </div>
-                <div className="imp-bar-track">
-                  <div className="imp-bar-fill" style={{ width: `${imp.pct}%` }}></div>
-                </div>
+        <div className="glow-card" style={{ padding: '22px', display: 'flex', flexDirection: 'column', minHeight: '310px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--display)' }}>
+                Carga de Impresoras (Horas)
               </div>
-            ))
-          )}
+              <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
+                Distribución de tiempo de impresión por equipo
+              </div>
+            </div>
+            <span style={{ fontSize: '16px' }}>🖨️</span>
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: !printerHours.length ? 'center' : 'flex-start' }}>
+            {!printerHours.length ? (
+              <div className="empty" style={{ margin: 0, padding: '20px' }}>Sin horas de impresión computadas en el período.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {printerHours.map((imp, i) => (
+                  <div key={i} className="printer-item-row" style={{ marginBottom: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)' }}></span>
+                        <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>{imp.nombre}</span>
+                      </div>
+                      <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: '12px', color: 'var(--accent)' }}>
+                        {imp.label}
+                      </span>
+                    </div>
+                    <div style={{ height: '7px', background: 'var(--bg2)', borderRadius: '999px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      <div style={{ height: '100%', width: `${imp.pct}%`, background: 'linear-gradient(90deg, var(--accent2), var(--accent))', borderRadius: '999px', transition: 'width 0.5s cubic-bezier(0.16, 1, 0.3, 1)' }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+
 
       {/* Orders completed/list table */}
       <div className="card">

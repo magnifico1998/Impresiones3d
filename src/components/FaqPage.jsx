@@ -237,17 +237,27 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="page-title">Preguntas frecuentes</div>
-          <div className="page-sub">Dudas comunes agrupadas por tema, con videos explicativos cuando corresponde.</div>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Preguntas Frecuentes</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Centro de Ayuda
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            Dudas comunes agrupadas por tema, con videos y guías paso a paso.
+          </div>
         </div>
         {/* Recorrido guiado por la app (components/Recorrido.jsx). */}
-        <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('iniciar-recorrido'))}>Ver el recorrido por la app</button>
+        <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('iniciar-recorrido'))} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          🧭 Ver el recorrido guiado
+        </button>
       </div>
 
       {isAdmin && (
         <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+
           <button className="btn btn-primary btn-sm" onClick={() => onOpenNuevo?.()}>
             + Agregar pregunta
           </button>

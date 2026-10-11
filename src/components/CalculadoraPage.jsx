@@ -915,8 +915,20 @@ export default function CalculadoraPage({
 
   return (
     <div className="page active" id="page-calc">
-      <div className="page-title">Calculadora de costos</div>
-      <div className="page-sub">Calculá el costo de cada pieza y agregala a un pedido.</div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Calculadora de Costos</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Cotizador
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            Calculá el costo exacto de cada pieza a partir de su G-code o de forma manual, y exportalo a presupuesto o pedido.
+          </div>
+        </div>
+      </div>
+
 
       {/* 1. Card Importar archivo */}
       <div className="card">

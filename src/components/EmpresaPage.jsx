@@ -210,24 +210,36 @@ export default function EmpresaPage() {
 
   return (
     <div className="page active">
-      <div className="page-title">Mi emprendimiento</div>
-
-      {/* Pestañas: los datos del emprendimiento y, si el plan la incluye, la
-          facturación electrónica con ARCA (va aparte porque va a crecer). */}
-      {facturacionHabilitada && (
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          {PESTANAS_EMPRESA.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`btn btn-sm periodo-btn ${pestanaVisible === p.id ? 'active' : ''}`}
-              onClick={() => elegirPestana(p.id)}
-            >
-              {p.nombre}
-            </button>
-          ))}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Mi Emprendimiento</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Identidad & Plan
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            Configuración de marca, datos fiscales, miembros de equipo y estado de suscripción.
+          </div>
         </div>
-      )}
+
+        {/* Pestañas de Empresa en Cápsula */}
+        {facturacionHabilitada && (
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '999px', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+            {PESTANAS_EMPRESA.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`period-pill-btn ${pestanaVisible === p.id ? 'active' : ''}`}
+                onClick={() => elegirPestana(p.id)}
+              >
+                {p.nombre}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
 
       {pestanaVisible === 'emprendimiento' && (
         <>

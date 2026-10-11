@@ -47,16 +47,31 @@ export default function SoportePage() {
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="page-title">Soporte</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>Reportá un problema o hacé una consulta.</div>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Centro de Soporte</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Tickets
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            Reportá un inconveniente técnico o hacé una consulta directa a nuestro equipo.
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('iniciar-recorrido'))}>Ver el recorrido</button>
-          <button className="btn btn-primary" onClick={abrirNuevoTicket}>+ Nuevo ticket</button>
+          <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('iniciar-recorrido'))} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            🧭 Ver recorrido
+          </button>
+          <button className="btn btn-primary" onClick={abrirNuevoTicket} style={{ boxShadow: '0 2px 8px var(--accentDim)' }}>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M10 4v12M4 10h12" />
+            </svg>
+            Nuevo ticket
+          </button>
         </div>
       </div>
+
 
       <div className="card">
         <div className="card-title">Cómo reportar un problema</div>

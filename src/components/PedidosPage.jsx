@@ -493,98 +493,166 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="page-title">Panel de pedidos</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>
-            Cada pedido agrupa múltiples piezas con sus G-codes.
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Gestión de Pedidos</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Producción
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            Seguimiento de órdenes, estado de impresión y entregas.
           </div>
         </div>
 
-        <button className="btn btn-primary" onClick={onOpenNewOrder}>
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M10 4v12M4 10h12" />
-          </svg>
-          Nuevo pedido
-        </button>
-      </div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Selector de Período en Cápsula */}
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '999px', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+            <div style={{ display: 'flex', gap: '2px' }}>
+              {[
+                { label: '7D', val: 7 },
+                { label: '30D', val: 30 },
+                { label: '90D', val: 90 },
+                { label: '1A', val: 365 },
+                { label: 'Todo', val: 0 }
+              ].map(btn => (
+                <button
+                  key={btn.val}
+                  className={`period-pill-btn ${diasPeriodo === btn.val && !fechaDesde && !fechaHasta ? 'active' : ''}`}
+                  onClick={() => {
+                    setDiasPeriodo(btn.val);
+                    setFechaDesde('');
+                    setFechaHasta('');
+                  }}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
 
-      {/* Filtro por período, mismo patrón que ResumenPage: presets en días
-          o un rango de fechas manual (pisa el preset apenas se toca). */}
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginRight: '4px' }}>
-            Período
-          </div>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {[
-              { label: '7 días', val: 7 },
-              { label: '30 días', val: 30 },
-              { label: '90 días', val: 90 },
-              { label: '1 año', val: 365 },
-              { label: 'Todo', val: 0 }
-            ].map(btn => (
-              <button
-                key={btn.val}
-                className={`btn btn-sm periodo-btn ${diasPeriodo === btn.val && !fechaDesde && !fechaHasta ? 'active' : ''}`}
-                onClick={() => {
-                  setDiasPeriodo(btn.val);
-                  setFechaDesde('');
-                  setFechaHasta('');
+            <div style={{ height: '16px', width: '1px', background: 'var(--border)', margin: '0 4px' }}></div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingRight: '4px' }}>
+              <input
+                type="date"
+                value={fechaDesde}
+                style={{ width: '120px', fontSize: '11px', padding: '4px 8px', borderRadius: '999px', background: 'var(--bg3)', border: '1px solid var(--border2)' }}
+                onChange={(e) => {
+                  setFechaDesde(e.target.value);
+                  setDiasPeriodo(-1);
                 }}
-              >
-                {btn.label}
-              </button>
-            ))}
+              />
+              <span style={{ fontSize: '11px', color: 'var(--text3)' }}>→</span>
+              <input
+                type="date"
+                value={fechaHasta}
+                style={{ width: '120px', fontSize: '11px', padding: '4px 8px', borderRadius: '999px', background: 'var(--bg3)', border: '1px solid var(--border2)' }}
+                onChange={(e) => {
+                  setFechaHasta(e.target.value);
+                  setDiasPeriodo(-1);
+                }}
+              />
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', flexWrap: 'wrap' }}>
-            <input
-              type="date"
-              value={fechaDesde}
-              style={{ width: '140px', fontSize: '12px', padding: '5px 8px' }}
-              onChange={(e) => {
-                setFechaDesde(e.target.value);
-                setDiasPeriodo(-1);
-              }}
-            />
-            <span style={{ fontSize: '12px', color: 'var(--text3)' }}>→</span>
-            <input
-              type="date"
-              value={fechaHasta}
-              style={{ width: '140px', fontSize: '12px', padding: '5px 8px' }}
-              onChange={(e) => {
-                setFechaHasta(e.target.value);
-                setDiasPeriodo(-1);
-              }}
-            />
-          </div>
+
+          <button className="btn btn-primary" onClick={onOpenNewOrder} style={{ boxShadow: '0 2px 8px var(--accentDim)' }}>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M10 4v12M4 10h12" />
+            </svg>
+            Nuevo pedido
+          </button>
         </div>
       </div>
 
-      <div className="grid5">
-        <div className="metric">
-          <div className="metric-label">Total</div>
-          <div className="metric-value">{stats.total}</div>
+      {/* KPI Cards de Pedidos */}
+      <div className="grid5" style={{ marginBottom: '20px' }}>
+        <div className="metric-card-modern">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Total Pedidos
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--bg3)', color: 'var(--text2)' }}>
+              📋
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {stats.total}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Órdenes en período
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">En progreso</div>
-          <div className="metric-value">{stats.prog}</div>
+
+        <div className="metric-card-modern info-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              En Producción
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--infoDim)', color: 'var(--info)' }}>
+              ⚡
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--info)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {stats.prog}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Imprimiendo / armando
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Completados</div>
-          <div className="metric-value accent">{stats.done}</div>
+
+        <div className="metric-card-modern accent-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Completados
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--accentDim)', color: 'var(--accent)' }}>
+              ✅
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {stats.done}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Listos o entregados
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Facturado</div>
-          <div className="metric-value">{fmt(stats.fact)}</div>
+
+        <div className="metric-card-modern accent-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Facturado
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--accentDim)', color: 'var(--accent)' }}>
+              💵
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--display)', marginTop: '2px' }}>
+            {fmt(stats.fact)}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Ventas reconocidas
+          </div>
         </div>
-        <div className="metric">
-          <div className="metric-label">Pendiente</div>
-          <div className="metric-value" style={{ color: 'var(--warn)' }}>
+
+        <div className="metric-card-modern warn-top">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Por Cobrar
+            </span>
+            <div className="metric-icon-wrap" style={{ background: 'var(--warnDim)', color: 'var(--warn)' }}>
+              ⏳
+            </div>
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--warn)', fontFamily: 'var(--display)', marginTop: '2px' }}>
             {fmt(stats.pendGlobal)}
           </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            Saldo restante
+          </div>
         </div>
       </div>
+
 
       <div id="lista-pedidos">
         {!sortedPedidos.length ? (

@@ -128,21 +128,34 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="page active">
-      <div className="page-title">Configuración</div>
-      <div className="page-sub">{SECCIONES.find((sec) => sec.id === seccion).descripcion}</div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Configuración del Sistema</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Ajustes
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            {SECCIONES.find((sec) => sec.id === seccion).descripcion}
+          </div>
+        </div>
 
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {SECCIONES.map((sec) => (
-          <button
-            key={sec.id}
-            type="button"
-            className={`btn btn-sm periodo-btn ${seccion === sec.id ? 'active' : ''}`}
-            onClick={() => elegirSeccion(sec.id)}
-          >
-            {sec.nombre}
-          </button>
-        ))}
+        {/* Pestañas de Configuración en Cápsula */}
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '999px', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+          {SECCIONES.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              className={`period-pill-btn ${seccion === sec.id ? 'active' : ''}`}
+              onClick={() => elegirSeccion(sec.id)}
+            >
+              {sec.nombre}
+            </button>
+          ))}
+        </div>
       </div>
+
 
       {seccion === 'aplicacion' && (
         <div className="grid2" style={{ alignItems: 'flex-start' }}>

@@ -510,19 +510,24 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <div className="page-title">Biblioteca de productos</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Biblioteca de Productos</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Catálogo
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
             Productos guardados para presupuestar sin importar el G-code cada vez.
           </div>
         </div>
       </div>
 
-      {/* Toolbar con filtros */}
-      <div className="card" style={{ padding: '12px 16px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="bib-search" style={{ flex: 1, minWidth: '180px' }}>
+      {/* Toolbar con filtros moderna */}
+      <div className="filter-bar-modern" style={{ padding: '12px 18px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+          <div className="bib-search" style={{ flex: 1, minWidth: '200px' }}>
             <svg className="bib-search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '14px', height: '14px' }}>
               <circle cx="9" cy="9" r="5" />
               <path d="M15 15l-3-3" />
@@ -532,22 +537,22 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar por nombre, material..."
-              style={{ fontSize: '13px' }}
+              className="search-input-modern"
             />
           </div>
           <select
             value={filterCat}
             onChange={(e) => { setFilterCat(e.target.value); setFilterSubcat(''); }}
-            style={{ width: '160px', fontSize: '13px' }}
+            style={{ width: '150px', fontSize: '12px', borderRadius: '999px', padding: '7px 12px' }}
           >
-            <option value="">Categorías</option>
+            <option value="">Todas las Categorías</option>
             {uniqueCats.map((c, i) => <option key={i} value={c}>{c}</option>)}
           </select>
           <select
             value={filterSubcat}
             onChange={(e) => setFilterSubcat(e.target.value)}
             disabled={!filterCat || uniqueSubcatsDeFilterCat.length === 0}
-            style={{ width: '160px', fontSize: '13px' }}
+            style={{ width: '150px', fontSize: '12px', borderRadius: '999px', padding: '7px 12px' }}
           >
             <option value="">Subcategorías</option>
             {uniqueSubcatsDeFilterCat.map((s, i) => <option key={i} value={s}>{s}</option>)}
@@ -562,17 +567,18 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
               ⠿ Ordenar categorías
             </button>
           )}
-          <select value={sortMode} onChange={(e) => setSortMode(e.target.value)} style={{ width: '160px', fontSize: '13px' }}>
+          <select value={sortMode} onChange={(e) => setSortMode(e.target.value)} style={{ width: '140px', fontSize: '12px', borderRadius: '999px', padding: '7px 12px' }}>
             <option value="nombreAsc">Nombre A → Z</option>
             <option value="nombreDesc">Nombre Z → A</option>
           </select>
-          <select value={viewMode} onChange={(e) => setViewMode(e.target.value)} style={{ width: '130px', fontSize: '13px' }}>
-            <option value="grid">Cuadrícula</option>
-            <option value="list">Lista</option>
+          <select value={viewMode} onChange={(e) => setViewMode(e.target.value)} style={{ width: '120px', fontSize: '12px', borderRadius: '999px', padding: '7px 12px' }}>
+            <option value="grid">⊞ Cuadrícula</option>
+            <option value="list">☰ Lista</option>
           </select>
-          <span style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
-            {sortedList.length} producto{sortedList.length !== 1 ? 's' : ''}
+          <span style={{ fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)', whiteSpace: 'nowrap', padding: '0 4px' }}>
+            {sortedList.length} prod.
           </span>
+
 
           {/* Botón Recalcular todos */}
           {sortedList.length > 0 && (
