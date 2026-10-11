@@ -7,6 +7,7 @@ import {
 } from '../../utils/archivosGcode';
 import { PanelEnvio, ListaEnvios } from '../EnvioImpresora';
 import InsigniaArchivo from '../InsigniaArchivo';
+import { useCapaModal } from '../CapaModal';
 
 // Archivos G-code de un producto de la Biblioteca (utils/archivosGcode.js):
 // se suben, se comprimen al máximo en el servidor y se bajan con su nombre
@@ -21,6 +22,8 @@ const ESTADO = {
 
 export default function ModalArchivosGcode({ producto, archivos, onClose }) {
   const { cuentaId, cfg, planContratado, suscripcion, isAdmin, showToast } = useApp();
+  // Esc cierra sólo este modal cuando se abre encima de otro (Editar producto).
+  useCapaModal({ onClose, activo: !!producto });
   const [impresora, setImpresora] = useState(producto?.impresoraNombre || '');
   const [subiendo, setSubiendo] = useState(null); // { nombre, progreso }
   const [bajando, setBajando] = useState(null);

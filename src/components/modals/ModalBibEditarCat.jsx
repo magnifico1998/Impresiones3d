@@ -4,10 +4,23 @@ import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
+import ModalArchivosGcode from './ModalArchivosGcode';
+import { escucharArchivosGcode } from '../../utils/archivosGcode';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { biblioteca, updateProducto, showToast, cuentaId, fmt } = useApp();
+  // Archivos G-code / .3mf del producto: se gestionan en ModalArchivosGcode
+  // (los mismos que el botón 📄 de la tarjeta de la Biblioteca).
+  const [archivosGcode, setArchivosGcode] = useState([]);
+  const [gcodeAbierto, setGcodeAbierto] = useState(false);
+  useEffect(() => {
+    if (!isOpen || !cuentaId) return undefined;
+    return escucharArchivosGcode(cuentaId, setArchivosGcode);
+  }, [isOpen, cuentaId]);
+  useEffect(() => {
+    if (!isOpen) setGcodeAbierto(false);
+  }, [isOpen]);
   const [categoria, setCategoria] = useState('');
   const [subcategoria, setSubcategoria] = useState('');
   const [productName, setProductName] = useState('');
@@ -198,7 +211,11 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
     }
   };
 
+  const productoEditado = biblioteca.find(p => p.id === editId);
+  const cantidadGcode = archivosGcode.filter(a => a.productoId === String(editId) && a.estado !== 'error').length;
+
   return (
+    <>
     <div className="modal-overlay open" {...capaModal}>
       <div className="modal" style={{ maxWidth: '420px' }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">Editar producto</div>
@@ -362,11 +379,25 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           ))}
         </datalist>
 
+        <label className="fl">Archivos G-code / .3mf para imprimir</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-sm" onClick={() => setGcodeAbierto(true)} disabled={!productoEditado}>
+            📄 Gestionar archivos{cantidadGcode ? ` (${cantidadGcode})` : ''}
+          </button>
+          <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
+            Se guardan al instante, sin tocar "Guardar cambios".
+          </span>
+        </div>
+
         <div className="modal-footer">
           <button className="btn" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleSave}>Guardar cambios</button>
         </div>
       </div>
     </div>
+    {gcodeAbierto && productoEditado && (
+      <ModalArchivosGcode producto={productoEditado} archivos={archivosGcode} onClose={() => setGcodeAbierto(false)} />
+    )}
+    </>
   );
 }
