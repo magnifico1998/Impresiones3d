@@ -1,7 +1,8 @@
 {
-  "activo": true,
+  "activo": false,
   "sha": "46f28635c8a854af4f6c8ffc51a4cd8b9464379c",
   "desdeUtc": "2026-10-11T11:00:00Z",
   "version": "15.0.0",
-  "descripcion": "v15.0 completa - domingo 11/10/2026 08:00 hs (Argentina)"
+  "descripcion": "v15.0 completa - domingo 11/10/2026 08:00 hs (Argentina)",
+  "ejecutadoUtc": "2026-10-11T11:49:22.417Z"
 }
