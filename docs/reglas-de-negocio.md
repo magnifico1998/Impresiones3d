@@ -111,7 +111,10 @@ para contratar), `gratuito`, y `limites`:
   la prueba (sin plan asignado).
 - **Excepción, `gcodeGB`:** vacío o 0 es **sin espacio**. Todos los planes
   arrancan en 0 y se habilita desde el panel. Las cuentas **en prueba** (sin plan
-  todavía) tienen **200 MB** para probar los archivos G-code.
+  todavía, es decir sin `planId` en la suscripción) tienen **200 MB** para probar los
+  archivos G-code. Si la suscripción tiene un plan asignado, manda ese plan aunque
+  la cuenta siga en prueba: sin `gcodeGB` no hay espacio. Cliente y servidor aplican
+  la misma regla.
 - Los límites por ciclo se liberan solos cuando empieza el ciclo siguiente, o
   antes si la cuenta pasa a un plan con un límite más alto.
 - Avisos: al crear un pedido pasado el límite, la app muestra el motivo. Con el

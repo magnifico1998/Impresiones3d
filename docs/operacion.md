@@ -286,6 +286,65 @@ horas.
 Revisá que `GMAIL_APP_PASSWORD` siga siendo válida (Google la revoca si cambia
 la contraseña de la cuenta) y los logs de la función que manda el mail.
 
+## Hotfixes pendientes
+
+Detectados con el caso de un cliente (walterluisllanes@gmail.com, 2026-10-11). **Aplicados
+en `develop` el 2026-10-11, pendientes de pase a producción** (sin probar en el navegador;
+`vite build` compila).
+
+- Hotfix 1: `resolverCuentaId` y `iniciarCuenta` en `src/context/AppContext.jsx`. Renueva el
+  token, reintenta una vez y, si falla, muestra la pantalla "No pudimos cargar tus datos" con
+  "Reintentar". El detalle técnico empieza con "vínculo de equipo:". No se agregó el
+  indicador de cuenta activa (punto 4).
+- Hotfix 2: `cupoGcode` en `src/utils/archivosGcode.js` ahora decide por `suscripcion.planId`
+  (misma regla que el servidor, que no cambió). `EmpresaPage.jsx` pasa `planContratado`. Se
+  eligió que con plan asignado manda el plan, sin los 200 MB de prueba.
+
+Para probar: cuenta miembro con F5 repetido; cuenta en `trial` con `planId` a un plan sin
+`gcodeGB` (el modal de G-code debe decir que el plan no incluye espacio, sin dejar subir).
+
+### 1. El vínculo de equipo falla al recargar (F5) y la app cae en la cuenta propia
+
+**Síntoma.** A veces, al apretar F5, la consola muestra "Error al resolver el vínculo de
+equipo: FirebaseError: Missing or insufficient permissions".
+
+**Causa.** El token de sesión (ID token) dura 1 hora y el SDK lo renueva solo, pero al
+recargar la primera lectura puede salir con un token viejo o sin `email_verified`. La regla
+de `invitacionesMiembro/{email}` (`firestore.rules`, `emailDeAuth()`) lo rechaza con
+`permission-denied`. `resolverCuentaId` (`src/context/AppContext.jsx`) no reintenta y su
+`catch` devuelve `{ idEfectivo: currentUser.uid, miembro: false }`: un miembro de un equipo
+queda trabajando en **su propia cuenta**, sin aviso. Ahí el cupo de G-code y el plan son los
+de esa cuenta, no los del dueño.
+
+**Arreglo.** En `resolverCuentaId`:
+1. Llamar a `auth.currentUser.getIdToken(true)` antes del `getDoc` de `invitacionesMiembro`.
+2. Si da `permission-denied`, reintentar una vez (como ya hace `cargarDatosDeFirestore`).
+3. Si sigue fallando, **no** caer en silencio a la cuenta propia: mostrar el error con
+   "Reintentar", como el `loadError` existente.
+4. Opcional: mostrar en pantalla con qué cuenta se está trabajando.
+
+No se cierra la sesión: renovar el token alcanza y el usuario no ve nada.
+
+### 2. "Tu plan no incluye espacio para archivos G-code" con espacio libre en pantalla
+
+**Síntoma.** La app deja subir el archivo (muestra MB disponibles) y después la ficha queda
+en error con ese mensaje.
+
+**Causa.** El cliente y la Cloud Function calculan el cupo con criterios distintos:
+- Cliente (`cupoGcode` en `src/utils/archivosGcode.js`): `!plan && estado === 'trial'`
+  → 200 MB. Se fija en si el **documento del plan se cargó**.
+- Servidor (`cupoDeLaCuenta` en `functions/triggers/onGcodeSubido.js`): `!planId &&
+  estado === 'trial'` → 200 MB. Si la suscripción **tiene `planId`**, lee `planes/{planId}` y
+  usa `limites.gcodeGB`; si el plan no existe o `gcodeGB` está vacío/0, el cupo es 0.
+
+Una cuenta en `trial` con `planId` apuntando a un plan sin `gcodeGB` (o borrado, o que
+todavía no cargó en el cliente) ve 200 MB en pantalla y recibe cupo 0 del servidor.
+
+**Arreglo.** Usar la misma regla en los dos lados (por `planId`, no por si el plan cargó).
+Si el plan existe y tiene `gcodeGB`, ese manda; si la cuenta está en `trial` y el plan no
+da espacio, decidir si cae a los 200 MB de prueba o a 0, y que cliente y servidor digan lo
+mismo. Mientras tanto se corrige el dato: asignar un plan con `gcodeGB > 0`.
+
 ## Tareas manuales
 
 - **Agregar un admin:** Firebase Console → Firestore → `admins` → documento con

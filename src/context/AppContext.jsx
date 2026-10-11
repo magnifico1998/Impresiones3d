@@ -797,10 +797,44 @@ export const AppProvider = ({ children }) => {
   // Permite reintentar la carga manualmente (botón "Reintentar" en la
   // pantalla de error) sin tener que recargar toda la página.
   const reintentarCargaDatos = async () => {
-    if (!cuentaId) return;
+    // Sin cuentaId es que falló la resolución del vínculo de equipo: se repite
+    // desde ahí (ver iniciarCuenta).
+    if (!cuentaId) {
+      if (!auth.currentUser) return;
+      setLoading(true);
+      await iniciarCuenta(auth.currentUser);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     await cargarDatosDeFirestore(cuentaId);
     setLoading(false);
+  };
+
+  // Resuelve a qué cuenta entra la persona (propia o de un equipo) y carga sus
+  // datos. Si no se pudo resolver el vínculo, muestra la pantalla de error con
+  // "Reintentar" en vez de entrar a la cuenta propia por las dudas.
+  const iniciarCuenta = async (currentUser) => {
+    const { idEfectivo, miembro, error } = await resolverCuentaId(currentUser);
+    if (error) {
+      setCuentaId(null);
+      setEsMiembro(false);
+      setLoadErrorDetalle(`vínculo de equipo: ${String(error?.code || error?.message || error).slice(0, 100)}`);
+      setLoadError(true);
+      showToast('⚠ No se pudo verificar tu cuenta de equipo. Probá reintentar.', 'error', 10000);
+      return;
+    }
+    setCuentaId(idEfectivo);
+    setEsMiembro(miembro);
+    // Una vez por sesión, para que el admin/revendedor pueda ver "hace
+    // cuánto no entra" en su panel de consumo (ver
+    // registrarUltimoAcceso.js -- no puede ser un write directo acá
+    // porque suscripcion/actual tiene escritura cerrada para el
+    // cliente). No bloquea el login si falla.
+    httpsCallable(functions, 'registrarUltimoAcceso')().catch((e) => {
+      console.error('Error al registrar el último acceso:', e);
+    });
+    await cargarDatosDeFirestore(idEfectivo);
   };
 
   // Resuelve, a partir del email de Google recién logueado, si esta persona
@@ -809,10 +843,33 @@ export const AppProvider = ({ children }) => {
   // "Usuarios con acceso"). El ID del doc es el email en minúsculas, así
   // que es un getDoc puntual, sin queries -- ver firestore.rules y
   // functions/http/gestionarMiembros.js para cómo se crea ese vínculo.
+  //
+  // Si la lectura del vínculo falla (típico: token vencido o sin renovar tras
+  // un F5 -> permission-denied) NO se cae en silencio a la cuenta propia: un
+  // miembro terminaría trabajando en una cuenta vacía, con otro plan y otro
+  // cupo de G-code. Se renueva el token antes de leer, se reintenta una vez y,
+  // si sigue fallando, se devuelve { error } para que se muestre la pantalla
+  // de error con "Reintentar".
   const resolverCuentaId = async (currentUser) => {
     if (!currentUser.email) return { idEfectivo: currentUser.uid, miembro: false };
+    let invSnap;
     try {
-      const invSnap = await getDoc(doc(db, 'invitacionesMiembro', currentUser.email.toLowerCase()));
+      // Sin red puede fallar: se sigue con el token que haya.
+      await currentUser.getIdToken(true).catch(() => {});
+      const ref = doc(db, 'invitacionesMiembro', currentUser.email.toLowerCase());
+      try {
+        invSnap = await getDoc(ref);
+      } catch (e) {
+        if (e?.code !== 'permission-denied') throw e;
+        await currentUser.getIdToken(true);
+        await new Promise((r) => setTimeout(r, 600));
+        invSnap = await getDoc(ref);
+      }
+    } catch (e) {
+      console.error('Error al resolver el vínculo de equipo:', e);
+      return { idEfectivo: null, miembro: false, error: e };
+    }
+    try {
       if (invSnap.exists() && invSnap.data().estado === 'activo') {
         return { idEfectivo: invSnap.data().ownerUid, miembro: true };
       }
@@ -875,18 +932,7 @@ export const AppProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const { idEfectivo, miembro } = await resolverCuentaId(currentUser);
-        setCuentaId(idEfectivo);
-        setEsMiembro(miembro);
-        // Una vez por sesión, para que el admin/revendedor pueda ver "hace
-        // cuánto no entra" en su panel de consumo (ver
-        // registrarUltimoAcceso.js -- no puede ser un write directo acá
-        // porque suscripcion/actual tiene escritura cerrada para el
-        // cliente). No bloquea el login si falla.
-        httpsCallable(functions, 'registrarUltimoAcceso')().catch((e) => {
-          console.error('Error al registrar el último acceso:', e);
-        });
-        await cargarDatosDeFirestore(idEfectivo);
+        await iniciarCuenta(currentUser);
       } else {
         setCuentaId(null);
         setEsMiembro(false);

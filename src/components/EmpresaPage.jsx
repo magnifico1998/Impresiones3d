@@ -467,7 +467,7 @@ export default function EmpresaPage() {
                   <BarraConsumo
                     etiqueta="Espacio para archivos G-code"
                     usado={suscripcion?.gcodeBytes || 0}
-                    limite={cupoGcode(null, suscripcion)}
+                    limite={cupoGcode(planContratado, suscripcion)}
                     formatear={formatoBytes}
                   />
                 </>
