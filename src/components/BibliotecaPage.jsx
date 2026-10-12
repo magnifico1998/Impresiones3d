@@ -785,10 +785,10 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                         </div>
 
                         {/* Botones de acción */}
-                        <div style={{ display: 'flex', gap: '6px', marginTop: 'auto', paddingTop: '4px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: 'auto', paddingTop: '4px' }}>
                           <button
                             className="btn btn-sm"
-                            style={{ flex: 1, justifyContent: 'center' }}
+                            style={{ flex: '1 1 auto', justifyContent: 'center' }}
                             onClick={() => onLoadInCalculator(p.id)}
                           >
                             Calcular u.
