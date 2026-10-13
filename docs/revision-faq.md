@@ -521,7 +521,7 @@ También podés guardarlo al pasar un producto de la Calculadora a la Biblioteca
 
 El archivo se guarda **comprimido al máximo** y, cuando lo bajás, vuelve exactamente como lo subiste.
 
-[video: FAQ-GC-Archivos-G-code.mp4, desde 0:18]
+[video: FAQ-GC-Archivos-G-code.mp4, desde el principio]
 
 ### 11.2 ¿Qué archivos puedo guardar y cómo los distingo?
 
@@ -548,7 +548,7 @@ Tenés dos formas:
 - ⬇️ **Bajar:** en la ventana de archivos del producto, tocá **Bajar** y copiá el archivo a la tarjeta.
 - 📂 **Guardar en una carpeta:** con el conector instalado en la PC del taller (ver 11.5), tocá **🖨 Mandar** y elegí **Guardar en una carpeta**. El archivo se guarda directo en la carpeta que elegiste en el conector (por ejemplo, la tarjeta SD) y se abre esa carpeta.
 
-[video: FAQ-GC-Archivos-G-code.mp4, desde 0:34]
+[video: FAQ-GC-Archivos-G-code.mp4, desde 0:20]
 
 ### 11.5 ¿Qué es el Manager3D Conector y cómo lo instalo?
 
@@ -557,11 +557,13 @@ Es un programa para Windows que se instala en una PC de tu taller y recibe los a
 - En **Configuración → Aplicación → Impresión directa**, tocá **⬇ Descargar el conector (Windows)**.
 - Abrí el .zip y ejecutá **Manager3D-Conector.exe**. Si Windows muestra un aviso azul, tocá "Más información" y después "Ejecutar de todas formas".
 - En la app tocá **+ Vincular un conector** y escribí el código en el panel del conector. El código vale 10 minutos.
-- En el panel del conector, cargá tus impresoras: elegí **Abrir en el slicer de tu marca** y la marca (Bambu Lab, Anycubic, Creality, Elegoo, Prusa…). El programa de la marca se busca solo; si no lo encuentra, escribí su ruta.
+- En el panel del conector, cargá tus impresoras: ponele un nombre y elegí la **marca** (Bambu Lab, Anycubic, Creality, Elegoo, Prusa…). El programa de laminado de la marca se busca solo; con **Probar** confirmás que lo encontró. Si no lo encuentra, escribí la ruta de su .exe en "Programa".
 
 **Guardar en una carpeta** está siempre disponible, para cualquier impresora.
 
 En Impresión directa ves si cada conector está **conectado** y qué impresoras tiene.
+
+[video: FAQ-CN-Manager3D-Conector.mp4]
 
 ### 11.6 ¿Cómo mando un archivo a imprimir?
 
@@ -576,6 +578,8 @@ Debajo ves cada envío: En cola, Enviando…, Enviado o Error.
 
 💡 Si el conector está cerrado, el envío queda en cola y se hace cuando lo abras.
 
+[video: FAQ-GC-Archivos-G-code.mp4, desde 0:35]
+
 ### 11.7 ¿Puedo mandar el archivo desde un pedido?
 
 Sí. En el detalle del pedido, cada pieza cuyo producto tiene archivos guardados muestra el botón **🖨 Enviar**.
@@ -585,7 +589,7 @@ Sí. En el detalle del pedido, cada pieza cuyo producto tiene archivos guardados
 
 Si la pieza no tiene el botón, es porque su producto no tiene archivos guardados, o es una pieza libre de la Calculadora.
 
-[video: FAQ-GC-Archivos-G-code.mp4, desde 0:52]
+[video: FAQ-GC-Archivos-G-code.mp4, desde 0:53]
 
 ## Categoría nueva "12. Ayuda y uso de la app"
 
@@ -643,5 +647,5 @@ Para que no pierdas lo que cargaste por un clic de más. Los formularios se cier
 
 ## Videos a revisar
 
-- **11.6 (imprimir):** el video de G-code muestra en el capítulo "Imprimir directo" (1:13) el envío directo a una Bambu en modo LAN. En la v15 eso ya no se ofrece para impresoras nuevas: ahora se elige la marca y se abre en su programa de laminado. Conviene volver a grabar ese capítulo. Los capítulos de subir, bajar y guardar en la carpeta siguen bien.
+- **Sección 11 (G-code e impresión directa):** listos los videos nuevos en la v15.5: FAQ-GC-Archivos-G-code.mp4 (subir, tarjeta SD, abrir en el programa, desde el pedido) y FAQ-CN-Manager3D-Conector.mp4 (instalar, vincular, cargar impresoras, carpeta y primer envío). Reemplazan al video de G-code anterior.
 - **Videos de las FAQ de Pedidos y Configuración:** se grabaron con la versión anterior y no muestran lo nuevo: el botón Unir pedidos, las paletas Tranqui y personalizada, y la tarjeta Impresión directa.
