@@ -36,13 +36,29 @@ function hijosOrdenados(nodo) {
   return Array.from(nodo.hijos.values()).sort((a, b) => compararSegmentosCategoria(a.nombre, b.nombre));
 }
 
+// Número con que empieza un título ("1.2.5 ¿Puedo...?" -> "1.2.5"), o null.
+const prefijoNumerico = (texto) => /^\s*(\d+(?:\.\d+)*)/.exec(texto || '')?.[1] || null;
+
+// Preguntas y subcategorías de un nodo en una sola lista, para que un título
+// numerado ordene por su número aunque sea pregunta o subcategoría (antes iban
+// todas las preguntas y después las subcategorías, y "1.2.6 pregunta" quedaba
+// arriba de "1.2.5 subcategoría"). Sin número: las preguntas primero, en su
+// orden, y las subcategorías al final, alfabéticas.
+function itemsOrdenados(nodo) {
+  const preguntas = nodo.preguntas.map(f => ({ f, num: prefijoNumerico(f.pregunta) }));
+  const hijos = hijosOrdenados(nodo).map(h => ({ h, num: prefijoNumerico(h.nombre) }));
+  const numerados = [...preguntas, ...hijos]
+    .filter(i => i.num)
+    .sort((a, b) => a.num.localeCompare(b.num, 'es', { numeric: true }));
+  return [...preguntas.filter(i => !i.num), ...numerados, ...hijos.filter(i => !i.num)];
+}
+
 // Primera pregunta del árbol en profundidad (propia del nodo si tiene, si
 // no la del primer hijo ordenado) -- usada para preseleccionar algo al
 // entrar a la pantalla.
 function primeraPreguntaDe(nodo) {
-  if (nodo.preguntas[0]) return nodo.preguntas[0];
-  for (const hijo of hijosOrdenados(nodo)) {
-    const encontrada = primeraPreguntaDe(hijo);
+  for (const { f, h } of itemsOrdenados(nodo)) {
+    const encontrada = f || primeraPreguntaDe(h);
     if (encontrada) return encontrada;
   }
   return null;
@@ -216,7 +232,7 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
         </button>
         {abierta && (
           <>
-            {nodo.preguntas.map(f => (
+            {itemsOrdenados(nodo).map(({ f, h }) => (h ? renderNodo(h, profundidad + 1) : (
               <button
                 type="button"
                 key={f.id}
@@ -227,8 +243,7 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
               >
                 {f.pregunta}
               </button>
-            ))}
-            {hijosOrdenados(nodo).map(hijo => renderNodo(hijo, profundidad + 1))}
+            )))}
           </>
         )}
       </div>
