@@ -359,6 +359,10 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   presupuesto" en la sección. Dentro del presupuesto se suman productos con
   "+ Desde biblioteca" (buscador; si el producto ya está, suma una unidad) o
   con "+ Línea libre".
+- En la lista, bajo el nombre del cliente se ve la cantidad de líneas y los
+  nombres de producto separados por coma (sin versiones ni colores; un producto
+  repetido se muestra una vez; si no entra, se corta con "…" y el texto completo
+  queda en el tooltip). Código: `src/utils/resumenPresupuesto.js`.
 - Desde la Calculadora o la Biblioteca se elige el **presupuesto destino**:
   uno nuevo o uno existente **abierto** (creado o aguardando respuesta; nunca
   aprobados ni rechazados). Si es existente, los productos se suman al final

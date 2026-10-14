@@ -8,6 +8,7 @@ import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../utils/estadosPresupues
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
 import { doc, getDocFromServer } from 'firebase/firestore';
 import { db } from '../firebase';
+import { resumenDeProductos } from '../utils/resumenPresupuesto';
 
 // Presupuestos guardados (users/{uid}/presupuestos), separados de los
 // pedidos: un presupuesto todavía no es una venta. Ciclo:
@@ -289,8 +290,11 @@ export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedid
                     <td style={{ whiteSpace: 'nowrap' }}>{fechaVisible(p.fecha)}</td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{p.cliente}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
-                        {(p.items || []).length} producto{(p.items || []).length !== 1 ? 's' : ''}
+                      <div
+                        title={resumenDeProductos(p)}
+                        style={{ fontSize: '11px', color: 'var(--text3)', maxWidth: '420px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {resumenDeProductos(p)}
                       </div>
                     </td>
                     <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600, whiteSpace: 'nowrap' }}>{fmt(p.total || 0)}</td>
