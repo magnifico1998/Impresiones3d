@@ -365,6 +365,25 @@ export default function ConfiguracionPage() {
                   notificaciones por mail". Las respuestas te llegan al email de tu empresa.
                 </p>
               </div>
+              {/* Productos en stock: prende la sección "Productos en stock" (unidades terminadas, para la tienda del catálogo). */}
+              <div className="card">
+                <div className="card-title">Productos en stock</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    id="stockHabilitado"
+                    checked={!!cfg.stockHabilitado}
+                    onChange={(e) => setCfg(prev => ({ ...prev, stockHabilitado: e.target.checked }))}
+                  />
+                  <label htmlFor="stockHabilitado" style={{ fontSize: '13px' }}>
+                    Llevar stock de productos terminados
+                  </label>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
+                  Suma la sección "Productos en stock" para cargar cuántas unidades tenés de cada producto y color. Es la base de
+                  la tienda del catálogo web, que vende al instante lo que hay en stock y fabrica a pedido el resto.
+                </p>
+              </div>
               {/* Inventario: prende la pestaña "Inventario" en Compras. */}
               <div className="card">
                 <div className="card-title">Inventario</div>

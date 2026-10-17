@@ -10,6 +10,7 @@ export const NOVEDADES = [
     version: 16,
     fecha: '2026-10-17',
     items: [
+      { texto: 'Tienda con stock: nuevo formato del catálogo web (Catálogo web → Formato), con las categorías arriba como menú desplegable, fotos grandes y botón Comprar. La nueva sección Productos en stock (se activa en Configuración) guarda cuántas unidades terminadas tenés de cada producto y color: la tienda muestra primero lo que hay y deja pedir el resto a pedido. Al importar la compra como pedido, lo que salió de stock queda completado y descuenta el stock, y lo que falta fabricar queda pendiente.' },
       { texto: 'Aviso por mail al cliente cuando su pedido está listo: se activa en Configuración → Avisos a clientes, se manda una sola vez por pedido y sólo a los clientes con mail cargado. En la ficha de cada cliente podés marcar "No enviarle notificaciones por mail" (vale para todos los avisos, menos las facturas de ARCA).' },
       { texto: 'En la lista de Presupuestos, bajo el nombre del cliente se ven también los productos que incluye cada presupuesto.' }
     ]

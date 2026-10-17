@@ -741,6 +741,29 @@ mensaje "Hola Andrea! Te escribo por tu pedido de A | B | C." (`mensajeWhatsappP
 Nombra los productos del pedido (sin repetir y sin versiones) y no el número, que el cliente no conoce. Un pedido
 sin piezas con nombre usa el número como antes.
 
+## Tienda con stock (catálogo web en formato "tienda")
+
+Código: `src/utils/stock.js`, `src/components/StockPage.jsx`, `src/catalogo/VistaTienda.jsx` y el formato en
+`CatalogoPublico.jsx`; la importación vive en `importarSolicitudComoPedido` (AppContext).
+
+- **Formato:** Catálogo web → "Formato del catálogo": *Catálogo* (el de siempre, por defecto) o *Tienda*
+  (`catalogoTiendas/{uid}.modo = 'tienda'`). Elegir Tienda prende también "Productos en stock" en Configuración.
+- **Stock:** cada producto de la Biblioteca guarda `stock: [{ color, colorSecundario, cantidad }]` (una línea por
+  variante; sin color = ''). Se carga en la sección "Productos en stock" (se prende con `cfg.stockHabilitado`). Es
+  stock de producto terminado, distinto del Inventario de Compras (insumos). La copia pública del producto en
+  `catalogoTiendas/{uid}/productos` lleva el stock, y se actualiza sola al editarlo.
+- **La tienda:** categorías arriba como desplegables con sus subcategorías, grilla de fotos grandes con botón
+  Comprar y ficha del producto. Por defecto muestra "En stock"; "Todo el catálogo" suma los productos a pedido. En
+  la ficha, cada color indica cuántos hay en stock; lo que se pide de más de lo que hay queda "a pedido".
+- **La compra** llega como solicitud en Catálogo web, igual que siempre; cada versión trae `deStock` (cuántas
+  unidades salen de stock). Al **importar** la solicitud como pedido: `deStock` se revalida contra el stock real
+  (se toma lo menor entre lo declarado y lo que hay; el visitante no es de fiar), esas unidades quedan **realizadas**
+  en el pedido, lo que falta fabricar queda pendiente, y el stock se descuenta de la Biblioteca. Si todo salió de
+  stock el pedido nace en "Listo p/ entregar"; si falta fabricar, en "Pendiente"; sin stock de por medio, en
+  "En verificación" como siempre.
+- El stock no se reserva al armar el carrito: se descuenta al importar. Dos compradores pueden pedir lo mismo a la vez;
+  gana el que se importa primero y el otro queda con esa parte a pedido.
+
 ## Envío de G-code desde un pedido
 
 - El botón "🖨 Enviar" de una pieza lista **todos** los archivos G-code de su producto (no sólo uno), cada uno con su botón Enviar.

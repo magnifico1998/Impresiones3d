@@ -8,6 +8,7 @@ import { paletas } from '../utils/paletas';
 import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { registrarEvento } from '../utils/registroSoporte';
+import { normalizarStock, repartoParaImportar, descontarStock } from '../utils/stock';
 
 const AppContext = createContext();
 
@@ -118,6 +119,8 @@ const proyeccionCatalogoProducto = (p) => ({
   // flag de productos marcados antes de este cambio -- ver
   // ModalBibEditarCat.jsx, que hace el mismo fallback al cargar.
   modoColorSecundario: p.modoColorSecundario || (p.permiteColorSecundario ? 'libre' : ''),
+  // Unidades terminadas por color (sección Productos en stock): lo que la tienda del catálogo vende al instante.
+  stock: normalizarStock(p.stock),
   actualizado: new Date().toISOString()
 });
 
@@ -1696,7 +1699,8 @@ export const AppProvider = ({ children }) => {
       precioEstimado: precioConfiable,
       precioVenta: precioConfiable,
       cantidad: Math.max(0, Math.floor(Number(item.cantidad) || 0)),
-      elaborados: 0,
+      // Lo que salió de stock (tienda del catálogo) ya está hecho; el resto queda por fabricar.
+      elaborados: (item.versiones || []).reduce((s, v) => s + Math.min(Math.max(0, Math.floor(Number(v.deStock) || 0)), Math.max(0, Math.floor(Number(v.cantidad) || 0))), 0),
       notas: 'Pedido vía catálogo web',
       versiones: (item.versiones || []).map(v => ({
         id: Date.now() + Math.random(),
@@ -1704,7 +1708,7 @@ export const AppProvider = ({ children }) => {
         color: v.color || '',
         colorSecundario: v.colorSecundario || '',
         comentario: v.comentario || '',
-        realizados: 0
+        realizados: Math.min(Math.max(0, Math.floor(Number(v.deStock) || 0)), Math.max(0, Math.floor(Number(v.cantidad) || 0)))
       }))
     };
   };
@@ -1714,7 +1718,15 @@ export const AppProvider = ({ children }) => {
   // que no vuelva a aparecer como pendiente.
   const importarSolicitudComoPedido = async (solicitud, destino = 'nuevo') => {
     try {
-      const nuevasPiezas = (solicitud.items || []).map(construirPiezaDesdeSolicitud);
+      // Tienda del catálogo: se revalida contra el stock real cuánto sale de stock (lo que mandó el visitante
+      // no es de fiar y el stock pudo cambiar). Lo que sale de stock queda completado; el resto, por fabricar.
+      const itemsRepartidos = (solicitud.items || []).map((item) => {
+        const prod = biblioteca.find(p => p.id === item.prodId);
+        return { ...item, versiones: repartoParaImportar(prod?.stock, item.versiones || []) };
+      });
+      const nuevasPiezas = itemsRepartidos.map(construirPiezaDesdeSolicitud);
+      const usaStock = itemsRepartidos.some(it => it.versiones.some(v => v.deStock > 0));
+      const todoCompleto = nuevasPiezas.length > 0 && nuevasPiezas.every(pz => pz.elaborados >= pz.cantidad);
       let pedidoDestinoId = null;
 
       // El teléfono es el único dato realmente único acá: el nombre lo
@@ -1765,7 +1777,9 @@ export const AppProvider = ({ children }) => {
           id: newIdVal,
           cliente: nombreParaPedido,
           desc: solicitud.comentarioGeneral || 'Pedido desde catálogo web',
-          estado: 'en_verificacion',
+          // Con productos de stock el pedido no necesita verificación de lo que ya está hecho: si todo salió de stock
+          // queda listo para entregar; si falta fabricar, pendiente.
+          estado: usaStock ? (todoCompleto ? 'listo' : 'pendiente') : 'en_verificacion',
           fechaPedido: fechaLocalHoy(),
           fechaEntrega: '',
           notaGeneral: solicitud.telefono ? `Tel: ${solicitud.telefono}` : '',
@@ -1789,6 +1803,17 @@ export const AppProvider = ({ children }) => {
           piezas: [...p.piezas, ...nuevasPiezas]
         }));
         pedidoDestinoId = targetId;
+      }
+
+      // Lo que salió de stock se descuenta de la Biblioteca (y de la copia pública del catálogo).
+      for (const item of itemsRepartidos) {
+        if (!item.versiones.some(v => v.deStock > 0)) continue;
+        try {
+          await updateProducto(item.prodId, (p) => ({ ...p, stock: descontarStock(p.stock, item.versiones) }));
+        } catch (e) {
+          console.error('No se pudo descontar el stock de', item.nombre, e);
+          showToast('⚠ El pedido se creó, pero no se pudo descontar el stock de ' + (item.nombre || 'un producto') + '. Ajustalo a mano en Productos en stock.', 'error');
+        }
       }
 
       const { _docId, ...datosSolicitud } = solicitud;

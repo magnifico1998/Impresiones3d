@@ -41,6 +41,7 @@ const MENU = {
   presupuestos: 'Presupuestos',
   compras: 'Compras',
   catalogoweb: 'Catálogo web',
+  stock: 'Productos en stock',
   faq: 'Preguntas frecuentes',
   soporte: 'Soporte'
 };

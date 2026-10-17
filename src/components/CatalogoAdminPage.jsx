@@ -19,6 +19,7 @@ export default function CatalogoAdminPage() {
   const {
     biblioteca,
     cfg,
+    setCfg,
     cuentaId,
     catalogoConfig,
     guardarCatalogoConfig,
@@ -329,6 +330,38 @@ export default function CatalogoAdminPage() {
           {' · '}Colores publicados: <strong style={{ color: 'var(--text)' }}>{(catalogoConfig?.colores || []).length}</strong>
           <div style={{ marginTop: '4px' }}>Se toma siempre en vivo de "Mi emprendimiento" — no hace falta actualizarlo a mano.</div>
         </div>
+      </div>
+
+      {/* Formato: catálogo (pedidos a medida) o tienda (stock + a pedido) */}
+      <div className="card">
+        <div className="card-title">Formato del catálogo</div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+          {[['catalogo', 'Catálogo', 'Lista por categorías para armar pedidos a medida. Es el formato de siempre.'],
+            ['tienda', 'Tienda', 'Categorías arriba como menú, productos con foto grande y botón Comprar. Muestra primero lo que tenés en stock y deja pedir el resto a pedido.']].map(([id, nombre, texto]) => {
+            const elegido = (catalogoConfig?.modo || 'catalogo') === id;
+            return (
+              <button
+                key={id}
+                className="btn"
+                onClick={() => {
+                  guardarCatalogoConfig({ modo: id });
+                  // La tienda vende desde el stock: se prende la sección para poder cargarlo.
+                  if (id === 'tienda' && !cfg.stockHabilitado) setCfg(prev => ({ ...prev, stockHabilitado: true }));
+                }}
+                style={{ flex: '1 1 260px', flexDirection: 'column', alignItems: 'flex-start', gap: '4px', textAlign: 'left', padding: '12px 14px', height: 'auto', borderColor: elegido ? 'var(--accent)' : undefined, background: elegido ? 'var(--accentDim)' : undefined }}
+              >
+                <span style={{ fontWeight: 700 }}>{elegido ? '✓ ' : ''}{nombre}</span>
+                <span style={{ fontSize: '12px', color: 'var(--text3)', fontWeight: 400, whiteSpace: 'normal' }}>{texto}</span>
+              </button>
+            );
+          })}
+        </div>
+        {(catalogoConfig?.modo === 'tienda') && (
+          <p style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '10px' }}>
+            Cargá las unidades que tenés en la sección <strong>Productos en stock</strong> (menú de la izquierda). Los pedidos de la tienda llegan
+            acá, igual que ahora: al importarlos, lo que salió de stock queda completado y descuenta el stock, y lo que falta fabricar queda pendiente.
+          </p>
+        )}
       </div>
 
       {/* Marca del catálogo: tamaño del logo y texto destacado */}

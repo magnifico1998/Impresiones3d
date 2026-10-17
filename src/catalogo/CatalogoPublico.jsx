@@ -5,6 +5,8 @@ import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/paises';
 import { ordenarCategorias } from '../utils/categoriaOrden';
+import VistaTienda, { ESTILOS_TIENDA } from './VistaTienda';
+import { repartirConStock } from '../utils/stock';
 import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe, textosSecundariosDe } from '../utils/catalogoMarca';
 
 const newLocalId = () => Date.now() + Math.random();
@@ -133,6 +135,7 @@ export default function CatalogoPublico() {
   };
   const [carrito, setCarrito] = useState([]); // { localId, prodId, nombre, precio, versiones:[{localId,cantidad,color,comentario}] }
   const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const [fichaPedida, setFichaPedida] = useState(null); // formato tienda: producto a reabrir desde el carrito
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(null); // { docId, payload } una vez enviado
   // false cuando la tienda pasó el límite de aperturas de su plan en el
@@ -297,6 +300,20 @@ export default function CatalogoPublico() {
     cerrarDetalle();
   };
 
+  // Formato tienda: la ficha del producto arma sus versiones y las agrega acá directo.
+  const agregarAlCarrito = (p, versiones) => {
+    setCarrito(prev => {
+      const nuevo = { localId: newLocalId(), prodId: p.id, nombre: p.nombre, precio: p.precio || 0, versiones };
+      return prev.some(it => it.prodId === p.id) ? prev.map(it => it.prodId === p.id ? { ...it, versiones } : it) : [...prev, nuevo];
+    });
+  };
+
+  // Cuánto de cada versión sale de stock (formato tienda). Con otro formato no hay stock: todo es a pedido.
+  const repartoDe = (prodId, versiones) => {
+    if (config?.modo !== 'tienda') return versiones.map(v => ({ ...v, deStock: 0 }));
+    return repartirConStock(productos.find(pr => pr.id === prodId)?.stock, versiones);
+  };
+
   const quitarProducto = (prodId) => {
     setCarrito(prev => prev.filter(it => it.prodId !== prodId));
     if (detalleAbierto === prodId) cerrarDetalle();
@@ -306,6 +323,7 @@ export default function CatalogoPublico() {
     const p = productos.find(pr => pr.id === prodId);
     if (!p) return;
     setCarritoAbierto(false);
+    if (config?.modo === 'tienda') { setFichaPedida(prodId); return; }
     setCatAbierta(p.cat || 'Otros');
     abrirDetalle(p);
   };
@@ -338,11 +356,14 @@ export default function CatalogoPublico() {
           nombre: it.nombre,
           precioUnit: it.precio,
           cantidad: it.versiones.reduce((a, v) => a + (v.cantidad || 0), 0),
-          versiones: it.versiones.filter(v => v.cantidad > 0).map(v => ({
+          versiones: repartoDe(it.prodId, it.versiones.filter(v => v.cantidad > 0)).map(v => ({
             cantidad: v.cantidad,
             color: v.color || '',
             colorSecundario: v.colorSecundario || '',
-            comentario: v.comentario || ''
+            comentario: v.comentario || '',
+            // Cuántas de estas unidades salen del stock (el resto se fabrica a pedido). Al importar la solicitud el
+            // dueño lo vuelve a validar contra su stock real: lo que manda el visitante no es de fiar.
+            ...(config?.modo === 'tienda' ? { deStock: v.deStock } : {})
           }))
         }))
         .filter(it => it.cantidad > 0);
@@ -447,6 +468,7 @@ export default function CatalogoPublico() {
   return (
     <div style={{ ...estiloPaleta(config), minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', paddingBottom: carrito.length ? '76px' : '0' }}>
       <style>{ESTILOS_RESPONSIVE}</style>
+      {config.modo === 'tienda' && <style>{ESTILOS_TIENDA}{`@media (min-width: 860px) { .catalogo-header-inner { max-width: 1180px !important; } .catalogo-cart-bar { max-width: 1180px !important; } }`}</style>}
       {/* Adentro del contenedor con la paleta de la tienda, así los avisos
           toman sus colores en vez de los de la app. */}
       <Dialogos />
@@ -523,6 +545,22 @@ export default function CatalogoPublico() {
         </div>
       )}
 
+      {config.modo === 'tienda' ? (
+        <VistaTienda
+          productos={productos}
+          config={config}
+          fmt={fmt}
+          carrito={carrito}
+          colores={colores}
+          coloresSecundarios={coloresSecundarios}
+          combinaciones={combinaciones}
+          aceptaPedidos={aceptaPedidos}
+          onAgregar={agregarAlCarrito}
+          abrirProdId={fichaPedida}
+          onAbierto={() => setFichaPedida(null)}
+          onAmpliar={setImagenAmpliada}
+        />
+      ) : (
       <div className="catalogo-content" style={{ maxWidth: '640px', margin: '0 auto', padding: '8px 16px 16px' }}>
         {/* La frase de siempre, debajo de la línea divisoria del encabezado. */}
         {aceptaPedidos && (
@@ -736,6 +774,7 @@ export default function CatalogoPublico() {
           );
         })}
       </div>
+      )}
 
       {carrito.length > 0 && !carritoAbierto && (
         <div
@@ -781,9 +820,14 @@ export default function CatalogoPublico() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: '13px' }}>{it.nombre}</div>
-                        {it.versiones.map(v => (
+                        {repartoDe(it.prodId, it.versiones).map(v => (
                           <div key={v.localId} style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
                             {v.cantidad}× {v.color || 'sin color'}{v.colorSecundario ? ` + ${v.colorSecundario}` : ''}{v.comentario ? ` — ${v.comentario}` : ''}
+                            {config.modo === 'tienda' && (
+                              <strong style={{ marginLeft: '6px', color: v.deStock >= v.cantidad ? 'var(--accent)' : 'var(--text2)' }}>
+                                {v.deStock >= v.cantidad ? '· en stock' : v.deStock > 0 ? `· ${v.deStock} en stock, ${v.cantidad - v.deStock} a pedido` : '· a pedido'}
+                              </strong>
+                            )}
                           </div>
                         ))}
                         <div style={{ fontSize: '12px', fontFamily: 'var(--mono)', marginTop: '6px', color: 'var(--text2)' }}>

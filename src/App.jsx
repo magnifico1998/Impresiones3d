@@ -14,6 +14,7 @@ import ComprasPage from './components/ComprasPage';
 import PresupuestosPage from './components/PresupuestosPage';
 import BibliotecaPage from './components/BibliotecaPage';
 import CatalogoAdminPage from './components/CatalogoAdminPage';
+import StockPage from './components/StockPage';
 import ConfiguracionPage from './components/ConfiguracionPage';
 import EmpresaPage from './components/EmpresaPage';
 import AdminPage from './components/AdminPage';
@@ -663,6 +664,9 @@ function App() {
 
       case 'catalogoweb':
         return <CatalogoAdminPage />;
+
+      case 'stock':
+        return <StockPage />;
 
       case 'faq':
         return (

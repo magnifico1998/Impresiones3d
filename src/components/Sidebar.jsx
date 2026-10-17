@@ -92,6 +92,16 @@ export default function Sidebar({ isOpen, onClose }) {
             </svg>
           )
         },
+        ...(cfg?.stockHabilitado ? [{
+          id: 'stock',
+          name: 'Productos en stock',
+          icon: (
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 7l7-4 7 4v7l-7 4-7-4V7z" strokeLinejoin="round" />
+              <path d="M3 7l7 4 7-4M10 11v7" strokeLinejoin="round" />
+            </svg>
+          )
+        }] : []),
         {
           id: 'catalogoweb',
           name: 'Catálogo web',
