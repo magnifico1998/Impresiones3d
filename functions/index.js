@@ -10,6 +10,7 @@ setGlobalOptions({ maxInstances: 10 });
 
 const { onNuevoUsuario } = require('./triggers/onNuevoUsuario');
 const { onPedidoCreado } = require('./triggers/onPedidoCreado');
+const { onPedidoListo } = require('./triggers/onPedidoListo');
 const { onBibliotecaCambio } = require('./triggers/onBibliotecaCambio');
 const { onGcodeSubido, onGcodeBorrado } = require('./triggers/onGcodeSubido');
 const { crearCodigoConector, vincularConector, onConectorBorrado } = require('./http/conectores');
@@ -39,6 +40,7 @@ const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromoc
 module.exports = {
   onNuevoUsuario,
   onPedidoCreado,
+  onPedidoListo,
   onBibliotecaCambio,
   onGcodeSubido,
   onGcodeBorrado,

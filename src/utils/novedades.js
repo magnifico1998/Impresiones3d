@@ -7,6 +7,14 @@
 
 export const NOVEDADES = [
   {
+    version: 16,
+    fecha: '2026-10-17',
+    items: [
+      { texto: 'Aviso por mail al cliente cuando su pedido está listo: se activa en Configuración → Avisos a clientes, se manda una sola vez por pedido y sólo a los clientes con mail cargado. En la ficha de cada cliente podés marcar "No enviarle notificaciones por mail" (vale para todos los avisos, menos las facturas de ARCA).' },
+      { texto: 'En la lista de Presupuestos, bajo el nombre del cliente se ven también los productos que incluye cada presupuesto.' }
+    ]
+  },
+  {
     version: 15,
     fecha: '2026-10-11',
     items: [

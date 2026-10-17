@@ -1,0 +1,33 @@
+import { describe, it, expect } from 'vitest';
+import { decidirAviso } from '../functions/avisoPedidoListo.js';
+
+const cfg = { notificarPedidoListo: true };
+const clientes = [
+  { nombre: 'Juana Pérez', email: 'juana@ejemplo.com' },
+  { nombre: 'Sin Mail', email: '' },
+  { nombre: 'No Molestar', email: 'nm@ejemplo.com', sinNotificaciones: true }
+];
+const pasa = (cliente, de = 'progreso', a = 'listo') => ({ antes: { estado: de, cliente }, despues: { estado: a, cliente } });
+
+describe('aviso de pedido listo', () => {
+  it('avisa al pasar a listo', () => {
+    const r = decidirAviso({ ...pasa('Juana Pérez'), cfg, clientes });
+    expect(r).toMatchObject({ enviar: true, email: 'juana@ejemplo.com' });
+  });
+  it('no distingue mayúsculas ni espacios en el nombre', () => {
+    expect(decidirAviso({ ...pasa('  juana   PÉREZ '), cfg, clientes }).enviar).toBe(true);
+  });
+  it('no avisa con la función apagada', () => {
+    expect(decidirAviso({ ...pasa('Juana Pérez'), cfg: {}, clientes })).toMatchObject({ enviar: false, motivo: 'funcion-apagada' });
+  });
+  it('no avisa si el cliente no tiene mail, no está cargado o pidió no recibir', () => {
+    expect(decidirAviso({ ...pasa('Sin Mail'), cfg, clientes }).motivo).toBe('sin-mail');
+    expect(decidirAviso({ ...pasa('Nadie'), cfg, clientes }).motivo).toBe('cliente-no-cargado');
+    expect(decidirAviso({ ...pasa('No Molestar'), cfg, clientes }).motivo).toBe('cliente-sin-notificaciones');
+  });
+  it('no avisa si el pedido ya estaba listo ni si pasa a otro estado', () => {
+    expect(decidirAviso({ ...pasa('Juana Pérez', 'listo', 'listo'), cfg, clientes }).enviar).toBe(false);
+    expect(decidirAviso({ ...pasa('Juana Pérez', 'listo', 'enviado'), cfg, clientes }).enviar).toBe(false);
+    expect(decidirAviso({ antes: null, despues: { estado: 'listo', cliente: 'Juana Pérez' }, cfg, clientes }).enviar).toBe(false);
+  });
+});

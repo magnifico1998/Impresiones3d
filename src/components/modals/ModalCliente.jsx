@@ -13,6 +13,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
     nombre: '',
     tel: '',
     email: '',
+    sinNotificaciones: false,
     documento: '',
     condicionIva: '5',
     prov: '',
@@ -35,6 +36,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
             nombre: c.nombre || '',
             tel: c.tel || '',
             email: c.email || '',
+            sinNotificaciones: !!c.sinNotificaciones,
             documento: c.documento || '',
             condicionIva: c.condicionIva || '5',
             prov: c.prov || '',
@@ -53,6 +55,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           nombre: '',
           tel: '',
           email: '',
+          sinNotificaciones: false,
           documento: '',
           condicionIva: '5',
           prov: '',
@@ -90,6 +93,7 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
       nombre: nombreTrimmed,
       tel: form.tel,
       email: form.email,
+      sinNotificaciones: !!form.sinNotificaciones,
       documento: form.documento,
       condicionIva: form.condicionIva,
       prov: form.prov,
@@ -156,6 +160,11 @@ export default function ModalCliente({ isOpen, onClose, editId }) {
           <div>
             <label className="fl">Email</label>
             <input type="text" id="email" value={form.email} onChange={handleChange} />
+            {/* Vale para todos los avisos al cliente (hoy: "pedido listo"), salvo las facturas de ARCA. */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', marginTop: '6px' }}>
+              <input type="checkbox" checked={!!form.sinNotificaciones} onChange={(e) => setForm(prev => ({ ...prev, sinNotificaciones: e.target.checked }))} />
+              No enviarle notificaciones por mail
+            </label>
           </div>
           <div>
             <label className="fl">N° de documento</label>

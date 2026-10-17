@@ -228,6 +228,16 @@ const DEFAULTS = {
     `.trim(),
     variables: { nombre: 'Juana', comprobante: 'Factura C 00002-00000015', importe: '$ 45.000,00', emprendimiento: 'Impresiones Lucas' },
   },
+  pedidoListo: {
+    label: 'Aviso al cliente: su pedido está listo',
+    subject: '{{emprendimiento}}: tu pedido #{{numero}} está listo',
+    bodyHtml: `
+      <h2 style="${TITULO}">¡Tu pedido está listo!</h2>
+      <p>Hola {{nombre}}, tu pedido <strong>#{{numero}}</strong> de {{emprendimiento}} ya está listo para entregar.</p>
+      <p>Si tenés alguna consulta, respondé este mail y le llega directamente a {{emprendimiento}}.</p>
+    `.trim(),
+    variables: { nombre: 'Juana', numero: '0012', emprendimiento: 'Impresiones Lucas' },
+  },
   // Campaña a todos los suscriptores (ver functions/http/boletin.js): el
   // contenido se reescribe desde el panel para cada envío.
   boletin: {

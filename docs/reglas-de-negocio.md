@@ -717,6 +717,23 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
     misma persona en un mismo envío.
   - Las respuestas van al mail del admin.
 
+## Aviso por mail: pedido listo
+
+Código: `functions/triggers/onPedidoListo.js` (trigger sobre `users/{uid}/pedidos/{id}`) y la decisión pura en
+`functions/avisoPedidoListo.js`. Plantilla editable `pedidoListo` (panel admin → plantillas de mail).
+
+- Se apaga y prende en Configuración → "Avisos a clientes" (`cfg.notificarPedidoListo`, **apagado por defecto**).
+- Se manda cuando el pedido **pasa** a "Listo p/ entregar" (venía de otro estado). Crear un pedido ya listo o
+  volver a guardar uno que ya lo estaba no avisa.
+- Se busca al cliente por nombre (sin mayúsculas ni espacios de más) en la libreta. No se avisa si no está
+  cargado, si no tiene mail válido o si tiene marcado "No enviarle notificaciones por mail"
+  (`cliente.sinNotificaciones`). Esa marca vale para **todos** los avisos al cliente; las facturas de ARCA
+  son la excepción y se mandan siempre que el cliente tenga mail.
+- **Una sola vez por pedido**: se reserva `users/{uid}/avisosPedido/{pedidoId}` con `create()`. Si pasa a listo
+  varias veces (por error o por volver atrás) sólo avisa la primera. Si el envío falla se libera la reserva.
+- El mail sale de la casilla de Manager3D con el nombre del emprendimiento ("X vía Manager3D") y las
+  respuestas van al email de la empresa (`empresa.email`).
+
 ## Envío de G-code desde un pedido
 
 - El botón "🖨 Enviar" de una pieza lista **todos** los archivos G-code de su producto (no sólo uno), cada uno con su botón Enviar.

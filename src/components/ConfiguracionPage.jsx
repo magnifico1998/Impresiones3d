@@ -345,6 +345,26 @@ export default function ConfiguracionPage() {
               </div>
           </div>
           <div>
+              {/* Aviso por mail al cliente cuando el pedido pasa a "Listo p/ entregar". */}
+              <div className="card">
+                <div className="card-title">Avisos a clientes</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                  <input
+                    type="checkbox"
+                    id="notificarPedidoListo"
+                    checked={!!cfg.notificarPedidoListo}
+                    onChange={(e) => setCfg(prev => ({ ...prev, notificarPedidoListo: e.target.checked }))}
+                  />
+                  <label htmlFor="notificarPedidoListo" style={{ fontSize: '13px' }}>
+                    Avisar por mail cuando el pedido está listo
+                  </label>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted, #888)', marginTop: '4px' }}>
+                  Cuando un pedido pasa a "Listo p/ entregar" se le manda un mail al cliente, una sola vez por pedido. Sólo
+                  se avisa a los clientes que tienen mail cargado; en la ficha de cada cliente podés marcar "No enviarle
+                  notificaciones por mail". Las respuestas te llegan al email de tu empresa.
+                </p>
+              </div>
               {/* Inventario: prende la pestaña "Inventario" en Compras. */}
               <div className="card">
                 <div className="card-title">Inventario</div>
