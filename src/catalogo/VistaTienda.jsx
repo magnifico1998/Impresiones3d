@@ -17,7 +17,8 @@ export const ESTILOS_TIENDA = `
   .tienda-nav-item { position: relative; flex-shrink: 0; }
   .tienda-nav-btn { background: none; border: none; cursor: pointer; padding: 14px 14px; color: var(--text); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; display: flex; align-items: center; gap: 6px; white-space: nowrap; border-bottom: 2px solid transparent; }
   .tienda-nav-btn:hover, .tienda-nav-btn.activo { border-bottom-color: var(--accent); color: var(--accent); }
-  .tienda-menu { position: absolute; top: 100%; left: 0; min-width: 220px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.25); padding: 6px; z-index: 25; }
+  /* fixed (no absolute): la barra tiene overflow-x:auto y recortaría el menú */
+  .tienda-menu { position: fixed; min-width: 220px; max-height: 70vh; overflow-y: auto; background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.25); padding: 6px; z-index: 25; }
   .tienda-menu button { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 9px 12px; border-radius: 8px; color: var(--text); font-size: 13px; }
   .tienda-menu button:hover { background: var(--bg3); color: var(--accent); }
   .tienda-menu button.todo { font-weight: 700; }
@@ -38,6 +39,20 @@ export default function VistaTienda({ productos, config, fmt, carrito, colores, 
   const [vista, setVista] = useState(hayStock ? 'stock' : 'todo'); // 'stock' | 'todo'
   const [filtro, setFiltro] = useState({ cat: null, subcat: null });
   const [menuAbierto, setMenuAbierto] = useState(null);
+  const [posMenu, setPosMenu] = useState({ left: 0, top: 0 });
+  const abrirMenu = (cat, el) => {
+    const r = el.getBoundingClientRect();
+    setPosMenu({ left: Math.max(8, Math.min(r.left, window.innerWidth - 236)), top: r.bottom });
+    setMenuAbierto(cat);
+  };
+  // El menú es fixed: si la página o la barra se desplazan, se cierra para no quedar flotando afuera de su botón.
+  useEffect(() => {
+    if (menuAbierto === null) return undefined;
+    const cerrar = () => setMenuAbierto(null);
+    window.addEventListener('scroll', cerrar, true);
+    window.addEventListener('resize', cerrar);
+    return () => { window.removeEventListener('scroll', cerrar, true); window.removeEventListener('resize', cerrar); };
+  }, [menuAbierto]);
   const [busqueda, setBusqueda] = useState('');
   const [comprando, setComprando] = useState(null);
   const navRef = useRef(null);
@@ -102,10 +117,10 @@ export default function VistaTienda({ productos, config, fmt, carrito, colores, 
           const subs = subcatsDe(cat);
           const abierto = menuAbierto === cat;
           return (
-            <div key={cat} className="tienda-nav-item" onMouseEnter={() => subs.length && window.matchMedia?.('(hover: hover)').matches && setMenuAbierto(cat)} onMouseLeave={() => setMenuAbierto((m) => (m === cat ? null : m))}>
+            <div key={cat} className="tienda-nav-item" onMouseEnter={(e) => subs.length && window.matchMedia?.('(hover: hover)').matches && abrirMenu(cat, e.currentTarget)} onMouseLeave={() => setMenuAbierto((m) => (m === cat ? null : m))}>
               <button
                 className={`tienda-nav-btn ${filtro.cat === cat ? 'activo' : ''}`}
-                onClick={() => (subs.length ? setMenuAbierto(abierto ? null : cat) : elegir(cat))}
+                onClick={(e) => (subs.length ? (abierto ? setMenuAbierto(null) : abrirMenu(cat, e.currentTarget.parentElement)) : elegir(cat))}
                 aria-expanded={subs.length ? abierto : undefined}
               >
                 {cat}
@@ -116,7 +131,7 @@ export default function VistaTienda({ productos, config, fmt, carrito, colores, 
                 )}
               </button>
               {abierto && subs.length > 0 && (
-                <div className="tienda-menu">
+                <div className="tienda-menu" style={{ left: posMenu.left, top: posMenu.top }}>
                   <button className="todo" onClick={() => elegir(cat)}>Ver todo en {cat}</button>
                   {subs.map((s) => <button key={s} onClick={() => elegir(cat, s)}>{s}</button>)}
                 </div>
