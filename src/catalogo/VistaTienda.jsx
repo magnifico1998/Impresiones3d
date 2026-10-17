@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ordenarCategorias } from '../utils/categoriaOrden';
-import { repartirConStock, stockDeVariante, stockTotal } from '../utils/stock';
+import { normalizarStock, repartirConStock, stockDeVariante, stockTotal } from '../utils/stock';
 
 // Formato "tienda" del catálogo web (catalogoConfig.modo === 'tienda'): categorías arriba como desplegables con sus
 // subcategorías, grilla de productos con imagen grande y botón Comprar. Por defecto muestra lo que hay en stock
@@ -209,6 +209,7 @@ export default function VistaTienda({ productos, config, fmt, carrito, colores, 
       {comprando && (
         <FichaProducto
           producto={comprando}
+          soloStock={vista === 'stock'}
           inicial={carrito.find((it) => it.prodId === comprando.id)?.versiones}
           fmt={fmt}
           colores={colores}
@@ -223,14 +224,22 @@ export default function VistaTienda({ productos, config, fmt, carrito, colores, 
   );
 }
 
-function FichaProducto({ producto: p, inicial, fmt, colores, coloresSecundarios, combinaciones, onCerrar, onConfirmar, onAmpliar }) {
-  const [versiones, setVersiones] = useState(() => (inicial?.length
-    ? inicial.map((v) => ({ ...v }))
-    : [{ localId: nuevoId(), cantidad: 1, color: '', colorSecundario: '', comentario: '' }]));
+function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresSecundarios, combinaciones, onCerrar, onConfirmar, onAmpliar }) {
+  const total = stockTotal(p.stock);
+  const variantes = normalizarStock(p.stock);
+  const mismaVariante = (a, b) => (a.color || '') === (b.color || '') && (a.colorSecundario || '') === (b.colorSecundario || '');
+  const textoVariante = (l) => `${l.color ? l.color + (l.colorSecundario ? ` + ${l.colorSecundario}` : '') : 'Sin color'} · ${l.cantidad} en stock`;
+
+  // Lo que se ofrece al abrir: en la vista "En stock" (o si el producto tiene stock) arranca en una variante que tiene
+  // stock, para que lo más fácil sea comprar lo que hay.
+  const filaNueva = (excluidas = []) => {
+    const libre = variantes.find((l) => !excluidas.some((v) => mismaVariante(v, l)) || l.cantidad > excluidas.filter((v) => mismaVariante(v, l)).reduce((s, v) => s + v.cantidad, 0));
+    return { localId: nuevoId(), cantidad: 1, color: libre?.color || '', colorSecundario: libre?.colorSecundario || '', comentario: '' };
+  };
+  const [versiones, setVersiones] = useState(() => (inicial?.length ? inicial.map((v) => ({ ...v })) : [filaNueva()]));
   const [error, setError] = useState('');
   const imagenes = p.imagenes?.length ? p.imagenes : (p.imagen ? [p.imagen] : []);
   const [imagenActual, setImagenActual] = useState(0);
-  const total = stockTotal(p.stock);
 
   useEffect(() => {
     const alTeclear = (e) => { if (e.key === 'Escape') onCerrar(); };
@@ -238,17 +247,27 @@ function FichaProducto({ producto: p, inicial, fmt, colores, coloresSecundarios,
     return () => document.removeEventListener('keydown', alTeclear);
   }, [onCerrar]);
 
-  const cambiar = (id, campo, valor) => setVersiones((prev) => prev.map((v) => (v.localId === id
+  // Stock que queda de una variante para una fila: lo que hay menos lo que ya piden las otras filas.
+  const disponiblePara = (fila, vs = versiones) => {
+    const hay = stockDeVariante(p.stock, fila.color, fila.colorSecundario);
+    const otras = vs.filter((v) => v.localId !== fila.localId && mismaVariante(v, fila)).reduce((s, v) => s + (v.cantidad || 0), 0);
+    return Math.max(0, hay - otras);
+  };
+  // En la vista "En stock" no se puede pedir más de lo que hay.
+  const acotar = (vs) => (soloStock ? vs.map((v) => ({ ...v, cantidad: Math.min(v.cantidad, disponiblePara(v, vs)) })) : vs);
+
+  const cambiar = (id, campo, valor) => setVersiones((prev) => acotar(prev.map((v) => (v.localId === id
     ? { ...v, [campo]: campo === 'cantidad' ? Math.max(0, parseInt(valor, 10) || 0) : valor }
-    : v)));
-  const cambiarCombinacion = (id, c) => setVersiones((prev) => prev.map((v) => (v.localId === id
-    ? { ...v, color: c?.color || '', colorSecundario: c?.colorSecundario || '' }
-    : v)));
+    : v))));
+  const cambiarVariante = (id, variante) => setVersiones((prev) => acotar(prev.map((v) => (v.localId === id
+    ? { ...v, color: variante?.color || '', colorSecundario: variante?.colorSecundario || '' }
+    : v))));
 
   const reparto = repartirConStock(p.stock, versiones);
   const deStock = reparto.reduce((s, v) => s + v.deStock, 0);
   const cantidad = reparto.reduce((s, v) => s + v.cantidad, 0);
   const aPedido = cantidad - deStock;
+  const quedaStock = variantes.some((l) => l.cantidad > versiones.filter((v) => mismaVariante(v, l)).reduce((s, v) => s + v.cantidad, 0));
 
   const etiquetaColor = (nombre, sec) => {
     const hay = stockDeVariante(p.stock, nombre, sec);
@@ -294,32 +313,51 @@ function FichaProducto({ producto: p, inicial, fmt, colores, coloresSecundarios,
 
           <div style={{ background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: '12px', padding: '12px', marginTop: '14px' }}>
             {versiones.map((v) => (
-              <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: p.modoColorSecundario === 'libre' ? '56px 1fr 1fr auto' : '56px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                <input type="number" min="0" value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
-                {p.modoColorSecundario === 'combinaciones' ? (
+              soloStock ? (
+                // Vista "En stock": sólo se ofrecen las variantes que tienen stock.
+                <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                  <input type="number" min="1" max={disponiblePara(v)} value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
                   <select
-                    value={(() => { const i = combinaciones.findIndex((c) => c.color === v.color && c.colorSecundario === v.colorSecundario); return i >= 0 ? String(i) : ''; })()}
-                    onChange={(e) => cambiarCombinacion(v.localId, combinaciones[parseInt(e.target.value, 10)])}
+                    value={String(variantes.findIndex((l) => mismaVariante(l, v)))}
+                    onChange={(e) => cambiarVariante(v.localId, variantes[parseInt(e.target.value, 10)])}
                   >
-                    <option value="">{stockDeVariante(p.stock, '', '') > 0 ? `Sin color · ${stockDeVariante(p.stock, '', '')} en stock` : 'Sin color'}</option>
-                    {combinaciones.map((c, i) => <option key={i} value={i}>{etiquetaColor(c.color, c.colorSecundario)}</option>)}
+                    {variantes.map((l, i) => <option key={i} value={i}>{textoVariante(l)}</option>)}
                   </select>
-                ) : (
-                  <select value={v.color} onChange={(e) => cambiar(v.localId, 'color', e.target.value)}>
-                    <option value="">{stockDeVariante(p.stock, '', v.colorSecundario) > 0 ? `Sin color · ${stockDeVariante(p.stock, '', v.colorSecundario)} en stock` : 'Sin color'}</option>
-                    {colores.map((c, i) => <option key={i} value={c.nombre}>{etiquetaColor(c.nombre, '')}</option>)}
-                  </select>
-                )}
-                {p.modoColorSecundario === 'libre' && (
-                  <select value={v.colorSecundario || ''} onChange={(e) => cambiar(v.localId, 'colorSecundario', e.target.value)}>
-                    <option value="">Sin combinar</option>
-                    {coloresSecundarios.map((c, i) => <option key={i} value={c.nombre}>{c.nombre}</option>)}
-                  </select>
-                )}
-                {versiones.length > 1 && <button className="btn btn-danger btn-sm" onClick={() => setVersiones((prev) => prev.filter((x) => x.localId !== v.localId))}>✕</button>}
-              </div>
+                  {versiones.length > 1 && <button className="btn btn-danger btn-sm" onClick={() => setVersiones((prev) => prev.filter((x) => x.localId !== v.localId))}>✕</button>}
+                </div>
+              ) : (
+                <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: p.modoColorSecundario === 'libre' ? '56px 1fr 1fr auto' : '56px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                  <input type="number" min="0" value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
+                  {p.modoColorSecundario === 'combinaciones' ? (
+                    <select
+                      value={(() => { const i = combinaciones.findIndex((c) => c.color === v.color && c.colorSecundario === v.colorSecundario); return i >= 0 ? String(i) : ''; })()}
+                      onChange={(e) => cambiarVariante(v.localId, combinaciones[parseInt(e.target.value, 10)])}
+                    >
+                      <option value="">{stockDeVariante(p.stock, '', '') > 0 ? `Sin color · ${stockDeVariante(p.stock, '', '')} en stock` : 'Sin color'}</option>
+                      {combinaciones.map((c, i) => <option key={i} value={i}>{etiquetaColor(c.color, c.colorSecundario)}</option>)}
+                    </select>
+                  ) : (
+                    <select value={v.color} onChange={(e) => cambiar(v.localId, 'color', e.target.value)}>
+                      <option value="">{stockDeVariante(p.stock, '', v.colorSecundario) > 0 ? `Sin color · ${stockDeVariante(p.stock, '', v.colorSecundario)} en stock` : 'Sin color'}</option>
+                      {colores.map((c, i) => <option key={i} value={c.nombre}>{etiquetaColor(c.nombre, '')}</option>)}
+                    </select>
+                  )}
+                  {p.modoColorSecundario === 'libre' && (
+                    <select value={v.colorSecundario || ''} onChange={(e) => cambiar(v.localId, 'colorSecundario', e.target.value)}>
+                      <option value="">Sin combinar</option>
+                      {coloresSecundarios.map((c, i) => <option key={i} value={c.nombre}>{c.nombre}</option>)}
+                    </select>
+                  )}
+                  {versiones.length > 1 && <button className="btn btn-danger btn-sm" onClick={() => setVersiones((prev) => prev.filter((x) => x.localId !== v.localId))}>✕</button>}
+                </div>
+              )
             ))}
-            <button className="btn btn-sm" style={{ width: '100%' }} onClick={() => setVersiones((prev) => [...prev, { localId: nuevoId(), cantidad: 1, color: '', colorSecundario: '', comentario: '' }])}>
+            <button
+              className="btn btn-sm"
+              style={{ width: '100%' }}
+              disabled={soloStock && !quedaStock}
+              onClick={() => setVersiones((prev) => [...prev, soloStock ? filaNueva(prev) : { localId: nuevoId(), cantidad: 1, color: '', colorSecundario: '', comentario: '' }])}
+            >
               + Otro color
             </button>
           </div>

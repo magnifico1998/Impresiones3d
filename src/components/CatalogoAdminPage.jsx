@@ -262,6 +262,7 @@ export default function CatalogoAdminPage() {
                     {(it.versiones || []).map((v, vi) => (
                       <div key={vi} style={{ fontSize: '11px', color: 'var(--text3)', marginLeft: '16px' }}>
                         {v.cantidad}× {v.color || 'sin color'}{v.colorSecundario ? ` + ${v.colorSecundario}` : ''}{v.comentario ? ` — ${v.comentario}` : ''}
+                        {v.deStock !== undefined && <strong style={{ marginLeft: '6px', color: 'var(--accent)' }}>· {v.deStock >= v.cantidad ? 'de stock' : v.deStock > 0 ? `${v.deStock} de stock, ${v.cantidad - v.deStock} a pedido` : 'a pedido'}</strong>}
                       </div>
                     ))}
                   </div>
