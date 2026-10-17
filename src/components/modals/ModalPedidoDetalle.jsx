@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
 import { dibujarDatosBancarios } from '../../utils/datosBancarios';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
-import { buildWaLink, findClientePedido } from '../../utils/whatsapp';
+import { buildWaLink, findClientePedido, mensajeWhatsappPedido } from '../../utils/whatsapp';
 import SeccionFacturaPedido from '../SeccionFacturaPedido';
 import SeccionInventarioPedido from '../SeccionInventarioPedido';
 import ModalEnviarPieza from './ModalEnviarPieza';
@@ -112,7 +112,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
   const clienteDelPedido = findClientePedido(clientes, draft.cliente);
   const waLinkHeader = buildWaLink(
     clienteDelPedido?.tel,
-    `Hola ${draft.cliente}! Te escribo por tu pedido #${String(draft.id).padStart(4, '0')}.`
+    mensajeWhatsappPedido(draft)
   );
 
   // Math calculations

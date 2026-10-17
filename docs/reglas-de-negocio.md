@@ -734,6 +734,13 @@ Código: `functions/triggers/onPedidoListo.js` (trigger sobre `users/{uid}/pedid
 - El mail sale de la casilla de Manager3D con el nombre del emprendimiento ("X vía Manager3D") y las
   respuestas van al email de la empresa (`empresa.email`).
 
+## WhatsApp desde un pedido
+
+El botón WhatsApp de la lista y del detalle del pedido abre el chat del cliente (teléfono de la libreta) con el
+mensaje "Hola Andrea! Te escribo por tu pedido de A | B | C." (`mensajeWhatsappPedido`, `src/utils/whatsapp.js`).
+Nombra los productos del pedido (sin repetir y sin versiones) y no el número, que el cliente no conoce. Un pedido
+sin piezas con nombre usa el número como antes.
+
 ## Envío de G-code desde un pedido
 
 - El botón "🖨 Enviar" de una pieza lista **todos** los archivos G-code de su producto (no sólo uno), cada uno con su botón Enviar.

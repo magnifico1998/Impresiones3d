@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { precioNeto } from '../utils/precioNeto';
 import { ventasDePedido, pendienteDePedido } from '../utils/finanzasPedido';
 import { calcularFechaCompletado, fechaLocalHoy } from '../utils/fechaCompletado';
-import { buildWaLink, findClientePedido } from '../utils/whatsapp';
+import { buildWaLink, findClientePedido, mensajeWhatsappPedido } from '../utils/whatsapp';
 import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
 import { useCapacidadProduccion } from '../hooks/useCapacidadProduccion';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
@@ -267,7 +267,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
     const clienteObj = findClientePedido(clientes, p.cliente);
     const waLink = buildWaLink(
       clienteObj?.tel,
-      `Hola ${p.cliente}! Te escribo por tu pedido #${String(p.id).padStart(4, '0')}.`
+      mensajeWhatsappPedido(p)
     );
     const avanceColor = totalUnidades === 0
       ? 'var(--danger)'
