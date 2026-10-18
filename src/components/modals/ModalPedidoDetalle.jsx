@@ -903,7 +903,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
   return (
     <div className="modal-overlay open" {...capaModal}>
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" style={{ maxWidth: '1000px' }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', gap: '12px' }}>
           <div>
             <div className="modal-title" style={{ fontSize: '18px' }}>
@@ -1240,7 +1240,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '10px' }}>
           Insumos del pedido
         </div>
-        <div id="det-insumos">
+        <div id="det-insumos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', columnGap: '24px' }}>
           {!cfg.insumos || !cfg.insumos.length ? (
             <div className="empty">Sin insumos configurados.</div>
           ) : (
@@ -1291,7 +1291,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           </div>
 
           <div style={{ display: 'grid', gap: '10px', marginTop: '12px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)', gap: '10px' }}>
               <div>
                 <label className="fl" style={{ marginTop: 0 }}>Nombre del descuento</label>
                 <input 
@@ -1302,7 +1302,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                 />
               </div>
               <div>
-                <label className="fl" style={{ marginTop: 0 }}>Monto de descuento ($)</label>
+                <label className="fl" style={{ marginTop: 0 }}>Monto ($)</label>
                 <CampoMoneda 
                   type="number" 
                   min="0" 
@@ -1312,10 +1312,8 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                   onChange={(e) => handleDescuentoMontoChange(e.target.value)} 
                 />
               </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', alignItems: 'end' }}>
               <div>
-                <label className="fl" style={{ marginTop: 0 }}>Porcentaje de descuento (%)</label>
+                <label className="fl" style={{ marginTop: 0 }}>Porcentaje (%)</label>
                 <input 
                   type="number" 
                   min="0" 
@@ -1325,9 +1323,6 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                   placeholder="0" 
                   onChange={(e) => handleDescuentoPctChange(e.target.value)} 
                 />
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text3)', textAlign: 'right' }}>
-                Total descuento: <strong>{fmt(descuentoTotal)}</strong>
               </div>
             </div>
           </div>
