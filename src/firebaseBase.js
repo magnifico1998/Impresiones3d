@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, memoryLocalCache, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { firebaseConfig } from "./entornoFirebase";
 
@@ -15,7 +15,17 @@ export const app = initializeApp(firebaseConfig);
 // enableIndexedDbPersistence (deprecado), que con dos pestañas abiertas
 // desactivaba la persistencia en la segunda: esa pestaña volvía a leer
 // todas las colecciones desde el servidor en cada carga.
+//
+// El catálogo público (/catalogo/{uid}) NO usa esa caché compartida: con varias pestañas del mismo sitio, una sola
+// pestaña ("primaria") habla con el servidor y las demás le piden prestada la conexión. Si la primaria era una
+// pestaña del catálogo (sin sesión), las lecturas de la app con login salían sin credenciales y fallaban con
+// "permission-denied" (admins, faq, vínculo de equipo) aunque el token estuviera bien: no se arreglaba reintentando
+// ni renovando el token, sólo cerrando esa pestaña. El catálogo es de sólo lectura pública y no necesita caché
+// persistente, así que va con caché en memoria y nunca compite por ser la pestaña primaria.
+const esCatalogoPublico = typeof window !== 'undefined' && (window.location.pathname === '/catalogo' || window.location.pathname.startsWith('/catalogo/'));
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  localCache: esCatalogoPublico
+    ? memoryLocalCache()
+    : persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
 export const functions = getFunctions(app);
