@@ -736,6 +736,14 @@ Código: `functions/triggers/onPedidoListo.js` (trigger sobre `users/{uid}/pedid
 - El mail nombra los productos (`{{productos}}`, armado con `textoProductos`: "Maceta (x2) y Llavero", hasta 3
   piezas y "y N productos más"). `{{numero}}` es el id interno del pedido y no se usa en la plantilla por defecto.
 
+## Combinaciones de colores en las versiones de un pieza
+
+Una versión de pieza lleva dos colores (`color` y `colorSecundario`). En los selectores de color de una versión (detalle
+del pedido, armar pedido / agregar producto desde la Biblioteca y agregar pieza desde la Calculadora) las combinaciones
+predefinidas (Configuración → Combinaciones de colores) aparecen como grupo aparte: elegir una carga **los dos colores a la
+vez**, para no dejarla a medias (`src/utils/combinacionesColor.js`). "Agregar pieza" desde la Calculadora antes no tenía color
+2: sólo guardaba el primero.
+
 ## WhatsApp desde un pedido
 
 El botón WhatsApp de la lista y del detalle del pedido abre el chat del cliente (teléfono de la libreta) con el

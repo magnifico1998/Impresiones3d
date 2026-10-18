@@ -4,6 +4,8 @@ import { useApp } from '../../context/AppContext';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
 import { dibujarDatosBancarios } from '../../utils/datosBancarios';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
+import { combinacionElegida } from '../../utils/combinacionesColor';
+import OpcionesCombinaciones from '../OpcionesCombinaciones';
 import { buildWaLink, findClientePedido, mensajeWhatsappPedido } from '../../utils/whatsapp';
 import SeccionFacturaPedido from '../SeccionFacturaPedido';
 import SeccionInventarioPedido from '../SeccionInventarioPedido';
@@ -1154,7 +1156,16 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                                       <select
                                         value={v.color || ''}
                                         style={{ flex: 1, fontSize: '11px', padding: '3px 4px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)' }}
-                                        onChange={(e) => handleUpdateVersion(pz.id, v.id, 'color', e.target.value)}
+                                        onChange={(e) => {
+                                          // Una combinación predefinida carga los dos colores a la vez.
+                                          const combo = combinacionElegida(e.target.value, cfg.combinacionesColores);
+                                          if (combo) {
+                                            handleUpdateVersion(pz.id, v.id, 'color', combo.color);
+                                            handleUpdateVersion(pz.id, v.id, 'colorSecundario', combo.colorSecundario);
+                                          } else {
+                                            handleUpdateVersion(pz.id, v.id, 'color', e.target.value);
+                                          }
+                                        }}
                                       >
                                         <option value="">Sin color</option>
                                         {/* El color guardado en la versión puede ya no existir en
@@ -1168,6 +1179,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                                         {(cfg.colores || []).map((col, ci) => (
                                           <option key={ci} value={col.nombre}>{col.nombre}</option>
                                         ))}
+                                        <OpcionesCombinaciones combinaciones={cfg.combinacionesColores} />
                                       </select>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>

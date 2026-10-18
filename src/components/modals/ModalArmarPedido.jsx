@@ -6,6 +6,8 @@ import { piezaDesdeBiblioteca } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
 import { confirmarPedidoNuevoDeCliente } from '../../utils/unirPedidos';
+import { combinacionElegida } from '../../utils/combinacionesColor';
+import OpcionesCombinaciones from '../OpcionesCombinaciones';
 
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder, onAgregadoAPedido }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
@@ -174,6 +176,9 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
             // El min=1 del input no impide tipear 0 o borrar el campo: se
             // clampa acá para que ninguna versión quede en 0 unidades.
             const val = field === 'cantidad' ? Math.max(1, parseInt(value) || 1) : value;
+            // Una combinación predefinida carga los dos colores a la vez.
+            const combo = field === 'color' ? combinacionElegida(value, cfg.combinacionesColores) : null;
+            if (combo) return { ...v, ...combo };
             return { ...v, [field]: val };
           }
           return v;
@@ -442,6 +447,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
                             {(cfg.colores || []).map((col, ci) => (
                               <option key={ci} value={col.nombre}>{col.nombre}</option>
                             ))}
+                            <OpcionesCombinaciones combinaciones={cfg.combinacionesColores} />
                           </select>
                           <select
                             value={v.colorSecundario || ''}

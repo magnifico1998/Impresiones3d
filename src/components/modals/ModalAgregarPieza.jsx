@@ -5,6 +5,8 @@ import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { datosConsumoPieza } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
 import { confirmarPedidoNuevoDeCliente } from '../../utils/unirPedidos';
+import { combinacionElegida } from '../../utils/combinacionesColor';
+import OpcionesCombinaciones from '../OpcionesCombinaciones';
 
 // Igual que ModalArmarPedido.jsx (el que arma pedidos desde Biblioteca):
 // el pedido destino puede ser uno existente o "+ Crear pedido nuevo", y la
@@ -36,7 +38,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
       setFechaPedido(fechaLocalHoy());
       setFechaEntrega('');
       const cantidad = presupuestoActual.cantidad || 1;
-      setVersiones([{ id: Date.now() + Math.random(), cantidad, color: '', comentario: '' }]);
+      setVersiones([{ id: Date.now() + Math.random(), cantidad, color: '', colorSecundario: '', comentario: '' }]);
     }
   }, [isOpen, presupuestoActual, defaultPedidoId]);
 
@@ -58,7 +60,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
 
   const handleAddVersion = () => {
     if (restante <= 0) return;
-    setVersiones(prev => [...prev, { id: Date.now() + Math.random(), cantidad: restante, color: '', comentario: '' }]);
+    setVersiones(prev => [...prev, { id: Date.now() + Math.random(), cantidad: restante, color: '', colorSecundario: '', comentario: '' }]);
   };
 
   const handleRemoveVersion = (verId) => {
@@ -71,6 +73,9 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
       // El min=1 del input no impide tipear 0 o borrar el campo: se clampa
       // acá para que ninguna versión quede en 0 unidades.
       const val = field === 'cantidad' ? Math.max(1, parseInt(value) || 1) : value;
+      // Una combinación predefinida carga los dos colores a la vez.
+      const combo = field === 'color' ? combinacionElegida(value, cfg?.combinacionesColores) : null;
+      if (combo) return { ...v, ...combo };
       return { ...v, [field]: val };
     }));
   };
@@ -113,6 +118,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
         id: Date.now() + Math.random(),
         cantidad: v.cantidad,
         color: v.color,
+        colorSecundario: v.colorSecundario || '',
         comentario: v.comentario,
         realizados: 0
       }))
@@ -265,7 +271,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
           </div>
 
           {versiones.map(v => (
-            <div key={v.id} className="version-row">
+            <div key={v.id} className="version-row" style={{ gridTemplateColumns: '56px 1fr 1fr 1fr 24px' }}>
               <input
                 type="number"
                 min="1"
@@ -278,6 +284,16 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
                 onChange={(e) => handleVersionFieldChange(v.id, 'color', e.target.value)}
               >
                 <option value="">Sin color</option>
+                {(cfg?.colores || []).map((col, ci) => (
+                  <option key={ci} value={col.nombre}>{col.nombre}</option>
+                ))}
+                <OpcionesCombinaciones combinaciones={cfg?.combinacionesColores} />
+              </select>
+              <select
+                value={v.colorSecundario || ''}
+                onChange={(e) => handleVersionFieldChange(v.id, 'colorSecundario', e.target.value)}
+              >
+                <option value="">Sin combinar</option>
                 {(cfg?.colores || []).map((col, ci) => (
                   <option key={ci} value={col.nombre}>{col.nombre}</option>
                 ))}
