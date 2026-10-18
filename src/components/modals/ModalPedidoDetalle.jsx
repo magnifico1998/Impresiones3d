@@ -986,12 +986,6 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
               {/* Pieces cards list */}
               {draft.piezas.map(pz => {
                 const isCompletada = (pz.elaborados || 0) >= pz.cantidad;
-                const costoTotalPieza = getCostoPieza(pz);
-                const costoNotaHTML = (
-                  <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '6px' }}>
-                    Costo: {fmt(costoTotalPieza)}
-                  </div>
-                );
                 const faltan = pz.cantidad - (pz.elaborados || 0);
 
                 const tieneVersiones = true;
@@ -1009,21 +1003,6 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                         <div style={{ fontWeight: 500, fontSize: '13px', textDecoration: isCompletada ? 'line-through' : 'none', color: isCompletada ? 'var(--text3)' : 'var(--text)' }}>
                           {pz.nombre}
                         </div>
-                        {pz.archivoNombre && (
-                          <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
-                            {pz.archivoNombre}
-                          </div>
-                        )}
-                        {pz.gcodeArchivos && pz.gcodeArchivos.length > 1 && (
-                          <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
-                            Archivos: {pz.gcodeArchivos.join(', ')}
-                          </div>
-                        )}
-                        {pz.impresoraNombre && (
-                          <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text3)', marginTop: '4px' }}>
-                            🖨 {pz.impresoraNombre}
-                          </div>
-                        )}
                         {pz.precioEstimado > 0 && (
                           <div style={{ fontSize: '11px', fontFamily: 'var(--mono)', color: 'var(--text3)', marginTop: '2px' }}>
                             Precio est. {fmt(pz.precioEstimado)}/u
@@ -1238,9 +1217,6 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                         })()}
                       </div>
                     )}
-
-                    {/* cost footer */}
-                    {costoNotaHTML}
 
                     <div style={{ marginTop: '8px' }}>
                       <input 
