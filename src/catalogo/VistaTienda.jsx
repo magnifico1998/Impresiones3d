@@ -23,6 +23,8 @@ export const ESTILOS_TIENDA = `
   .tienda-menu button { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; padding: 9px 12px; border-radius: 8px; color: var(--text); font-size: 13px; }
   .tienda-menu button:hover { background: var(--bg3); color: var(--accent); }
   .tienda-menu button.todo { font-weight: 700; }
+  .tienda-submenu { animation: tiendaSub .15s ease; }
+  @keyframes tiendaSub { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
   .tienda-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
   @media (min-width: 640px) { .tienda-grid { grid-template-columns: repeat(3, 1fr); gap: 18px; } }
   @media (min-width: 1000px) { .tienda-grid { grid-template-columns: repeat(4, 1fr); gap: 22px; } }
@@ -142,8 +144,11 @@ export default function VistaTienda({ productos, config, fmt, carrito, colores, 
     const clave = `${cat}::${s}`;
     const abierta = subAbierta === clave;
     const pad = sangria ? '26px' : '12px';
+    // Con mouse, las sub-subcategorías se abren solas al pasar por encima de la subcategoría (sin clic) y se cierran al
+    // salir; en pantallas táctiles queda la flecha.
+    const conMouse = () => typeof window !== 'undefined' && window.matchMedia?.('(hover: hover)').matches;
     return (
-      <div key={s}>
+      <div key={s} onMouseEnter={() => hijos.length && conMouse() && setSubAbierta(clave)} onMouseLeave={() => conMouse() && setSubAbierta((a) => (a === clave ? null : a))}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <button style={{ flex: 1, paddingLeft: pad, fontSize: sangria ? '12.5px' : undefined }} onClick={() => elegir(cat, s)}>{s}</button>
           {hijos.length > 0 && (
@@ -159,9 +164,9 @@ export default function VistaTienda({ productos, config, fmt, carrito, colores, 
             </button>
           )}
         </div>
-        {abierta && hijos.map((h) => (
+        {abierta && hijos.length > 0 && <div className="tienda-submenu">{hijos.map((h) => (
           <button key={h} style={{ paddingLeft: sangria ? '44px' : '30px', fontSize: '12.5px', color: 'var(--text2)' }} onClick={() => elegir(cat, s, h)}>{h}</button>
-        ))}
+        ))}</div>}
       </div>
     );
   };
