@@ -228,15 +228,21 @@ const DEFAULTS = {
     `.trim(),
     variables: { nombre: 'Juana', comprobante: 'Factura C 00002-00000015', importe: '$ 45.000,00', emprendimiento: 'Impresiones Lucas' },
   },
+  // {{numero}} sigue disponible para quien lo use en un override, pero el
+  // default nombra los productos: el id interno del pedido no le dice nada al
+  // cliente. El primer <div> oculto es el preencabezado (texto de vista previa
+  // en la bandeja de entrada).
   pedidoListo: {
     label: 'Aviso al cliente: su pedido está listo',
-    subject: '{{emprendimiento}}: tu pedido #{{numero}} está listo',
+    subject: '{{emprendimiento}}: tu pedido de {{productos}} ya está impreso',
     bodyHtml: `
-      <h2 style="${TITULO}">¡Tu pedido está listo!</h2>
-      <p>Hola {{nombre}}, tu pedido <strong>#{{numero}}</strong> de {{emprendimiento}} ya está listo para entregar.</p>
-      <p>Si tenés alguna consulta, respondé este mail y le llega directamente a {{emprendimiento}}.</p>
+      <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">Ahora le damos los últimos detalles y lo preparamos para el envío o la entrega.</div>
+      <h2 style="${TITULO}">¡Tu pedido ya está impreso!</h2>
+      <p>Hola {{nombre}}, buenas noticias: tu pedido de <strong>{{productos}}</strong> ya salió de la impresora.</p>
+      <p>Ahora le damos los últimos detalles y lo preparamos para enviártelo o entregártelo.</p>
+      <p>¿Querés coordinar la entrega o tenés alguna consulta? <strong>Respondé este mail</strong> y le llega directamente a {{emprendimiento}}.</p>
     `.trim(),
-    variables: { nombre: 'Juana', numero: '0012', emprendimiento: 'Impresiones Lucas' },
+    variables: { nombre: 'Juana', productos: 'Maceta hexagonal (x2) y Llavero (x3)', numero: '0012', emprendimiento: 'Impresiones Lucas' },
   },
   // Campaña a todos los suscriptores (ver functions/http/boletin.js): el
   // contenido se reescribe desde el panel para cada envío.

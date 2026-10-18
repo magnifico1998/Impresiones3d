@@ -31,4 +31,31 @@ function decidirAviso({ antes, despues, cfg, clientes }) {
   return { enviar: true, email, cliente };
 }
 
-module.exports = { decidirAviso, buscarCliente, ESTADO_LISTO };
+// Productos del pedido para el mail ({{productos}}): "Maceta hexagonal (x2), Llavero y Soporte (x3)". El número
+// de pedido es el id interno del documento y al cliente no le dice nada; los nombres de lo que encargó, sí.
+// Más de 3 piezas se resumen ("... y 2 productos más") para que el asunto no quede kilométrico.
+const MAX_PRODUCTOS = 3;
+
+const cantidadPieza = (p) => {
+  const directa = Number(p?.cantidad);
+  if (directa > 0) return directa;
+  return (p?.versiones || []).reduce((t, v) => t + (Number(v?.cantidad) || 0), 0);
+};
+
+function textoProductos(piezas) {
+  const items = (piezas || [])
+    .map((p) => {
+      const nombre = String(p?.nombre || '').trim();
+      if (!nombre) return null;
+      const cant = cantidadPieza(p);
+      return cant > 1 ? `${nombre} (x${cant})` : nombre;
+    })
+    .filter(Boolean);
+  if (!items.length) return 'impresiones 3D';
+  const visibles = items.slice(0, MAX_PRODUCTOS);
+  const resto = items.length - visibles.length;
+  if (resto > 0) visibles.push(`${resto} ${resto === 1 ? 'producto' : 'productos'} más`);
+  return visibles.length === 1 ? visibles[0] : `${visibles.slice(0, -1).join(', ')} y ${visibles[visibles.length - 1]}`;
+}
+
+module.exports = { decidirAviso, buscarCliente, textoProductos, ESTADO_LISTO };

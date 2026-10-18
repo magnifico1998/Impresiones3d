@@ -3,7 +3,7 @@ const { logger } = require('firebase-functions');
 const { db, Timestamp } = require('../admin');
 const { enviarEmail, gmailAppPassword } = require('../mailer');
 const { renderPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
-const { decidirAviso } = require('../avisoPedidoListo');
+const { decidirAviso, textoProductos } = require('../avisoPedidoListo');
 
 // Aviso por mail al cliente cuando su pedido pasa a "Listo p/ entregar". Reglas en ../avisoPedidoListo.js.
 // Una sola vez por pedido: se reserva users/{uid}/avisosPedido/{pedidoId} con create(), que falla si ya existe
@@ -44,6 +44,7 @@ exports.onPedidoListo = onDocumentUpdated(
       const { subject, html } = renderPlantilla('pedidoListo', {
         nombre: decision.cliente.nombre || '',
         numero: String(pedidoId).padStart(4, '0'),
+        productos: textoProductos(despues.piezas),
         emprendimiento
       }, overrides);
       await enviarEmail({

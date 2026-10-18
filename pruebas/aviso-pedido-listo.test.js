@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decidirAviso } from '../functions/avisoPedidoListo.js';
+import { decidirAviso, textoProductos } from '../functions/avisoPedidoListo.js';
 
 const cfg = { notificarPedidoListo: true };
 const clientes = [
@@ -29,5 +29,23 @@ describe('aviso de pedido listo', () => {
     expect(decidirAviso({ ...pasa('Juana Pérez', 'listo', 'listo'), cfg, clientes }).enviar).toBe(false);
     expect(decidirAviso({ ...pasa('Juana Pérez', 'listo', 'enviado'), cfg, clientes }).enviar).toBe(false);
     expect(decidirAviso({ antes: null, despues: { estado: 'listo', cliente: 'Juana Pérez' }, cfg, clientes }).enviar).toBe(false);
+  });
+});
+
+describe('productos del aviso de pedido listo', () => {
+  it('nombra cada pieza con su cantidad', () => {
+    expect(textoProductos([{ nombre: 'Maceta hexagonal', cantidad: 2 }, { nombre: 'Llavero', cantidad: 1 }])).toBe('Maceta hexagonal (x2) y Llavero');
+  });
+  it('suma las versiones si la pieza no trae cantidad', () => {
+    expect(textoProductos([{ nombre: 'Soporte', versiones: [{ cantidad: 2 }, { cantidad: 3 }] }])).toBe('Soporte (x5)');
+  });
+  it('resume a partir de la cuarta pieza', () => {
+    const piezas = ['A', 'B', 'C', 'D', 'E'].map((nombre) => ({ nombre, cantidad: 1 }));
+    expect(textoProductos(piezas)).toBe('A, B, C y 2 productos más');
+    expect(textoProductos(piezas.slice(0, 4))).toBe('A, B, C y 1 producto más');
+  });
+  it('sin piezas con nombre usa un texto genérico', () => {
+    expect(textoProductos([])).toBe('impresiones 3D');
+    expect(textoProductos([{ nombre: '  ' }])).toBe('impresiones 3D');
   });
 });

@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-03 (avisos de tickets al admin; totalizador de monotributo).
+Última revisión: 2026-10-18 (el aviso de pedido listo nombra los productos).
 
 ---
 
@@ -733,6 +733,8 @@ Código: `functions/triggers/onPedidoListo.js` (trigger sobre `users/{uid}/pedid
   varias veces (por error o por volver atrás) sólo avisa la primera. Si el envío falla se libera la reserva.
 - El mail sale de la casilla de Manager3D con el nombre del emprendimiento ("X vía Manager3D") y las
   respuestas van al email de la empresa (`empresa.email`).
+- El mail nombra los productos (`{{productos}}`, armado con `textoProductos`: "Maceta (x2) y Llavero", hasta 3
+  piezas y "y N productos más"). `{{numero}}` es el id interno del pedido y no se usa en la plantilla por defecto.
 
 ## WhatsApp desde un pedido
 
