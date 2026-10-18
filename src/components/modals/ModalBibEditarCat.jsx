@@ -23,6 +23,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   }, [isOpen]);
   const [categoria, setCategoria] = useState('');
   const [subcategoria, setSubcategoria] = useState('');
+  const [subsubcategoria, setSubsubcategoria] = useState('');
   const [productName, setProductName] = useState('');
   const [desc, setDesc] = useState('');
   const [descLarga, setDescLarga] = useState('');
@@ -45,6 +46,9 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const uniqueSubcats = Array.from(new Set(
     biblioteca.filter(b => b.cat === categoria).map(b => b.subcat).filter(Boolean)
   )).sort();
+  const uniqueSubsubcats = Array.from(new Set(
+    biblioteca.filter(b => b.cat === categoria && b.subcat === subcategoria.trim()).map(b => b.subsubcat).filter(Boolean)
+  )).sort();
 
   useEffect(() => {
     if (isOpen && editId !== null) {
@@ -53,6 +57,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setProductName(prod.nombre);
         setCategoria(prod.cat || '');
         setSubcategoria(prod.subcat || '');
+        setSubsubcategoria(prod.subsubcat || '');
         setDesc(prod.desc || '');
         setDescLarga(prod.descLarga || '');
         setNotasInternas(prod.notasInternas || '');
@@ -158,6 +163,8 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const handleSave = async () => {
     const cleanCat = categoria.trim() || 'General';
     const cleanSubcat = subcategoria.trim();
+    // Sin subcategoría no hay sub-subcategoría (cuelga de ella).
+    const cleanSubsubcat = cleanSubcat ? subsubcategoria.trim() : '';
     const cleanName = productName.trim() || 'Sin nombre';
     const cleanDesc = desc.trim();
     const cleanDescLarga = descLarga.trim();
@@ -187,6 +194,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
       await updateProducto(editId, {
         cat: cleanCat,
         subcat: cleanSubcat,
+        subsubcat: cleanSubsubcat,
         nombre: cleanName,
         desc: cleanDesc,
         descLarga: cleanDescLarga,
@@ -285,6 +293,20 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         />
         <datalist id="bib-edit-subcats-list-modal">
           {uniqueSubcats.map((s, idx) => (
+            <option key={idx} value={s} />
+          ))}
+        </datalist>
+
+        <label className="fl">Sub-subcategoría (opcional)</label>
+        <input
+          type="text"
+          value={subsubcategoria}
+          onChange={(e) => setSubsubcategoria(e.target.value)}
+          placeholder="Ej: dentro de la subcategoría, para abrir más el menú de la tienda"
+          list="bib-edit-subsubcats-list-modal"
+        />
+        <datalist id="bib-edit-subsubcats-list-modal">
+          {uniqueSubsubcats.map((s, idx) => (
             <option key={idx} value={s} />
           ))}
         </datalist>

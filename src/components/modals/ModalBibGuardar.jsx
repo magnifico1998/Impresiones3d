@@ -14,6 +14,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   const [notasInternas, setNotasInternas] = useState('');
   const [cat, setCat] = useState('');
   const [subcat, setSubcat] = useState('');
+  const [subsubcat, setSubsubcat] = useState('');
   const [imagenes, setImagenes] = useState([]);
   const [guardarGcode, setGuardarGcode] = useState(true);
   const dragIndex = useRef(null);
@@ -24,6 +25,9 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean)));
   const uniqueSubcats = Array.from(new Set(
     biblioteca.filter(b => b.cat === cat).map(b => b.subcat).filter(Boolean)
+  ));
+  const uniqueSubsubcats = Array.from(new Set(
+    biblioteca.filter(b => b.cat === cat && b.subcat === subcat.trim()).map(b => b.subsubcat).filter(Boolean)
   ));
 
   useEffect(() => {
@@ -37,6 +41,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       setNotasInternas('');
       setCat('');
       setSubcat('');
+      setSubsubcat('');
       setImagenes([]);
       setGuardarGcode(true);
     }
@@ -154,6 +159,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       notasInternas: notasInternas.trim(),
       cat: cat.trim() || 'General',
       subcat: subcat.trim(),
+      subsubcat: subcat.trim() ? subsubcat.trim() : '',
       fechaGuardado: new Date().toLocaleDateString('es-AR'),
       costoUnitario: p.total,
       precioSugUnitario: p.precio,
@@ -210,6 +216,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
             notasInternas: snap.notasInternas || existente.notasInternas || '',
             cat: cat.trim() || existente.cat || 'General',
             subcat: snap.subcat || existente.subcat || '',
+            subsubcat: snap.subsubcat || existente.subsubcat || '',
             imagenes: imagenesFinales,
             imagen: imagenesFinales[0] || ''
           });
@@ -300,6 +307,20 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
         />
         <datalist id="bib-subcats-list-modal">
           {uniqueSubcats.map((s, idx) => (
+            <option key={idx} value={s} />
+          ))}
+        </datalist>
+
+        <label className="fl">Sub-subcategoría (opcional)</label>
+        <input
+          type="text"
+          value={subsubcat}
+          onChange={(e) => setSubsubcat(e.target.value)}
+          placeholder="Ej: dentro de la subcategoría, para abrir más el menú de la tienda"
+          list="bib-subsubcats-list-modal"
+        />
+        <datalist id="bib-subsubcats-list-modal">
+          {uniqueSubsubcats.map((s, idx) => (
             <option key={idx} value={s} />
           ))}
         </datalist>

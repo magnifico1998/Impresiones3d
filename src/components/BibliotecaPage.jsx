@@ -250,7 +250,7 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
                     <td style={{ padding: '8px', fontWeight: 500, maxWidth: '200px' }}>
                       <div>{prod.nombre}</div>
                       <div style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '2px' }}>
-                        {prod.cat || 'General'}{prod.subcat ? ` / ${prod.subcat}` : ''} · {formatoNumero(prod.horas, 1)}h
+                        {prod.cat || 'General'}{prod.subcat ? ` / ${prod.subcat}` : ''}{prod.subcat && prod.subsubcat ? ` / ${prod.subsubcat}` : ''} · {formatoNumero(prod.horas, 1)}h
                       </div>
                     </td>
                     <td style={{ padding: '8px', fontFamily: 'var(--mono)', textAlign: 'right', color: 'var(--text2)' }}>
@@ -756,6 +756,11 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                           {p.subcat && (
                             <span style={{ fontSize: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }}>
                               {p.subcat}
+                            </span>
+                          )}
+                          {p.subcat && p.subsubcat && (
+                            <span style={{ fontSize: '11px', background: 'var(--bg3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }}>
+                              {p.subsubcat}
                             </span>
                           )}
                           <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>

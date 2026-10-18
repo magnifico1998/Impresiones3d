@@ -110,6 +110,7 @@ const proyeccionCatalogoProducto = (p) => ({
   nombre: p.nombre,
   cat: p.cat || 'Sin categoría',
   subcat: p.subcat || '',
+  subsubcat: p.subsubcat || '',
   desc: p.desc || '',
   descLarga: p.descLarga || '',
   imagen: p.imagen || '',

@@ -755,6 +755,9 @@ Código: `src/utils/stock.js`, `src/components/StockPage.jsx`, `src/catalogo/Vis
 - **La tienda:** categorías arriba como desplegables con sus subcategorías, grilla de fotos grandes con botón
   Comprar y ficha del producto. Por defecto muestra "En stock"; "Todo el catálogo" suma los productos a pedido. En
   la ficha, cada color indica cuántos hay en stock; lo que se pide de más de lo que hay queda "a pedido".
+- **Menú de categorías:** las categorías que no entran en la barra van en un desplegable "Más". Un producto puede tener un tercer
+  nivel, la **sub-subcategoría** (`subsubcat`, se carga al editar o guardar el producto en la Biblioteca, y sólo si tiene
+  subcategoría): en el menú se abre como desplegable de su subcategoría. El catálogo de formato "Catálogo" no la usa.
 - **La compra** llega como solicitud en Catálogo web, igual que siempre; cada versión trae `deStock` (cuántas
   unidades salen de stock). Al **importar** la solicitud como pedido: `deStock` se revalida contra el stock real
   (se toma lo menor entre lo declarado y lo que hay; el visitante no es de fiar), esas unidades quedan **realizadas**

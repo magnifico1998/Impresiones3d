@@ -15,7 +15,7 @@ export default function StockPage() {
     const t = busqueda.trim().toLowerCase();
     return biblioteca
       .map((p) => ({ p, total: stockTotal(p.stock) }))
-      .filter(({ p, total }) => (!t || `${p.nombre} ${p.cat || ''} ${p.subcat || ''}`.toLowerCase().includes(t)) && (!soloConStock || total > 0))
+      .filter(({ p, total }) => (!t || `${p.nombre} ${p.cat || ''} ${p.subcat || ''} ${p.subsubcat || ''}`.toLowerCase().includes(t)) && (!soloConStock || total > 0))
       .sort((a, b) => a.p.nombre.localeCompare(b.p.nombre, 'es', { sensitivity: 'base' }));
   }, [biblioteca, busqueda, soloConStock]);
   const unidades = useMemo(() => biblioteca.reduce((s, p) => s + stockTotal(p.stock), 0), [biblioteca]);
@@ -57,7 +57,7 @@ export default function StockPage() {
               {filas.map(({ p, total }) => (
                 <tr key={p.id}>
                   <td style={{ fontWeight: 500 }}>{p.nombre}</td>
-                  <td style={{ fontSize: '12px', color: 'var(--text3)' }}>{[p.cat, p.subcat].filter(Boolean).join(' › ') || '—'}</td>
+                  <td style={{ fontSize: '12px', color: 'var(--text3)' }}>{[p.cat, p.subcat, p.subsubcat].filter(Boolean).join(' › ') || '—'}</td>
                   <td style={{ fontSize: '12px' }}>{total ? textoStock(p.stock) : <span style={{ color: 'var(--text3)' }}>Sin stock · a pedido</span>}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600 }}>{total}</td>
                   <td style={{ textAlign: 'right' }}><button className="btn btn-sm" onClick={() => setEditando(p)}>Editar stock</button></td>
