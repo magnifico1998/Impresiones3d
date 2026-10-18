@@ -411,9 +411,10 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
 
           <div style={{ background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: '12px', padding: '12px', marginTop: '14px' }}>
             {versiones.map((v) => (
-              soloStock ? (
+              <div key={v.localId} style={{ marginBottom: '8px' }}>
+              {soloStock ? (
                 // Vista "En stock": sólo se ofrecen las variantes que tienen stock.
-                <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
                   <input type="number" min="1" max={disponiblePara(v)} value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
                   <select
                     value={String(variantes.findIndex((l) => mismaVariante(l, v)))}
@@ -424,7 +425,7 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
                   {versiones.length > 1 && <button className="btn btn-danger btn-sm" onClick={() => setVersiones((prev) => prev.filter((x) => x.localId !== v.localId))}>✕</button>}
                 </div>
               ) : (
-                <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: p.modoColorSecundario === 'libre' ? '56px 1fr 1fr auto' : '56px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: p.modoColorSecundario === 'libre' ? '56px 1fr 1fr auto' : '56px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
                   <input type="number" min="0" value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
                   {p.modoColorSecundario === 'combinaciones' ? (
                     <select
@@ -448,7 +449,17 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
                   )}
                   {versiones.length > 1 && <button className="btn btn-danger btn-sm" onClick={() => setVersiones((prev) => prev.filter((x) => x.localId !== v.localId))}>✕</button>}
                 </div>
-              )
+              )}
+              {/* Comentario de cada variante (talle, versión, detalle): llega al pedido igual que en el catálogo común. */}
+              <input
+                type="text"
+                maxLength={200}
+                placeholder="Comentario (ej: talle, versión)"
+                value={v.comentario || ''}
+                onChange={(e) => cambiar(v.localId, 'comentario', e.target.value)}
+                style={{ marginTop: '4px' }}
+              />
+              </div>
             ))}
             <button
               className="btn btn-sm"
