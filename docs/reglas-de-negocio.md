@@ -768,6 +768,10 @@ Código: `src/utils/stock.js`, `src/components/StockPage.jsx`, `src/catalogo/Vis
 - **Menú de categorías:** las categorías que no entran en la barra van en un desplegable "Más". Un producto puede tener un tercer
   nivel, la **sub-subcategoría** (`subsubcat`, se carga al editar o guardar el producto en la Biblioteca, y sólo si tiene
   subcategoría): en el menú se abre como desplegable de su subcategoría. El catálogo de formato "Catálogo" no la usa.
+- **Foto de cada color:** en Biblioteca → editar producto (con 2 o más fotos), "Foto de cada color" asigna a cada color una de las
+  fotos del producto (`fotosColor: [{ color, colorSecundario, imagen }]`, `src/utils/fotosColor.js`). En la ficha de la tienda, al
+  elegir un color se muestra su foto; sin foto asignada queda la que se estaba viendo. Se busca primero la combinación
+  exacta (color + color 2) y si no, el color solo. Si se quita una foto del producto, su asignación se descarta al guardar.
 - **La compra** llega como solicitud en Catálogo web, igual que siempre; cada versión trae `deStock` (cuántas
   unidades salen de stock). Al **importar** la solicitud como pedido: `deStock` se revalida contra el stock real
   (se toma lo menor entre lo declarado y lo que hay; el visitante no es de fiar), esas unidades quedan **realizadas**

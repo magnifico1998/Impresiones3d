@@ -122,6 +122,8 @@ const proyeccionCatalogoProducto = (p) => ({
   modoColorSecundario: p.modoColorSecundario || (p.permiteColorSecundario ? 'libre' : ''),
   // Unidades terminadas por color (sección Productos en stock): lo que la tienda del catálogo vende al instante.
   stock: normalizarStock(p.stock),
+  // Foto que le corresponde a cada color (la tienda la muestra al elegir el color).
+  fotosColor: Array.isArray(p.fotosColor) ? p.fotosColor : [],
   actualizado: new Date().toISOString()
 });
 

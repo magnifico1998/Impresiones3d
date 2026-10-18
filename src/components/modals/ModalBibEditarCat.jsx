@@ -6,10 +6,11 @@ import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
 import ModalArchivosGcode from './ModalArchivosGcode';
 import { escucharArchivosGcode } from '../../utils/archivosGcode';
+import { fotoDeColor, normalizarFotosColor, ponerFotoColor } from '../../utils/fotosColor';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { biblioteca, updateProducto, showToast, cuentaId, fmt } = useApp();
+  const { biblioteca, updateProducto, showToast, cuentaId, fmt, cfg } = useApp();
   // Archivos G-code / .3mf del producto: se gestionan en ModalArchivosGcode
   // (los mismos que el botón 📄 de la tarjeta de la Biblioteca).
   const [archivosGcode, setArchivosGcode] = useState([]);
@@ -31,6 +32,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [precio, setPrecio] = useState('');
   const [modoColorSecundario, setModoColorSecundario] = useState('');
   const [imagenes, setImagenes] = useState([]);
+  const [fotosColor, setFotosColor] = useState([]);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
@@ -67,6 +69,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         // proyeccionCatalogoProducto en AppContext.jsx.
         setModoColorSecundario(prod.modoColorSecundario || (prod.permiteColorSecundario ? 'libre' : ''));
         setImagenes(prod.imagenes?.length ? prod.imagenes : (prod.imagen ? [prod.imagen] : []));
+        setFotosColor(Array.isArray(prod.fotosColor) ? prod.fotosColor : []);
         subidasSesionRef.current = [];
       }
     }
@@ -202,7 +205,9 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         precioSugUnitario: cleanPrecio,
         modoColorSecundario,
         imagenes,
-        imagen: imagenes[0] || ''
+        imagen: imagenes[0] || '',
+        // Sólo las fotos de color que apuntan a una imagen que el producto sigue teniendo.
+        fotosColor: normalizarFotosColor(fotosColor, imagenes)
       });
       for (const url of imagenesQuitadas) {
         if (url.includes('firebasestorage')) {
@@ -394,6 +399,33 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
               </div>
             ))}
           </div>
+        )}
+        {imagenes.length > 1 && (
+          <details style={{ marginTop: '10px' }}>
+            <summary style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
+              Foto de cada color (opcional){fotosColor.length ? ` · ${fotosColor.length} asignada${fotosColor.length !== 1 ? 's' : ''}` : ''}
+            </summary>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', margin: '6px 0' }}>
+              En la tienda, al elegir un color se muestra la foto que le asignes acá. Los colores sin foto muestran la principal.
+            </div>
+            {(modoColorSecundario === 'combinaciones'
+              ? (cfg.combinacionesColores || []).map((c) => ({ color: c.color, colorSecundario: c.colorSecundario }))
+              : (cfg.colores || []).map((c) => ({ color: c.nombre, colorSecundario: '' }))
+            ).map((c) => {
+              const actual = fotoDeColor(fotosColor, c.color, c.colorSecundario);
+              const exacta = fotosColor.find((f) => f.color === c.color && (f.colorSecundario || '') === (c.colorSecundario || ''))?.imagen || '';
+              return (
+                <div key={`${c.color}|${c.colorSecundario}`} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 34px', gap: '6px', alignItems: 'center', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px' }}>{[c.color, c.colorSecundario].filter(Boolean).join(' + ')}</span>
+                  <select value={exacta} onChange={(e) => setFotosColor(prev => ponerFotoColor(prev, c.color, c.colorSecundario, e.target.value))} style={{ fontSize: '12px', padding: '4px' }}>
+                    <option value="">Foto principal</option>
+                    {imagenes.map((url, i) => <option key={url} value={url}>Foto {i + 1}</option>)}
+                  </select>
+                  {actual ? <img src={actual} alt="" style={{ width: '34px', height: '34px', objectFit: 'cover', borderRadius: '6px' }} /> : <span />}
+                </div>
+              );
+            })}
+          </details>
         )}
         <datalist id="bib-edit-cats-list-modal">
           {uniqueCats.map((catName, idx) => (

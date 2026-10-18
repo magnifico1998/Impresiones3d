@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ordenarCategorias } from '../utils/categoriaOrden';
+import { fotoDeColor } from '../utils/fotosColor';
 import { normalizarStock, repartirConStock, stockDeVariante, stockTotal } from '../utils/stock';
 
 // Formato "tienda" del catálogo web (catalogoConfig.modo === 'tienda'): categorías arriba como desplegables con sus
@@ -338,6 +339,8 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
   const [error, setError] = useState('');
   const imagenes = p.imagenes?.length ? p.imagenes : (p.imagen ? [p.imagen] : []);
   const [imagenActual, setImagenActual] = useState(0);
+  // Última fila de color tocada: su foto (si el producto tiene una asignada a ese color) pasa a ser la principal de la ficha.
+  const [filaTocada, setFilaTocada] = useState(null);
 
   useEffect(() => {
     const alTeclear = (e) => { if (e.key === 'Escape') onCerrar(); };
@@ -354,12 +357,20 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
   // En la vista "En stock" no se puede pedir más de lo que hay.
   const acotar = (vs) => (soloStock ? vs.map((v) => ({ ...v, cantidad: Math.min(v.cantidad, disponiblePara(v, vs)) })) : vs);
 
-  const cambiar = (id, campo, valor) => setVersiones((prev) => acotar(prev.map((v) => (v.localId === id
+  const cambiar = (id, campo, valor) => { if (campo === 'color' || campo === 'colorSecundario') setFilaTocada(id); return setVersiones((prev) => acotar(prev.map((v) => (v.localId === id
     ? { ...v, [campo]: campo === 'cantidad' ? Math.max(0, parseInt(valor, 10) || 0) : valor }
-    : v))));
-  const cambiarVariante = (id, variante) => setVersiones((prev) => acotar(prev.map((v) => (v.localId === id
+    : v)))); };
+  const cambiarVariante = (id, variante) => { setFilaTocada(id); return setVersiones((prev) => acotar(prev.map((v) => (v.localId === id
     ? { ...v, color: variante?.color || '', colorSecundario: variante?.colorSecundario || '' }
-    : v))));
+    : v)))); };
+  const filaFoto = versiones.find((v) => v.localId === filaTocada) || versiones[0];
+  const claveFoto = `${filaFoto?.color || ''}|${filaFoto?.colorSecundario || ''}`;
+  useEffect(() => {
+    const url = fotoDeColor(p.fotosColor, filaFoto?.color, filaFoto?.colorSecundario);
+    const i = url ? imagenes.indexOf(url) : -1;
+    if (i >= 0) setImagenActual(i);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveFoto]);
 
   const reparto = repartirConStock(p.stock, versiones);
   const deStock = reparto.reduce((s, v) => s + v.deStock, 0);
