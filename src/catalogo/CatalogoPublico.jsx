@@ -89,6 +89,13 @@ const ESTILOS_RESPONSIVE = `
   .catalogo-producto-item { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
   .catalogo-productos-grid > .catalogo-producto-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
+  /* Celular: el logo y los íconos van en la primera fila; el nombre y el texto destacado debajo, a todo el ancho
+     (al lado del logo quedaban en una columna angosta, una palabra por renglón). */
+  @media (max-width: 599px) {
+    .catalogo-header-inner { flex-wrap: wrap; row-gap: 10px !important; }
+    .catalogo-header-texto { order: 3; flex: 1 1 100%; }
+  }
+
   @media (min-width: 480px) {
     .catalogo-productos-grid { display: grid !important; grid-template-columns: 1fr 1fr; column-gap: 16px; row-gap: 22px; }
     .catalogo-producto-item { margin-bottom: 0 !important; padding-bottom: 0 !important; border-bottom: none !important; }
@@ -533,7 +540,7 @@ export default function CatalogoPublico() {
             {(config.empresaNombre || 'C')[0].toUpperCase()}
           </div>
         )}
-        <div style={{ minWidth: 0 }}>
+        <div className="catalogo-header-texto" style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: '17px', letterSpacing: '-.2px' }}>{config.empresaNombre || 'Catálogo'}</div>
           {/* Debajo del nombre: el texto destacado de la tienda (eslogan o gancho comercial), en
               hasta 3 líneas y con el tamaño que eligió. Sin texto, no se muestra nada. */}
