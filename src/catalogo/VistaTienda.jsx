@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { fotoDeColor } from '../utils/fotosColor';
-import { colorPermitido, combinacionPermitida } from '../utils/coloresProducto';
+import { colorPermitido, combinacionPermitida, versionesSinColor } from '../utils/coloresProducto';
 import { normalizarStock, repartirConStock, stockDeVariante, stockTotal } from '../utils/stock';
 
 // Formato "tienda" del catálogo web (catalogoConfig.modo === 'tienda'): categorías arriba como desplegables con sus
@@ -387,6 +387,8 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
   const confirmar = () => {
     const validas = versiones.filter((v) => v.cantidad > 0);
     if (!validas.length) { setError('Poné al menos una unidad.'); return; }
+    // Cada unidad con su color elegido (salvo que el producto no ofrezca colores o salga entera de stock sin color).
+    if (versionesSinColor(p, reparto.filter((v) => v.cantidad > 0), colores, combinaciones) > 0) { setError('Elegí el color de cada unidad antes de agregarlo.'); return; }
     onConfirmar(validas);
   };
 

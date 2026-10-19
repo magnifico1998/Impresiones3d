@@ -7,7 +7,7 @@ import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/p
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import VistaTienda, { ESTILOS_TIENDA } from './VistaTienda';
 import { repartirConStock } from '../utils/stock';
-import { colorPermitido, combinacionPermitida } from '../utils/coloresProducto';
+import { colorPermitido, combinacionPermitida, versionesSinColor } from '../utils/coloresProducto';
 import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe, textosSecundariosDe } from '../utils/catalogoMarca';
 
 const newLocalId = () => Date.now() + Math.random();
@@ -283,6 +283,10 @@ export default function CatalogoPublico() {
       avisar('Poné al menos una cantidad mayor a 0 antes de confirmar.');
       return;
     }
+    if (versionesSinColor(p, versionesValidas, colores, combinaciones) > 0) {
+      avisar('Elegí el color de cada unidad antes de confirmar.');
+      return;
+    }
 
     setCarrito(prev => {
       const existe = prev.some(it => it.prodId === p.id);
@@ -346,6 +350,12 @@ export default function CatalogoPublico() {
     }
     if (!carrito.length || cantidadCarrito === 0) {
       avisar('Agregá al menos un producto con cantidad mayor a 0.');
+      return;
+    }
+    // Antes de mandar el pedido, todos los productos tienen que tener su color elegido (si ofrecen colores).
+    const sinColor = carrito.filter(it => versionesSinColor(productos.find(pr => pr.id === it.prodId), repartoDe(it.prodId, it.versiones), colores, combinaciones) > 0);
+    if (sinColor.length) {
+      avisar(`Falta elegir el color de: ${sinColor.map(it => it.nombre).join(', ')}. Tocá "Editar" en cada uno para elegirlo.`);
       return;
     }
 

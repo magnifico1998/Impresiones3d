@@ -24,3 +24,24 @@ describe('colores disponibles de un producto', () => {
     expect(marcarColor(l, 'Rojo', '', false)).toEqual([]);
   });
 });
+
+import { ofreceColores, versionesSinColor } from '../src/utils/coloresProducto';
+
+describe('validación de colores antes de confirmar', () => {
+  const colores = [{ nombre: 'Rojo' }, { nombre: 'Azul' }];
+  it('una versión sin color es un error si el producto ofrece colores', () => {
+    expect(versionesSinColor({}, [{ cantidad: 2, color: '' }, { cantidad: 1, color: 'Rojo' }], colores, [])).toBe(1);
+    expect(versionesSinColor({}, [{ cantidad: 2, color: 'Rojo' }], colores, [])).toBe(0);
+  });
+  it('no se exige si el producto no ofrece colores o si sale entero de stock sin color', () => {
+    expect(versionesSinColor({}, [{ cantidad: 1, color: '' }], [], [])).toBe(0);
+    expect(versionesSinColor({}, [{ cantidad: 2, color: '', deStock: 2 }], colores, [])).toBe(0);
+    expect(versionesSinColor({}, [{ cantidad: 2, color: '', deStock: 1 }], colores, [])).toBe(1);
+  });
+  it('respeta los colores elegidos del producto y las combinaciones', () => {
+    const p = { limitarColores: true, coloresElegidos: [{ color: 'Rojo', colorSecundario: '' }] };
+    expect(ofreceColores(p, [{ nombre: 'Azul' }], [])).toBe(false);
+    expect(ofreceColores({ modoColorSecundario: 'combinaciones' }, colores, [{ color: 'A', colorSecundario: 'B' }])).toBe(true);
+    expect(versionesSinColor({ modoColorSecundario: 'combinaciones' }, [{ cantidad: 1, color: '' }], colores, [{ color: 'A', colorSecundario: 'B' }])).toBe(1);
+  });
+});

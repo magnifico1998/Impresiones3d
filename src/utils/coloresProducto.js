@@ -33,3 +33,18 @@ export function marcarColor(lista, color, colorSecundario, marcado) {
   const resto = (lista || []).filter((e) => !(limpio(e.color) === c && limpio(e.colorSecundario) === s));
   return marcado ? [...resto, { color: c, colorSecundario: s }] : resto;
 }
+
+// ¿El producto ofrece colores para elegir? (con combinaciones, alguna; si no, algún color suelto).
+export function ofreceColores(producto, colores, combinaciones) {
+  if (producto?.modoColorSecundario === 'combinaciones') {
+    return (combinaciones || []).some((c) => combinacionPermitida(producto, c.color, c.colorSecundario));
+  }
+  return (colores || []).some((c) => colorPermitido(producto, c.nombre));
+}
+
+// Antes de confirmar una compra en el catálogo: cuántas versiones quedaron sin color elegido. Una versión sin color
+// es válida si el producto no ofrece colores, o si esa cantidad sale entera de stock "sin color" (`deStock` >= cantidad).
+export function versionesSinColor(producto, versiones, colores, combinaciones) {
+  if (!ofreceColores(producto, colores, combinaciones)) return 0;
+  return (versiones || []).filter((v) => (Number(v.cantidad) || 0) > 0 && !String(v.color || '').trim() && !((Number(v.deStock) || 0) >= (Number(v.cantidad) || 0) && (Number(v.deStock) || 0) > 0)).length;
+}
