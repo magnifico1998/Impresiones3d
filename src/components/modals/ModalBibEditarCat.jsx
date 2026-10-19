@@ -3,6 +3,7 @@ import { confirmar } from '../Dialogos';
 import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 import { useCapaModal } from '../CapaModal';
+import BotonSubirImagenes from '../BotonSubirImagenes';
 import CampoMoneda from '../CampoMoneda';
 import ModalArchivosGcode from './ModalArchivosGcode';
 import { escucharArchivosGcode } from '../../utils/archivosGcode';
@@ -332,14 +333,8 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
           <option value="combinaciones">Sólo combinaciones predefinidas (Configuración → Combinaciones de colores)</option>
         </select>
 
-        <label className="fl">Imágenes del producto (la primera es la principal — arrastrá para reordenar)</label>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleImageChange}
-          disabled={subiendoImagen || imagenes.length >= MAX_IMAGENES}
-        />
+        <label className="fl">Imágenes del producto (la primera es la principal; con varias, arrastralas para reordenar)</label>
+        <BotonSubirImagenes alElegir={handleImageChange} deshabilitado={subiendoImagen} cantidad={imagenes.length} maximo={MAX_IMAGENES} />
         {subiendoImagen && (
           <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
             Optimizando imagen...

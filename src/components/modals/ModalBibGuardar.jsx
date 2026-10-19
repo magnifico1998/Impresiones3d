@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 import { cupoGcode, formatoBytes, subirArchivoGcode } from '../../utils/archivosGcode';
 import { useCapaModal } from '../CapaModal';
+import BotonSubirImagenes from '../BotonSubirImagenes';
 
 export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, onGuardado }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
@@ -325,14 +326,8 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
           ))}
         </datalist>
 
-        <label className="fl">Imágenes del producto (la primera es la principal — arrastrá para reordenar)</label>
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleImageChange}
-          disabled={subiendoImagen || imagenes.length >= MAX_IMAGENES}
-        />
+        <label className="fl">Imágenes del producto (la primera es la principal; con varias, arrastralas para reordenar)</label>
+        <BotonSubirImagenes alElegir={handleImageChange} deshabilitado={subiendoImagen} cantidad={imagenes.length} maximo={MAX_IMAGENES} />
         {subiendoImagen && (
           <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
             Optimizando imagen...
