@@ -533,3 +533,77 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
   flex-wrap: wrap;
 }
 
+/* ==== Celular (hasta 700px) ====
+   La app se armó pensando en escritorio y casi todo el layout está en estilos inline, que una hoja de estilos no
+   pisa sin !important. Por eso esta capa va al final y usa !important a propósito: es sólo para pantallas chicas,
+   escritorio no cambia. Reglas: nada se sale del ancho de la pantalla, las filas de varias columnas fijas pasan a
+   dos columnas (el primer campo ocupa la fila entera), los modales entran en la pantalla y los campos tienen 16px
+   (con menos, iPhone hace zoom al tocarlos y la pantalla queda corrida). */
+@media (max-width: 700px) {
+  html { -webkit-text-size-adjust: 100%; }
+  body { overflow-x: hidden; }
+  /* Un hijo de flex no se achica por debajo de su contenido: sin esto, una tabla ancha estira toda la página. */
+  .layout, .main { min-width: 0; max-width: 100%; }
+  .main { overflow-x: hidden; padding: 14px 12px calc(20px + env(safe-area-inset-bottom)); }
+  .header { padding: 10px 12px; gap: 8px; }
+  .sidebar { height: 100vh; height: 100dvh; width: min(280px, 82vw); padding-top: calc(16px + env(safe-area-inset-top)); }
+  .nav-item { padding: 12px 14px; font-size: 14px; }
+
+  .page-title { font-size: 21px; line-height: 1.25; }
+  .page-sub { margin-bottom: 16px; }
+  .card { padding: 14px; border-radius: 16px; }
+  .metric { padding: 12px; }
+  .metric-value { font-size: 20px; }
+
+  /* Campos: 16px evita el zoom automático de iOS; alto cómodo para el dedo. */
+  input[type=text], input[type=number], input[type=date], input[type=email], input[type=tel], input[type=search], input[type=password], select, textarea { font-size: 16px !important; min-height: 40px; }
+  .btn { padding: 9px 14px; }
+  .btn-sm { padding: 7px 12px; }
+
+  /* Modales: casi a pantalla completa, con scroll propio. */
+  .modal-overlay { padding-top: 12px; padding-left: 8px; padding-right: 8px; align-items: flex-start; }
+  .modal-overlay.centrado { padding: 12px 8px; }
+  .modal, .modal-wide { max-width: 100% !important; width: 100%; padding: 18px 14px; border-radius: 18px; margin-bottom: 16px; }
+  .modal-overlay.centrado .modal { max-height: calc(100dvh - 24px); }
+  .modal-footer { flex-wrap: wrap; }
+  .modal-footer .btn { flex: 1 1 auto; justify-content: center; }
+  .modal-title { font-size: 17px; }
+
+  /* Tablas: el contenedor se desplaza de costado en lugar de ensanchar la página. */
+  .data-table, .plates-tbl, .res-tabla-wrap { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .data-table th, .data-table td { white-space: nowrap; }
+
+  /* Pedidos: la tarjeta es una fila de escritorio (cliente + 8 datos + estado); en el celular se apila. */
+  .pedido-card, .order-card-modern { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px; }
+  .pedido-izq { flex: none !important; max-width: none !important; width: 100%; }
+  .pedido-der { flex: none !important; width: 100%; flex-wrap: wrap !important; justify-content: flex-start !important; gap: 10px 16px !important; }
+  .pedido-der > div { flex-shrink: 1 !important; }
+  .pedido-estado { order: 99; flex: 1 1 100% !important; width: 100% !important; height: 36px !important; font-size: 13px !important; }
+  .filter-bar-modern { padding: 10px 12px; gap: 8px; }
+
+  /* Filas con columnas fijas (versiones, líneas de presupuesto, stock, pagos): 2 columnas, el primer campo entero. */
+  [style*="grid-template-columns: 56px 1fr"],
+  [style*="grid-template-columns: 84px 1fr"],
+  [style*="grid-template-columns: 40px 1fr"],
+  [style*="grid-template-columns: 64px 1fr"],
+  [style*="grid-template-columns: 1fr 64px"],
+  [style*="grid-template-columns: minmax(0, 2fr)"],
+  [style*="grid-template-columns: 1fr 1fr 1fr"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  [style*="grid-template-columns: 56px 1fr"] > :first-child,
+  [style*="grid-template-columns: 84px 1fr"] > :first-child,
+  [style*="grid-template-columns: 40px 1fr"] > :first-child,
+  [style*="grid-template-columns: 64px 1fr"] > :first-child,
+  [style*="grid-template-columns: 1fr 64px"] > :first-child,
+  [style*="grid-template-columns: minmax(0, 2fr)"] > :first-child { grid-column: 1 / -1; }
+  /* Columnas con mínimos que suman más que la pantalla: una sola. */
+  [style*="grid-template-columns: minmax(150px"],
+  [style*="grid-template-columns: minmax(140px"],
+  .grid-2-a-1 { grid-template-columns: minmax(0, 1fr) !important; }
+  .ocultar-movil { display: none !important; }
+
+  /* Dos columnas de formulario: que los campos no se desborden. */
+  [style*="grid-template-columns: 1fr 1fr"] > * { min-width: 0; }
+
+  /* Selectores de color/estado en línea y buscadores con ancho fijo: ocupan el ancho disponible. */
+  [style*="width: 160px"], [style*="width: 150px"], [style*="width: 140px"], [style*="width: 130px"], [style*="width: 120px"] { max-width: 100%; }
+}

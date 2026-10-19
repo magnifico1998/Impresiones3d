@@ -239,7 +239,7 @@ export default function ModalPlantillaEmail({ isOpen, onClose, plantilla, onGuar
             </div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch', marginTop: '12px' }}>
+          <div className="grid-2-a-1" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch', marginTop: '12px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
               <label className="fl">Contenido (HTML)</label>
               <textarea

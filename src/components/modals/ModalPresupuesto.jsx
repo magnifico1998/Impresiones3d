@@ -390,7 +390,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
             <div className="empty">Todavía no hay productos. Agregalos desde la Biblioteca o con "+ Línea libre".</div>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 100px 90px 24px', gap: '6px', fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: '4px' }}>
+              <div className="ocultar-movil" style={{ display: 'grid', gridTemplateColumns: '1fr 64px 100px 90px 24px', gap: '6px', fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: '4px' }}>
                 <span>Producto</span>
                 <span>Cant.</span>
                 <span>Precio unit.</span>

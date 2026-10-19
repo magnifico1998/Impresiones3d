@@ -281,7 +281,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
         // Marco del aviso de entrega: borde izquierdo grueso del color del aviso.
         style={alerta ? { borderLeft: `4px solid ${alerta.color}` } : undefined}
       >
-        <div style={{ flex: '1 1 22%', minWidth: 0, maxWidth: '26%', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="pedido-izq" style={{ flex: '1 1 22%', minWidth: 0, maxWidth: '26%', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {prioridad && (
             <div
               title="Prioridad de producción"
@@ -339,6 +339,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
         {/* ✅ CONTENEDOR DERECHO FIX */}
         <div
+          className="pedido-der"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -466,7 +467,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
           {/* ✅ STATUS AL LADO */}
           <select
-              className={`status-select ${p.estado}`}
+              className={`status-select pedido-estado ${p.estado}`}
               value={p.estado}
               onClick={(e) => e.stopPropagation()}
               onChange={(e) =>
