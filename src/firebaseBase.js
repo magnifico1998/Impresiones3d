@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { initializeFirestore, memoryLocalCache, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 import { firebaseConfig } from "./entornoFirebase";
+import { esRutaDeCatalogo } from "./utils/nombreCatalogo";
 
 // Núcleo de Firebase (app + Firestore + Functions) separado de Auth y
 // Storage: el catálogo público importa sólo esto, así su bundle no arrastra
@@ -22,7 +23,7 @@ export const app = initializeApp(firebaseConfig);
 // "permission-denied" (admins, faq, vínculo de equipo) aunque el token estuviera bien: no se arreglaba reintentando
 // ni renovando el token, sólo cerrando esa pestaña. El catálogo es de sólo lectura pública y no necesita caché
 // persistente, así que va con caché en memoria y nunca compite por ser la pestaña primaria.
-const esCatalogoPublico = typeof window !== 'undefined' && (window.location.pathname === '/catalogo' || window.location.pathname.startsWith('/catalogo/'));
+const esCatalogoPublico = typeof window !== 'undefined' && esRutaDeCatalogo(window.location.pathname);
 export const db = initializeFirestore(app, {
   localCache: esCatalogoPublico
     ? memoryLocalCache()

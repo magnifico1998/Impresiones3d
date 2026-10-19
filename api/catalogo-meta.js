@@ -46,8 +46,27 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// /{nombre}: traduce el nombre del catálogo a la cuenta (catalogoNombres/{nombre}). Devuelve null si no existe o si es
+// un alias vencido. El nombre sólo puede ser a-z, 0-9 y guiones (lo asegura la regla de vercel.json).
+async function uidDeNombre(nombre) {
+  if (!/^[a-z0-9-]{3,40}$/.test(nombre || '')) return null;
+  try {
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/catalogoNombres/${nombre}`);
+    if (!r.ok) return null;
+    const f = (await r.json()).fields || {};
+    const uid = f.uid?.stringValue;
+    const alias = f.alias?.booleanValue === true;
+    const hasta = f.hasta?.timestampValue ? Date.parse(f.hasta.timestampValue) : 0;
+    return uid && (!alias || hasta > Date.now()) ? uid : null;
+  } catch (e) {
+    console.error('No se pudo resolver el nombre del catálogo:', e);
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
-  const uid = req.query?.uid || null;
+  const nombre = req.query?.nombre || null;
+  const uid = req.query?.uid || (nombre ? await uidDeNombre(nombre) : null);
 
   let empresaNombre = 'Catálogo';
   let logo = '';
@@ -81,7 +100,7 @@ export default async function handler(req, res) {
 
   const titulo = `${empresaNombre} · Catálogo`;
   const descripcion = 'Elegí tus productos y armá tu pedido';
-  const urlCatalogo = uid ? `${APP_URL}/catalogo/${uid}` : `${APP_URL}/catalogo`;
+  const urlCatalogo = nombre && uid ? `${APP_URL}/${nombre}` : (uid ? `${APP_URL}/catalogo/${uid}` : `${APP_URL}/catalogo`);
 
   const metaTags = `<title>${escapeHtml(titulo)}</title>
     <meta property="og:title" content="${escapeHtml(titulo)}" />

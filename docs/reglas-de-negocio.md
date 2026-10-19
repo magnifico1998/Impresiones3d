@@ -751,6 +751,22 @@ mensaje "Hola Andrea! Te escribo por tu pedido de A | B | C." (`mensajeWhatsappP
 Nombra los productos del pedido (sin repetir y sin versiones) y no el número, que el cliente no conoce. Un pedido
 sin piezas con nombre usa el número como antes.
 
+## Dirección del catálogo con el nombre del emprendimiento
+
+Código: `functions/http/nombreCatalogo.js` (función `reservarNombreCatalogo`), reglas puras en `functions/nombreCatalogo.js` (copia en `src/utils/nombreCatalogo.js`),
+resolución en `CatalogoPublico.jsx`, vista previa en `api/catalogo-meta.js` y regla de ruta en `vercel.json`.
+
+- Además del link de siempre (`/catalogo/{uid}`, que **sigue funcionando**), cada cuenta puede elegir un nombre: `manager3d.com.ar/{nombre}`.
+  Se carga en Catálogo web → "Dirección de tu catálogo". El nombre se normaliza (minúsculas, sin acentos, espacios como guión),
+  tiene de 3 a 40 caracteres y no puede ser una palabra reservada (rutas de la app, `admin`, `api`, `www`…).
+- `catalogoNombres/{nombre}` = `{ uid, alias, hasta }`: lectura pública, escritura sólo de la función (que valida que ningún otro
+  catálogo lo tenga, en una transacción). El nombre actual también se guarda en `catalogoTiendas/{uid}.nombreUrl`.
+- Cambiar de nombre deja el anterior como **alias de la misma cuenta durante 30 días** (los links ya compartidos siguen abriendo); pasado
+  ese plazo queda libre. Mientras el alias esté vigente nadie más lo puede tomar.
+- Hace falta el catálogo activado (existir `catalogoTiendas/{uid}`) y la cuenta con plan activo o de prueba.
+- La vista previa de WhatsApp (`api/catalogo-meta.js`) también entiende `/{nombre}`. La ruta `/{nombre}` la toma el catálogo público; la raíz
+  `/` y las rutas reservadas siguen siendo de la app.
+
 ## Tienda con stock (catálogo web en formato "tienda")
 
 Código: `src/utils/stock.js`, `src/components/StockPage.jsx`, `src/catalogo/VistaTienda.jsx` y el formato en

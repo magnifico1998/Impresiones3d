@@ -7,6 +7,7 @@
   "rewrites": [
     { "source": "/catalogo/:uid", "destination": "/api/catalogo-meta?uid=:uid" },
     { "source": "/catalogo", "destination": "/api/catalogo-meta" },
+    { "source": "/:nombre([a-z0-9-]{3,40})", "destination": "/api/catalogo-meta?nombre=:nombre" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

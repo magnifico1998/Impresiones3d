@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Dialogos, { avisar } from '../components/Dialogos';
 import { db, functions } from '../firebaseBase';
-import { collection, doc, onSnapshot, addDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/paises';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import VistaTienda, { ESTILOS_TIENDA } from './VistaTienda';
+import { nombreDeRuta } from '../utils/nombreCatalogo';
 import { repartirConStock } from '../utils/stock';
 import { colorPermitido, combinacionPermitida, versionesSinColor } from '../utils/coloresProducto';
 import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe, textosSecundariosDe } from '../utils/catalogoMarca';
@@ -108,10 +109,29 @@ export default function CatalogoPublico() {
   // se lee/escribe acá cuelga de catalogoTiendas/{uid}/... — así el
   // catálogo de una tienda nunca se mezcla con el de otra (antes vivía en
   // colecciones compartidas y cualquier cuenta logueada podía pisarlas).
-  const uidTienda = useMemo(() => {
+  //
+  // Dos formas de llegar: /catalogo/{uid} (el link de siempre) o /{nombre} (la dirección con el nombre del
+  // emprendimiento, que se traduce a la cuenta con catalogoNombres/{nombre}; ver reservarNombreCatalogo).
+  const nombreEnRuta = useMemo(() => nombreDeRuta(window.location.pathname), []);
+  const [uidTienda, setUidTienda] = useState(() => {
     const partes = window.location.pathname.split('/').filter(Boolean); // ['catalogo', '{uid}']
-    return partes[1] || null;
-  }, []);
+    return partes[0] === 'catalogo' ? (partes[1] || null) : null;
+  });
+  const [resolviendoNombre, setResolviendoNombre] = useState(!!nombreEnRuta);
+  useEffect(() => {
+    if (!nombreEnRuta) return undefined;
+    let vivo = true;
+    getDoc(doc(db, 'catalogoNombres', nombreEnRuta))
+      .then((snap) => {
+        const d = snap.exists() ? snap.data() : null;
+        // Un alias (nombre anterior de la cuenta) vale hasta su vencimiento.
+        const vigente = d && (!d.alias || (d.hasta?.toMillis?.() || 0) > Date.now());
+        if (vivo) setUidTienda(vigente ? d.uid : null);
+      })
+      .catch(() => { if (vivo) setUidTienda(null); })
+      .finally(() => { if (vivo) setResolviendoNombre(false); });
+    return () => { vivo = false; };
+  }, [nombreEnRuta]);
 
   const [config, setConfig] = useState(undefined); // undefined = cargando, null = no existe
 
@@ -408,6 +428,19 @@ export default function CatalogoPublico() {
   };
 
   // ---- Pantallas de estado ----
+
+  if (resolviendoNombre) {
+    return <EstadoCentrado>Cargando catálogo…</EstadoCentrado>;
+  }
+
+  if (!uidTienda && nombreEnRuta) {
+    return (
+      <EstadoCentrado>
+        No encontramos este catálogo.
+        <br />Revisá que la dirección esté bien escrita o pedile el link al vendedor.
+      </EstadoCentrado>
+    );
+  }
 
   if (!uidTienda) {
     return (

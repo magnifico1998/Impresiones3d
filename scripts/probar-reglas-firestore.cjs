@@ -82,6 +82,8 @@ const mail = (uid) => `${uid}@gmail.com`.toLowerCase();
     caso('aviso de actualización: un usuario común NO lo escribe', 'DENY', 'create', 'avisoSistema/actualizacion', dueno, { datos: { activo: true }, mocks: [esAdmin(`${mail(UID)}`, false)] }),
     caso('aviso de actualización: un admin SÍ lo escribe', 'ALLOW', 'create', 'avisoSistema/actualizacion', admin, { datos: { activo: true }, mocks: [esAdmin(EMAIL_ADMIN, true)] }),
     // --- Catálogo público ---
+    caso('nombre de catálogo: se lee sin login', 'ALLOW', 'get', 'catalogoNombres/mi-tienda', null),
+    caso('nombre de catálogo: NO se escribe desde la app', 'DENY', 'create', 'catalogoNombres/mi-tienda', dueno, { datos: { uid: UID } }),
     caso('catálogo: la config se lee sin login', 'ALLOW', 'get', `catalogoTiendas/${UID}`, null),
     caso('catálogo: los productos se leen sin login', 'ALLOW', 'get', `catalogoTiendas/${UID}/productos/1`, null),
     caso('catálogo: otra cuenta NO edita la tienda ajena', 'DENY', 'update', `catalogoTiendas/${UID}`, ajeno, { datos: { nombre: 'x' }, existente: { nombre: 'y' }, mocks: mocksAjeno }),

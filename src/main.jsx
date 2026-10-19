@@ -2,10 +2,11 @@ import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import { instalarAvisoVersionNueva, vigilarVersionNueva } from './utils/avisoVersionNueva'
+import { esRutaDeCatalogo } from './utils/nombreCatalogo'
 
 instalarAvisoVersionNueva()
 // El catálogo público no se interrumpe con avisos de versión: lo ve gente armando un pedido.
-if (!window.location.pathname.startsWith('/catalogo')) vigilarVersionNueva()
+if (!esRutaDeCatalogo(window.location.pathname)) vigilarVersionNueva()
 
 // App instalable: el service worker (public/sw.js) sólo guarda la pantalla de la app para
 // que abra rápido y sin red; no toca los datos. Ver docs/arquitectura.md.
@@ -29,7 +30,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 const CatalogoPublico = lazy(() => import('./catalogo/CatalogoPublico.jsx'))
 const AppPrivada = lazy(() => import('./AppPrivada.jsx'))
 
-const esCatalogoPublico = window.location.pathname.startsWith('/catalogo')
+// /catalogo/{uid} (el link de siempre) o /{nombre} (la dirección con el nombre del emprendimiento).
+const esCatalogoPublico = esRutaDeCatalogo(window.location.pathname)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

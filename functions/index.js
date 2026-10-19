@@ -33,6 +33,7 @@ const { probarConexionArca, emitirFacturaManual, facturarPagoMP, reintentarFactu
 const { configurarFacturacionCuenta, facturarPedido, reintentarFacturaCuenta, descartarFacturaCuenta, anularFacturaCuenta, descargarFacturaCuentaPDF, enviarFacturaCuentaMail } = require('./http/facturacionCuenta');
 const { completarPerfil } = require('./http/perfil');
 const { crearTicket, actualizarTicket } = require('./http/tickets');
+const { reservarNombreCatalogo } = require('./http/nombreCatalogo');
 const { gestionarBoletin } = require('./http/boletin');
 const { buscarCategoriasMonotributo } = require('./http/monotributo');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
@@ -41,6 +42,7 @@ module.exports = {
   onNuevoUsuario,
   onPedidoCreado,
   onPedidoListo,
+  reservarNombreCatalogo,
   onBibliotecaCambio,
   onGcodeSubido,
   onGcodeBorrado,

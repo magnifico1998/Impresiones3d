@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../firebase';
+import { motivoNombreInvalido, normalizarNombre } from '../utils/nombreCatalogo';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { paletas, paletasList } from '../utils/paletas';
 import { textosSecundariosDe, LOGO_MAX_ENCABEZADO_FIJO, MAX_CARACTERES_LINEA, MAX_LINEAS_ESLOGAN, TAMANOS_ESLOGAN, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, recortarBorradorEslogan, tamanoLogoDe } from '../utils/catalogoMarca';
@@ -178,9 +181,29 @@ export default function CatalogoAdminPage() {
   // no user.uid -- así un usuario agregado ve/comparte el mismo link que
   // el dueño), así cada negocio tiene el suyo propio y no se mezclan entre
   // distintas cuentas.
-  const catalogoUrl = typeof window !== 'undefined' && cuentaId
+  const catalogoUrlPorUid = typeof window !== 'undefined' && cuentaId
     ? `${window.location.origin}${CATALOGO_PATH}/${cuentaId}`
     : CATALOGO_PATH;
+  // Con un nombre elegido, ese es el link para compartir (el de uid sigue funcionando).
+  const nombreActual = catalogoConfig?.nombreUrl || '';
+  const catalogoUrl = nombreActual && typeof window !== 'undefined' ? `${window.location.origin}/${nombreActual}` : catalogoUrlPorUid;
+
+  const [nombreNuevo, setNombreNuevo] = useState('');
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+  const nombreNormalizado = normalizarNombre(nombreNuevo);
+  const motivoNombre = nombreNuevo.trim() ? motivoNombreInvalido(nombreNormalizado) : null;
+  const guardarNombre = async () => {
+    setGuardandoNombre(true);
+    try {
+      await httpsCallable(functions, 'reservarNombreCatalogo')({ nombre: nombreNormalizado });
+      showToast(`✓ Tu catálogo ahora está en /${nombreNormalizado}`);
+      setNombreNuevo('');
+    } catch (e) {
+      showToast(e?.message || 'No se pudo guardar la dirección.', 'error');
+    } finally {
+      setGuardandoNombre(false);
+    }
+  };
 
   const handleCopiarLink = () => {
     navigator.clipboard.writeText(catalogoUrl).then(() => {
@@ -313,6 +336,37 @@ export default function CatalogoAdminPage() {
           <button className={`btn ${activo ? '' : 'btn-primary'}`} onClick={handleToggleActivo}>
             {activo ? 'Desactivar' : 'Activar catálogo'}
           </button>
+        </div>
+
+        <div className="sep"></div>
+
+        {/* Dirección con el nombre del emprendimiento (manager3d.com.ar/mi-tienda). */}
+        <div style={{ margin: '12px 0' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600 }}>Dirección de tu catálogo</div>
+          <div style={{ fontSize: '12px', color: 'var(--text3)', margin: '2px 0 6px' }}>
+            {nombreActual
+              ? <>Hoy: <strong style={{ color: 'var(--text)' }}>{typeof window !== 'undefined' ? window.location.host : ''}/{nombreActual}</strong>. Si la cambiás, la anterior sigue funcionando 30 días.</>
+              : 'Elegí un nombre corto para tu catálogo, en lugar del link largo. Ej: mi-emprendimiento.'}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '12px', color: 'var(--text3)' }}>{typeof window !== 'undefined' ? window.location.host : ''}/</span>
+            <input
+              type="text"
+              value={nombreNuevo}
+              maxLength={60}
+              placeholder={nombreActual || 'mi-emprendimiento'}
+              onChange={(e) => setNombreNuevo(e.target.value)}
+              style={{ flex: 1, minWidth: '160px', fontFamily: 'var(--mono)', fontSize: '12px' }}
+            />
+            <button className="btn btn-primary btn-sm" disabled={guardandoNombre || !nombreNormalizado || !!motivoNombre || nombreNormalizado === nombreActual} onClick={guardarNombre}>
+              {guardandoNombre ? 'Guardando…' : 'Guardar dirección'}
+            </button>
+          </div>
+          {nombreNuevo.trim() && (
+            <div style={{ fontSize: '12px', marginTop: '4px', color: motivoNombre ? 'var(--danger)' : 'var(--text3)' }}>
+              {motivoNombre || `Quedaría: /${nombreNormalizado}`}
+            </div>
+          )}
         </div>
 
         <div className="sep"></div>

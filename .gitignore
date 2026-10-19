@@ -15,3 +15,4 @@ dist/
 
 # Carpeta de trabajo del empaquetado del conector (conector/empaquetar.mjs)
 conector/build/
+firebase-debug.log

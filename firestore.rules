@@ -28,6 +28,15 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    // ---- Nombres de catálogo (manager3d.com.ar/{nombre}) ----
+    // catalogoNombres/{nombre} = { uid, alias, hasta }. La app pública lo lee sin login para saber de qué cuenta es
+    // la dirección; escribirlo sólo puede la función reservarNombreCatalogo (Admin SDK), que valida el nombre y que
+    // no lo tenga otra cuenta. Nada se escribe desde el cliente.
+    match /catalogoNombres/{nombre} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ---- Usuarios adicionales por cuenta ("equipo") ----
     // Un dueño puede dar acceso total a su cuenta a otros emails de Gmail
     // (hasta el límite de su plan), sin usar custom claims: el vínculo vive
