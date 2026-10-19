@@ -41,7 +41,7 @@ export default function Header({ onToggleMenu }) {
         v{VERSION}
       </button>
       {puedeInstalar && (
-        <button type="button" className="btn btn-sm" onClick={instalar} title="Instalá Manager3D como app con acceso directo en tu equipo" style={{ marginLeft: '10px' }}>⬇ Instalar app</button>
+        <button type="button" className="btn btn-sm" onClick={instalar} title="Instalá Manager3D como app con acceso directo en tu equipo" style={{ marginLeft: '10px' }}>⬇<span className="header-action-label"> Instalar app</span></button>
       )}
       {ES_PRUEBA && (
         <span title="Estás en el entorno de prueba: los datos no son los reales" style={{ marginLeft: '10px', padding: '2px 8px', borderRadius: '10px', background: 'var(--amber, #d97706)', color: '#fff', fontSize: '11px', fontWeight: 700, letterSpacing: '.5px' }}>PRUEBA</span>
@@ -102,7 +102,7 @@ export default function Header({ onToggleMenu }) {
             whiteSpace: 'nowrap'
           }}
         >
-          ⚠ Sin guardar en la nube
+          ⚠<span className="header-action-label"> Sin guardar en la nube</span>
         </div>
       )}
 
@@ -125,7 +125,7 @@ export default function Header({ onToggleMenu }) {
               cursor: 'pointer'
             }}
           >
-            🧭 Recorrido
+            🧭<span className="header-action-label"> Recorrido</span>
           </button>
         )}
         {user && (
