@@ -1,4 +1,4 @@
-# Revisión de las preguntas frecuentes (versión 16)
+# Revisión de las preguntas frecuentes (versión 16 a 16.4)
 
 Comparé la app en producción (v16, con la tienda con stock, el aviso de pedido listo y los cambios del detalle del pedido) con las preguntas frecuentes y con la revisión anterior (`docs/revision-faq.md`, v15.5). Igual que en esa revisión, cada texto está listo para pegar en el editor de preguntas: las líneas que empiezan con "- " se ven como lista y lo que va entre `**` sale en negrita.
 
@@ -225,3 +225,90 @@ Los minutos exactos de cada capítulo están en el mensaje de entrega del video.
 
 - **Videos de Pedidos que muestran el detalle del pedido:** muestran el costo, el archivo y la impresora en cada pieza, que ya no aparecen.
 - **Video de Catálogo web (6.3):** sigue siendo válido para el formato Catálogo; no muestra la tarjeta Formato del catálogo.
+
+---
+
+# Actualización v16.4 (catálogo y tienda)
+
+Desde la v16 salieron las v16.1 a v16.4, con mejoras sobre todo en la tienda del catálogo. Estos textos completan o reemplazan los de arriba.
+
+## E1 · Correcciones a preguntas de este documento
+
+### 6.10 ¿Qué ve el cliente en la tienda? (reemplaza el texto de la Parte C)
+
+La tienda tiene dos vistas:
+
+- ✅ **En stock:** lo que está listo para entregar. Es la que se abre primero.
+- 🛠️ **Todo el catálogo:** suma los productos que no tenés en stock, que el cliente puede pedir **a pedido**.
+
+Arriba están las categorías como menú. Al pasar el mouse se despliegan sus subcategorías (y las sub-subcategorías, si las usás, ver 6.14). Las categorías que no entran en la barra van en el desplegable **Más**.
+
+Cada producto tiene su etiqueta, **En stock** o **A pedido**. En la ficha del producto:
+
+- Cada color dice cuántas unidades hay.
+- Si le asignaste una foto a cada color, al elegir el color se ve su foto (ver 6.13).
+- El cliente puede dejar un **comentario** en cada variante (talle, versión, un detalle), que te llega en el pedido.
+
+Si pide más de lo que hay, la app le muestra cuántas salen de stock y cuántas se fabrican a pedido. En la vista En stock sólo puede elegir los colores que hay y hasta la cantidad disponible.
+
+💡 Si todavía no cargaste stock, la tienda abre directamente en Todo el catálogo.
+
+### 6.9 ¿Cómo cargo los productos que tengo en stock?
+
+Agregar al final:
+
+📷 Al elegir el color ves la foto que le asignaste a ese color, para no confundirte de variante. Si el producto tiene colores marcados (ver 6.12), sólo se ofrecen esos.
+
+### 1.6.1 ¿Puedo avisarle al cliente por mail que su pedido está listo?
+
+Cambiar "el cliente recibe un mail con el nombre de tu emprendimiento" por:
+
+el cliente recibe un mail con el nombre de tu emprendimiento y **los productos de su pedido** (por ejemplo, "Maceta (x2) y Llavero"), así sabe enseguida de qué pedido se trata.
+
+## E2 · Preguntas existentes a las que hay que sumarles algo
+
+### 1.1.2 ¿Cómo le agrego piezas a un pedido? (o la pregunta de versiones y colores)
+
+Agregar:
+
+🎨 **Piezas de dos colores:** en el color de cada versión, las combinaciones que armaste en **Configuración → Combinaciones de colores** aparecen en un grupo aparte. Al elegir una se cargan **los dos colores a la vez**. Funciona en el detalle del pedido, al armar un pedido desde la Biblioteca y al agregar una pieza desde la Calculadora.
+
+### 3.2.2 ¿Cómo guardo un producto para no recalcularlo cada vez? / 4. Biblioteca, editar producto
+
+Agregar a la lista de datos:
+
+🗂️ Sub-subcategoría (opcional): un tercer nivel dentro de la subcategoría, para ordenar mejor el menú de la tienda (ver 6.14).
+
+## E3 · Preguntas nuevas
+
+### 6.12 ¿Cómo elijo qué colores se ofrecen de cada producto?
+
+En **Biblioteca → Editar** el producto, abrí **Colores y fotos**:
+
+- Marcá los colores que tiene ese producto. Con **Buscar color…** los encontrás rápido.
+- Tildá **Mostrar en el catálogo sólo los colores marcados**.
+- Tocá **Guardar cambios**.
+
+Desde ese momento, el catálogo, la tienda y la carga de stock ofrecen sólo esos colores. Si el producto usa combinaciones de dos colores, se marcan las combinaciones.
+
+💡 Sin la opción tildada, o sin ningún color marcado, se ofrecen todos tus colores. Dentro de la app (pedidos, armar pedido) siempre ves todos.
+
+### 6.13 ¿Puedo mostrar una foto distinta para cada color?
+
+Sí, si el producto tiene 2 fotos o más. En **Biblioteca → Editar → Colores y fotos**, al lado de cada color elegí cuál de las fotos le corresponde. Ves una miniatura de la foto elegida.
+
+En la tienda, cuando el cliente elige un color, la ficha muestra su foto. Los colores sin foto asignada muestran la que se estaba viendo.
+
+💡 Si sacás una foto del producto, el color que la usaba vuelve a la foto principal.
+
+### 6.14 ¿Cómo agrego un tercer nivel de categorías en la tienda?
+
+Con la **sub-subcategoría**. Se carga al guardar o editar un producto en la Biblioteca, debajo de la subcategoría (sólo si el producto tiene subcategoría).
+
+Ejemplo: Deco › Macetas › Colgantes.
+
+En la tienda, al pasar el mouse por la subcategoría se despliegan sus sub-subcategorías. El formato Catálogo no la usa: ahí el producto se sigue viendo dentro de su subcategoría.
+
+## E4 · Video
+
+El video **FAQ-TS-Tienda-con-stock.mp4** se grabó con la v16 y sigue siendo válido. No muestra el menú **Más**, las fotos por color, los colores marcados ni el comentario por variante. Si querés, se puede sumar un video corto sobre **Colores y fotos** (6.12 y 6.13).
