@@ -104,6 +104,14 @@ export function estimarConsumoPedido(pedido, biblioteca, cfg) {
   return { lineas, insumos };
 }
 
+// ¿Todo el pedido son productos sin impresión (reventa) y no lleva insumos? Entonces no hay nada que descontar del
+// inventario de filamento y no corresponde abrir el descuento.
+export const pedidoSinConsumo = (pedido, biblioteca) => {
+  const piezas = pedido?.piezas || [];
+  if (!piezas.length || (pedido?.insumos || []).some((i) => i.nombre)) return false;
+  return piezas.every((pz) => pz.sinImpresion || esSinImpresion((biblioteca || []).find((b) => normal(b.nombre) === normal(pz.nombre))));
+};
+
 // Artículo del inventario propuesto para una línea de filamento: mismo
 // color (por nombre o, si no, por código) y, si se conoce, mismo tipo. Entre
 // varios, el de más stock. Devuelve la clave o ''.

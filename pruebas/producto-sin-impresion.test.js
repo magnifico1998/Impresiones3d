@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { esSinImpresion, precioDesdeMargen, margenDesdePrecio, camposSinImpresion } from '../src/utils/productoSinImpresion';
 import { piezaDesdeBiblioteca } from '../src/utils/piezaPedido';
-import { estimarConsumoPedido } from '../src/utils/consumoPedido';
+import { estimarConsumoPedido, pedidoSinConsumo } from '../src/utils/consumoPedido';
 
 const reventa = { id: 7, nombre: 'Termo', ...camposSinImpresion({ costo: 10000, precio: 15000 }) };
 
@@ -32,5 +32,14 @@ describe('productos sin impresión', () => {
     // Aunque la pieza no traiga la marca (pedidos viejos), se reconoce por el producto de la Biblioteca.
     const { lineas: l2 } = estimarConsumoPedido({ piezas: [{ nombre: 'Termo', cantidad: 1 }] }, [reventa], {});
     expect(l2).toHaveLength(0);
+  });
+
+  it('un pedido solo de reventa no abre el descuento de inventario', () => {
+    const soloReventa = { piezas: [{ nombre: 'Termo', cantidad: 1, sinImpresion: true }], insumos: [] };
+    expect(pedidoSinConsumo(soloReventa, [reventa])).toBe(true);
+    expect(pedidoSinConsumo({ piezas: [{ nombre: 'Termo' }] }, [reventa])).toBe(true);
+    expect(pedidoSinConsumo({ piezas: [{ nombre: 'Termo', sinImpresion: true }, { nombre: 'Soporte' }] }, [reventa])).toBe(false);
+    expect(pedidoSinConsumo({ piezas: [{ nombre: 'Termo', sinImpresion: true }], insumos: [{ nombre: 'Caja' }] }, [reventa])).toBe(false);
+    expect(pedidoSinConsumo({ piezas: [] }, [reventa])).toBe(false);
   });
 });

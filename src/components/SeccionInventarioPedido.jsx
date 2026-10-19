@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { confirmar } from './Dialogos';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { formatoCantidad } from '../utils/inventario';
-import { consumosDelPedido, marcaSinDescuento, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
+import { consumosDelPedido, marcaSinDescuento, pedidoSinConsumo, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
 import ModalConsumoPedido from './modals/ModalConsumoPedido';
 
 // Bloque "Inventario" del detalle del pedido: lo que ya se descontó (con
@@ -12,7 +12,7 @@ import ModalConsumoPedido from './modals/ModalConsumoPedido';
 // completado o enviado y todavía no se descontó, abre solo la propuesta.
 
 export default function SeccionInventarioPedido({ pedido }) {
-  const { cfg } = useApp();
+  const { cfg, biblioteca } = useApp();
   const { movimientos, borrarMovimiento } = useMovimientosInventario();
   const [abierto, setAbierto] = useState(false);
   const estadoAnterior = useRef(pedido.estado);
@@ -20,13 +20,15 @@ export default function SeccionInventarioPedido({ pedido }) {
   const consumos = consumosDelPedido(movimientos, pedido.id);
   const yaDescontado = consumos.length > 0;
   const sinDescuento = marcaSinDescuento(movimientos, pedido.id);
+  // Sólo productos sin impresión (reventa): no hay filamento que descontar.
+  const sinConsumo = !yaDescontado && !sinDescuento && pedidoSinConsumo(pedido, biblioteca);
 
   // Sólo al CAMBIAR a completado/enviado (no al abrir un pedido que ya lo estaba).
   useEffect(() => {
     const antes = estadoAnterior.current;
     estadoAnterior.current = pedido.estado;
-    if (antes !== pedido.estado && ESTADOS_QUE_CONSUMEN.includes(pedido.estado) && !yaDescontado && !sinDescuento) setAbierto(true);
-  }, [pedido.estado, yaDescontado, sinDescuento]);
+    if (antes !== pedido.estado && ESTADOS_QUE_CONSUMEN.includes(pedido.estado) && !yaDescontado && !sinDescuento && !sinConsumo) setAbierto(true);
+  }, [pedido.estado, yaDescontado, sinDescuento, sinConsumo]);
 
   if (!cfg.inventarioHabilitado) return null;
 
@@ -54,6 +56,10 @@ export default function SeccionInventarioPedido({ pedido }) {
           <span className="badge badge-pending">sin descuento</span>
           <span style={{ flex: 1, minWidth: '200px' }}>Se confirmó sin descontar nada del inventario{sinDescuento.creadoPor ? ` (${sinDescuento.creadoPor})` : ''}.</span>
           <button className="btn btn-sm" onClick={() => borrarMovimiento(sinDescuento.id)} title="Quita la marca para poder descontarlo">Deshacer</button>
+        </div>
+      ) : sinConsumo ? (
+        <div style={{ fontSize: '13px', color: 'var(--text2)' }}>
+          Este pedido no consume inventario: sólo tiene productos sin impresión.
         </div>
       ) : (
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', fontSize: '13px', color: 'var(--text2)' }}>

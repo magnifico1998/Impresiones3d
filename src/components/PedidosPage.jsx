@@ -9,14 +9,14 @@ import { buildWaLink, findClientePedido, mensajeWhatsappPedido } from '../utils/
 import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
 import { useCapacidadProduccion } from '../hooks/useCapacidadProduccion';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
-import { inventarioResuelto, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
+import { inventarioResuelto, pedidoSinConsumo, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
 import ModalConsumoPedido from './modals/ModalConsumoPedido';
 import { ESTADOS_PEDIDO, textoEstadoPedido } from '../utils/estadosPedido';
 import { formatoNumero } from '../utils/numeros';
 import { esUnible, pedidosAbiertosDelCliente } from '../utils/unirPedidos';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
-  const { pedidos, clientes, cfg, updatePedido, showToast, fmt, cuentaId, planContratado } = useApp();
+  const { pedidos, clientes, cfg, updatePedido, showToast, fmt, cuentaId, planContratado, biblioteca } = useApp();
   const capacidad = useCapacidadProduccion();
 
   // Al pasar un pedido a completado/enviado desde la lista, se propone
@@ -237,7 +237,7 @@ export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
 
     showToast('Estado actualizado a: ' + textoEstadoPedido(newStatus));
 
-    if (cfg.inventarioHabilitado && ESTADOS_QUE_CONSUMEN.includes(newStatus) && !inventarioResuelto(movimientos, id)) {
+    if (cfg.inventarioHabilitado && ESTADOS_QUE_CONSUMEN.includes(newStatus) && !inventarioResuelto(movimientos, id) && !pedidoSinConsumo(pedidos.find((p) => p.id === id), biblioteca)) {
       setPedidoAConsumir(id);
     }
   };
