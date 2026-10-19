@@ -42,9 +42,10 @@ export function ofreceColores(producto, colores, combinaciones) {
   return (colores || []).some((c) => colorPermitido(producto, c.nombre));
 }
 
-// Antes de confirmar una compra en el catálogo: cuántas versiones quedaron sin color elegido. Una versión sin color
-// es válida si el producto no ofrece colores, o si esa cantidad sale entera de stock "sin color" (`deStock` >= cantidad).
+// Antes de confirmar una compra en el catálogo: cuántas versiones quedaron sin color elegido. En el catálogo y la tienda
+// todo producto se pide con su color, tenga o no stock: la única excepción es que la cuenta no tenga ningún color
+// cargado en Configuración (entonces no hay nada para elegir y el catálogo no puede quedar bloqueado).
 export function versionesSinColor(producto, versiones, colores, combinaciones) {
   if (!ofreceColores(producto, colores, combinaciones)) return 0;
-  return (versiones || []).filter((v) => (Number(v.cantidad) || 0) > 0 && !String(v.color || '').trim() && !((Number(v.deStock) || 0) >= (Number(v.cantidad) || 0) && (Number(v.deStock) || 0) > 0)).length;
+  return (versiones || []).filter((v) => (Number(v.cantidad) || 0) > 0 && !String(v.color || '').trim()).length;
 }

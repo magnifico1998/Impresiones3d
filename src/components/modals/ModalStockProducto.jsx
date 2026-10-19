@@ -7,7 +7,7 @@ import { fotoDeColor } from '../../utils/fotosColor';
 import { colorPermitido, combinacionPermitida } from '../../utils/coloresProducto';
 
 // Edita el stock de UN producto: una línea por color (y color secundario, si el producto lo usa).
-// Los colores salen de los de la cuenta (Configuración); "Sin color" es para productos que no se piden por color.
+// Los colores salen de los de la cuenta (Configuración). Cada línea de stock lleva su color: en el catálogo no hay productos sin color.
 export default function ModalStockProducto({ producto, onClose }) {
   const { cfg, updateProducto, showToast } = useApp();
   const capaModal = useCapaModal({ onClose, activo: !!producto });
@@ -37,6 +37,12 @@ export default function ModalStockProducto({ producto, onClose }) {
   };
 
   const guardar = async () => {
+    // Con colores cargados en la cuenta, no se guarda stock sin color (ni en las líneas viejas que lo tengan).
+    const hayColores = (cfg.colores || []).length > 0 || (cfg.combinacionesColores || []).length > 0;
+    if (hayColores && lineas.some((l) => (Number(l.cantidad) || 0) > 0 && !String(l.color || '').trim())) {
+      showToast('Elegí el color de cada línea de stock: en el catálogo todos los productos llevan color.', 'error');
+      return;
+    }
     setGuardando(true);
     try {
       await updateProducto(producto.id, (p) => ({ ...p, stock: normalizarStock(lineas) }));
@@ -74,12 +80,12 @@ export default function ModalStockProducto({ producto, onClose }) {
                 value={String(combinaciones.findIndex((c) => c.color === l.color && c.colorSecundario === l.colorSecundario))}
                 onChange={(e) => cambiarCombinacion(i, e.target.value)}
               >
-                <option value="-1">Sin color</option>
+                <option value="-1">Elegí una combinación…</option>
                 {combinaciones.map((c, ci) => (combinacionPermitida(producto, c.color, c.colorSecundario) || (c.color === l.color && c.colorSecundario === l.colorSecundario)) && <option key={ci} value={ci}>{c.color} + {c.colorSecundario}</option>)}
               </select>
             ) : (
               <select value={l.color} onChange={(e) => cambiar(i, 'color', e.target.value)}>
-                <option value="">Sin color</option>
+                <option value="">Elegí un color…</option>
                 {colores.map((c) => (colorPermitido(producto, c) || c === l.color) && <option key={c} value={c}>{c}</option>)}
               </select>
             )}

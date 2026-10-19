@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import ModalStockProducto from './modals/ModalStockProducto';
-import { stockTotal, textoStock } from '../utils/stock';
+import { normalizarStock, stockTotal, textoStock } from '../utils/stock';
 
 // Productos en stock: las unidades terminadas de cada producto de la Biblioteca. Son las que la tienda del
 // catálogo web muestra por defecto y vende al instante; lo que se pida de más queda a pedido.
 export default function StockPage() {
-  const { biblioteca, catalogoConfig } = useApp();
+  const { biblioteca, catalogoConfig, cfg } = useApp();
+  const hayColores = (cfg?.colores || []).length > 0 || (cfg?.combinacionesColores || []).length > 0;
   const [busqueda, setBusqueda] = useState('');
   const [soloConStock, setSoloConStock] = useState(false);
   const [editando, setEditando] = useState(null);
@@ -58,7 +59,8 @@ export default function StockPage() {
                 <tr key={p.id}>
                   <td style={{ fontWeight: 500 }}>{p.nombre}</td>
                   <td style={{ fontSize: '12px', color: 'var(--text3)' }}>{[p.cat, p.subcat, p.subsubcat].filter(Boolean).join(' › ') || '—'}</td>
-                  <td style={{ fontSize: '12px' }}>{total ? textoStock(p.stock) : <span style={{ color: 'var(--text3)' }}>Sin stock · a pedido</span>}</td>
+                  <td style={{ fontSize: '12px' }}>{total ? textoStock(p.stock) : <span style={{ color: 'var(--text3)' }}>Sin stock · a pedido</span>}
+                    {hayColores && normalizarStock(p.stock).some((l) => !l.color) && <div style={{ color: 'var(--warn)', fontWeight: 600 }}>⚠ Hay stock sin color: asignale uno (Editar stock) para que se pueda vender</div>}</td>
                   <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontWeight: 600 }}>{total}</td>
                   <td style={{ textAlign: 'right' }}><button className="btn btn-sm" onClick={() => setEditando(p)}>Editar stock</button></td>
                 </tr>

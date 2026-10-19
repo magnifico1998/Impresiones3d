@@ -777,10 +777,11 @@ Código: `src/utils/stock.js`, `src/components/StockPage.jsx`, `src/catalogo/Vis
   `coloresElegidos`, `src/utils/coloresProducto.js`). Con eso activado, el catálogo, la tienda y la carga de stock ofrecen sólo esos
   colores, tengan foto o no. Sin la opción, o sin ningún color marcado, se ofrecen todos. Los selectores internos de la app
   (pedidos, armar pedido) siguen mostrando todos los colores.
-- **Color obligatorio:** en el catálogo y la tienda, si el producto ofrece colores, cada unidad tiene que llevar su color elegido: se
-  controla al agregar el producto (ficha / panel) y de nuevo al enviar el pedido, que lista los productos a los que les falta
-  (`versionesSinColor`, `src/utils/coloresProducto.js`). No se exige si el producto no ofrece colores o si esa cantidad sale entera
-  de stock "sin color".
+- **Color obligatorio:** en el catálogo y la tienda todo producto se pide con su color, tenga o no stock: cada unidad lleva su
+  color elegido, se controla al agregar el producto (ficha / panel) y de nuevo al enviar el pedido, que lista los productos a los
+  que les falta (`versionesSinColor`, `src/utils/coloresProducto.js`). La única excepción es una cuenta sin ningún color cargado en
+  Configuración. El stock sigue la misma regla: cada línea de "Productos en stock" lleva su color (no se guarda sin él) y el stock
+  viejo sin color se marca con una advertencia en esa pantalla y no se ofrece en la tienda hasta asignarle uno.
 - **La compra** llega como solicitud en Catálogo web, igual que siempre; cada versión trae `deStock` (cuántas
   unidades salen de stock). Al **importar** la solicitud como pedido: `deStock` se revalida contra el stock real
   (se toma lo menor entre lo declarado y lo que hay; el visitante no es de fiar), esas unidades quedan **realizadas**

@@ -707,14 +707,14 @@ export default function CatalogoPublico() {
                                   })()}
                                   onChange={(e) => actualizarDraftCombinacion(v.localId, combinaciones[parseInt(e.target.value, 10)])}
                                 >
-                                  <option value="">Sin color</option>
+                                  <option value="">Elegí una combinación…</option>
                                   {combinaciones.map((comb, ci) => (
                                     combinacionPermitida(p, comb.color, comb.colorSecundario) && <option key={ci} value={ci}>{comb.color} + {comb.colorSecundario}</option>
                                   ))}
                                 </select>
                               ) : (
                                 <select value={v.color} onChange={(e) => actualizarDraftVersion(v.localId, 'color', e.target.value)}>
-                                  <option value="">Sin color</option>
+                                  <option value="">{colores.length ? 'Elegí un color…' : 'Sin color'}</option>
                                   {colores.map((c, ci) => colorPermitido(p, c.nombre) && <option key={ci} value={c.nombre}>{c.nombre}</option>)}
                                 </select>
                               )}

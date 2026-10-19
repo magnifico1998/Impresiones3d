@@ -326,7 +326,8 @@ export default function VistaTienda({ productos, config, fmt, carrito, colores, 
 
 function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresSecundarios, combinaciones, onCerrar, onConfirmar, onAmpliar }) {
   const total = stockTotal(p.stock);
-  const variantes = normalizarStock(p.stock);
+  // Con colores cargados en la cuenta, el stock sin color (de antes de que fuera obligatorio) no se ofrece: todo se vende con color.
+  const variantes = normalizarStock(p.stock).filter((l) => l.color || (!colores.length && !combinaciones.length));
   const mismaVariante = (a, b) => (a.color || '') === (b.color || '') && (a.colorSecundario || '') === (b.colorSecundario || '');
   const textoVariante = (l) => `${l.color ? l.color + (l.colorSecundario ? ` + ${l.colorSecundario}` : '') : 'Sin color'} · ${l.cantidad} en stock`;
 
@@ -446,12 +447,12 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
                       value={(() => { const i = combinaciones.findIndex((c) => c.color === v.color && c.colorSecundario === v.colorSecundario); return i >= 0 ? String(i) : ''; })()}
                       onChange={(e) => cambiarVariante(v.localId, combinaciones[parseInt(e.target.value, 10)])}
                     >
-                      <option value="">{stockDeVariante(p.stock, '', '') > 0 ? `Sin color · ${stockDeVariante(p.stock, '', '')} en stock` : 'Sin color'}</option>
+                      <option value="">Elegí una combinación…</option>
                       {combinaciones.map((c, i) => combinacionPermitida(p, c.color, c.colorSecundario) && <option key={i} value={i}>{etiquetaColor(c.color, c.colorSecundario)}</option>)}
                     </select>
                   ) : (
                     <select value={v.color} onChange={(e) => cambiar(v.localId, 'color', e.target.value)}>
-                      <option value="">{stockDeVariante(p.stock, '', v.colorSecundario) > 0 ? `Sin color · ${stockDeVariante(p.stock, '', v.colorSecundario)} en stock` : 'Sin color'}</option>
+                      <option value="">{colores.length ? 'Elegí un color…' : 'Sin color'}</option>
                       {colores.map((c, i) => colorPermitido(p, c.nombre) && <option key={i} value={c.nombre}>{etiquetaColor(c.nombre, '')}</option>)}
                     </select>
                   )}

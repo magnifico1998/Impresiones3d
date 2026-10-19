@@ -33,10 +33,10 @@ describe('validación de colores antes de confirmar', () => {
     expect(versionesSinColor({}, [{ cantidad: 2, color: '' }, { cantidad: 1, color: 'Rojo' }], colores, [])).toBe(1);
     expect(versionesSinColor({}, [{ cantidad: 2, color: 'Rojo' }], colores, [])).toBe(0);
   });
-  it('no se exige si el producto no ofrece colores o si sale entero de stock sin color', () => {
+  it('el color es obligatorio aunque salga de stock; solo se exime si la cuenta no tiene ningún color cargado', () => {
     expect(versionesSinColor({}, [{ cantidad: 1, color: '' }], [], [])).toBe(0);
-    expect(versionesSinColor({}, [{ cantidad: 2, color: '', deStock: 2 }], colores, [])).toBe(0);
-    expect(versionesSinColor({}, [{ cantidad: 2, color: '', deStock: 1 }], colores, [])).toBe(1);
+    expect(versionesSinColor({}, [{ cantidad: 2, color: '', deStock: 2 }], colores, [])).toBe(1);
+    expect(versionesSinColor({}, [{ cantidad: 2, color: 'Rojo', deStock: 2 }], colores, [])).toBe(0);
   });
   it('respeta los colores elegidos del producto y las combinaciones', () => {
     const p = { limitarColores: true, coloresElegidos: [{ color: 'Rojo', colorSecundario: '' }] };
