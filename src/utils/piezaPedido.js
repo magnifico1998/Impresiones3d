@@ -64,6 +64,8 @@ export function piezaDesdeBiblioteca(prod, { id, nombre, cantidad, precioUnitari
     horas,
     impresoraNombre: prod.impresoraNombre || null,
     costoUnitario: prod.costoUnitario || 0,
+    // Producto que no se imprime (reventa): el pedido no le pide filamento al completarse.
+    ...(prod.tipo === 'reventa' ? { sinImpresion: true } : {}),
     precioEstimado: precioUnitario,
     precioVenta: precioUnitario || prod.precioSugUnitario || 0,
     cantidad,

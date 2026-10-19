@@ -1697,6 +1697,7 @@ export const AppProvider = ({ children }) => {
       horas,
       impresoraNombre: prod.impresoraNombre || null,
       costoUnitario: prod.costoUnitario || 0,
+      ...(prod.tipo === 'reventa' ? { sinImpresion: true } : {}),
       // El precio sale de la biblioteca (misma fórmula que la copia pública,
       // ver proyeccionCatalogoProducto), NUNCA del precioUnit de la
       // solicitud: ese lo escribe un visitante anónimo y lo puede poner en

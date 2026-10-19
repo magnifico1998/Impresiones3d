@@ -409,6 +409,20 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   uno de los métodos de envío de Configuración (`metodoEnvio` del cliente) y
   se muestra en sus datos. Es sólo informativo: no se precarga en los pedidos.
   Si el método se borra de Configuración, la ficha lo conserva y lo marca.
+- **Productos sin impresión (reventa):** la Biblioteca también guarda cosas que el
+  negocio vende pero no imprime ("+ Producto sin impresión"). Llevan `tipo: 'reventa'`,
+  un costo de compra (`costoUnitario`) y un precio de venta (`precioSugUnitario`);
+  el resto de la app sólo lee esos dos números, así que funcionan igual en pedidos,
+  presupuestos, stock, tienda y catálogo web (con colores, fotos y stock). El precio
+  se recomienda como costo + margen sobre el costo y se puede pisar a mano (al tocar
+  el precio, el margen se recalcula). No tienen gramos, horas ni impresora, y por eso:
+  **no entran a "Actualizar precios"** (recálculo por insumos de impresión; su costo
+  se cambia a mano con "Costo y precio"), **sí entran a "Modificar precio Venta"**
+  (es un cambio de precio, no de costos), no suman horas a la capacidad de
+  producción, no piden descontar filamento al completar el pedido (la pieza lleva
+  `sinImpresion: true`) y no muestran G-code ni "Calcular u.". Guardar desde la
+  Calculadora con el nombre de un producto sin impresión se rechaza.
+  (`src/utils/productoSinImpresion.js`, `ModalProductoSinImpresion.jsx`).
 - **Archivos G-code de la Biblioteca:** cada producto puede guardar sus
   archivos laminados (`.gcode`/`.gco` o el `.gcode.3mf` de Bambu Studio, hasta
   300 MB cada uno), con la impresora para la que se laminaron. Se suben desde

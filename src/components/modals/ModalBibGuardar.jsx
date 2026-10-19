@@ -198,6 +198,11 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
 
     const existente = biblioteca.find(x => x.nombre.toLowerCase() === nameTrimmed.toLowerCase());
 
+    if (existente && existente.tipo === 'reventa') {
+      showToast(`"${existente.nombre}" es un producto sin impresión: elegí otro nombre o editá su costo desde la Biblioteca.`, 'error');
+      return;
+    }
+
     if (existente) {
       if (await confirmar('Se actualizan costos y datos de impresión con los valores actuales. Las imágenes y descripciones ya guardadas se conservan, salvo que hayas cargado nuevas.', { titulo: `Ya existe "${nameTrimmed}" en la biblioteca`, textoConfirmar: 'Reemplazar' })) {
         // Reemplazar actualiza el CÁLCULO (costos, horas, materiales, G-code),

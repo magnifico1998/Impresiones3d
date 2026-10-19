@@ -7,6 +7,8 @@
 // pieza; en piezas multicolor (G-code de Bambu) se reparte cada material
 // entre los colores de la versión (ver estimarConsumoPedido).
 
+import { esSinImpresion } from './productoSinImpresion';
+
 const normal = (t) => String(t || '').trim().toLowerCase();
 const hex6 = (h) => String(h || '').replace('#', '').slice(0, 6).toLowerCase();
 
@@ -39,6 +41,8 @@ export function estimarConsumoPedido(pedido, biblioteca, cfg) {
 
   (pedido?.piezas || []).forEach((pz, ip) => {
     const prod = (biblioteca || []).find((b) => normal(b.nombre) === normal(pz.nombre));
+    // Un producto que no se imprime (reventa) no consume filamento.
+    if (pz.sinImpresion || esSinImpresion(prod)) return;
     const desperdicio = Number(pz.desperdicio ?? prod?.desperdicio ?? cfg?.desperdicio ?? 0) || 0;
     const factor = 1 + desperdicio / 100;
     const materiales = pz.materiales || prod?.materiales || null;

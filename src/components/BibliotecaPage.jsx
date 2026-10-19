@@ -6,6 +6,8 @@ import { generarListadoProductosPDF } from '../utils/listadoPDF';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import ModalOrdenCategorias from './modals/ModalOrdenCategorias';
 import ModalArchivosGcode from './modals/ModalArchivosGcode';
+import ModalProductoSinImpresion from './modals/ModalProductoSinImpresion';
+import { esSinImpresion } from '../utils/productoSinImpresion';
 import { escucharArchivosGcode } from '../utils/archivosGcode';
 import { useCapaModal } from './CapaModal';
 import { formatoNumero } from '../utils/numeros';
@@ -338,6 +340,8 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const [recalcModal, setRecalcModal] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null);
   const [ordenCatModalOpen, setOrdenCatModalOpen] = useState(false);
+  // Producto sin impresión (reventa): { id } al editar su costo y precio, {} al crear uno nuevo, null cerrado.
+  const [sinImpresionModal, setSinImpresionModal] = useState(null);
 
   // Archivos G-code de los productos (utils/archivosGcode.js): cuántos tiene
   // cada uno, para el botón de la tarjeta, y el producto abierto en el modal.
@@ -467,12 +471,17 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
   const handleRecalcAll = useCallback(() => {
     // Recalcular todos en tiempo real con cfg actual
-    const items = sortedList.map(prod => ({
+    // Los productos sin impresión no se recalculan: no tienen insumos de impresión, su costo se cambia a mano.
+    const items = sortedList.filter(prod => !esSinImpresion(prod)).map(prod => ({
       prod,
       nuevos: recalcularProducto(prod, cfg),
     }));
+    if (!items.length) {
+      showToast('No hay productos con impresión para actualizar. Los productos sin impresión se actualizan desde "Costo y precio".', 'info');
+      return;
+    }
     setRecalcModal(items);
-  }, [sortedList, cfg]);
+  }, [sortedList, cfg, showToast]);
 
   const handleConfirmRecalc = useCallback((selectedSet, items) => {
     const toUpdate = items.filter(it => selectedSet.has(it.prod.id));
@@ -522,6 +531,9 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             Productos guardados para presupuestar sin importar el G-code cada vez.
           </div>
         </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setSinImpresionModal({})} title="Cargar un producto que vendés pero no imprimís: lleva costo de compra y precio, sin gramos ni horas">
+          + Producto sin impresión
+        </button>
       </div>
 
       {/* Toolbar con filtros moderna */}
@@ -591,7 +603,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
               <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: '13px', height: '13px' }}>
                 <path d="M4 4v5h5M16 16v-5h-5M4.93 9A8 8 0 1 1 4 12" />
               </svg>
-              Actualizar precios ({sortedList.length})
+              Actualizar precios ({sortedList.filter(p => !esSinImpresion(p)).length})
             </button>
           )}
           {sortedList.length > 0 && (
@@ -763,9 +775,15 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
                               {p.subsubcat}
                             </span>
                           )}
-                          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
-                            ⏱ {p.horas ? formatoNumero(p.horas, 1) + 'h' : '—'}
-                          </span>
+                          {esSinImpresion(p) ? (
+                            <span style={{ fontSize: '11px', background: 'var(--infoDim)', color: 'var(--info)', padding: '2px 8px', borderRadius: '20px', fontFamily: 'var(--mono)' }} title="Producto sin impresión: no se recalcula con Actualizar precios">
+                              Reventa
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
+                              ⏱ {p.horas ? formatoNumero(p.horas, 1) + 'h' : '—'}
+                            </span>
+                          )}
                           <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', paddingTop: '2px' }}>
                             💲 {fmt(p.precioSugUnitario || p.costoUnitario || 0)}
                           </span>
@@ -791,32 +809,47 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
                         {/* Botones de acción */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: 'auto', paddingTop: '4px' }}>
-                          <button
-                            className="btn btn-sm"
-                            style={{ flex: '1 1 auto', justifyContent: 'center' }}
-                            onClick={() => onLoadInCalculator(p.id)}
-                          >
-                            Calcular u.
-                          </button>
-                          <button
-                            className="btn btn-sm"
-                            style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
-                            title="Recalcular este producto"
-                            onClick={() => handleRecalcSingle(p)}
-                          >
-                            ↺
-                          </button>
+                          {esSinImpresion(p) ? (
+                            <button
+                              className="btn btn-sm"
+                              style={{ flex: '1 1 auto', justifyContent: 'center' }}
+                              title="Cambiar el costo de compra y el precio de venta"
+                              onClick={() => setSinImpresionModal({ id: p.id })}
+                            >
+                              Costo y precio
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                className="btn btn-sm"
+                                style={{ flex: '1 1 auto', justifyContent: 'center' }}
+                                onClick={() => onLoadInCalculator(p.id)}
+                              >
+                                Calcular u.
+                              </button>
+                              <button
+                                className="btn btn-sm"
+                                style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
+                                title="Recalcular este producto"
+                                onClick={() => handleRecalcSingle(p)}
+                              >
+                                ↺
+                              </button>
+                            </>
+                          )}
                           <button className="btn btn-sm" onClick={() => onOpenEditCat(p.id)}>
                             Editar
                           </button>
-                          <button
-                            className="btn btn-sm"
-                            title="Archivos G-code de este producto"
-                            onClick={() => setProductoGcode(p)}
-                            style={gcodePorProducto[String(p.id)] ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
-                          >
-                            📄{gcodePorProducto[String(p.id)] ? ` ${gcodePorProducto[String(p.id)]}` : ''}
-                          </button>
+                          {!esSinImpresion(p) && (
+                            <button
+                              className="btn btn-sm"
+                              title="Archivos G-code de este producto"
+                              onClick={() => setProductoGcode(p)}
+                              style={gcodePorProducto[String(p.id)] ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : undefined}
+                            >
+                              📄{gcodePorProducto[String(p.id)] ? ` ${gcodePorProducto[String(p.id)]}` : ''}
+                            </button>
+                          )}
                           <button
                             className="btn btn-sm"
                             title="Ajustar precio"
@@ -906,6 +939,10 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
           }}
           onClose={() => setAdjustModal(null)}
         />
+      )}
+
+      {sinImpresionModal && (
+        <ModalProductoSinImpresion isOpen productoId={sinImpresionModal.id ?? null} onClose={() => setSinImpresionModal(null)} />
       )}
 
       {productoGcode && (
