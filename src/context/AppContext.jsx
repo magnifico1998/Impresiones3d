@@ -124,6 +124,9 @@ const proyeccionCatalogoProducto = (p) => ({
   stock: normalizarStock(p.stock),
   // Foto que le corresponde a cada color (la tienda la muestra al elegir el color).
   fotosColor: Array.isArray(p.fotosColor) ? p.fotosColor : [],
+  // Colores con los que se ofrece (si limitarColores): ver utils/coloresProducto.js.
+  limitarColores: !!p.limitarColores,
+  coloresElegidos: Array.isArray(p.coloresElegidos) ? p.coloresElegidos : [],
   actualizado: new Date().toISOString()
 });
 

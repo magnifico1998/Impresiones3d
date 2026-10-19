@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { useCapaModal } from '../CapaModal';
 import { normalizarStock } from '../../utils/stock';
 import { fotoDeColor } from '../../utils/fotosColor';
+import { colorPermitido, combinacionPermitida } from '../../utils/coloresProducto';
 
 // Edita el stock de UN producto: una línea por color (y color secundario, si el producto lo usa).
 // Los colores salen de los de la cuenta (Configuración); "Sin color" es para productos que no se piden por color.
@@ -74,12 +75,12 @@ export default function ModalStockProducto({ producto, onClose }) {
                 onChange={(e) => cambiarCombinacion(i, e.target.value)}
               >
                 <option value="-1">Sin color</option>
-                {combinaciones.map((c, ci) => <option key={ci} value={ci}>{c.color} + {c.colorSecundario}</option>)}
+                {combinaciones.map((c, ci) => (combinacionPermitida(producto, c.color, c.colorSecundario) || (c.color === l.color && c.colorSecundario === l.colorSecundario)) && <option key={ci} value={ci}>{c.color} + {c.colorSecundario}</option>)}
               </select>
             ) : (
               <select value={l.color} onChange={(e) => cambiar(i, 'color', e.target.value)}>
                 <option value="">Sin color</option>
-                {colores.map((c) => <option key={c} value={c}>{c}</option>)}
+                {colores.map((c) => (colorPermitido(producto, c) || c === l.color) && <option key={c} value={c}>{c}</option>)}
               </select>
             )}
             {modo === 'libre' && (

@@ -772,6 +772,11 @@ Código: `src/utils/stock.js`, `src/components/StockPage.jsx`, `src/catalogo/Vis
   fotos del producto (`fotosColor: [{ color, colorSecundario, imagen }]`, `src/utils/fotosColor.js`). En la ficha de la tienda, al
   elegir un color se muestra su foto; sin foto asignada queda la que se estaba viendo. Se busca primero la combinación
   exacta (color + color 2) y si no, el color solo. Si se quita una foto del producto, su asignación se descarta al guardar.
+- **Colores disponibles por producto:** en Biblioteca → editar producto → "Colores y fotos" se marcan los colores que tiene el
+  producto (buscador incluido) y se activa "Mostrar en el catálogo sólo los colores marcados" (`limitarColores` +
+  `coloresElegidos`, `src/utils/coloresProducto.js`). Con eso activado, el catálogo, la tienda y la carga de stock ofrecen sólo esos
+  colores, tengan foto o no. Sin la opción, o sin ningún color marcado, se ofrecen todos. Los selectores internos de la app
+  (pedidos, armar pedido) siguen mostrando todos los colores.
 - **La compra** llega como solicitud en Catálogo web, igual que siempre; cada versión trae `deStock` (cuántas
   unidades salen de stock). Al **importar** la solicitud como pedido: `deStock` se revalida contra el stock real
   (se toma lo menor entre lo declarado y lo que hay; el visitante no es de fiar), esas unidades quedan **realizadas**

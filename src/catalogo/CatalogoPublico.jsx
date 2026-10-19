@@ -7,6 +7,7 @@ import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/p
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import VistaTienda, { ESTILOS_TIENDA } from './VistaTienda';
 import { repartirConStock } from '../utils/stock';
+import { colorPermitido, combinacionPermitida } from '../utils/coloresProducto';
 import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe, textosSecundariosDe } from '../utils/catalogoMarca';
 
 const newLocalId = () => Date.now() + Math.random();
@@ -698,13 +699,13 @@ export default function CatalogoPublico() {
                                 >
                                   <option value="">Sin color</option>
                                   {combinaciones.map((comb, ci) => (
-                                    <option key={ci} value={ci}>{comb.color} + {comb.colorSecundario}</option>
+                                    combinacionPermitida(p, comb.color, comb.colorSecundario) && <option key={ci} value={ci}>{comb.color} + {comb.colorSecundario}</option>
                                   ))}
                                 </select>
                               ) : (
                                 <select value={v.color} onChange={(e) => actualizarDraftVersion(v.localId, 'color', e.target.value)}>
                                   <option value="">Sin color</option>
-                                  {colores.map((c, ci) => <option key={ci} value={c.nombre}>{c.nombre}</option>)}
+                                  {colores.map((c, ci) => colorPermitido(p, c.nombre) && <option key={ci} value={c.nombre}>{c.nombre}</option>)}
                                 </select>
                               )}
                               {p.modoColorSecundario === 'libre' && (

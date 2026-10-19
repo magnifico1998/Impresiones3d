@@ -7,6 +7,7 @@ import CampoMoneda from '../CampoMoneda';
 import ModalArchivosGcode from './ModalArchivosGcode';
 import { escucharArchivosGcode } from '../../utils/archivosGcode';
 import { fotoDeColor, normalizarFotosColor, ponerFotoColor } from '../../utils/fotosColor';
+import { estaMarcado, marcarColor } from '../../utils/coloresProducto';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
@@ -33,6 +34,9 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const [modoColorSecundario, setModoColorSecundario] = useState('');
   const [imagenes, setImagenes] = useState([]);
   const [fotosColor, setFotosColor] = useState([]);
+  const [limitarColores, setLimitarColores] = useState(false);
+  const [coloresElegidos, setColoresElegidos] = useState([]);
+  const [busquedaColor, setBusquedaColor] = useState('');
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
@@ -70,6 +74,9 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         setModoColorSecundario(prod.modoColorSecundario || (prod.permiteColorSecundario ? 'libre' : ''));
         setImagenes(prod.imagenes?.length ? prod.imagenes : (prod.imagen ? [prod.imagen] : []));
         setFotosColor(Array.isArray(prod.fotosColor) ? prod.fotosColor : []);
+        setLimitarColores(!!prod.limitarColores);
+        setColoresElegidos(Array.isArray(prod.coloresElegidos) ? prod.coloresElegidos : []);
+        setBusquedaColor('');
         subidasSesionRef.current = [];
       }
     }
@@ -207,7 +214,9 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
         imagenes,
         imagen: imagenes[0] || '',
         // Sólo las fotos de color que apuntan a una imagen que el producto sigue teniendo.
-        fotosColor: normalizarFotosColor(fotosColor, imagenes)
+        fotosColor: normalizarFotosColor(fotosColor, imagenes),
+        limitarColores,
+        coloresElegidos
       });
       for (const url of imagenesQuitadas) {
         if (url.includes('firebasestorage')) {
@@ -400,31 +409,56 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
             ))}
           </div>
         )}
-        {imagenes.length > 1 && (
+        {(cfg.colores || []).length > 0 && (
           <details style={{ marginTop: '10px' }}>
             <summary style={{ cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-              Foto de cada color (opcional){fotosColor.length ? ` · ${fotosColor.length} asignada${fotosColor.length !== 1 ? 's' : ''}` : ''}
+              Colores y fotos (opcional)
+              {limitarColores && coloresElegidos.length ? ` · solo ${coloresElegidos.length} color${coloresElegidos.length !== 1 ? 'es' : ''}` : ''}
+              {fotosColor.length ? ` · ${fotosColor.length} foto${fotosColor.length !== 1 ? 's' : ''} asignada${fotosColor.length !== 1 ? 's' : ''}` : ''}
             </summary>
-            <div style={{ fontSize: '11px', color: 'var(--text3)', margin: '6px 0' }}>
-              En la tienda, al elegir un color se muestra la foto que le asignes acá. Los colores sin foto muestran la principal.
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', margin: '8px 0 2px' }}>
+              <input type="checkbox" checked={limitarColores} onChange={(e) => setLimitarColores(e.target.checked)} />
+              Mostrar en el catálogo sólo los colores marcados
+            </label>
+            <div style={{ fontSize: '11px', color: 'var(--text3)', margin: '2px 0 6px' }}>
+              Marcá los colores que tiene este producto: en el catálogo y la tienda se ofrecen sólo esos, tengan foto o no. Sin ninguno marcado se ofrecen todos.
+              {imagenes.length > 1 && ' Además podés asignarle a cada color una de las fotos: al elegirlo se muestra esa.'}
             </div>
-            {(modoColorSecundario === 'combinaciones'
-              ? (cfg.combinacionesColores || []).map((c) => ({ color: c.color, colorSecundario: c.colorSecundario }))
-              : (cfg.colores || []).map((c) => ({ color: c.nombre, colorSecundario: '' }))
-            ).map((c) => {
-              const actual = fotoDeColor(fotosColor, c.color, c.colorSecundario);
-              const exacta = fotosColor.find((f) => f.color === c.color && (f.colorSecundario || '') === (c.colorSecundario || ''))?.imagen || '';
-              return (
-                <div key={`${c.color}|${c.colorSecundario}`} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 34px', gap: '6px', alignItems: 'center', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '12px' }}>{[c.color, c.colorSecundario].filter(Boolean).join(' + ')}</span>
-                  <select value={exacta} onChange={(e) => setFotosColor(prev => ponerFotoColor(prev, c.color, c.colorSecundario, e.target.value))} style={{ fontSize: '12px', padding: '4px' }}>
-                    <option value="">Foto principal</option>
-                    {imagenes.map((url, i) => <option key={url} value={url}>Foto {i + 1}</option>)}
-                  </select>
-                  {actual ? <img src={actual} alt="" style={{ width: '34px', height: '34px', objectFit: 'cover', borderRadius: '6px' }} /> : <span />}
-                </div>
-              );
-            })}
+            <input
+              type="text"
+              placeholder="Buscar color…"
+              value={busquedaColor}
+              onChange={(e) => setBusquedaColor(e.target.value)}
+              style={{ marginBottom: '6px', fontSize: '12px', padding: '5px 8px' }}
+            />
+            <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
+              {(modoColorSecundario === 'combinaciones'
+                ? (cfg.combinacionesColores || []).map((c) => ({ color: c.color, colorSecundario: c.colorSecundario }))
+                : (cfg.colores || []).map((c) => ({ color: c.nombre, colorSecundario: '' }))
+              )
+                .filter((c) => !busquedaColor.trim() || [c.color, c.colorSecundario].join(' ').toLowerCase().includes(busquedaColor.trim().toLowerCase()))
+                .map((c) => {
+                  const actual = fotoDeColor(fotosColor, c.color, c.colorSecundario);
+                  const exacta = fotosColor.find((f) => f.color === c.color && (f.colorSecundario || '') === (c.colorSecundario || ''))?.imagen || '';
+                  const marcado = estaMarcado(coloresElegidos, c.color, c.colorSecundario);
+                  return (
+                    <div key={`${c.color}|${c.colorSecundario}`} style={{ display: 'grid', gridTemplateColumns: imagenes.length > 1 ? '20px 1fr 1fr 34px' : '20px 1fr', gap: '6px', alignItems: 'center', marginBottom: '4px', opacity: limitarColores && coloresElegidos.length && !marcado ? 0.55 : 1 }}>
+                      <input type="checkbox" checked={marcado} onChange={(e) => setColoresElegidos(prev => marcarColor(prev, c.color, c.colorSecundario, e.target.checked))} title="Disponible en este producto" />
+                      <span style={{ fontSize: '12px' }}>{[c.color, c.colorSecundario].filter(Boolean).join(' + ')}</span>
+                      {imagenes.length > 1 && (
+                        <select value={exacta} onChange={(e) => setFotosColor(prev => ponerFotoColor(prev, c.color, c.colorSecundario, e.target.value))} style={{ fontSize: '12px', padding: '4px' }}>
+                          <option value="">Foto principal</option>
+                          {imagenes.map((url, i) => <option key={url} value={url}>Foto {i + 1}</option>)}
+                        </select>
+                      )}
+                      {imagenes.length > 1 && (actual ? <img src={actual} alt="" style={{ width: '34px', height: '34px', objectFit: 'cover', borderRadius: '6px' }} /> : <span />)}
+                    </div>
+                  );
+                })}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+              <button type="button" className="btn btn-sm" onClick={() => setColoresElegidos([])}>Desmarcar todos</button>
+            </div>
           </details>
         )}
         <datalist id="bib-edit-cats-list-modal">

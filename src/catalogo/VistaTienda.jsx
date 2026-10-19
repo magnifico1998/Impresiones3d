@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { fotoDeColor } from '../utils/fotosColor';
+import { colorPermitido, combinacionPermitida } from '../utils/coloresProducto';
 import { normalizarStock, repartirConStock, stockDeVariante, stockTotal } from '../utils/stock';
 
 // Formato "tienda" del catálogo web (catalogoConfig.modo === 'tienda'): categorías arriba como desplegables con sus
@@ -444,12 +445,12 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
                       onChange={(e) => cambiarVariante(v.localId, combinaciones[parseInt(e.target.value, 10)])}
                     >
                       <option value="">{stockDeVariante(p.stock, '', '') > 0 ? `Sin color · ${stockDeVariante(p.stock, '', '')} en stock` : 'Sin color'}</option>
-                      {combinaciones.map((c, i) => <option key={i} value={i}>{etiquetaColor(c.color, c.colorSecundario)}</option>)}
+                      {combinaciones.map((c, i) => combinacionPermitida(p, c.color, c.colorSecundario) && <option key={i} value={i}>{etiquetaColor(c.color, c.colorSecundario)}</option>)}
                     </select>
                   ) : (
                     <select value={v.color} onChange={(e) => cambiar(v.localId, 'color', e.target.value)}>
                       <option value="">{stockDeVariante(p.stock, '', v.colorSecundario) > 0 ? `Sin color · ${stockDeVariante(p.stock, '', v.colorSecundario)} en stock` : 'Sin color'}</option>
-                      {colores.map((c, i) => <option key={i} value={c.nombre}>{etiquetaColor(c.nombre, '')}</option>)}
+                      {colores.map((c, i) => colorPermitido(p, c.nombre) && <option key={i} value={c.nombre}>{etiquetaColor(c.nombre, '')}</option>)}
                     </select>
                   )}
                   {p.modoColorSecundario === 'libre' && (
