@@ -137,7 +137,7 @@ describe('G-code enviados desde una pieza', () => {
 
 describe('notas internas del producto', () => {
   it('no salen en la copia pública del catálogo (el costo sólo como precio de último recurso)', () => {
-    const fuente = fs.readFileSync(new URL('../src/context/AppContext.jsx', import.meta.url), 'utf8');
+    const fuente = fs.readFileSync(new URL('../src/context/documentos.js', import.meta.url), 'utf8');
     const ini = fuente.indexOf('const proyeccionCatalogoProducto');
     expect(ini).toBeGreaterThan(-1);
     const cuerpo = fuente.slice(ini, fuente.indexOf('});', ini));

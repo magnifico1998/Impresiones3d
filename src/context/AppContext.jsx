@@ -6,157 +6,22 @@ import {
 import { confirmar, pedirTexto } from '../components/Dialogos';
 import { auth, db, googleProvider, functions } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, deleteField, deleteDoc, onSnapshot, collection, getDocs, writeBatch, query, orderBy, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { paletas } from '../utils/paletas';
 import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
-import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { registrarEvento } from '../utils/registroSoporte';
-import { normalizarStock, repartoParaImportar, descontarStock } from '../utils/stock';
-
-const defaultCfg = {
-  palette: 'tranqui',
-  filamentos: [
-    { nombre: 'PLA Blanco', precio: 17000 },
-    { nombre: 'PLA Negro', precio: 18000 },
-    { nombre: 'PLA Rojo', precio: 18500 },
-    { nombre: 'PLA Azul', precio: 18500 },
-    { nombre: 'PETG Transparente', precio: 22000 },
-    { nombre: 'ABS Gris', precio: 19000 },
-    { nombre: 'TPU', precio: 28000 }
-  ],
-  impresoras: [
-    { nombre: 'Bambu X1', watts: 350, mant: 200 },
-    { nombre: 'Prusa MK4', watts: 200, mant: 150 },
-    { nombre: 'Ender 3', watts: 120, mant: 80 }
-  ],
-  insumos: [
-    { nombre: 'Soporte/raft', precio: 500 },
-    { nombre: 'Adhesivo de cama', precio: 300 },
-    { nombre: 'Lijado', precio: 800 },
-    { nombre: 'Pintado', precio: 1500 },
-    { nombre: 'Empaque / envío', precio: 700 }
-  ],
-  colores: [
-    { nombre: 'Blanco', hex: '#f5f5f5', secundario: false },
-    { nombre: 'Negro', hex: '#1a1a1a', secundario: false },
-    { nombre: 'Rojo', hex: '#e53935', secundario: false },
-    { nombre: 'Azul', hex: '#1e88e5', secundario: false },
-    { nombre: 'Verde', hex: '#43a047', secundario: false },
-    { nombre: 'Gris', hex: '#9e9e9e', secundario: false },
-    { nombre: 'Amarillo', hex: '#fdd835', secundario: false }
-  ],
-  metodosEnvio: [
-    { nombre: 'Correo Argentino', urlSeguimiento: 'https://www.correoargentino.com.ar/seguimiento', incluirCodigo: false },
-    { nombre: 'Andreani', urlSeguimiento: 'https://www.andreani.com/#!/informacionEnvio/{codigo}' },
-    { nombre: 'Retiro en persona', urlSeguimiento: '' },
-    { nombre: 'Envío propio', urlSeguimiento: '' }
-  ],
-  kwh: 120,
-  mo: 500,
-  margen: 100,
-  desperdicio: 5,
-  // Si está activo, "Gastos" en Resumen suma todos los ítems de costo del
-  // producto (filamento, insumos, mantenimiento, electricidad, MO) y la
-  // fórmula de rentabilidad deja de restar "Gastos compras" (para no
-  // duplicar filamento/insumos que ya se compraron y cargaron ahí).
-  costoCompletoActivo: false,
-  // Habilita la pestaña "Inventario" en Compras (Configuración → Aplicación).
-  inventarioHabilitado: false,
-  // Orden manual de categorías (arrastrar para reordenar en Biblioteca).
-  // Lista de nombres de categoría; las que no aparecen acá se agregan al
-  // final ordenadas alfabéticamente. Se persiste igual que el resto de cfg.
-  categoriaOrden: [],
-  // Pares de colores predefinidos ({color, colorSecundario}) para
-  // productos en modo "combinaciones" (ver proyeccionCatalogoProducto):
-  // el cliente elige la combinación completa de un único selector, no
-  // colores sueltos.
-  combinacionesColores: [],
-  // Capacidad de producción instalada (impresoras y horario de trabajo),
-  // etapa 1 de la estimación de ETA de pedidos: por ahora sólo define la
-  // capacidad, el cálculo en sí se suma en una etapa aparte. Independiente
-  // de la lista nombrada `impresoras` de arriba (esa es sólo para costeo
-  // eléctrico). diasLaborables: 0=Dom .. 6=Sáb.
-  capacidadProduccion: {
-    habilitado: false,
-    cantidadImpresoras: 1,
-    horasPorDia: 8,
-    horaInicio: 9,
-    diasLaborables: [1, 2, 3, 4, 5, 6]
-  }
-};
-
-const defaultEmpresa = {
-  nombre: '',
-  cuit: '',
-  direccion: '',
-  cp: '',
-  email: '',
-  telefono: '',
-  facebook: '',
-  instagram: '',
-  logo: '',
-  pais: PAIS_DEFAULT
-};
-
-// Campos "públicos" de un producto de biblioteca que se espejan a
-// catalogoTiendas/{uid}/productos — nombre, categoría, descripciones,
-// imágenes y precio de venta; nunca costoUnitario, filDetalle ni ningún
-// costo interno. Única fuente de esa proyección: la usan tanto la
-// publicación inicial (publicarProductosEnCatalogo) como la
-// re-sincronización automática al editar un producto ya publicado
-// (updateProducto / updateProductosBulk), para que el catálogo público
-// nunca quede mostrando un precio o una imagen viejos.
-const proyeccionCatalogoProducto = (p) => ({
-  id: p.id,
-  nombre: p.nombre,
-  cat: p.cat || 'Sin categoría',
-  subcat: p.subcat || '',
-  subsubcat: p.subsubcat || '',
-  desc: p.desc || '',
-  descLarga: p.descLarga || '',
-  imagen: p.imagen || '',
-  imagenes: p.imagenes?.length ? p.imagenes : (p.imagen ? [p.imagen] : []),
-  precio: p.precioSugUnitario || p.costoUnitario || 0,
-  // Fallback al booleano viejo (permiteColorSecundario) para no perder el
-  // flag de productos marcados antes de este cambio -- ver
-  // ModalBibEditarCat.jsx, que hace el mismo fallback al cargar.
-  modoColorSecundario: p.modoColorSecundario || (p.permiteColorSecundario ? 'libre' : ''),
-  // Unidades terminadas por color (sección Productos en stock): lo que la tienda del catálogo vende al instante.
-  stock: normalizarStock(p.stock),
-  // Foto que le corresponde a cada color (la tienda la muestra al elegir el color).
-  fotosColor: Array.isArray(p.fotosColor) ? p.fotosColor : [],
-  // Colores con los que se ofrece (si limitarColores): ver utils/coloresProducto.js.
-  limitarColores: !!p.limitarColores,
-  coloresElegidos: Array.isArray(p.coloresElegidos) ? p.coloresElegidos : [],
-  actualizado: new Date().toISOString()
-});
-
-// Campos de primer nivel que difieren entre la versión local (`antes`) y
-// la nueva, listos para updateDoc/batch.update. Antes cada update hacía
-// setDoc del objeto COMPLETO armado desde el estado local: si otra pestaña
-// o un miembro del equipo había cambiado otro campo del mismo documento un
-// segundo antes, esa escritura lo pisaba con el valor viejo. Escribiendo
-// sólo lo que cambió, dos ediciones de campos distintos ya no se pisan.
-const camposCambiados = (antes, despues) => {
-  const cambios = {};
-  Object.keys(despues).forEach(k => {
-    if (JSON.stringify(antes?.[k]) !== JSON.stringify(despues[k])) {
-      cambios[k] = despues[k] === undefined ? deleteField() : despues[k];
-    }
-  });
-  Object.keys(antes || {}).forEach(k => {
-    if (!(k in despues)) cambios[k] = deleteField();
-  });
-  return cambios;
-};
-
-const hayCambios = (cambios) => Object.keys(cambios).length > 0;
-
-const numeroSiguientePresupuesto = (presupuestos) =>
-  presupuestos.reduce((max, p) => Math.max(max, Number(p.numero) || 0), 0) + 1;
+import { defaultCfg, defaultEmpresa } from './valoresPorDefecto';
+import { numeroSiguientePresupuesto } from './documentos';
+import { crearAccionesDatos } from './accionesDatos';
+import { crearAccionesCatalogo } from './accionesCatalogo';
+import { crearAccionesBackup } from './accionesBackup';
+import { crearAccionesEquipo } from './accionesEquipo';
+import { useDatosEnVivo } from './useDatosEnVivo';
 
 // Acciones que el proveedor expone con identidad estable (ver más abajo).
+const nuevoIdAviso = () => Date.now() + Math.random();
+
 const NOMBRES_ACCIONES = [
   'addPedido', 'updatePedido', 'updatePedidosBulk',
   'addCompra', 'updateCompra', 'removeCompra',
@@ -172,11 +37,6 @@ const NOMBRES_ACCIONES = [
 ];
 
 export const AppProvider = ({ children }) => {
-  const [pedidos, setPedidos] = useState([]);
-  const [compras, setCompras] = useState([]);
-  const [presupuestos, setPresupuestos] = useState([]);
-  const [biblioteca, setBiblioteca] = useState([]);
-  const [clientes, setClientes] = useState([]);
   const [empresa, setEmpresa] = useState(defaultEmpresa);
   const [cfg, setCfg] = useState(defaultCfg);
   const [idCounter, setIdCounter] = useState(1);
@@ -192,14 +52,11 @@ export const AppProvider = ({ children }) => {
   // config visible del catálogo (colores, nombre, activo/inactivo).
   // catalogoSolicitudes son los "carritos" que arma un cliente y se leen
   // acá para poder importarlos como Pedido con un clic.
-  const [catalogoConfig, setCatalogoConfig] = useState(null);
-  const [solicitudesWeb, setSolicitudesWeb] = useState([]);
 
   // Preguntas frecuentes: colección raíz "faq" (no bajo users/{uid}),
   // porque es contenido global compartido por todas las cuentas -- lo
   // arma/edita un admin general y lo ve cualquier usuario logueado (ver
   // firestore.rules).
-  const [faq, setFaq] = useState([]);
 
   const [user, setUser] = useState(null);
   // cuentaId: la raíz real de todas las rutas de datos (users/{cuentaId}/...,
@@ -212,11 +69,6 @@ export const AppProvider = ({ children }) => {
   // cual sólo para lo que es de la persona real logueada (ej. isAdmin).
   const [cuentaId, setCuentaId] = useState(null);
   const [esMiembro, setEsMiembro] = useState(false);
-  const [miembros, setMiembros] = useState([]);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [suscripcion, setSuscripcion] = useState(null);
-  const [planContratado, setPlanContratado] = useState(null);
-  const [consumoActual, setConsumoActual] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState('resumen');
 
@@ -233,6 +85,12 @@ export const AppProvider = ({ children }) => {
   // la pantalla de error para saber si fue la red, un permiso u otra cosa.
   const [loadErrorDetalle, setLoadErrorDetalle] = useState('');
   
+  // Datos que llegan en vivo de Firestore (colecciones de la cuenta, suscripción, plan, equipo, catálogo).
+  const {
+    pedidos, compras, presupuestos, biblioteca, clientes, faq,
+    catalogoConfig, solicitudesWeb, miembros, isAdmin, suscripcion, planContratado, consumoActual
+  } = useDatosEnVivo({ user, cuentaId, esMiembro, datosCargadosOk });
+
   // Toasts
   const [toasts, setToasts] = useState([]);
 
@@ -245,7 +103,7 @@ export const AppProvider = ({ children }) => {
   // el botón "Reportar" (ver Toasts.jsx), y hay que darle tiempo a tocarlo.
   const showToast = (message, type = 'success', duration = type === 'error' ? 7000 : 3000) => {
     if (type === 'error') registrarEvento('aviso', message);
-    const id = Date.now() + Math.random();
+    const id = nuevoIdAviso();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
@@ -302,394 +160,42 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // ---------------------------------------------------------------------
-  // Compras: subcolección propia (users/{uid}/compras/{compraId}), un
-  // documento por compra, escritura directa en cada add/update/remove.
-  const compraDocRef = (id) => doc(db, "users", cuentaId, "compras", String(id));
+  const {
+    productoDocRef,
+    addCompra, updateCompra, removeCompra,
+    addPresupuesto, updatePresupuesto, removePresupuesto,
+    addCliente, updateCliente, removeCliente,
+    addProducto, updateProducto, removeProducto, updateProductosBulk,
+    addFaq, updateFaq, removeFaq,
+    addPedido, updatePedido, updatePedidosBulk
+  } = crearAccionesDatos({
+    cuentaId, compras, presupuestos, clientes, biblioteca, faq, pedidos,
+    planContratado, consumoActual, mostrarErrorGuardado, showToast
+  });
 
-  const addCompra = async (item) => {
-    try {
-      await setDoc(compraDocRef(item.id), item);
-    } catch (e) {
-      console.error("Error al guardar compra:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar la compra en la nube.');
+  // Estas se arman recién al usarlas (no al dibujar), con lo que hay cargado en ese momento.
+  const catalogo = () => crearAccionesCatalogo({
+    cuentaId, biblioteca, clientes, cfg, showToast, getNewId, productoDocRef,
+    addCliente, addPedido, updatePedido, updateProducto
+  });
+  const guardarCatalogoConfig = (...args) => catalogo().guardarCatalogoConfig(...args);
+  const publicarProductosEnCatalogo = (...args) => catalogo().publicarProductosEnCatalogo(...args);
+  const importarSolicitudComoPedido = (...args) => catalogo().importarSolicitudComoPedido(...args);
+  const descartarSolicitud = (...args) => catalogo().descartarSolicitud(...args);
+
+  const backup = () => crearAccionesBackup({
+    cuentaId, pedidos, compras, presupuestos, biblioteca, clientes, cfg, empresa, idCounter,
+    setCfg, setEmpresa, setIdCounter, showToast,
+    omitirProximoGuardadoConfig: () => { skipNextAutosaveRefMeta.current = true; },
+    registrarGuardadoConfig: (timestamp) => {
+      lastWrittenTimestampRefMeta.current = timestamp;
+      pendingWriteTimestampRefMeta.current = null;
     }
-  };
+  });
+  const exportarBackupData = () => backup().exportarBackupData();
+  const restaurarBackupData = (data) => backup().restaurarBackupData(data);
 
-  const updateCompra = async (id, updater) => {
-    try {
-      const actual = compras.find(c => c.id === id);
-      if (!actual) return;
-      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(compraDocRef(id), cambios);
-    } catch (e) {
-      console.error("Error al actualizar compra:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar la compra en la nube.');
-    }
-  };
-
-  const removeCompra = async (id) => {
-    try {
-      await deleteDoc(compraDocRef(id));
-    } catch (e) {
-      console.error("Error al eliminar compra:", e);
-      mostrarErrorGuardado('⚠ No se pudo eliminar la compra en la nube.');
-    }
-  };
-
-  // ---------------------------------------------------------------------
-  // Presupuestos: subcolección propia (users/{uid}/presupuestos/{id}), mismo
-  // patrón que compras. Estados: 'creado' -> 'enviado' (aguardando
-  // respuesta) -> 'aprobado' (crea el pedido, ver PresupuestosPage.jsx) o
-  // 'rechazado'. add/update devuelven true si se guardó, para que quien
-  // llama no avance (ej. no marque "aprobado") si Firestore lo rechazó.
-  const presupuestoDocRef = (id) => doc(db, "users", cuentaId, "presupuestos", String(id));
-
-  // Correlativo visible (N° 1, 2, 3...), calculado sobre los presupuestos
-  // cargados. Dos pestañas creando a la vez podrían repetir un número; es
-  // sólo un rótulo para el cliente, el id real del documento es único.
-
-
-  const addPresupuesto = async (item) => {
-    try {
-      await setDoc(presupuestoDocRef(item.id), item);
-      return true;
-    } catch (e) {
-      console.error("Error al guardar presupuesto:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar el presupuesto en la nube.');
-      return false;
-    }
-  };
-
-  const updatePresupuesto = async (id, updater) => {
-    try {
-      const actual = presupuestos.find(p => p.id === id);
-      if (!actual) return false;
-      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(presupuestoDocRef(id), cambios);
-      return true;
-    } catch (e) {
-      console.error("Error al actualizar presupuesto:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar el presupuesto en la nube.');
-      return false;
-    }
-  };
-
-  const removePresupuesto = async (id) => {
-    try {
-      await deleteDoc(presupuestoDocRef(id));
-    } catch (e) {
-      console.error("Error al eliminar presupuesto:", e);
-      mostrarErrorGuardado('⚠ No se pudo eliminar el presupuesto en la nube.');
-    }
-  };
-
-  // ---------------------------------------------------------------------
-  // FASE 2 de la migración a Firestore por secciones: clientes pasa de ser
-  // un array dentro del documento monolítico a una subcolección propia
-  // (users/{uid}/clientes/{clienteId}), un documento por cliente.
-  //
-  // A diferencia de pedidos/biblioteca/compras (que en esta fase siguen
-  // con el patrón "array + autosave debounced" de Fase 0), clientes ahora
-  // escribe directo a Firestore en cada add/update/remove — sin debounce,
-  // porque estas funciones ya se llaman solo en acciones explícitas
-  // (guardar/eliminar en un modal), no en cada tecla. El estado local
-  // `clientes` deja de ser la fuente de verdad: pasa a ser un reflejo del
-  // listener en tiempo real de la subcolección (más abajo), igual que ya
-  // pasaba con config/empresa en Fase 1.
-  //
-  // Mantenemos los mismos nombres (addCliente/updateCliente/removeCliente)
-  // que ya exportaba Fase 0, así ningún componente necesita cambios: sólo
-  // cambió qué hacen estas funciones por dentro.
-  const clienteDocRef = (id) => doc(db, "users", cuentaId, "clientes", String(id));
-
-  const addCliente = async (item) => {
-    try {
-      await setDoc(clienteDocRef(item.id), item);
-    } catch (e) {
-      console.error("Error al guardar cliente:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar el cliente en la nube.');
-    }
-  };
-
-  const updateCliente = async (id, updater) => {
-    try {
-      const actual = clientes.find(c => c.id === id);
-      if (!actual) return;
-      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(clienteDocRef(id), cambios);
-    } catch (e) {
-      console.error("Error al actualizar cliente:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar el cliente en la nube.');
-    }
-  };
-
-  const removeCliente = async (id) => {
-    try {
-      await deleteDoc(clienteDocRef(id));
-    } catch (e) {
-      console.error("Error al eliminar cliente:", e);
-      mostrarErrorGuardado('⚠ No se pudo eliminar el cliente en la nube.');
-    }
-  };
-
-  // ---------------------------------------------------------------------
-  // FASE 3 de la migración a Firestore por secciones: biblioteca pasa de
-  // ser un array dentro del documento monolítico a una subcolección propia
-  // (users/{uid}/biblioteca/{productoId}), un documento por producto. Es la
-  // sección que más pesaba del documento viejo (por las imágenes, aunque
-  // ahora sólo se guarda la URL de Storage, no el base64) y la principal
-  // candidata a acercarse al límite de 1 MiB de Firestore — separarla es el
-  // beneficio más directo de esta migración.
-  //
-  // Mismo patrón que clientes en Fase 2: escritura directa por documento,
-  // sin debounce, estado local alimentado por un listener en tiempo real
-  // sobre la subcolección. La diferencia acá es que varias pantallas
-  // (recalcular precios, ajuste masivo, actualización masiva) necesitan
-  // actualizar VARIOS productos a la vez — para eso se agrega
-  // updateProductosBulk, que hace un solo writeBatch en vez de N escrituras
-  // sueltas.
-  const productoDocRef = (id) => doc(db, "users", cuentaId, "biblioteca", String(id));
-
-  const addProducto = async (item) => {
-    try {
-      await setDoc(productoDocRef(item.id), item);
-    } catch (e) {
-      console.error("Error al guardar producto:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar el producto en la nube.');
-    }
-  };
-
-  const updateProducto = async (id, updater) => {
-    try {
-      const actual = biblioteca.find(p => p.id === id);
-      if (!actual) return;
-      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      const cambios = camposCambiados(actual, nuevo);
-      if (!hayCambios(cambios)) return;
-      if (nuevo.pub) {
-        // Producto publicado: la copia pública de catalogoTiendas se
-        // actualiza en el mismo batch. Antes sólo se actualizaba al volver
-        // a "Guardar cambios" en la pestaña Catálogo, y hasta entonces el
-        // catálogo público seguía mostrando (y vendiendo a) precio,
-        // nombre e imágenes viejos.
-        const batch = writeBatch(db);
-        batch.update(productoDocRef(id), cambios);
-        batch.set(catalogoProductoDocRef(id), proyeccionCatalogoProducto(nuevo));
-        await batch.commit();
-      } else {
-        await updateDoc(productoDocRef(id), cambios);
-      }
-    } catch (e) {
-      console.error("Error al actualizar producto:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar el producto en la nube.');
-      // Antes este error se atrapaba acá y nunca se volvía a lanzar, así que
-      // quien llamaba a updateProducto no tenía forma de saber que la
-      // escritura había fallado — por eso el modal de edición mostraba
-      // igual el toast de "✓ actualizado" aunque el guardado real hubiera
-      // fracasado. Relanzamos para que el caller pueda reaccionar (ver
-      // ModalBibEditarCat.jsx).
-      throw e;
-    }
-  };
-
-  const removeProducto = async (id) => {
-    try {
-      // Si el producto estaba publicado, su copia en catalogoTiendas/{uid}/
-      // productos tiene que caer junto con él — si no, queda un "fantasma"
-      // visible y pedible en /catalogo, encima con las imágenes rotas
-      // (BibliotecaPage las borra de Storage antes de llamar acá). Se borra
-      // la copia SIEMPRE, sin mirar el flag pub: borrar un doc inexistente
-      // no falla en Firestore y el flag local puede estar desactualizado.
-      const batch = writeBatch(db);
-      batch.delete(productoDocRef(id));
-      batch.delete(catalogoProductoDocRef(id));
-      await batch.commit();
-    } catch (e) {
-      console.error("Error al eliminar producto:", e);
-      mostrarErrorGuardado('⚠ No se pudo eliminar el producto en la nube.');
-    }
-  };
-
-  // FAQ: mismo patrón que biblioteca (escritura directa por documento, sin
-  // debounce), pero sobre la colección raíz "faq" -- firestore.rules ya
-  // restringe la escritura a admins, así que estas funciones son seguras de
-  // exponer a cualquier usuario (un no-admin simplemente recibirá
-  // permission-denied si intentara llamarlas).
-  const faqDocRef = (id) => doc(db, "faq", String(id));
-
-  const addFaq = async (item) => {
-    try {
-      await setDoc(faqDocRef(item.id), item);
-    } catch (e) {
-      console.error("Error al guardar pregunta frecuente:", e);
-      showToast('⚠ No se pudo guardar la pregunta en la nube.', 'error');
-      throw e;
-    }
-  };
-
-  const updateFaq = async (id, updater) => {
-    try {
-      const actual = faq.find(f => f.id === id);
-      if (!actual) return;
-      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(faqDocRef(id), cambios);
-    } catch (e) {
-      console.error("Error al actualizar pregunta frecuente:", e);
-      showToast('⚠ No se pudo actualizar la pregunta en la nube.', 'error');
-      throw e;
-    }
-  };
-
-  const removeFaq = async (id) => {
-    try {
-      await deleteDoc(faqDocRef(id));
-    } catch (e) {
-      console.error("Error al eliminar pregunta frecuente:", e);
-      showToast('⚠ No se pudo eliminar la pregunta en la nube.', 'error');
-    }
-  };
-
-  // ids: array o Set de ids a actualizar. updater: (item) => nuevoItem,
-  // recibe el producto ACTUAL (de `biblioteca`) y devuelve la versión
-  // completa a guardar. Los productos cuyo id no esté en `biblioteca` se
-  // omiten silenciosamente (por si se armó la selección con datos viejos).
-  const updateProductosBulk = async (ids, updater) => {
-    try {
-      const idSet = ids instanceof Set ? ids : new Set(ids);
-      const afectados = biblioteca.filter(p => idSet.has(p.id));
-      if (!afectados.length) return;
-
-      // Igual que en updateProducto: los publicados re-sincronizan su copia
-      // pública de catalogoTiendas en la misma pasada. Eso puede duplicar
-      // las operaciones por producto, y los batch de Firestore admiten 500
-      // como máximo — por eso se trocea en tandas y se commitean todas.
-      const batches = [];
-      let batch = writeBatch(db);
-      let ops = 0;
-      const agregarOp = (ref, data, { parcial = false } = {}) => {
-        if (parcial) batch.update(ref, data);
-        else batch.set(ref, data);
-        ops++;
-        if (ops >= 400) {
-          batches.push(batch);
-          batch = writeBatch(db);
-          ops = 0;
-        }
-      };
-      afectados.forEach(p => {
-        const nuevo = updater(p);
-        const cambios = camposCambiados(p, nuevo);
-        if (!hayCambios(cambios)) return;
-        agregarOp(productoDocRef(p.id), cambios, { parcial: true });
-        if (nuevo.pub) {
-          agregarOp(catalogoProductoDocRef(p.id), proyeccionCatalogoProducto(nuevo));
-        }
-      });
-      batches.push(batch);
-      await Promise.all(batches.map(b => b.commit()));
-    } catch (e) {
-      console.error("Error al actualizar productos en lote:", e);
-      mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.');
-    }
-  };
-
-  // ---------------------------------------------------------------------
-  // FASE 4 de la migración a Firestore por secciones: pedidos pasa de ser
-  // un array dentro del documento monolítico a una subcolección propia
-  // (users/{uid}/pedidos/{pedidoId}), un documento por pedido. Es la
-  // última sección y la más delicada: la de mayor volumen de escritura y
-  // la que originalmente disparaba el bug de la race condition (un único
-  // timestamp de eco compartido para todo el documento monolítico no
-  // alcanzaba cuando había múltiples guardados en vuelo). Con cada pedido
-  // como documento independiente, ese problema desaparece de raíz: ya no
-  // hay un timestamp global que comparar, cada escritura confirma sólo su
-  // propio documento.
-  //
-  // Mismo patrón que clientes/biblioteca: escritura directa por documento,
-  // estado local alimentado por listener en tiempo real. Se agrega además
-  // updatePedidosDondeCoincida, para el único caso de actualización masiva
-  // que existe hoy (renombrar el cliente en todos sus pedidos cuando se
-  // edita el nombre del cliente) — a diferencia de updateProductosBulk
-  // (Fase 3), acá no se conoce el conjunto de ids de antemano, se filtra
-  // por una condición.
-  const pedidoDocRef = (id) => doc(db, "users", cuentaId, "pedidos", String(id));
-
-  // Límites del plan que frenan CREAR un pedido (los hace cumplir
-  // firestore.rules: dentroDelLimiteDePedidos y dentroDelLimiteDeMonto).
-  // Chequearlos acá antes sólo sirve para mostrar un mensaje claro en vez
-  // del error genérico de guardado; si el consumo todavía no cargó, se deja
-  // pasar y decide la regla.
-  const motivoLimitePedido = () => {
-    const limites = planContratado?.limites;
-    if (!limites || !consumoActual) return null;
-    if (limites.pedidosMes != null && (consumoActual.pedidosCreados || 0) >= limites.pedidosMes) {
-      return `Llegaste al límite de ${limites.pedidosMes} pedidos por mes de tu plan. Vas a poder crear pedidos nuevos cuando empiece el próximo ciclo, o antes si pasás a un plan superior.`;
-    }
-    if (limites.montoFacturadoMes != null && (consumoActual.montoFacturado || 0) >= limites.montoFacturadoMes) {
-      return 'Llegaste al monto facturado por mes de tu plan. Vas a poder crear pedidos nuevos cuando empiece el próximo ciclo, o antes si pasás a un plan superior. Los pedidos que ya tenés se pueden seguir editando.';
-    }
-    return null;
-  };
-
-  // Devuelve true si el pedido se guardó (lo usa la aprobación de un
-  // presupuesto para no marcarlo aprobado si el pedido no se pudo crear).
-  const addPedido = async (item) => {
-    const motivo = motivoLimitePedido();
-    if (motivo) {
-      showToast(`⚠ ${motivo}`, 'error', 8000);
-      return false;
-    }
-    try {
-      await setDoc(pedidoDocRef(item.id), item);
-      return true;
-    } catch (e) {
-      console.error("Error al guardar pedido:", e);
-      mostrarErrorGuardado('⚠ No se pudo guardar el pedido en la nube.');
-      return false;
-    }
-  };
-
-  const updatePedido = async (id, updater) => {
-    try {
-      const actual = pedidos.find(p => p.id === id);
-      if (!actual) return;
-      const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
-      const cambios = camposCambiados(actual, nuevo);
-      if (hayCambios(cambios)) await updateDoc(pedidoDocRef(id), cambios);
-    } catch (e) {
-      console.error("Error al actualizar pedido:", e);
-      mostrarErrorGuardado('⚠ No se pudo actualizar el pedido en la nube.');
-    }
-  };
-
-  // Los pedidos no se eliminan: sólo se cancelan (estado 'cancelado' desde
-  // PedidosPage o ModalPedidoDetalle). Por eso no existe un removePedido.
-
-  // predicate: (pedido) => boolean. updater: (pedido) => nuevoPedido.
-  const updatePedidosBulk = async (predicate, updater) => {
-    try {
-      const afectados = pedidos.filter(predicate);
-      if (!afectados.length) return;
-
-      // Troceado en tandas: un batch admite 500 operaciones como máximo.
-      const cambiosPorPedido = afectados
-        .map(p => [p.id, camposCambiados(p, updater(p))])
-        .filter(([, cambios]) => hayCambios(cambios));
-      for (let i = 0; i < cambiosPorPedido.length; i += 400) {
-        const batch = writeBatch(db);
-        cambiosPorPedido.slice(i, i + 400).forEach(([id, cambios]) => batch.update(pedidoDocRef(id), cambios));
-        await batch.commit();
-      }
-    } catch (e) {
-      console.error("Error al actualizar pedidos en lote:", e);
-      mostrarErrorGuardado('⚠ No se pudo aplicar la actualización masiva en la nube.');
-    }
-  };
+  const { agregarMiembro, quitarMiembro, salirDeCuentaCompartida } = crearAccionesEquipo({ showToast });
 
   const loginWithGoogle = async () => {
     try {
@@ -970,114 +476,6 @@ export const AppProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Chequeo de permisos de administrador: escuchamos en tiempo real el doc
-  // admins/{email} (ID = email en minúsculas). Si existe, el usuario es
-  // admin; si no, o si cambia (se lo quitan mientras tiene la app abierta),
-  // se refleja al toque sin necesidad de recargar. Ver firestore.rules:
-  // sólo puede leer su propio doc (o el listado completo si ya es admin),
-  // y nadie puede escribir esta colección desde el cliente.
-  useEffect(() => {
-    if (!user || !user.email) {
-      setIsAdmin(false);
-      return;
-    }
-    const adminRef = doc(db, 'admins', user.email.toLowerCase());
-    const unsubscribeAdmin = onSnapshot(
-      adminRef,
-      (snap) => setIsAdmin(snap.exists()),
-      (err) => {
-        console.error('Error verificando permisos de administrador:', err);
-        setIsAdmin(false);
-      }
-    );
-    return unsubscribeAdmin;
-  }, [user]);
-
-  // Estado de la suscripción propia: trial/activa/lectura/suspendida. Lo
-  // escuchamos en tiempo real para que el cartel de Resumen (y cualquier
-  // bloqueo de UI) reaccione al toque si un admin activa la cuenta o si
-  // la función programada la pasa a modo lectura mientras la app está
-  // abierta, sin necesidad de recargar.
-  useEffect(() => {
-    if (!cuentaId) {
-      setSuscripcion(null);
-      return;
-    }
-    const subRef = doc(db, 'users', cuentaId, 'suscripcion', 'actual');
-    const unsubscribeSub = onSnapshot(
-      subRef,
-      (snap) => setSuscripcion(snap.exists() ? snap.data() : null),
-      (err) => {
-        console.error('Error al escuchar la suscripción:', err);
-        setSuscripcion(null);
-      }
-    );
-    return unsubscribeSub;
-  }, [cuentaId]);
-
-  // Plan contratado (para mostrar nombre/precio/límites en Resumen y en
-  // "Mi emprendimiento"). Depende de suscripcion.planId, así que se
-  // re-suscribe solo cuando cambia el plan asignado, no en cada cambio de
-  // otra cosa dentro de suscripcion.
-  useEffect(() => {
-    if (!suscripcion?.planId) {
-      setPlanContratado(null);
-      return;
-    }
-    const planRef = doc(db, 'planes', suscripcion.planId);
-    const unsubscribePlan = onSnapshot(
-      planRef,
-      (snap) => setPlanContratado(snap.exists() ? { id: snap.id, ...snap.data() } : null),
-      (err) => {
-        console.error('Error al escuchar el plan contratado:', err);
-        setPlanContratado(null);
-      }
-    );
-    return unsubscribePlan;
-  }, [suscripcion?.planId]);
-
-  // Consumo del ciclo de facturación vigente (pedidos, aperturas de
-  // catálogo, monto facturado) -- lo incrementan las Cloud Functions, acá
-  // sólo lo leemos para mostrarlo. Depende de suscripcion.cicloId, así que
-  // al arrancar un ciclo nuevo se cambia solo de documento.
-  useEffect(() => {
-    if (!cuentaId || !suscripcion?.cicloId) {
-      setConsumoActual(null);
-      return;
-    }
-    const contadorRef = doc(db, 'users', cuentaId, 'suscripcion', 'actual', 'contadores', suscripcion.cicloId);
-    const unsubscribeContador = onSnapshot(
-      contadorRef,
-      (snap) => setConsumoActual(snap.exists() ? snap.data() : { pedidosCreados: 0, aperturasCatalogo: 0, montoFacturado: 0 }),
-      (err) => {
-        console.error('Error al escuchar el consumo del ciclo:', err);
-        setConsumoActual(null);
-      }
-    );
-    return unsubscribeContador;
-  }, [cuentaId, suscripcion?.cicloId]);
-
-  // Usuarios con acceso a esta cuenta (ver EmpresaPage "Usuarios con
-  // acceso"). Sólo lo necesita el dueño para gestionar su equipo -- un
-  // miembro no puede listar esto (ver firestore.rules: sólo el dueño puede
-  // leer el conjunto completo vía la query ownerUid == cuentaId).
-  useEffect(() => {
-    if (!cuentaId || esMiembro) {
-      setMiembros([]);
-      return;
-    }
-    const q = query(collection(db, 'invitacionesMiembro'), where('ownerUid', '==', cuentaId));
-    const unsubscribeMiembros = onSnapshot(
-      q,
-      (snapshot) => setMiembros(snapshot.docs.map(d => ({ ...d.data(), _docId: d.id }))),
-      (err) => {
-        console.error('Error al escuchar los usuarios con acceso:', err);
-        setMiembros([]);
-      }
-    );
-    return unsubscribeMiembros;
-  }, [cuentaId, esMiembro]);
-
   useEffect(() => {
     if (cfg?.palette) {
       const base = paletas[cfg.palette] || paletas.lagoon;
@@ -1190,48 +588,6 @@ export const AppProvider = ({ children }) => {
     };
   }, [cfg, empresa, idCounter, cuentaId, loading, datosCargadosOk]);
 
-  // Listener en tiempo real para la subcolección de compras (Fase 5, la
-  // última sección en migrar). Mismo criterio que clientes/biblioteca/
-  // pedidos: sin detección de eco por timestamp global — cada documento de
-  // compra es independiente, no hay riesgo de que se pisen entre sí.
-  useEffect(() => {
-    if (!cuentaId || !datosCargadosOk) return;
-
-    const colRef = collection(db, "users", cuentaId, "compras");
-
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        setCompras(snapshot.docs.map(d => d.data()));
-      },
-      (error) => {
-        console.error("Error en la suscripción en tiempo real de compras:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [cuentaId, datosCargadosOk]);
-
-  // Listener en tiempo real para la subcolección de presupuestos, mismo
-  // criterio que compras.
-  useEffect(() => {
-    if (!cuentaId || !datosCargadosOk) return;
-
-    const colRef = collection(db, "users", cuentaId, "presupuestos");
-
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        setPresupuestos(snapshot.docs.map(d => d.data()));
-      },
-      (error) => {
-        console.error("Error en la suscripción en tiempo real de presupuestos:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [cuentaId, datosCargadosOk]);
-
   // Listener en tiempo real para config + empresa + counter, ahora en su
   // propio documento (users/{uid}/meta/config). Independiente del listener
   // principal de arriba: usa sus propias referencias de eco
@@ -1279,105 +635,6 @@ export const AppProvider = ({ children }) => {
     return () => unsubscribe();
   }, [cuentaId, datosCargadosOk]);
 
-  // Listener en tiempo real para la subcolección de clientes (Fase 2).
-  // A diferencia de los otros listeners, acá no hace falta el mecanismo de
-  // "timestamp propio vs ajeno": cada documento de cliente se escribe y
-  // sincroniza de forma independiente, así que no hay riesgo de que un
-  // guardado pise el trabajo de otro cliente en simultáneo (el problema que
-  // sí existía con el array monolítico). Simplificación a propósito: no
-  // mostramos el toast de "actualizado desde otra sesión" acá porque con
-  // documentos independientes sería ruidoso (se dispararía en cada
-  // add/update/remove propio también); el estado local simplemente refleja
-  // lo que hay en Firestore en todo momento, incluida la escritura local
-  // optimista antes de la confirmación del servidor.
-  useEffect(() => {
-    if (!cuentaId || !datosCargadosOk) return;
-
-    const colRef = collection(db, "users", cuentaId, "clientes");
-
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        setClientes(snapshot.docs.map(d => d.data()));
-      },
-      (error) => {
-        console.error("Error en la suscripción en tiempo real de clientes:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [cuentaId, datosCargadosOk]);
-
-  // Listener en tiempo real para la colección global "faq". A diferencia
-  // de las demás colecciones de acá abajo, no depende de cuentaId ni de
-  // datosCargadosOk -- no es dato de una cuenta, sino contenido compartido
-  // que cualquier usuario logueado puede leer (ver firestore.rules).
-  useEffect(() => {
-    if (!user) {
-      setFaq([]);
-      return;
-    }
-
-    const colRef = collection(db, "faq");
-
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        setFaq(snapshot.docs.map(d => d.data()));
-      },
-      (error) => {
-        console.error("Error en la suscripción en tiempo real de faq:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user]);
-
-
-  // Listener en tiempo real para la subcolección de biblioteca (Fase 3).
-  // Mismo criterio que clientes en Fase 2: sin detección de eco por
-  // timestamp (cada producto es independiente), sin toast de "otra sesión"
-  // por ser potencialmente ruidoso con muchos productos.
-  useEffect(() => {
-    if (!cuentaId || !datosCargadosOk) return;
-
-    const colRef = collection(db, "users", cuentaId, "biblioteca");
-
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        setBiblioteca(snapshot.docs.map(d => d.data()));
-      },
-      (error) => {
-        console.error("Error en la suscripción en tiempo real de biblioteca:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [cuentaId, datosCargadosOk]);
-
-  // Listener en tiempo real para la subcolección de pedidos (Fase 4).
-  // Mismo criterio que clientes/biblioteca: sin detección de eco por
-  // timestamp global — acá es justamente donde más valía la pena, porque
-  // era la sección que disparaba el bug de la race condition original.
-  useEffect(() => {
-    if (!cuentaId || !datosCargadosOk) return;
-
-    const colRef = collection(db, "users", cuentaId, "pedidos");
-
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        setPedidos(snapshot.docs.map(d => d.data()));
-      },
-      (error) => {
-        console.error("Error en la suscripción en tiempo real de pedidos:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [cuentaId, datosCargadosOk]);
-
   // Los datos de contacto/marca del catálogo público (nombre, teléfono,
   // logo, colores) siempre se toman en vivo de "Mi emprendimiento" -- antes
   // había un botón "Usar datos de mi emprendimiento" que los copiaba una
@@ -1388,16 +645,6 @@ export const AppProvider = ({ children }) => {
   // silencioso: para la resincronización automática de abajo, que no la
   // pidió el usuario -- no tiene sentido mostrarle un error por algo que
   // no hizo (ej. cuenta en modo lectura).
-  const guardarCatalogoConfig = async (parcial, { silencioso = false } = {}) => {
-    try {
-      const nuevo = { ...parcial, actualizado: new Date().toISOString() };
-      await setDoc(doc(db, "catalogoTiendas", cuentaId), nuevo, { merge: true });
-    } catch (e) {
-      console.error("Error al guardar la configuración del catálogo:", e);
-      if (!silencioso) showToast('⚠ No se pudo guardar la configuración del catálogo.', 'error');
-    }
-  };
-
   useEffect(() => {
     if (!cuentaId || !datosCargadosOk) return;
     // Cuenta en modo lectura/suspendida: firestore.rules ya no le deja
@@ -1414,49 +661,6 @@ export const AppProvider = ({ children }) => {
     }, { silencioso: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cuentaId, datosCargadosOk, suscripcion?.estado, empresa?.nombre, empresa?.telefono, empresa?.logo, empresa?.facebook, empresa?.instagram, cfg?.colores, cfg?.combinacionesColores]);
-
-  // Listener de la config pública del catálogo web de ESTA tienda (colores,
-  // nombre, si está activo). Sólo se suscribe con sesión iniciada porque es
-  // la pantalla de administración la que la necesita en vivo; el catálogo
-  // público (/catalogo/{uid}, sin login) la lee por su cuenta con
-  // getDoc/onSnapshot propio, sin pasar por este Context.
-  useEffect(() => {
-    if (!cuentaId || !datosCargadosOk) return;
-
-    const ref = doc(db, "catalogoTiendas", cuentaId);
-    const unsubscribe = onSnapshot(
-      ref,
-      (snap) => {
-        setCatalogoConfig(snap.exists() ? snap.data() : null);
-      },
-      (error) => {
-        console.error("Error en la suscripción de catalogoConfig:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [cuentaId, datosCargadosOk]);
-
-  // Listener de las solicitudes que llegan desde el catálogo web de ESTA
-  // tienda. Subcolección bajo catalogoTiendas/{uid} (no bajo users/{uid})
-  // porque la escribe gente sin login; acá sólo leemos (requiere estar
-  // autenticado como el dueño de esa tienda, ver reglas de Firestore).
-  useEffect(() => {
-    if (!cuentaId || !datosCargadosOk) return;
-
-    const colRef = query(collection(db, "catalogoTiendas", cuentaId, "solicitudes"), orderBy("creado", "desc"));
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        setSolicitudesWeb(snapshot.docs.map(d => ({ ...d.data(), _docId: d.id })));
-      },
-      (error) => {
-        console.error("Error en la suscripción de catalogoSolicitudes:", error);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [cuentaId, datosCargadosOk]);
 
   useEffect(() => {
     try {
@@ -1478,134 +682,6 @@ export const AppProvider = ({ children }) => {
     }
   }, [empresa && empresa.logo]);
 
-  const exportarBackupData = () => {
-    try {
-      const data = {
-        pedidos,
-        compras,
-        presupuestos,
-        biblioteca,
-        clientes,
-        cfg,
-        empresa,
-        _idCounter: idCounter,
-        exportado: new Date().toISOString()
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `manager3d-backup-${new Date().toLocaleDateString('es-AR').replace(/\//g, '-')}.json`;
-      a.click();
-      showToast('✓ Backup descargado correctamente.');
-    } catch (e) {
-      console.error(e);
-      showToast('Error al exportar backup.', 'error');
-    }
-  };
-
-  const restaurarBackupData = async (data) => {
-    try {
-      // Mismo motivo que en cargarDatosDeFirestore: el próximo cambio de
-      // cfg/empresa/idCounter que dispare el autosave de meta/config va a
-      // ser el eco de este restore, no una edición real — no hace falta
-      // volver a guardarlo.
-      skipNextAutosaveRefMeta.current = true;
-
-      if (data.cfg) setCfg(data.cfg);
-      // Fase 2/3/4/5: clientes, biblioteca, pedidos y compras ya no son
-      // arrays de estado que se "restauran" en memoria — se escriben
-      // directo a sus subcolecciones más abajo, y los listeners en tiempo
-      // real actualizan el estado local solos.
-      if (data.empresa) setEmpresa(data.empresa);
-      
-      const nextCounter = data._idCounter || data.idCounter || 1;
-      setIdCounter(Number(nextCounter));
-      
-      // Upload to Firebase immediately if logged in
-      if (cuentaId) {
-        const restoreTimestamp = new Date().toISOString();
-
-        // Fase 1: config/empresa/counter van a su documento propio.
-        await setDoc(doc(db, "users", cuentaId, "meta", "config"), {
-          config: data.cfg || defaultCfg,
-          empresa: data.empresa || defaultEmpresa,
-          counter: nextCounter,
-          ultimaActualizacion: restoreTimestamp
-        }, { merge: true });
-        lastWrittenTimestampRefMeta.current = restoreTimestamp;
-        pendingWriteTimestampRefMeta.current = null;
-
-        // Fase 2/3/4/5: cada sección del backup va directo a su
-        // subcolección, un documento por ítem, en su propio batch (los
-        // batch de Firestore tienen un límite de 500 operaciones, así que
-        // conviene no mezclar secciones grandes en el mismo batch). Primero
-        // borramos lo que ya exista en la nube (si el backup tiene menos
-        // ítems que los actuales, no deben quedar huérfanos), luego
-        // escribimos los del backup.
-        //
-        // Antes esto armaba UN batch por sección con "borrar todo + escribir
-        // todo", y fallaba en dos casos: (1) pedidos no se pueden borrar
-        // (firestore.rules), así que el batch de pedidos se rechazaba entero
-        // si ya había alguno; (2) un batch admite 500 operaciones como
-        // máximo. Como las secciones se procesaban en orden, clientes y
-        // biblioteca ya quedaban pisados cuando fallaba pedidos: restauración
-        // a medias. Ahora: se escribe (upsert) cada ítem del backup, sólo se
-        // borran los que no están en el backup (salvo pedidos, que no se
-        // borran nunca), y todo se trocea en tandas de 400 operaciones.
-        const escribirEnTandas = async (operaciones) => {
-          for (let i = 0; i < operaciones.length; i += 400) {
-            const batch = writeBatch(db);
-            operaciones.slice(i, i + 400).forEach(op => op(batch));
-            await batch.commit();
-          }
-        };
-
-        // alEscribir/alBorrar: operaciones extra por ítem (la biblioteca
-        // tiene que mantener al día su copia pública en catalogoTiendas).
-        const restaurarSeccion = async (nombreColeccion, items, { permiteBorrar = true, alEscribir, alBorrar } = {}) => {
-          const colRef = collection(db, "users", cuentaId, nombreColeccion);
-          const idsBackup = new Set((items || []).map(item => String(item.id)));
-          const operaciones = [];
-          (items || []).forEach(item => {
-            operaciones.push((batch) => batch.set(doc(db, "users", cuentaId, nombreColeccion, String(item.id)), item));
-            if (alEscribir) operaciones.push((batch) => alEscribir(batch, item));
-          });
-          if (permiteBorrar) {
-            const actuales = await getDocs(colRef);
-            actuales.forEach(d => {
-              if (idsBackup.has(d.id)) return;
-              operaciones.push((batch) => batch.delete(d.ref));
-              if (alBorrar) operaciones.push((batch) => alBorrar(batch, d.id));
-            });
-          }
-          await escribirEnTandas(operaciones);
-        };
-
-        await restaurarSeccion("clientes", data.clientes);
-        await restaurarSeccion("biblioteca", data.biblioteca, {
-          alEscribir: (batch, item) => item.pub
-            ? batch.set(catalogoProductoDocRef(item.id), proyeccionCatalogoProducto(item))
-            : batch.delete(catalogoProductoDocRef(item.id)),
-          alBorrar: (batch, id) => batch.delete(catalogoProductoDocRef(id))
-        });
-        await restaurarSeccion("pedidos", data.pedidos, { permiteBorrar: false });
-        await restaurarSeccion("compras", data.compras);
-        // Backups anteriores a la sección Presupuestos no traen la clave:
-        // ahí no se toca nada (si no, se borrarían los presupuestos actuales).
-        if (Array.isArray(data.presupuestos)) {
-          await restaurarSeccion("presupuestos", data.presupuestos);
-        }
-      }
-      
-      showToast('✓ Backup restaurado correctamente.');
-      return true;
-    } catch (e) {
-      console.error(e);
-      showToast('Error al restaurar el backup.', 'error');
-      return false;
-    }
-  };
-
   // ---- Catálogo web público ----
   // catalogoTiendas/{uid}/... — separadas de users/{uid}/* a propósito: el
   // catálogo lo navega gente sin login, y sólo debe poder LEER estas
@@ -1615,8 +691,6 @@ export const AppProvider = ({ children }) => {
   // Google puede loguearse en esta app, así que si esto viviera en una
   // colección global, un usuario podría pisar/mezclar el catálogo de
   // otro. Ver firestore.rules.
-
-  const catalogoProductoDocRef = (id) => doc(db, "catalogoTiendas", cuentaId, "productos", String(id));
 
 
   // Espeja cfg.categoriaOrden (el orden manual armado arrastrando en
@@ -1635,277 +709,6 @@ export const AppProvider = ({ children }) => {
     }, 1200);
     return () => clearTimeout(catOrdenSyncRef.current);
   }, [cfg.categoriaOrden, cuentaId, loading, datosCargadosOk, catalogoExiste]);
-
-  // ids: Set o array de ids de biblioteca que deben quedar PUBLICADOS en
-  // /catalogo. Sólo se copian campos "públicos" (nombre, cat, desc, imagen,
-  // precio de venta) a catalogoProductos — nunca costoUnitario, filDetalle,
-  // impresora, etc. Cualquier producto que estaba publicado y se
-  // desmarcó acá se borra de catalogoProductos.
-  const publicarProductosEnCatalogo = async (ids) => {
-    try {
-      const idSet = ids instanceof Set ? ids : new Set(ids);
-      const batch = writeBatch(db);
-
-      biblioteca.forEach(p => {
-        const debePublicarse = idSet.has(p.id);
-        const estabaPublicado = !!p.pub;
-
-        if (debePublicarse) {
-          batch.set(catalogoProductoDocRef(p.id), proyeccionCatalogoProducto(p));
-          if (!estabaPublicado) {
-            batch.set(productoDocRef(p.id), { ...p, pub: true });
-          }
-        } else if (estabaPublicado) {
-          batch.delete(catalogoProductoDocRef(p.id));
-          batch.set(productoDocRef(p.id), { ...p, pub: false });
-        }
-      });
-
-      await batch.commit();
-      showToast('✓ Catálogo publicado.');
-      return true;
-    } catch (e) {
-      console.error("Error al publicar el catálogo:", e);
-      showToast('⚠ No se pudo publicar el catálogo.', 'error');
-      return false;
-    }
-  };
-
-  // Arma una "pieza" de pedido a partir de un ítem de solicitud web,
-  // heredando datos de costo del producto original en biblioteca. Mismo
-  // criterio que construirPiezaDesdeBibParaPedido (ModalArmarPedido.jsx),
-  // pero vive acá porque el origen es una solicitud ya armada por el
-  // cliente y no una selección manual del admin.
-  const construirPiezaDesdeSolicitud = (item) => {
-    const prod = biblioteca.find(p => p.id === item.prodId) || {};
-    const horas = prod.horas || 0;
-    const watts = prod.watts || 0;
-    const precioKwh = prod.precioKwh || cfg.kwh || 0;
-    const moHora = prod.moHora || 0;
-    const horasTrab = prod.horasTrab || 0;
-    const costeElec = (watts / 1000) * horas * precioKwh;
-    const costeMO = moHora * horasTrab;
-
-    let mant = 0;
-    if (prod.impresoraNombre) {
-      const imp = cfg.impresoras.find(i => i.nombre === prod.impresoraNombre);
-      if (imp) mant = imp.mant || 0;
-    }
-    const costeMant = mant * horas;
-    const precioConfiable = prod.id != null
-      ? (prod.precioSugUnitario || prod.costoUnitario || 0)
-      : (Number(item.precioUnit) || 0);
-
-    return {
-      id: getNewId(),
-      bibliotecaId: prod.id ?? null,
-      nombre: prod.nombre || String(item.nombre || ''),
-      archivoNombre: prod.gcodeNombre || null,
-      gcodeArchivos: prod.gcodeArchivos || null,
-      filDetalle: prod.filDetalle || [],
-      // Gramos y materiales para descontar el inventario (mismo criterio
-      // que utils/piezaPedido.js -> datosConsumoPieza).
-      gramos: Number(prod.gramos) || 0,
-      desperdicio: Number(prod.desperdicio) || 0,
-      materiales: Array.isArray(prod.materiales) ? prod.materiales : null,
-      multiMat: !!prod.multiMat,
-      costeElec,
-      costeMant,
-      costeMO,
-      horas,
-      impresoraNombre: prod.impresoraNombre || null,
-      costoUnitario: prod.costoUnitario || 0,
-      ...(prod.tipo === 'reventa' ? { sinImpresion: true } : {}),
-      // El precio sale de la biblioteca (misma fórmula que la copia pública,
-      // ver proyeccionCatalogoProducto), NUNCA del precioUnit de la
-      // solicitud: ese lo escribe un visitante anónimo y lo puede poner en
-      // $1 llamando a Firestore directo. Sólo si el producto ya no existe
-      // en la biblioteca se usa el de la solicitud como referencia.
-      precioEstimado: precioConfiable,
-      precioVenta: precioConfiable,
-      cantidad: Math.max(0, Math.floor(Number(item.cantidad) || 0)),
-      // Lo que salió de stock (tienda del catálogo) ya está hecho; el resto queda por fabricar.
-      elaborados: (item.versiones || []).reduce((s, v) => s + Math.min(Math.max(0, Math.floor(Number(v.deStock) || 0)), Math.max(0, Math.floor(Number(v.cantidad) || 0))), 0),
-      notas: 'Pedido vía catálogo web',
-      versiones: (item.versiones || []).map(v => ({
-        id: Date.now() + Math.random(),
-        cantidad: v.cantidad,
-        color: v.color || '',
-        colorSecundario: v.colorSecundario || '',
-        comentario: v.comentario || '',
-        realizados: Math.min(Math.max(0, Math.floor(Number(v.deStock) || 0)), Math.max(0, Math.floor(Number(v.cantidad) || 0)))
-      }))
-    };
-  };
-
-  // Convierte una solicitud del catálogo web en un Pedido real (nuevo o
-  // agregado a uno existente) y marca la solicitud como "importado" para
-  // que no vuelva a aparecer como pendiente.
-  const importarSolicitudComoPedido = async (solicitud, destino = 'nuevo') => {
-    try {
-      // Tienda del catálogo: se revalida contra el stock real cuánto sale de stock (lo que mandó el visitante
-      // no es de fiar y el stock pudo cambiar). Lo que sale de stock queda completado; el resto, por fabricar.
-      const itemsRepartidos = (solicitud.items || []).map((item) => {
-        const prod = biblioteca.find(p => p.id === item.prodId);
-        return { ...item, versiones: repartoParaImportar(prod?.stock, item.versiones || []) };
-      });
-      const nuevasPiezas = itemsRepartidos.map(construirPiezaDesdeSolicitud);
-      const usaStock = itemsRepartidos.some(it => it.versiones.some(v => v.deStock > 0));
-      const todoCompleto = nuevasPiezas.length > 0 && nuevasPiezas.every(pz => pz.elaborados >= pz.cantidad);
-      let pedidoDestinoId = null;
-
-      // El teléfono es el único dato realmente único acá: el nombre lo
-      // escribe el cliente a mano en el catálogo y puede variar de un
-      // pedido a otro (mayúsculas, apellido, apodo), pero el teléfono no
-      // cambia. Por eso el teléfono manda: si ya existe un cliente con
-      // ese teléfono, es esa persona sin importar cómo escribió el
-      // nombre esta vez — y usamos el nombre que YA tenía guardado (no
-      // el nuevo) para que el pedido quede bien enlazado a él en las
-      // estadísticas de Clientes. Sólo si no hay teléfono cargado caemos
-      // a comparar por nombre.
-      const nombreSolicitud = (solicitud.cliente || '').trim();
-      const telSolicitud = (solicitud.telefono || '').replace(/\D/g, '');
-
-      let clienteExistente = null;
-      if (telSolicitud) {
-        clienteExistente = clientes.find(c => (c.tel || '').replace(/\D/g, '') === telSolicitud) || null;
-      }
-      if (!clienteExistente && nombreSolicitud) {
-        clienteExistente = clientes.find(
-          c => (c.nombre || '').trim().toLowerCase() === nombreSolicitud.toLowerCase()
-        ) || null;
-      }
-
-      // Nombre que va a llevar el pedido: el del cliente ya existente
-      // (si lo encontramos), o si no el que escribió recién.
-      const nombreParaPedido = clienteExistente?.nombre || nombreSolicitud || 'Sin nombre';
-
-      if (nombreSolicitud && !clienteExistente) {
-        await addCliente({
-          id: getNewId(),
-          nombre: nombreSolicitud,
-          tel: solicitud.telefono || '',
-          email: solicitud.email || '',
-          prov: '',
-          loc: '',
-          cp: '',
-          calle: '',
-          altura: '',
-          fechaAlta: new Date().toLocaleDateString('es-AR'),
-          fechaAltaTs: Date.now()
-        });
-      }
-
-      if (destino === 'nuevo') {
-        const newIdVal = getNewId();
-        const nuevo = {
-          id: newIdVal,
-          cliente: nombreParaPedido,
-          desc: solicitud.comentarioGeneral || 'Pedido desde catálogo web',
-          // Con productos de stock el pedido no necesita verificación de lo que ya está hecho: si todo salió de stock
-          // queda listo para entregar; si falta fabricar, pendiente.
-          estado: usaStock ? (todoCompleto ? 'listo' : 'pendiente') : 'en_verificacion',
-          fechaPedido: fechaLocalHoy(),
-          fechaEntrega: '',
-          notaGeneral: solicitud.telefono ? `Tel: ${solicitud.telefono}` : '',
-          piezas: nuevasPiezas,
-          // Recalculado con los precios de la biblioteca: totalEstimado lo
-          // manda el visitante anónimo y no es confiable.
-          precioVenta: nuevasPiezas.reduce((s, p) => s + p.cantidad * p.precioVenta, 0),
-          envio: 0,
-          insumos: [],
-          creado: new Date().toLocaleDateString('es-AR'),
-          creadoTs: Date.now()
-        };
-        // Si no se guardó (límite del plan, ya avisado, o error de la
-        // nube), la solicitud queda sin importar para reintentar después.
-        if (!(await addPedido(nuevo))) return null;
-        pedidoDestinoId = newIdVal;
-      } else {
-        const targetId = parseInt(destino, 10);
-        await updatePedido(targetId, (p) => ({
-          ...p,
-          piezas: [...p.piezas, ...nuevasPiezas]
-        }));
-        pedidoDestinoId = targetId;
-      }
-
-      // Lo que salió de stock se descuenta de la Biblioteca (y de la copia pública del catálogo).
-      for (const item of itemsRepartidos) {
-        if (!item.versiones.some(v => v.deStock > 0)) continue;
-        try {
-          await updateProducto(item.prodId, (p) => ({ ...p, stock: descontarStock(p.stock, item.versiones) }));
-        } catch (e) {
-          console.error('No se pudo descontar el stock de', item.nombre, e);
-          showToast('⚠ El pedido se creó, pero no se pudo descontar el stock de ' + (item.nombre || 'un producto') + '. Ajustalo a mano en Productos en stock.', 'error');
-        }
-      }
-
-      const { _docId, ...datosSolicitud } = solicitud;
-      await setDoc(doc(db, "catalogoTiendas", cuentaId, "solicitudes", _docId), { ...datosSolicitud, estado: 'importado' }, { merge: true });
-
-      showToast('✓ Solicitud importada como pedido.');
-      return pedidoDestinoId;
-    } catch (e) {
-      console.error("Error al importar la solicitud como pedido:", e);
-      showToast('⚠ No se pudo importar la solicitud.', 'error');
-      return null;
-    }
-  };
-
-  const descartarSolicitud = async (docId) => {
-    try {
-      await deleteDoc(doc(db, "catalogoTiendas", cuentaId, "solicitudes", docId));
-    } catch (e) {
-      console.error("Error al descartar la solicitud:", e);
-      showToast('⚠ No se pudo descartar la solicitud.', 'error');
-    }
-  };
-
-  // ---- Usuarios adicionales por cuenta ("equipo") ----
-  // Sólo el dueño gestiona esto (ver EmpresaPage "Usuarios con acceso"); las
-  // dos operaciones pasan por Cloud Functions porque son las únicas que
-  // pueden escribir invitacionesMiembro (ver firestore.rules) — acá se
-  // valida el límite de usuarios del plan contratado antes de crear el
-  // vínculo. Mismo patrón que AdminPage.jsx con cambiarEstadoSuscripcion.
-  const agregarMiembro = async (email) => {
-    try {
-      const fn = httpsCallable(functions, 'agregarMiembro');
-      await fn({ email });
-      showToast(`✓ Invitación enviada: ${email} va a poder administrar tu cuenta cuando la acepte al ingresar.`);
-      return true;
-    } catch (e) {
-      console.error("Error al agregar usuario:", e);
-      showToast(e.message || 'No se pudo agregar el usuario.', 'error');
-      return false;
-    }
-  };
-
-  const quitarMiembro = async (email) => {
-    try {
-      const fn = httpsCallable(functions, 'quitarMiembro');
-      await fn({ email });
-      showToast(`Se quitó el acceso de ${email}.`, 'info');
-      return true;
-    } catch (e) {
-      console.error("Error al quitar usuario:", e);
-      showToast(e.message || 'No se pudo quitar el usuario.', 'error');
-      return false;
-    }
-  };
-
-  // Un miembro deja la cuenta compartida (ver EmpresaPage). Se recarga la
-  // página para que todo el estado (listeners, cuentaId) arranque de nuevo
-  // sobre su cuenta propia.
-  const salirDeCuentaCompartida = async () => {
-    try {
-      await httpsCallable(functions, 'responderInvitacion')({ aceptar: false });
-      window.location.reload();
-    } catch (e) {
-      console.error('Error al salir de la cuenta compartida:', e);
-      showToast(e.message || 'No se pudo salir de la cuenta.', 'error');
-    }
-  };
 
   // Acciones: funciones que se recrean en cada render y capturan el estado de
   // ese momento. Se exponen a través de envoltorios estables que llaman
