@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ESTADOS_PEDIDO } from '../../utils/estadosPedido';
-import { useApp } from '../../context/AppContext';
+import { usePedidos, useClientes, useConfig, useUi } from '../../context/contextos';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
 import { useCapaModal } from '../CapaModal';
 import { confirmar } from '../Dialogos';
@@ -8,7 +8,10 @@ import { confirmarPedidoNuevoDeCliente } from '../../utils/unirPedidos';
 
 export default function ModalPedido({ isOpen, onClose, editId, onSaved, datosIniciales }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast, fmt } = useApp();
+  const { pedidos, addPedido, updatePedido } = usePedidos();
+  const { clientes, addCliente } = useClientes();
+  const { getNewId, fmt } = useConfig();
+  const { showToast } = useUi();
   // Mientras se guarda un pedido nuevo: evita el doble clic en "Guardar".
   const [guardando, setGuardando] = useState(false);
 

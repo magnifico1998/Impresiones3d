@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useUi } from '../../context/contextos';
 import { db } from '../../firebase';
 import { doc, setDoc, collection } from 'firebase/firestore';
 import { useCapaModal } from '../CapaModal';
@@ -20,7 +20,7 @@ const FORM_VACIO = {
 // de firestore.rules, que tratan null como "no hay tope").
 export default function ModalPlan({ isOpen, onClose, plan }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { showToast } = useApp();
+  const { showToast } = useUi();
   const [form, setForm] = useState(FORM_VACIO);
   const [guardando, setGuardando] = useState(false);
 

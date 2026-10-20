@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { confirmar } from '../Dialogos';
-import { useApp } from '../../context/AppContext';
+import { useBiblioteca, useConfig, useUi, useCuenta } from '../../context/contextos';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 import { cupoGcode, formatoBytes, subirArchivoGcode } from '../../utils/archivosGcode';
 import { useCapaModal } from '../CapaModal';
@@ -8,7 +8,10 @@ import BotonSubirImagenes from '../BotonSubirImagenes';
 
 export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, onGuardado }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado, suscripcion, fmt } = useApp();
+  const { biblioteca, addProducto, updateProducto } = useBiblioteca();
+  const { getNewId, fmt } = useConfig();
+  const { showToast } = useUi();
+  const { cuentaId, planContratado, suscripcion } = useCuenta();
   const [nombre, setNombre] = useState('');
   const [desc, setDesc] = useState('');
   const [descLarga, setDescLarga] = useState('');

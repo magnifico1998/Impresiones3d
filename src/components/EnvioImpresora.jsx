@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useUi } from '../context/contextos';
 import {
   ESTADOS_TRABAJO, MINUTOS_VENCE_IMPRIMIR, borrarTrabajo, cancelarTrabajo, escucharConectores, escucharTrabajos,
   impresorasPara, mandarAImpresora, trabajoVencido
@@ -19,7 +19,8 @@ const clave = (d) => `${d.conector.id}|${d.impresora.id}`;
 //   archivoInicialId: archivo que arranca elegido (si no, el primero).
 //   alTerminar(enviado, info): se llama al mandar (true, { trabajoId, impresora, accion }) o al cancelar (false).
 export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
-  const { cuentaId, user, showToast } = useApp();
+  const { cuentaId, user } = useCuenta();
+  const { showToast } = useUi();
   const [conectores, setConectores] = useState([]);
   const [archivoId, setArchivoId] = useState(archivoInicialId || archivos[0]?.id || '');
   const [destino, setDestino] = useState('');
@@ -136,7 +137,8 @@ export function PanelEnvio({ archivos, archivoInicialId, alTerminar }) {
 // quitarlos de la lista.
 // `trabajos`: si quien la usa ya los escucha, se los pasa y no se abre otro listener (cada uno lee toda la colección).
 export function ListaEnvios({ productoId, soloLectura, trabajos: trabajosDados }) {
-  const { cuentaId, showToast } = useApp();
+  const { cuentaId } = useCuenta();
+  const { showToast } = useUi();
   const [propios, setPropios] = useState([]);
   const trabajos = trabajosDados || propios;
   const [ahora, setAhora] = useState(() => Date.now());

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useConfig } from '../context/contextos';
 
 // Campo numérico de plata que se ve formateado cuando no se está editando
 // ($ 15.000) y vuelve a ser un campo numérico común mientras se escribe en él.
@@ -10,7 +10,7 @@ import { useApp } from '../context/AppContext';
 //   decimales: cuántos decimales se muestran como máximo (por defecto 2, y sólo los
 //   que hagan falta: 1.500 y 1.500,5).
 export default function CampoMoneda({ value, sinSimbolo = false, decimales = 2, onFocus, onBlur, ...resto }) {
-  const { paisActual } = useApp();
+  const { paisActual } = useConfig();
   const [enfocado, setEnfocado] = useState(false);
 
   const vacio = value === '' || value === null || value === undefined;

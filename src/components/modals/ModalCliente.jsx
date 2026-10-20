@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useClientes, usePedidos, useConfig, useUi } from '../../context/contextos';
 import { CONDICIONES_IVA } from '../../utils/facturacion';
 import { useCapaModal } from '../CapaModal';
 
 export default function ModalCliente({ isOpen, onClose, editId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { clientes, addCliente, updateCliente, updatePedidosBulk, getNewId, showToast, cfg } = useApp();
+  const { clientes, addCliente, updateCliente } = useClientes();
+  const { updatePedidosBulk } = usePedidos();
+  const { getNewId, cfg } = useConfig();
+  const { showToast } = useUi();
   const nombreMetodo = (m) => (typeof m === 'string' ? m : m?.nombre) || '';
   const metodos = (cfg.metodosEnvio || []).map(nombreMetodo).filter(Boolean);
 

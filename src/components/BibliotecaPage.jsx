@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { confirmar } from './Dialogos';
-import { useApp } from '../context/AppContext';
+import { useBiblioteca, useConfig, useCuenta, useUi } from '../context/contextos';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
 import { generarListadoProductosPDF } from '../utils/listadoPDF';
 import { ordenarCategorias } from '../utils/categoriaOrden';
@@ -150,7 +150,7 @@ function recalcularProducto(prod, cfg) {
  */
 function ModalRecalcular({ items, onConfirm, onClose }) {
   const capaModal = useCapaModal({ onClose });
-  const { fmt } = useApp();
+  const { fmt } = useConfig();
   const [selectedIds, setSelectedIds] = useState(new Set(items.map(it => it.prod.id)));
 
   const handleToggleAll = (v) =>
@@ -324,7 +324,10 @@ function ModalRecalcular({ items, onConfirm, onClose }) {
  * Componente principal BibliotecaPage
  */
 export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOpenArmarPedido, onOpenPresupuesto }) {
-  const { biblioteca, removeProducto, updateProductosBulk, cfg, showToast, empresa, fmt, suscripcion, isAdmin, cuentaId } = useApp();
+  const { biblioteca, removeProducto, updateProductosBulk } = useBiblioteca();
+  const { cfg, empresa, fmt } = useConfig();
+  const { showToast } = useUi();
+  const { suscripcion, isAdmin, cuentaId } = useCuenta();
   // Igual que la Calculadora: armar un presupuesto no escribe nada en
   // Firestore, así que en modo lectura no queda bloqueado solo -- hay que
   // deshabilitar el botón a mano. Se excluye a los admins (mismo criterio
@@ -960,7 +963,7 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
 
 function ModalAjustarPrecio({ items, onConfirm, onClose }) {
   const capaModal = useCapaModal({ onClose });
-  const { fmt } = useApp();
+  const { fmt } = useConfig();
   const [selectedIds, setSelectedIds] = useState(new Set(items.map(it => it.prod.id)));
   const [mode, setMode] = useState('percent');
   const [value, setValue] = useState('10');

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useConfig, useBiblioteca, useUi } from '../../context/contextos';
 import { useCapaModal } from '../CapaModal';
 import { normalizarStock } from '../../utils/stock';
 import { fotoDeColor } from '../../utils/fotosColor';
@@ -9,7 +9,9 @@ import { colorPermitido, combinacionPermitida } from '../../utils/coloresProduct
 // Edita el stock de UN producto: una línea por color (y color secundario, si el producto lo usa).
 // Los colores salen de los de la cuenta (Configuración). Cada línea de stock lleva su color: en el catálogo no hay productos sin color.
 export default function ModalStockProducto({ producto, onClose }) {
-  const { cfg, updateProducto, showToast } = useApp();
+  const { cfg } = useConfig();
+  const { updateProducto } = useBiblioteca();
+  const { showToast } = useUi();
   const capaModal = useCapaModal({ onClose, activo: !!producto });
   const [lineas, setLineas] = useState(() => {
     const base = normalizarStock(producto?.stock);

@@ -1,5 +1,5 @@
 // Formato de números para mostrar en pantalla: separador de miles y coma decimal
-// (es-AR), siempre con el mismo criterio. Para plata usar `fmt` de useApp() (o
+// (es-AR), siempre con el mismo criterio. Para plata usar `fmt` de useConfig() (o
 // formatearMoneda de utils/paises.js); esto es para cantidades, gramos, horas y
 // porcentajes. Nunca mostrar un número con .toFixed(): sale con punto decimal y sin
 // separador de miles (1234.5 en vez de 1.234,5).

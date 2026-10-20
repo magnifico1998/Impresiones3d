@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { doc, onSnapshot, setDoc, Timestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase';
-import { useApp } from '../../context/AppContext';
+import { useCuenta, useConfig } from '../../context/contextos';
 
 // Panel admin → Negocio → Categorías de monotributo: la tabla de topes
 // anuales que usa el totalizador de cada suscriptor
@@ -16,7 +16,8 @@ const leerNumero = (t) => parseFloat(String(t).replace(/\$|\s/g, '').replace(/\.
 const textoTope = (n) => Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function SeccionMonotributo({ showToast }) {
-  const { user, fmt } = useApp();
+  const { user } = useCuenta();
+  const { fmt } = useConfig();
   const [filas, setFilas] = useState([]);
   const [vigencia, setVigencia] = useState('');
   const [cargado, setCargado] = useState(false);

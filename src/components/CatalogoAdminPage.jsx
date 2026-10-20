@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useBiblioteca, useConfig, useCuenta, useCatalogo, usePedidos, useClientes, useUi } from '../context/contextos';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
 import { motivoNombreInvalido, normalizarNombre } from '../utils/nombreCatalogo';
@@ -19,24 +19,13 @@ const ROLES_PALETA_CATALOGO = ['bg', 'accent', 'accent2', 'text', 'text2', 'text
 const CATALOGO_PATH = '/catalogo';
 
 export default function CatalogoAdminPage() {
-  const {
-    biblioteca,
-    cfg,
-    setCfg,
-    cuentaId,
-    catalogoConfig,
-    guardarCatalogoConfig,
-    publicarProductosEnCatalogo,
-    solicitudesWeb,
-    importarSolicitudComoPedido,
-    descartarSolicitud,
-    pedidos,
-    clientes,
-    showToast,
-    fmt,
-    planContratado,
-    consumoActual
-  } = useApp();
+  const { biblioteca } = useBiblioteca();
+  const { cfg, setCfg, fmt } = useConfig();
+  const { cuentaId, planContratado, consumoActual } = useCuenta();
+  const { catalogoConfig, guardarCatalogoConfig, publicarProductosEnCatalogo, solicitudesWeb, importarSolicitudComoPedido, descartarSolicitud } = useCatalogo();
+  const { pedidos } = usePedidos();
+  const { clientes } = useClientes();
+  const { showToast } = useUi();
 
   // Pasado el límite de aperturas del plan, el catálogo se sigue viendo pero
   // no acepta pedidos hasta el próximo ciclo (ver registrarAperturaCatalogo.js

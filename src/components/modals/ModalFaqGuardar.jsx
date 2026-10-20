@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useFaq, useConfig, useUi, useCuenta } from '../../context/contextos';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 import { obtenerBloques } from '../../utils/faqBloques';
 import { rutaDeFaq } from '../../utils/faqCategoriaPath';
@@ -7,7 +7,10 @@ import { useCapaModal } from '../CapaModal';
 
 export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { faq, addFaq, updateFaq, getNewId, showToast, cuentaId } = useApp();
+  const { faq, addFaq, updateFaq } = useFaq();
+  const { getNewId } = useConfig();
+  const { showToast } = useUi();
+  const { cuentaId } = useCuenta();
   const [pregunta, setPregunta] = useState('');
   // Ruta completa de categoría en un solo campo, niveles separados por "/"
   // (ver rutaDeFaq) -- reemplaza los campos separados de categoría y

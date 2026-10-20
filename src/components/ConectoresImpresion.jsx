@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useUi } from '../context/contextos';
 import { confirmar } from './Dialogos';
 import { ES_PRUEBA } from '../entornoFirebase';
 
@@ -15,7 +15,8 @@ import {
 // carpeta conector/.
 
 export default function ConectoresImpresion() {
-  const { cuentaId, showToast, suscripcion, isAdmin } = useApp();
+  const { cuentaId, suscripcion, isAdmin } = useCuenta();
+  const { showToast } = useUi();
   const [conectores, setConectores] = useState([]);
   const [codigo, setCodigo] = useState(null); // { codigo, expira }
   const [pidiendo, setPidiendo] = useState(false);

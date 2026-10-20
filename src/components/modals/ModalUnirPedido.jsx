@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { useApp } from '../../context/AppContext';
+import { usePedidos, useUi, useConfig, useCuenta } from '../../context/contextos';
 import { useCapaModal } from '../CapaModal';
 import { confirmar } from '../Dialogos';
 import { ESTADOS_UNIBLES, esUnible, lineaDePedido, motivoNoUnible, normalizarCliente, unirPedidos } from '../../utils/unirPedidos';
@@ -14,7 +14,10 @@ import { textoEstadoPedido } from '../../utils/estadosPedido';
 //   onUnido(): se llama cuando se unieron, para cerrar el detalle (queda desactualizado).
 export default function ModalUnirPedido({ pedido, onClose, onUnido }) {
   const capaModal = useCapaModal({ onClose, activo: !!pedido });
-  const { pedidos, updatePedidosBulk, showToast, fmt, cuentaId } = useApp();
+  const { pedidos, updatePedidosBulk } = usePedidos();
+  const { showToast } = useUi();
+  const { fmt } = useConfig();
+  const { cuentaId } = useCuenta();
   const [elegidoId, setElegidoId] = useState(null);
   const [facturado, setFacturado] = useState({}); // id -> true si ya tiene una factura emitida
   const [uniendo, setUniendo] = useState(false);

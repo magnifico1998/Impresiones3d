@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useConfig } from '../context/contextos';
 import ConectoresImpresion from './ConectoresImpresion';
 import { paletas, paletasList } from '../utils/paletas';
 import CampoMoneda from './CampoMoneda';
@@ -25,7 +25,7 @@ function seccionGuardada() {
 }
 
 export default function ConfiguracionPage() {
-  const { cfg, setCfg } = useApp();
+  const { cfg, setCfg } = useConfig();
   const [seccion, setSeccion] = useState(seccionGuardada);
 
   const elegirSeccion = (id) => {

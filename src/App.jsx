@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { confirmar } from './components/Dialogos';
-import { useApp } from './context/AppContext';
+import { useCuenta, useUi } from './context/contextos';
 
 // Layout and views
 import Header from './components/Header';
@@ -48,24 +48,8 @@ import ModalFaqGuardar from './components/modals/ModalFaqGuardar';
 import SincronizarTemaConector from './components/SincronizarTemaConector';
 
 function App() {
-  const {
-    user,
-    isAdmin,
-    esRevendedor,
-    loading,
-    loginWithGoogle,
-    loginWithEmailLink,
-    activePage,
-    setActivePage,
-    showToast,
-    loadError,
-    loadErrorDetalle,
-    datosCargadosOk,
-    reintentarCargaDatos,
-    logout,
-    suscripcion,
-    esMiembro
-  } = useApp();
+  const { user, isAdmin, esRevendedor, loading, loginWithGoogle, loginWithEmailLink, loadError, loadErrorDetalle, datosCargadosOk, reintentarCargaDatos, logout, suscripcion, esMiembro } = useCuenta();
+  const { activePage, setActivePage, showToast } = useUi();
 
   // Cuenta bloqueada: se muestra en vez de la pantalla genérica de "no
   // pudimos cargar tus datos" (que igual dispara, porque las reglas de

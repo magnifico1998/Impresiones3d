@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useConfig, useBiblioteca } from '../context/contextos';
 import { confirmar } from './Dialogos';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { formatoCantidad } from '../utils/inventario';
@@ -12,7 +12,8 @@ import ModalConsumoPedido from './modals/ModalConsumoPedido';
 // completado o enviado y todavía no se descontó, abre solo la propuesta.
 
 export default function SeccionInventarioPedido({ pedido }) {
-  const { cfg, biblioteca } = useApp();
+  const { cfg } = useConfig();
+  const { biblioteca } = useBiblioteca();
   const { movimientos, borrarMovimiento } = useMovimientosInventario();
   const [abierto, setAbierto] = useState(false);
   const estadoAnterior = useRef(pedido.estado);

@@ -1,7 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { useApp } from '../../context/AppContext';
+import { useCuenta } from '../../context/contextos';
 
 // Novedades de los tickets de la cuenta, para quien los creó (montado una
 // vez en App): cuántos tickets tienen un cambio de estado o una respuesta
@@ -47,7 +47,7 @@ export const useTicketsSinVer = () => useSyncExternalStore(
 );
 
 export default function AvisosTicketsCuenta() {
-  const { user, cuentaId } = useApp();
+  const { user, cuentaId } = useCuenta();
 
   useEffect(() => {
     if (!user?.uid || !cuentaId) return undefined;

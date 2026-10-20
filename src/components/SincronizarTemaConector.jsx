@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useConfig } from '../context/contextos';
 import { escucharConectores } from '../utils/impresionDirecta';
 import { paletaEfectiva } from '../utils/temaConector';
 
@@ -9,7 +9,8 @@ import { paletaEfectiva } from '../utils/temaConector';
 // users/{cuenta}/conectores/{id}), para que el panel del conector se vea igual. No muestra nada. Si las reglas
 // todavía no permiten escribir ese campo (o la cuenta está en modo lectura) deja de intentarlo en esa sesión.
 export default function SincronizarTemaConector() {
-  const { cuentaId, cfg } = useApp();
+  const { cuentaId } = useCuenta();
+  const { cfg } = useConfig();
   const [conectores, setConectores] = useState([]);
   const sinPermiso = useRef(false);
 

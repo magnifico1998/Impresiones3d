@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useUi } from '../context/contextos';
 import { iniciarRecorrido } from '../utils/recorrido';
 import { fijarEstadoRecorrido } from '../utils/estadoRecorrido';
 
@@ -19,7 +19,8 @@ const DIA_MS = 24 * 60 * 60 * 1000;
 const DEMORA_INICIO_MS = 1200; // que la app termine de mostrarse
 
 export default function Recorrido() {
-  const { user, datosCargadosOk, setActivePage } = useApp();
+  const { user, datosCargadosOk } = useCuenta();
+  const { setActivePage } = useUi();
   const enCurso = useRef(false);
   const registro = useRef(null);
 

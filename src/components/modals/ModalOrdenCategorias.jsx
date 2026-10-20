@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useBiblioteca, useConfig, useUi } from '../../context/contextos';
 import { ordenarCategorias } from '../../utils/categoriaOrden';
 import { useCapaModal } from '../CapaModal';
 
@@ -13,7 +13,9 @@ import { useCapaModal } from '../CapaModal';
  */
 export default function ModalOrdenCategorias({ isOpen, onClose }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { biblioteca, cfg, setCfg, showToast } = useApp();
+  const { biblioteca } = useBiblioteca();
+  const { cfg, setCfg } = useConfig();
+  const { showToast } = useUi();
   const [orden, setOrden] = useState([]);
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);

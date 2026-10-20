@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useConfig, useUi } from '../context/contextos';
 import { avisar } from './Dialogos';
 import { CUIT_MANAGER3D } from '../utils/facturacion';
 
@@ -16,7 +16,9 @@ const vacio = {
 };
 
 export default function TarjetaFacturacionCuenta() {
-  const { cuentaId, esMiembro, empresa, planContratado, showToast } = useApp();
+  const { cuentaId, esMiembro, planContratado } = useCuenta();
+  const { empresa } = useConfig();
+  const { showToast } = useUi();
   const [config, setConfig] = useState(null);
   const [form, setForm] = useState(vacio);
   const [editando, setEditando] = useState(false);

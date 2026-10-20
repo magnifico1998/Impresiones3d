@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useCompras, useBiblioteca, useConfig, useUi } from '../../context/contextos';
 import { useMovimientosInventario } from '../../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { armarInventario, formatoCantidad } from '../../utils/inventario';
@@ -16,7 +16,10 @@ import { useCapaModal } from '../CapaModal';
 // artículo. Todo se puede corregir antes de confirmar.
 
 export default function ModalConsumoPedido({ pedido, onClose }) {
-  const { compras, biblioteca, cfg, showToast } = useApp();
+  const { compras } = useCompras();
+  const { biblioteca } = useBiblioteca();
+  const { cfg } = useConfig();
+  const { showToast } = useUi();
   const { movimientos, agregarMovimiento } = useMovimientosInventario();
   const [guardando, setGuardando] = useState(false);
   const capaModal = useCapaModal({ onClose, activo: true, bloqueado: guardando });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useCuenta, useUi, useConfig } from '../../context/contextos';
 import { db, functions } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -28,7 +28,9 @@ const formVacio = {
 
 export default function ModalContacto({ isOpen, onClose, modo = 'contacto' }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { user, cuentaId, showToast, paisActual, empresa, setEmpresa, suscripcion } = useApp();
+  const { user, cuentaId, suscripcion } = useCuenta();
+  const { showToast } = useUi();
+  const { paisActual, empresa, setEmpresa } = useConfig();
   const esBoceto = modo === 'boceto';
 
   const [form, setForm] = useState(formVacio);

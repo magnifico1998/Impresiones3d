@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useApp } from '../context/AppContext';
+import { usePresupuestos, usePedidos, useBiblioteca, useConfig, useClientes, useUi, useCuenta } from '../context/contextos';
 import { confirmar } from './Dialogos';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { generarPdfPresupuesto } from '../utils/presupuestoPDF';
@@ -26,12 +26,13 @@ const fechaVisible = (yyyyMmDd) => (yyyyMmDd ? yyyyMmDd.split('-').reverse().joi
 const ahoraMs = () => Date.now();
 
 export default function PresupuestosPage({ onOpenNuevo, onOpenEditar, onVerPedido }) {
-  const {
-    presupuestos, updatePresupuesto, removePresupuesto,
-    addPedido, pedidos, biblioteca, cfg, clientes, addCliente,
-    getNewId, empresa, fmt, showToast
-    , cuentaId
-  } = useApp();
+  const { presupuestos, updatePresupuesto, removePresupuesto } = usePresupuestos();
+  const { addPedido, pedidos } = usePedidos();
+  const { biblioteca } = useBiblioteca();
+  const { cfg, getNewId, empresa, fmt } = useConfig();
+  const { clientes, addCliente } = useClientes();
+  const { showToast } = useUi();
+  const { cuentaId } = useCuenta();
 
   const [filtroEstado, setFiltroEstado] = useState('abiertos');
   const [busqueda, setBusqueda] = useState('');

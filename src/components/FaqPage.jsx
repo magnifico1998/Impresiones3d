@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { confirmar } from './Dialogos';
-import { useApp } from '../context/AppContext';
+import { useFaq, useCuenta, useUi } from '../context/contextos';
 import { obtenerBloques } from '../utils/faqBloques';
 import { borrarImagenDeFirebase } from '../utils/imageCompress';
 import { rutaDeFaq, compararSegmentosCategoria } from '../utils/faqCategoriaPath';
@@ -142,7 +142,9 @@ function renderBloqueTexto(texto) {
 }
 
 export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
-  const { faq, isAdmin, removeFaq, showToast } = useApp();
+  const { faq, removeFaq } = useFaq();
+  const { isAdmin } = useCuenta();
+  const { showToast } = useUi();
   const [selectedId, setSelectedId] = useState(null);
   // Categorías colapsadas: sólo estado local de la pantalla (no se
   // persiste) -- es una comodidad de navegación, no contenido que un admin

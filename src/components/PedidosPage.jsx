@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { useApp } from '../context/AppContext';
+import { usePedidos, useClientes, useConfig, useUi, useCuenta, useBiblioteca } from '../context/contextos';
 import { precioNeto } from '../utils/precioNeto';
 import { ventasDePedido, pendienteDePedido } from '../utils/finanzasPedido';
 import { calcularFechaCompletado, fechaLocalHoy } from '../utils/fechaCompletado';
@@ -16,7 +16,12 @@ import { formatoNumero } from '../utils/numeros';
 import { esUnible, pedidosAbiertosDelCliente } from '../utils/unirPedidos';
 
 export default function PedidosPage({ onOpenNewOrder, onOpenOrderDetail }) {
-  const { pedidos, clientes, cfg, updatePedido, showToast, fmt, cuentaId, planContratado, biblioteca } = useApp();
+  const { pedidos, updatePedido } = usePedidos();
+  const { clientes } = useClientes();
+  const { cfg, fmt } = useConfig();
+  const { showToast } = useUi();
+  const { cuentaId, planContratado } = useCuenta();
+  const { biblioteca } = useBiblioteca();
   const capacidad = useCapacidadProduccion();
 
   // Al pasar un pedido a completado/enviado desde la lista, se propone

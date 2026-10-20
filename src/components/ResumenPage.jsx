@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useApp } from '../context/AppContext';
+import { usePedidos, useCompras, useCuenta, useConfig } from '../context/contextos';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import ModalContacto from './modals/ModalContacto';
@@ -133,7 +133,10 @@ function CartelSuscripcion({ suscripcion, planContratado, onAbrirContacto, onAbr
 }
 
 export default function ResumenPage() {
-  const { pedidos, compras, suscripcion, planContratado, fmt, cfg, cuentaId, esMiembro } = useApp();
+  const { pedidos } = usePedidos();
+  const { compras } = useCompras();
+  const { suscripcion, planContratado, cuentaId, esMiembro } = useCuenta();
+  const { fmt, cfg } = useConfig();
   const [modalContactoOpen, setModalContactoOpen] = useState(false);
   const [modalSuscribirseOpen, setModalSuscribirseOpen] = useState(false);
   const [modalPromoOpen, setModalPromoOpen] = useState(false);

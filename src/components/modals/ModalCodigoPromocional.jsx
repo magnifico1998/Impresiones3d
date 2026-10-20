@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useUi } from '../../context/contextos';
 import { functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useCapaModal } from '../CapaModal';
@@ -11,7 +11,7 @@ import { useCapaModal } from '../CapaModal';
 // un admin lo procese después), este lo aplica el propio usuario al toque.
 export default function ModalCodigoPromocional({ isOpen, onClose }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { showToast } = useApp();
+  const { showToast } = useUi();
   const [codigo, setCodigo] = useState('');
   const [activando, setActivando] = useState(false);
 

@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useBiblioteca, useCatalogo, useConfig } from '../context/contextos';
 import ModalStockProducto from './modals/ModalStockProducto';
 import { normalizarStock, stockTotal, textoStock } from '../utils/stock';
 
 // Productos en stock: las unidades terminadas de cada producto de la Biblioteca. Son las que la tienda del
 // catálogo web muestra por defecto y vende al instante; lo que se pida de más queda a pedido.
 export default function StockPage() {
-  const { biblioteca, catalogoConfig, cfg } = useApp();
+  const { biblioteca } = useBiblioteca();
+  const { catalogoConfig } = useCatalogo();
+  const { cfg } = useConfig();
   const hayColores = (cfg?.colores || []).length > 0 || (cfg?.combinacionesColores || []).length > 0;
   const [busqueda, setBusqueda] = useState('');
   const [soloConStock, setSoloConStock] = useState(false);

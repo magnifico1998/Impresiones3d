@@ -1,8 +1,8 @@
 import React from 'react';
-import { useApp } from '../context/AppContext';
+import { useUi } from '../context/contextos';
 
 export default function Toasts() {
-  const { toasts } = useApp();
+  const { toasts } = useUi();
 
   if (!toasts.length) return null;
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useBiblioteca, useConfig } from '../../context/contextos';
 import { formatoNumero } from '../../utils/numeros';
 
 export default function ModalBibUsar({ isOpen, onClose, onSelectProduct }) {
-  const { biblioteca, fmt } = useApp();
+  const { biblioteca } = useBiblioteca();
+  const { fmt } = useConfig();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
 

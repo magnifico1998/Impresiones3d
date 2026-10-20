@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelEnvio, ListaEnvios } from '../EnvioImpresora';
 import { useCapaModal } from '../CapaModal';
-import { useApp } from '../../context/AppContext';
+import { useCuenta } from '../../context/contextos';
 import { confirmar } from '../Dialogos';
 import { escucharTrabajos } from '../../utils/impresionDirecta';
 import { fechaCorta, marcaDeEnvio, resumenDeArchivo } from '../../utils/enviosPieza';
@@ -19,7 +19,7 @@ import InsigniaArchivo from '../InsigniaArchivo';
 
 export default function ModalEnviarPieza({ pieza, producto, archivos, soloLectura, onClose, onEnviado }) {
   const capaModal = useCapaModal({ onClose, activo: true });
-  const { cuentaId } = useApp();
+  const { cuentaId } = useCuenta();
   const [trabajos, setTrabajos] = useState([]);
   const [ahora, setAhora] = useState(() => Date.now());
   const [elegido, setElegido] = useState(null); // archivo que se está por mandar

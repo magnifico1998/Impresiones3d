@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { confirmar, pedirTexto } from '../Dialogos';
-import { useApp } from '../../context/AppContext';
+import { usePedidos, useConfig, useClientes, useUi, useBiblioteca, useCuenta } from '../../context/contextos';
 import { loadImageAsBase64 } from '../../utils/loadImageAsBase64';
 import { dibujarDatosBancarios } from '../../utils/datosBancarios';
 import { calcularFechaCompletado, fechaLocalHoy } from '../../utils/fechaCompletado';
@@ -24,19 +24,12 @@ import { esUnible } from '../../utils/unirPedidos';
 // lo deja. onDeshacerResuelto avisa a quien lo guarda que ya no hace falta.
 export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOrder, onAddProduct, deshacerAgregado, onDeshacerResuelto }) {
   const capaModal = useCapaModal({ onClose: () => cerrarSinGuardar(), activo: isOpen });
-  const {
-    pedidos,
-    updatePedido,
-    cfg,
-    clientes,
-    empresa,
-    showToast,
-    fmt,
-    biblioteca,
-    cuentaId,
-    suscripcion,
-    isAdmin
-  } = useApp();
+  const { pedidos, updatePedido } = usePedidos();
+  const { cfg, empresa, fmt } = useConfig();
+  const { clientes } = useClientes();
+  const { showToast } = useUi();
+  const { biblioteca } = useBiblioteca();
+  const { cuentaId, suscripcion, isAdmin } = useCuenta();
 
   const [draft, setDraft] = useState(null);
 

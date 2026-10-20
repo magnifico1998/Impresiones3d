@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { confirmar } from '../Dialogos';
-import { useApp } from '../../context/AppContext';
+import { usePedidos, useBiblioteca, useConfig, useUi, useClientes } from '../../context/contextos';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { piezaDesdeBiblioteca } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
@@ -11,19 +11,11 @@ import OpcionesCombinaciones from '../OpcionesCombinaciones';
 
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder, onAgregadoAPedido }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const {
-    pedidos,
-    addPedido,
-    updatePedido,
-    biblioteca,
-    cfg,
-    getNewId,
-    showToast,
-    setActivePage,
-    fmt,
-    clientes,
-    addCliente
-  } = useApp();
+  const { pedidos, addPedido, updatePedido } = usePedidos();
+  const { biblioteca } = useBiblioteca();
+  const { cfg, getNewId, fmt } = useConfig();
+  const { showToast, setActivePage } = useUi();
+  const { clientes, addCliente } = useClientes();
 
   const [armarPedidoItems, setArmarPedidoItems] = useState([]);
   const [destino, setDestino] = useState('nuevo');

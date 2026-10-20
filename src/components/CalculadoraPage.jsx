@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useApp } from '../context/AppContext';
+import { useConfig, useBiblioteca, useUi, useCuenta } from '../context/contextos';
 import AvisoModoLectura from './AvisoModoLectura';
 import { formatoNumero } from '../utils/numeros';
 import CampoMoneda from './CampoMoneda';
@@ -26,7 +26,10 @@ export default function CalculadoraPage({
   onOpenPresupuesto,
   resetTick
 }) {
-  const { cfg, biblioteca, showToast, fmt, suscripcion, isAdmin } = useApp();
+  const { cfg, fmt } = useConfig();
+  const { biblioteca } = useBiblioteca();
+  const { showToast } = useUi();
+  const { suscripcion, isAdmin } = useCuenta();
 
   const [horas, setHoras] = useState(2);
   const [watts, setWatts] = useState(120);

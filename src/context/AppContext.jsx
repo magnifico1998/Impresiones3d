@@ -1,4 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import {
+  CuentaCtx, UiCtx, ConfigCtx, PedidosCtx, ComprasCtx, PresupuestosCtx, BibliotecaCtx, ClientesCtx, FaqCtx, CatalogoCtx,
+  useCuenta, useUi, useConfig, usePedidos, useCompras, usePresupuestos, useBiblioteca, useClientes, useFaq, useCatalogo
+} from './contextos';
 import { confirmar, pedirTexto } from '../components/Dialogos';
 import { auth, db, googleProvider, functions } from '../firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
@@ -9,8 +13,6 @@ import { obtenerPais, formatearMoneda, PAIS_DEFAULT } from '../utils/paises';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { registrarEvento } from '../utils/registroSoporte';
 import { normalizarStock, repartoParaImportar, descontarStock } from '../utils/stock';
-
-const AppContext = createContext();
 
 const defaultCfg = {
   palette: 'tranqui',
@@ -151,6 +153,24 @@ const camposCambiados = (antes, despues) => {
 
 const hayCambios = (cambios) => Object.keys(cambios).length > 0;
 
+const numeroSiguientePresupuesto = (presupuestos) =>
+  presupuestos.reduce((max, p) => Math.max(max, Number(p.numero) || 0), 0) + 1;
+
+// Acciones que el proveedor expone con identidad estable (ver más abajo).
+const NOMBRES_ACCIONES = [
+  'addPedido', 'updatePedido', 'updatePedidosBulk',
+  'addCompra', 'updateCompra', 'removeCompra',
+  'addPresupuesto', 'updatePresupuesto', 'removePresupuesto',
+  'addProducto', 'updateProducto', 'removeProducto', 'updateProductosBulk',
+  'addFaq', 'updateFaq', 'removeFaq',
+  'addCliente', 'updateCliente', 'removeCliente',
+  'getNewId', 'showToast',
+  'agregarMiembro', 'quitarMiembro', 'salirDeCuentaCompartida',
+  'reintentarCargaDatos', 'loginWithGoogle', 'loginWithEmailLink', 'logout',
+  'exportarBackupData', 'restaurarBackupData',
+  'guardarCatalogoConfig', 'publicarProductosEnCatalogo', 'importarSolicitudComoPedido', 'descartarSolicitud'
+];
+
 export const AppProvider = ({ children }) => {
   const [pedidos, setPedidos] = useState([]);
   const [compras, setCompras] = useState([]);
@@ -166,7 +186,6 @@ export const AppProvider = ({ children }) => {
   // (cae a Argentina si empresa.pais está vacío o es un id desconocido),
   // así que fmt nunca rompe aunque la cuenta nunca haya elegido país.
   const paisActual = obtenerPais(empresa.pais || PAIS_DEFAULT);
-  const fmt = (n) => formatearMoneda(n, paisActual.id);
 
   // Catálogo web público (colecciones raíz, fuera de users/{uid}, porque
   // las lee gente sin login desde /catalogo). catalogoConfig/meta guarda la
@@ -330,8 +349,7 @@ export const AppProvider = ({ children }) => {
   // Correlativo visible (N° 1, 2, 3...), calculado sobre los presupuestos
   // cargados. Dos pestañas creando a la vez podrían repetir un número; es
   // sólo un rótulo para el cliente, el id real del documento es único.
-  const siguienteNumeroPresupuesto = () =>
-    presupuestos.reduce((max, p) => Math.max(max, Number(p.numero) || 0), 0) + 1;
+
 
   const addPresupuesto = async (item) => {
     try {
@@ -1889,77 +1907,108 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const value = {
-    pedidos,
-    addPedido,
-    updatePedido,
-    updatePedidosBulk,
-    compras,
-    addCompra,
-    updateCompra,
-    removeCompra,
-    presupuestos,
-    addPresupuesto,
-    updatePresupuesto,
-    removePresupuesto,
-    siguienteNumeroPresupuesto,
-    biblioteca,
-    addProducto,
-    updateProducto,
-    removeProducto,
-    updateProductosBulk,
-    faq,
-    addFaq,
-    updateFaq,
-    removeFaq,
-    clientes,
-    addCliente,
-    updateCliente,
-    removeCliente,
-    empresa,
-    setEmpresa,
-    paisActual,
-    fmt,
-    cfg,
-    setCfg,
-    idCounter,
-    getNewId,
-    user,
-    cuentaId,
-    esMiembro,
-    miembros,
-    agregarMiembro,
-    quitarMiembro,
-    salirDeCuentaCompartida,
-    isAdmin,
-    esRevendedor: !!suscripcion?.codigoRevendedor,
-    suscripcion,
-    planContratado,
-    consumoActual,
-    loading,
-    loadError,
-    loadErrorDetalle,
-    datosCargadosOk,
-    reintentarCargaDatos,
-    loginWithGoogle,
-    loginWithEmailLink,
-    logout,
-    activePage,
-    setActivePage,
-    toasts,
-    showToast,
-    syncError,
-    exportarBackupData,
-    restaurarBackupData,
-    catalogoConfig,
-    guardarCatalogoConfig,
-    publicarProductosEnCatalogo,
-    solicitudesWeb,
-    importarSolicitudComoPedido,
-    descartarSolicitud
+  // Acciones: funciones que se recrean en cada render y capturan el estado de
+  // ese momento. Se exponen a través de envoltorios estables que llaman
+  // siempre a la versión más reciente, así no cambian de identidad y no
+  // obligan a dibujar de nuevo a quien las usa.
+  const acciones = {
+    addPedido, updatePedido, updatePedidosBulk,
+    addCompra, updateCompra, removeCompra,
+    addPresupuesto, updatePresupuesto, removePresupuesto,
+    addProducto, updateProducto, removeProducto, updateProductosBulk,
+    addFaq, updateFaq, removeFaq,
+    addCliente, updateCliente, removeCliente,
+    getNewId, showToast,
+    agregarMiembro, quitarMiembro, salirDeCuentaCompartida,
+    reintentarCargaDatos, loginWithGoogle, loginWithEmailLink, logout,
+    exportarBackupData, restaurarBackupData,
+    guardarCatalogoConfig, publicarProductosEnCatalogo, importarSolicitudComoPedido, descartarSolicitud
   };
+  const accionesRef = useRef(acciones);
+  // Se actualiza antes de cualquier efecto: los eventos y efectos de los hijos ven siempre la versión más nueva.
+  useLayoutEffect(() => { accionesRef.current = acciones; });
+  const A = useMemo(
+    () => Object.fromEntries(NOMBRES_ACCIONES.map((k) => [k, (...args) => accionesRef.current[k](...args)])),
+    []
+  );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  const esRevendedor = !!suscripcion?.codigoRevendedor;
+
+  const cuentaValue = useMemo(() => ({
+    user, cuentaId, esMiembro, miembros, isAdmin, esRevendedor, suscripcion, planContratado, consumoActual,
+    loading, loadError, loadErrorDetalle, datosCargadosOk, syncError,
+    agregarMiembro: A.agregarMiembro, quitarMiembro: A.quitarMiembro, salirDeCuentaCompartida: A.salirDeCuentaCompartida,
+    reintentarCargaDatos: A.reintentarCargaDatos, loginWithGoogle: A.loginWithGoogle,
+    loginWithEmailLink: A.loginWithEmailLink, logout: A.logout,
+    exportarBackupData: A.exportarBackupData, restaurarBackupData: A.restaurarBackupData
+  }), [A, user, cuentaId, esMiembro, miembros, isAdmin, esRevendedor, suscripcion, planContratado, consumoActual,
+    loading, loadError, loadErrorDetalle, datosCargadosOk, syncError]);
+
+  const uiValue = useMemo(
+    () => ({ activePage, setActivePage, toasts, showToast: A.showToast }),
+    [A, activePage, toasts]
+  );
+
+  const configValue = useMemo(
+    () => ({ empresa, setEmpresa, paisActual, fmt: (n) => formatearMoneda(n, paisActual.id), cfg, setCfg, idCounter, getNewId: A.getNewId }),
+    [A, empresa, paisActual, cfg, idCounter]
+  );
+
+  const pedidosValue = useMemo(
+    () => ({ pedidos, addPedido: A.addPedido, updatePedido: A.updatePedido, updatePedidosBulk: A.updatePedidosBulk }),
+    [A, pedidos]
+  );
+  const comprasValue = useMemo(
+    () => ({ compras, addCompra: A.addCompra, updateCompra: A.updateCompra, removeCompra: A.removeCompra }),
+    [A, compras]
+  );
+  const presupuestosValue = useMemo(() => ({
+    presupuestos, addPresupuesto: A.addPresupuesto, updatePresupuesto: A.updatePresupuesto,
+    removePresupuesto: A.removePresupuesto, siguienteNumeroPresupuesto: () => numeroSiguientePresupuesto(presupuestos)
+  }), [A, presupuestos]);
+  const bibliotecaValue = useMemo(() => ({
+    biblioteca, addProducto: A.addProducto, updateProducto: A.updateProducto,
+    removeProducto: A.removeProducto, updateProductosBulk: A.updateProductosBulk
+  }), [A, biblioteca]);
+  const clientesValue = useMemo(
+    () => ({ clientes, addCliente: A.addCliente, updateCliente: A.updateCliente, removeCliente: A.removeCliente }),
+    [A, clientes]
+  );
+  const faqValue = useMemo(
+    () => ({ faq, addFaq: A.addFaq, updateFaq: A.updateFaq, removeFaq: A.removeFaq }),
+    [A, faq]
+  );
+  const catalogoValue = useMemo(() => ({
+    catalogoConfig, guardarCatalogoConfig: A.guardarCatalogoConfig, publicarProductosEnCatalogo: A.publicarProductosEnCatalogo,
+    solicitudesWeb, importarSolicitudComoPedido: A.importarSolicitudComoPedido, descartarSolicitud: A.descartarSolicitud
+  }), [A, catalogoConfig, solicitudesWeb]);
+
+  return (
+    <CuentaCtx.Provider value={cuentaValue}>
+      <UiCtx.Provider value={uiValue}>
+        <ConfigCtx.Provider value={configValue}>
+          <PedidosCtx.Provider value={pedidosValue}>
+            <ComprasCtx.Provider value={comprasValue}>
+              <PresupuestosCtx.Provider value={presupuestosValue}>
+                <BibliotecaCtx.Provider value={bibliotecaValue}>
+                  <ClientesCtx.Provider value={clientesValue}>
+                    <FaqCtx.Provider value={faqValue}>
+                      <CatalogoCtx.Provider value={catalogoValue}>{children}</CatalogoCtx.Provider>
+                    </FaqCtx.Provider>
+                  </ClientesCtx.Provider>
+                </BibliotecaCtx.Provider>
+              </PresupuestosCtx.Provider>
+            </ComprasCtx.Provider>
+          </PedidosCtx.Provider>
+        </ConfigCtx.Provider>
+      </UiCtx.Provider>
+    </CuentaCtx.Provider>
+  );
 };
 
-export const useApp = () => useContext(AppContext);
+// Compatibilidad: junta todas las áreas (se vuelve a dibujar con cualquier cambio).
+// Para componentes nuevos o migrados, usar el hook del área (contextos.js).
+export const useApp = () => ({
+  ...useCuenta(), ...useUi(), ...useConfig(), ...usePedidos(), ...useCompras(),
+  ...usePresupuestos(), ...useBiblioteca(), ...useClientes(), ...useFaq(), ...useCatalogo()
+});

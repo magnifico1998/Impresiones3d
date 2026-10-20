@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useCompras, useConfig, useUi } from '../../context/contextos';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import {
   CATEGORIAS_INVENTARIO, PESO_ROLLO_DEFAULT, esLineaFilamento, juntarMarcas, lineasDeCompra, marcasUsadas, resumenCompra, subtotalLinea
@@ -36,7 +36,9 @@ const igual = (a, b) => String(a || '').trim().toLowerCase() === String(b || '')
 
 export default function ModalCompra({ isOpen, onClose, editId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { compras, addCompra, updateCompra, getNewId, showToast, cfg, setCfg } = useApp();
+  const { compras, addCompra, updateCompra } = useCompras();
+  const { getNewId, cfg, setCfg } = useConfig();
+  const { showToast } = useUi();
 
   const filamentos = (cfg.filamentos || []).map((f) => ({ nombre: nombreDe(f), precio: Number(f?.precio) || 0 })).filter((f) => f.nombre);
   const colores = (cfg.colores || []).map((c) => ({ nombre: nombreDe(c), hex: hexDe(c) })).filter((c) => c.nombre);

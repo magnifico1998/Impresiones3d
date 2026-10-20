@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { confirmar } from './Dialogos';
-import { useApp } from '../context/AppContext';
+import { useCompras, useUi, useConfig } from '../context/contextos';
 import { categoriasDeCompra, lineasDeCompra, subtotalLinea, totalCompra } from '../utils/inventario';
 import InventarioTab from './InventarioTab';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
@@ -24,7 +24,9 @@ function pestanaComprasGuardada() {
 }
 
 export default function ComprasPage({ onOpenNewCompra, onOpenEditCompra }) {
-  const { compras, removeCompra, showToast, fmt, cfg } = useApp();
+  const { compras, removeCompra } = useCompras();
+  const { showToast } = useUi();
+  const { fmt, cfg } = useConfig();
   const [pestana, setPestana] = useState(pestanaComprasGuardada);
   const pestanaVisible = cfg.inventarioHabilitado ? pestana : 'compras';
   // Artículos bajo el mínimo, para mostrarlos en la solapa "Inventario (N)".

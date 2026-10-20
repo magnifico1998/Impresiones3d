@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { confirmar, pedirTexto } from '../Dialogos';
-import { useApp } from '../../context/AppContext';
+import { useUi } from '../../context/contextos';
 import { functions } from '../../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useCapaModal } from '../CapaModal';
@@ -51,7 +51,7 @@ const HERRAMIENTAS = [
 // functions/http/plantillasEmail.js para guardar los cambios.
 export default function ModalPlantillaEmail({ isOpen, onClose, plantilla, onGuardado }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { showToast } = useApp();
+  const { showToast } = useUi();
   const [subject, setSubject] = useState('');
   const [bodyHtml, setBodyHtml] = useState('');
   const [modo, setModo] = useState('visual');

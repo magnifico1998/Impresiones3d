@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useUi } from '../context/contextos';
 import TablaComprobantes from './TablaComprobantes';
 import TarjetaColapsable from './TarjetaColapsable';
 
@@ -37,7 +37,8 @@ const COLUMNA_PEDIDO = {
 };
 
 export default function ComprobantesCuenta() {
-  const { cuentaId, showToast } = useApp();
+  const { cuentaId } = useCuenta();
+  const { showToast } = useUi();
   const [facturas, setFacturas] = useState([]);
 
   useEffect(() => {

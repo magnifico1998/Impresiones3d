@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { useApp } from '../../context/AppContext';
+import { useCuenta } from '../../context/contextos';
 import { CATEGORIAS_TICKET, ESTADOS_TICKET, numeroTicket } from '../../utils/formatoTicket';
 import { marcarTicketVisto, useTicketsSinVer } from './AvisosTicketsCuenta';
 
@@ -20,7 +20,7 @@ export const fechaTicket = (ts) => (ts?.toDate ? ts.toDate().toLocaleString('es-
 export const abrirNuevoTicket = () => window.dispatchEvent(new CustomEvent('abrir-ticket'));
 
 export default function SoportePage() {
-  const { cuentaId } = useApp();
+  const { cuentaId } = useCuenta();
   const [tickets, setTickets] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState(null);

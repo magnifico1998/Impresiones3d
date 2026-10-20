@@ -1,10 +1,12 @@
 import React from 'react';
-import { useApp } from '../context/AppContext';
+import { useUi, useCuenta, useConfig } from '../context/contextos';
 import { useTicketsPendientes } from './soporte/AvisosTicketsAdmin';
 import { useTicketsSinVer } from './soporte/AvisosTicketsCuenta';
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { activePage, setActivePage, isAdmin, esRevendedor, cfg } = useApp();
+  const { activePage, setActivePage } = useUi();
+  const { isAdmin, esRevendedor } = useCuenta();
+  const { cfg } = useConfig();
   const ticketsPendientes = useTicketsPendientes();
   const { sinVer: ticketsSinVer } = useTicketsSinVer();
 

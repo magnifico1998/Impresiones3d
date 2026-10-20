@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useUi } from '../../context/contextos';
 import { db } from '../../firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import SelectorCondicionImpositiva from '../SelectorCondicionImpositiva';
@@ -31,7 +31,7 @@ const FORM_VACIO = {
 // gestionando al suscriptor no aporta nada.
 export default function ModalDatosSuscriptor({ isOpen, onClose, uid, emailCuenta, solicitudInicial }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { showToast } = useApp();
+  const { showToast } = useUi();
   const [form, setForm] = useState(FORM_VACIO);
   const [cargando, setCargando] = useState(true);
   const [existeRegistro, setExisteRegistro] = useState(false);

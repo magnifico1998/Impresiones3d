@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { addDoc, collection, deleteDoc, doc, onSnapshot, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useConfig, useUi } from '../context/contextos';
 
 // Movimientos del inventario de la cuenta (users/{uid}/inventarioMovimientos):
 // consumos, ajustes y bajas. Cada movimiento es un doc independiente; el
 // stock se calcula sumándolos a lo comprado (ver utils/inventario.js).
 export function useMovimientosInventario() {
-  const { cuentaId, cfg, user, showToast } = useApp();
+  const { cuentaId, user } = useCuenta();
+  const { cfg } = useConfig();
+  const { showToast } = useUi();
   const [movimientos, setMovimientos] = useState([]);
   const habilitado = !!cfg.inventarioHabilitado;
 

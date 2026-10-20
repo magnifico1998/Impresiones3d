@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { confirmar, pedirTexto } from './Dialogos';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useUi } from '../context/contextos';
 import { db, functions } from '../firebase';
 import { collection, collectionGroup, onSnapshot, doc, updateDoc, query, orderBy, getDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -93,7 +93,8 @@ export default function AdminPage({ modoRevendedor = false }) {
       // Sin almacenamiento: la pestaña sólo dura mientras la página está abierta.
     }
   };
-  const { user, showToast, suscripcion } = useApp();
+  const { user, suscripcion } = useCuenta();
+  const { showToast } = useUi();
   const ticketsPendientes = useTicketsPendientes();
   // Desde el aviso de ticket nuevo con el panel ya abierto (ver AvisosTicketsAdmin).
   useEffect(() => {

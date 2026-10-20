@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useCuenta, useConfig, useUi } from '../../context/contextos';
 import { confirmar } from '../Dialogos';
 import {
   EXTENSIONES_GCODE, borrarArchivoGcode, cambiarImpresoraGcode, cupoGcode, descargarArchivoGcode,
@@ -21,7 +21,9 @@ const ESTADO = {
 };
 
 export default function ModalArchivosGcode({ producto, archivos, onClose }) {
-  const { cuentaId, cfg, planContratado, suscripcion, isAdmin, showToast } = useApp();
+  const { cuentaId, planContratado, suscripcion, isAdmin } = useCuenta();
+  const { cfg } = useConfig();
+  const { showToast } = useUi();
   // Esc cierra sólo este modal cuando se abre encima de otro (Editar producto).
   useCapaModal({ onClose, activo: !!producto });
   const [impresora, setImpresora] = useState(producto?.impresoraNombre || '');

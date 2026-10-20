@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useUi, useCuenta, useConfig } from '../../context/contextos';
 import { db, functions } from '../../firebase';
 import { collection, doc, getDoc, getDocs, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -42,7 +42,9 @@ const limiteTexto = (valor, singular, plural) =>
 // escucha suscripcion/actual en vivo.
 export default function ModalSuscribirse({ isOpen, onClose }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { showToast, suscripcion, user, empresa, cuentaId, paisActual } = useApp();
+  const { showToast } = useUi();
+  const { suscripcion, user, cuentaId } = useCuenta();
+  const { empresa, paisActual } = useConfig();
   const [planes, setPlanes] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [planId, setPlanId] = useState(null);

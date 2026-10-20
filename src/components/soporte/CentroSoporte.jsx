@@ -2,7 +2,7 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
-import { useApp } from '../../context/AppContext';
+import { useCuenta, useConfig, useUi } from '../../context/contextos';
 import { version } from '../../../package.json';
 import {
   MINUTOS_SIN_GRABAR, esError, estadoGrabacion, iniciarGrabacion, obtenerEventos, suscribirRegistro, terminarGrabacion
@@ -20,7 +20,9 @@ import { useCapaModal } from '../CapaModal';
 const FORM_VACIO = { categoria: 'error', asunto: '', comentario: '' };
 
 export default function CentroSoporte() {
-  const { user, cuentaId, esMiembro, suscripcion, cfg, activePage, showToast } = useApp();
+  const { user, cuentaId, esMiembro, suscripcion } = useCuenta();
+  const { cfg } = useConfig();
+  const { activePage, showToast } = useUi();
   const grabando = useSyncExternalStore(suscribirRegistro, estadoGrabacion);
   const [abierto, setAbierto] = useState(false);
   const [form, setForm] = useState(FORM_VACIO);

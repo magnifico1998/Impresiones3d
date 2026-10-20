@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { confirmar } from './Dialogos';
-import { useApp } from '../context/AppContext';
+import { useConfig, useUi, useCuenta, useBiblioteca, useCatalogo } from '../context/contextos';
 import { comprimirImagen, subirImagenAFirebase } from '../utils/imageCompress';
 import { formatearMoneda, paisesList, PAIS_DEFAULT } from '../utils/paises';
 import { functions } from '../firebase';
@@ -55,11 +55,11 @@ function BarraConsumo({ etiqueta, usado, limite, formatear = (n) => n.toLocaleSt
 }
 
 export default function EmpresaPage() {
-  const {
-    empresa, setEmpresa, showToast, cuentaId, esMiembro, miembros,
-    agregarMiembro, quitarMiembro, salirDeCuentaCompartida, suscripcion, planContratado, consumoActual, biblioteca,
-    guardarCatalogoConfig
-  } = useApp();
+  const { empresa, setEmpresa } = useConfig();
+  const { showToast } = useUi();
+  const { cuentaId, esMiembro, miembros, agregarMiembro, quitarMiembro, salirDeCuentaCompartida, suscripcion, planContratado, consumoActual } = useCuenta();
+  const { biblioteca } = useBiblioteca();
+  const { guardarCatalogoConfig } = useCatalogo();
   const fileInputRef = useRef(null);
 
   const [emailNuevo, setEmailNuevo] = useState('');

@@ -1,10 +1,13 @@
 import React from 'react';
 import { confirmar } from '../Dialogos';
-import { useApp } from '../../context/AppContext';
+import { useClientes, usePedidos, useUi, useConfig } from '../../context/contextos';
 import { precioNeto } from '../../utils/precioNeto';
 
 export default function ModalClienteDetalle({ isOpen, onClose, clientId, onEdit, onViewOrder }) {
-  const { clientes, removeCliente, pedidos, showToast, fmt } = useApp();
+  const { clientes, removeCliente } = useClientes();
+  const { pedidos } = usePedidos();
+  const { showToast } = useUi();
+  const { fmt } = useConfig();
 
   if (!isOpen || clientId === null) return null;
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useClientes, usePedidos, useConfig } from '../context/contextos';
 import { precioNeto } from '../utils/precioNeto';
 import { useLocalStorageState } from '../hooks/useLocalStorageState';
 
@@ -13,7 +13,9 @@ const sortOptions = [
 ];
 
 export default function ClientesPage({ onOpenNewClient, onOpenClientDetail }) {
-  const { clientes, pedidos, fmt } = useApp();
+  const { clientes } = useClientes();
+  const { pedidos } = usePedidos();
+  const { fmt } = useConfig();
   // Se persiste en localStorage para que el orden elegido quede fijo al
   // salir y volver a "Clientes", hasta que se elija otro.
   const [sortMode, setSortMode] = useLocalStorageState('ordenClientes', 'nombreAsc');

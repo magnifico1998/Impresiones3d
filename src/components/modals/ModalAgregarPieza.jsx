@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { confirmar } from '../Dialogos';
-import { useApp } from '../../context/AppContext';
+import { usePedidos, useClientes, useConfig, useUi } from '../../context/contextos';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { datosConsumoPieza } from '../../utils/piezaPedido';
 import { useCapaModal } from '../CapaModal';
@@ -15,7 +15,10 @@ import OpcionesCombinaciones from '../OpcionesCombinaciones';
 // se agrega la misma capacidad para la pieza que sale de la Calculadora.
 export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, defaultPedidoId, onConfirm, onAgregadoAPedido }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { pedidos, addPedido, updatePedido, clientes, addCliente, getNewId, showToast, cfg, fmt } = useApp();
+  const { pedidos, addPedido, updatePedido } = usePedidos();
+  const { clientes, addCliente } = useClientes();
+  const { getNewId, cfg, fmt } = useConfig();
+  const { showToast } = useUi();
   const [nombre, setNombre] = useState('');
   const [destino, setDestino] = useState('nuevo');
   const [cliente, setCliente] = useState('');

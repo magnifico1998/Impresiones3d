@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useConfig } from '../context/contextos';
 import { version } from '../../package.json';
 import { ES_PRUEBA } from '../entornoFirebase';
 import useInstalarApp from '../hooks/useInstalarApp';
@@ -8,7 +8,8 @@ import useInstalarApp from '../hooks/useInstalarApp';
 const VERSION = version.split('.').slice(0, 2).join('.');
 
 export default function Header({ onToggleMenu }) {
-  const { user, logout, empresa, syncError } = useApp();
+  const { user, logout, syncError } = useCuenta();
+  const { empresa } = useConfig();
   const { puedeInstalar, instalar } = useInstalarApp();
 
   return (

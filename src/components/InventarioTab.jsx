@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useCompras, useConfig, useUi } from '../context/contextos';
 import { pedirTexto, confirmar } from './Dialogos';
 import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../utils/fechaCompletado';
@@ -23,7 +23,9 @@ const BADGE_CAT = {
 const fechaCorta = (f) => (f ? f.split('-').reverse().join('/') : '—');
 
 export default function InventarioTab() {
-  const { compras, fmt, cfg, setCfg, showToast } = useApp();
+  const { compras } = useCompras();
+  const { fmt, cfg, setCfg } = useConfig();
+  const { showToast } = useUi();
   const [soloBajoMinimo, setSoloBajoMinimo] = useState(false);
   const { movimientos, agregarMovimiento, borrarMovimiento } = useMovimientosInventario();
   const [busqueda, setBusqueda] = useState('');

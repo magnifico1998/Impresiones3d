@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../../firebase';
-import { useApp } from '../../context/AppContext';
+import { useClientes, useUi } from '../../context/contextos';
 import { confirmar, avisar } from '../Dialogos';
 import { CONDICIONES_IVA, pesosAR, receptorDesdeCliente } from '../../utils/facturacion';
 import { useCapaModal } from '../CapaModal';
@@ -37,7 +37,8 @@ function armarInicial(pedido, cliente, precioVentaNeto) {
 }
 
 export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, onClose }) {
-  const { updateCliente, showToast } = useApp();
+  const { updateCliente } = useClientes();
+  const { showToast } = useUi();
   const [form, setForm] = useState(() => armarInicial(pedido, cliente, precioVentaNeto));
   const [emitiendo, setEmitiendo] = useState(false);
   const capaModal = useCapaModal({ onClose, activo: true, bloqueado: emitiendo });

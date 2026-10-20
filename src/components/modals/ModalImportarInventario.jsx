@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useCompras, useConfig, useUi } from '../../context/contextos';
 import { confirmar as confirmarDialogo } from '../Dialogos';
 import { useMovimientosInventario } from '../../hooks/useMovimientosInventario';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
@@ -35,7 +35,9 @@ async function leerArchivo(archivo) {
 }
 
 export default function ModalImportarInventario({ onClose }) {
-  const { compras, cfg, setCfg, fmt, showToast } = useApp();
+  const { compras } = useCompras();
+  const { cfg, setCfg, fmt } = useConfig();
+  const { showToast } = useUi();
   const { movimientos, agregarMovimientos, borrarMovimientos } = useMovimientosInventario();
   const [archivo, setArchivo] = useState('');
   const [lectura, setLectura] = useState(null); // { error } | { filas }

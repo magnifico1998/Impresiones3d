@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useCuenta } from '../../context/contextos';
 import { version } from '../../../package.json';
 import { novedadesDesde } from '../../utils/novedades';
 import { useEstadoRecorrido } from '../../utils/estadoRecorrido';
@@ -37,7 +37,7 @@ const guardarVista = (uid) => {
 const fechaCorta = (f) => f.split('-').reverse().join('/');
 
 export default function ModalNovedades() {
-  const { user, datosCargadosOk } = useApp();
+  const { user, datosCargadosOk } = useCuenta();
   const [entradas, setEntradas] = useState(null);
   const recorrido = useEstadoRecorrido();
 

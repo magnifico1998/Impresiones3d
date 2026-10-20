@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { confirmar } from '../Dialogos';
-import { useApp } from '../../context/AppContext';
+import { useBiblioteca, useUi, useCuenta, useConfig } from '../../context/contextos';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 import { useCapaModal } from '../CapaModal';
 import BotonSubirImagenes from '../BotonSubirImagenes';
@@ -12,7 +12,10 @@ import { estaMarcado, marcarColor } from '../../utils/coloresProducto';
 
 export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { biblioteca, updateProducto, showToast, cuentaId, fmt, cfg } = useApp();
+  const { biblioteca, updateProducto } = useBiblioteca();
+  const { showToast } = useUi();
+  const { cuentaId } = useCuenta();
+  const { fmt, cfg } = useConfig();
   // Archivos G-code / .3mf del producto: se gestionan en ModalArchivosGcode
   // (los mismos que el botón 📄 de la tarjeta de la Biblioteca).
   const [archivosGcode, setArchivosGcode] = useState([]);

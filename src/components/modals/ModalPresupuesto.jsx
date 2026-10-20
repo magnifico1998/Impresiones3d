@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useBiblioteca, useClientes, useConfig, useUi, useCuenta, usePresupuestos } from '../../context/contextos';
 import { fechaLocalHoy } from '../../utils/fechaCompletado';
 import { generarPdfPresupuesto } from '../../utils/presupuestoPDF';
 import { ESTADOS_PRESUPUESTO, ESTADOS_ABIERTOS } from '../../utils/estadosPresupuesto';
@@ -52,10 +52,12 @@ const nuevoIdLinea = () => Date.now() + Math.random();
 
 export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, presupuestoActual, presupuestoEditar }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const {
-    biblioteca, clientes, empresa, fmt, showToast, getNewId, cuentaId,
-    presupuestos, addPresupuesto, updatePresupuesto, siguienteNumeroPresupuesto
-  } = useApp();
+  const { biblioteca } = useBiblioteca();
+  const { clientes } = useClientes();
+  const { empresa, fmt, getNewId } = useConfig();
+  const { showToast } = useUi();
+  const { cuentaId } = useCuenta();
+  const { presupuestos, addPresupuesto, updatePresupuesto, siguienteNumeroPresupuesto } = usePresupuestos();
 
   // 'nuevo' o el id (como string) de un presupuesto abierto existente.
   const [destinoId, setDestinoId] = useState('nuevo');

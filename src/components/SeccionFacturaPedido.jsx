@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../firebase';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useUi } from '../context/contextos';
 import { confirmar, avisar, pedirTexto } from './Dialogos';
 import ModalFacturarPedido from './modals/ModalFacturarPedido';
 import { numeroComprobante, pesosAR, descargarPdfBase64, compartirPdfBase64, guardarPestanaEmpresa } from '../utils/facturacion';
@@ -16,7 +16,8 @@ const llamar = (nombre, datos) => httpsCallable(functions, nombre, { timeout: 30
 const textoErrores = (errores) => (errores || []).map((e) => `${e.codigo}: ${e.mensaje}`).join('\n');
 
 export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto, persistirBorrador, cerrarPedido }) {
-  const { cuentaId, planContratado, showToast, setActivePage } = useApp();
+  const { cuentaId, planContratado } = useCuenta();
+  const { showToast, setActivePage } = useUi();
   const [config, setConfig] = useState(undefined);
   const [resumen, setResumen] = useState(null);
   const [abierto, setAbierto] = useState(false);

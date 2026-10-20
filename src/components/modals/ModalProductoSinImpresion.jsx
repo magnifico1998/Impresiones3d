@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useBiblioteca, useConfig, useUi, useCuenta } from '../../context/contextos';
 import { useCapaModal } from '../CapaModal';
 import BotonSubirImagenes from '../BotonSubirImagenes';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
@@ -14,7 +14,10 @@ const MARGEN_INICIAL = 50;
 // Colores, variantes y stock se cargan después con "Editar" y "Stock", igual que en cualquier producto.
 export default function ModalProductoSinImpresion({ isOpen, onClose, productoId }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
-  const { biblioteca, addProducto, updateProducto, getNewId, showToast, cuentaId, planContratado, fmt } = useApp();
+  const { biblioteca, addProducto, updateProducto } = useBiblioteca();
+  const { getNewId, fmt } = useConfig();
+  const { showToast } = useUi();
+  const { cuentaId, planContratado } = useCuenta();
   const existente = productoId != null ? biblioteca.find((p) => p.id === productoId) : null;
 
   const [nombre, setNombre] = useState('');

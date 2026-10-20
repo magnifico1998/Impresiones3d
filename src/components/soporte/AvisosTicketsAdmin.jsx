@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { useApp } from '../../context/AppContext';
+import { useCuenta, useUi } from '../../context/contextos';
 import { numeroTicket } from '../../utils/formatoTicket';
 
 // Avisos de tickets para la cuenta admin, montado una vez en App:
@@ -40,7 +40,8 @@ export function irATickets(setActivePage) {
 }
 
 export default function AvisosTicketsAdmin() {
-  const { isAdmin, setActivePage } = useApp();
+  const { isAdmin } = useCuenta();
+  const { setActivePage } = useUi();
   const [avisos, setAvisos] = useState([]);
   const primeraCarga = useRef(true);
 

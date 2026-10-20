@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { useApp } from '../context/AppContext';
+import { useCuenta, useConfig } from '../context/contextos';
 import { pedirTexto } from './Dialogos';
 import TarjetaColapsable from './TarjetaColapsable';
 import {
@@ -30,7 +30,8 @@ const nivel = (pct) => (pct >= 90 ? 'pasado' : pct >= 70 ? 'cerca' : 'ok');
 const leerNumero = (t) => parseFloat(String(t).replace(/\$|\s/g, '').replace(/\./g, '').replace(',', '.'));
 
 export default function TotalizadorMonotributo() {
-  const { cuentaId, empresa, setEmpresa, fmt, isAdmin } = useApp();
+  const { cuentaId, isAdmin } = useCuenta();
+  const { empresa, setEmpresa, fmt } = useConfig();
   const [facturasCuenta, setFacturasCuenta] = useState([]);
   const [facturasAdmin, setFacturasAdmin] = useState([]);
   const conFacturasAdmin = isAdmin && !!empresa.totalizadorConFacturasAdmin;
