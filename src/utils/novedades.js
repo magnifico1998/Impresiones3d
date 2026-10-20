@@ -7,6 +7,15 @@
 
 export const NOVEDADES = [
   {
+    version: 17,
+    fecha: '2026-10-19',
+    items: [
+      { texto: 'Productos sin impresión en la Biblioteca: cargá lo que vendés pero no imprimís (reventa, accesorios, insumos) con su costo de compra y un margen. El precio sale recomendado pero lo podés editar, y el costo lo actualizás a mano. Se usan en pedidos, presupuestos, stock y catálogo como cualquier producto; no entran en "Actualizar precios" ni descuentan filamento.' },
+      { texto: 'Dirección propia para tu catálogo web: elegí un nombre único en Catálogo web → "Dirección de tu catálogo" y compartí manager3d.com.ar/tu-nombre, con vista previa al compartirlo por WhatsApp.' },
+      { texto: 'Mejor vista en el celular: la app y el catálogo se adaptan al ancho de la pantalla, sin tener que desplazar de costado.' }
+    ]
+  },
+  {
     version: 16,
     fecha: '2026-10-17',
     items: [
