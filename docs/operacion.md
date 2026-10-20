@@ -292,7 +292,7 @@ Detectados con el caso de un cliente (walterluisllanes@gmail.com, 2026-10-11). *
 en `develop` el 2026-10-11, pendientes de pase a producción** (sin probar en el navegador;
 `vite build` compila).
 
-- Hotfix 1: `resolverCuentaId` y `iniciarCuenta` en `src/context/AppContext.jsx`. Renueva el
+- Hotfix 1: `resolverCuentaId` y `iniciarCuenta` en `src/context/useSesion.js`. Renueva el
   token, reintenta una vez y, si falla, muestra la pantalla "No pudimos cargar tus datos" con
   "Reintentar". El detalle técnico empieza con "vínculo de equipo:". No se agregó el
   indicador de cuenta activa (punto 4).
@@ -311,7 +311,7 @@ equipo: FirebaseError: Missing or insufficient permissions".
 **Causa.** El token de sesión (ID token) dura 1 hora y el SDK lo renueva solo, pero al
 recargar la primera lectura puede salir con un token viejo o sin `email_verified`. La regla
 de `invitacionesMiembro/{email}` (`firestore.rules`, `emailDeAuth()`) lo rechaza con
-`permission-denied`. `resolverCuentaId` (`src/context/AppContext.jsx`) no reintenta y su
+`permission-denied`. `resolverCuentaId` (`src/context/useSesion.js`) no reintenta y su
 `catch` devuelve `{ idEfectivo: currentUser.uid, miembro: false }`: un miembro de un equipo
 queda trabajando en **su propia cuenta**, sin aviso. Ahí el cupo de G-code y el plan son los
 de esa cuenta, no los del dueño.

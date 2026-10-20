@@ -24,7 +24,7 @@ revisión". Cuenta como regla de negocio cualquier cambio en:
 - Promociones, equipo y borrado: `functions/http/codigosPromocionales.js`,
   `functions/http/gestionarMiembros.js`, `functions/http/borrarCuenta.js`.
 - Permisos y límites: `firestore.rules`, `storage.rules`, y los chequeos de
-  límites en `src/context/AppContext.jsx` (`motivoLimitePedido`) y
+  límites en `src/context/accionesDatos.js` (`motivoLimitePedido`) y
   `src/catalogo/CatalogoPublico.jsx`.
 - Presupuestos (estados, aprobación que crea el pedido):
   `src/components/PresupuestosPage.jsx`,

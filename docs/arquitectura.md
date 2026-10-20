@@ -36,7 +36,7 @@ React 19 + Vite, sin router: la navegación es por estado.
 | `main.jsx` | Punto de entrada. Si la URL es `/catalogo/...` carga solo el catálogo público; si no, la app con login. Ambos se cargan con import dinámico, así ninguno descarga el código del otro |
 | `AppPrivada.jsx` | La app con login (envuelve `App` con `AppProvider` y los diálogos) |
 | `App.jsx` | Layout: header, sidebar y la página activa |
-| `context/AppContext.jsx` | Estado global: sesión, cuenta efectiva (la propia o la del dueño si es miembro invitado), suscripción, config, datos, login |
+| `context/AppContext.jsx` + `context/*` | Estado global repartido en contextos por área (`contextos.js`: `useCuenta`, `useUi`, `useConfig`, `usePedidos`, `useBiblioteca`, etc.). `AppContext.jsx` es el proveedor; la lógica está en `useSesion` (login, cuenta efectiva: la propia o la del dueño si es miembro invitado), `useConfigCuenta`, `useDatosEnVivo` (escuchas de Firestore, suscripción, plan) y `acciones*.js` (altas/bajas, catálogo, backup, equipo) |
 | `firebaseBase.js` | Firebase base (app + Firestore + Functions). Lo usa el catálogo público |
 | `firebase.js` | Re-exporta la base y suma Auth y Storage (app con login) |
 | `catalogo/CatalogoPublico.jsx` | Catálogo web de cada tienda, sin login |
