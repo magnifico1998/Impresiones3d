@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'vanilla_backup', 'vanilla_backup/**', 'functions/node_modules', 'conector/node_modules', 'conector/dist', 'conector/build']),
+  globalIgnores(['dist', 'vanilla_backup', 'vanilla_backup/**', 'functions/node_modules', 'functions-facturacion/node_modules', 'conector/node_modules', 'conector/dist', 'conector/build']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -27,7 +27,7 @@ export default defineConfig([
   // sin esto ESLint marcaba cada require/module/process como no definido
   // (~145 falsos positivos que tapaban los errores reales).
   {
-    files: ['functions/**/*.js'],
+    files: ['functions/**/*.js', 'functions-facturacion/**/*.js'],
     languageOptions: {
       sourceType: 'commonjs',
       globals: globals.node,

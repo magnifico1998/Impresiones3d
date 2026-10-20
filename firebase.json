@@ -10,6 +10,12 @@
     {
       "source": "functions",
       "codebase": "default"
+    },
+    {
+      "source": "functions-facturacion",
+      "codebase": "facturacion",
+      "predeploy": ["node scripts/copiar-comun-functions.mjs"],
+      "ignore": ["node_modules", ".git", "firebase-debug.log"]
     }
   ]
 }

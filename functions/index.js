@@ -4,7 +4,8 @@
 const { setGlobalOptions } = require('firebase-functions/v2');
 setGlobalOptions({ maxInstances: 10 });
 
-// Motor de suscripciones de Manager 3D.
+// Motor de suscripciones de Manager 3D (codebase "default").
+// La facturación electrónica vive en su propio codebase: functions-facturacion/.
 // Cada función vive en su propio archivo por responsabilidad; acá sólo se
 // re-exportan para que Firebase las descubra.
 
@@ -28,14 +29,10 @@ const { onNuevaSolicitudCatalogo } = require('./triggers/onNuevaSolicitudCatalog
 const { listarPlantillasEmail, guardarPlantillaEmail, restablecerPlantillaEmail } = require('./http/plantillasEmail');
 const { habilitarRevendedor, deshabilitarRevendedor, borrarRevendedor, actualizarDescuentosRevendedor, marcarCierreFacturado, vincularRevendedor, validarCodigoRevendedor } = require('./http/gestionarRevendedores');
 const { cierreMensualRevendedores } = require('./scheduled/cierreMensualRevendedores');
-const { onPagoMPRegistrado } = require('./triggers/onPagoMPRegistrado');
-const { probarConexionArca, emitirFacturaManual, facturarPagoMP, reintentarFactura, anularFactura, descargarFacturaPDF, reenviarFacturaMail } = require('./http/facturacion');
-const { configurarFacturacionCuenta, facturarPedido, reintentarFacturaCuenta, descartarFacturaCuenta, anularFacturaCuenta, descargarFacturaCuentaPDF, enviarFacturaCuentaMail } = require('./http/facturacionCuenta');
 const { completarPerfil } = require('./http/perfil');
 const { crearTicket, actualizarTicket } = require('./http/tickets');
 const { reservarNombreCatalogo } = require('./http/nombreCatalogo');
 const { gestionarBoletin } = require('./http/boletin');
-const { buscarCategoriasMonotributo } = require('./http/monotributo');
 const { activarCodigoPromocional, crearCodigoPromocional, actualizarCodigoPromocional, desactivarCodigoPromocional } = require('./http/codigosPromocionales');
 
 module.exports = {
@@ -79,24 +76,8 @@ module.exports = {
   crearCodigoPromocional,
   actualizarCodigoPromocional,
   desactivarCodigoPromocional,
-  onPagoMPRegistrado,
-  probarConexionArca,
-  emitirFacturaManual,
-  facturarPagoMP,
-  reintentarFactura,
-  anularFactura,
-  descargarFacturaPDF,
-  reenviarFacturaMail,
-  configurarFacturacionCuenta,
-  facturarPedido,
-  reintentarFacturaCuenta,
-  descartarFacturaCuenta,
-  anularFacturaCuenta,
-  descargarFacturaCuentaPDF,
-  enviarFacturaCuentaMail,
   completarPerfil,
   crearTicket,
   actualizarTicket,
-  gestionarBoletin,
-  buscarCategoriasMonotributo
+  gestionarBoletin
 };

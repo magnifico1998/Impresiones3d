@@ -64,8 +64,18 @@ React 19 + Vite, sin router: la navegación es por estado.
 
 ## Cloud Functions (`functions/`)
 
-Node 22, firebase-functions 7. Todas se exportan desde `functions/index.js`,
-con un máximo de 10 instancias por función.
+Node 22, firebase-functions 7, con un máximo de 10 instancias por función. Están en dos
+codebases de Firebase (ver `firebase.json`), cada uno con su carpeta, su `package.json` y su `index.js`:
+
+| Codebase | Carpeta | Qué tiene |
+|---|---|---|
+| `default` | `functions/` | Todo lo demás (suscripciones, pagos de Mercado Pago, catálogo, equipo, revendedores, avisos) |
+| `facturacion` | `functions-facturacion/` | Facturación electrónica de ARCA, PDF de facturas y monotributo (trae jspdf, node-forge, fast-xml-parser y qrcode) |
+
+`admin.js`, `mailer.js` y `emailTemplates.js` se editan sólo en `functions/`: `scripts/copiar-comun-functions.mjs`
+los copia a `functions-facturacion/` antes de cada despliegue (están en `.gitignore`). El nombre de cada función
+no cambia por el codebase, así que la app las llama igual. Para sumar otro codebase: carpeta nueva, entrada en
+`firebase.json` y su carpeta en `DESTINOS` del script de copia.
 
 ### Llamadas desde la app (callable / HTTP)
 

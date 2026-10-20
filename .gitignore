@@ -2,6 +2,11 @@
 # Dependencies
 node_modules/
 
+# Copias de los módulos comunes de functions/ (scripts/copiar-comun-functions.mjs)
+functions-facturacion/admin.js
+functions-facturacion/mailer.js
+functions-facturacion/emailTemplates.js
+
 # Editors
 .vscode/
 

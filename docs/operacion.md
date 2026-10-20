@@ -24,7 +24,7 @@ Qué publica cada cosa:
 | Cambio en | Se publica con |
 |---|---|
 | `src/`, `api/`, `index.html` | Push a `main` → **Vercel** publica solo |
-| `functions/` | `firebase deploy --only functions` (o `--only functions:nombre`) |
+| `functions/` y `functions-facturacion/` | `firebase deploy --only functions` (todo), `--only functions:default` o `--only functions:facturacion` (un codebase), o `--only functions:nombre` |
 | `firestore.rules`, `storage.rules` | `firebase deploy --only firestore:rules,storage` |
 | `firestore.indexes.json` | `firebase deploy --only firestore:indexes` |
 
