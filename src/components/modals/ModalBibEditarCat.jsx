@@ -50,7 +50,7 @@ export default function ModalBibEditarCat({ isOpen, onClose, editId }) {
   // de "quitadas" contra el producto anterior no la vería).
   const subidasSesionRef = useRef([]);
 
-  const MAX_IMAGENES = 6;
+  const MAX_IMAGENES = 15;
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean))).sort();
   const uniqueSubcats = Array.from(new Set(

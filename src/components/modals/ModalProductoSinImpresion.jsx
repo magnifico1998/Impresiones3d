@@ -6,7 +6,7 @@ import BotonSubirImagenes from '../BotonSubirImagenes';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 import { camposSinImpresion, margenDesdePrecio, precioDesdeMargen } from '../../utils/productoSinImpresion';
 
-const MAX_IMAGENES = 6;
+const MAX_IMAGENES = 15;
 const MARGEN_INICIAL = 50;
 
 // Alta y edición de un producto que no se imprime (reventa): nombre, categoría, fotos, costo de compra y precio.

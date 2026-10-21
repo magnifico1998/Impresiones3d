@@ -24,7 +24,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
 
-  const MAX_IMAGENES = 6;
+  const MAX_IMAGENES = 15;
 
   const uniqueCats = Array.from(new Set(biblioteca.map(b => b.cat).filter(Boolean)));
   const uniqueSubcats = Array.from(new Set(
