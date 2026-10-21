@@ -7,6 +7,14 @@
 
 export const NOVEDADES = [
   {
+    version: 18,
+    fecha: '2026-10-20',
+    items: [
+      { texto: 'Carga masiva de productos en la Biblioteca: con "Cargar productos desde ZIP" subís hasta 50 productos sin impresión de una vez, con su stock por color, precio y hasta 15 fotos cada uno. Bajás una plantilla, la completás en Excel (una fila por color), la juntás con las fotos en un ZIP y antes de importar ves una vista previa con los errores: podés destildar productos o cancelar sin que se suba nada. Se rechazan los productos que ya existen o que usan un color que no está en Configuración.' },
+      { texto: 'Hasta 15 imágenes por producto (antes eran 6), para los casos con muchas versiones por color.' }
+    ]
+  },
+  {
     version: 17,
     fecha: '2026-10-19',
     items: [
