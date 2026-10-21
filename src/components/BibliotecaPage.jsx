@@ -7,6 +7,7 @@ import { ordenarCategorias } from '../utils/categoriaOrden';
 import ModalOrdenCategorias from './modals/ModalOrdenCategorias';
 import ModalArchivosGcode from './modals/ModalArchivosGcode';
 import ModalProductoSinImpresion from './modals/ModalProductoSinImpresion';
+import ModalImportarProductos from './modals/ModalImportarProductos';
 import { esSinImpresion } from '../utils/productoSinImpresion';
 import { escucharArchivosGcode } from '../utils/archivosGcode';
 import { useCapaModal } from './CapaModal';
@@ -345,6 +346,8 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
   const [ordenCatModalOpen, setOrdenCatModalOpen] = useState(false);
   // Producto sin impresión (reventa): { id } al editar su costo y precio, {} al crear uno nuevo, null cerrado.
   const [sinImpresionModal, setSinImpresionModal] = useState(null);
+  // Carga masiva de productos sin impresión desde un ZIP (CSV + fotos).
+  const [importarProductosModal, setImportarProductosModal] = useState(false);
 
   // Archivos G-code de los productos (utils/archivosGcode.js): cuántos tiene
   // cada uno, para el botón de la tarjeta, y el producto abierto en el modal.
@@ -534,9 +537,14 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
             Productos guardados para presupuestar sin importar el G-code cada vez.
           </div>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setSinImpresionModal({})} title="Cargar un producto que vendés pero no imprimís: lleva costo de compra y precio, sin gramos ni horas">
-          + Producto sin impresión
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button className="btn btn-sm" onClick={() => setImportarProductosModal(true)} title="Cargar varios productos sin impresión de una vez, con su stock y sus fotos, desde un ZIP">
+            Cargar productos desde ZIP
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setSinImpresionModal({})} title="Cargar un producto que vendés pero no imprimís: lleva costo de compra y precio, sin gramos ni horas">
+            + Producto sin impresión
+          </button>
+        </div>
       </div>
 
       {/* Toolbar con filtros moderna */}
@@ -947,6 +955,8 @@ export default function BibliotecaPage({ onLoadInCalculator, onOpenEditCat, onOp
       {sinImpresionModal && (
         <ModalProductoSinImpresion isOpen productoId={sinImpresionModal.id ?? null} onClose={() => setSinImpresionModal(null)} />
       )}
+
+      {importarProductosModal && <ModalImportarProductos onClose={() => setImportarProductosModal(false)} />}
 
       {productoGcode && (
         <ModalArchivosGcode producto={productoGcode} archivos={archivosGcode} onClose={() => setProductoGcode(null)} />

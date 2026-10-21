@@ -59,7 +59,7 @@ export function leerNumeroCSV(t) {
 
 // Separa el texto en filas y celdas, respetando comillas ("a; b" es una
 // sola celda y "" dentro de comillas es una comilla).
-function partirCSV(texto) {
+export function partirCSV(texto) {
   const primera = texto.split(/\r?\n/)[0] || '';
   const cuenta = (c) => primera.split(c).length - 1;
   const sep = [';', '\t', ','].sort((a, b) => cuenta(b) - cuenta(a))[0];

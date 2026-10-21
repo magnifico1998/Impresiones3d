@@ -163,12 +163,15 @@ export function crearAccionesDatos(ctx) {
   // sueltas.
   const productoDocRef = (id) => doc(db, "users", cuentaId, "biblioteca", String(id));
 
+  // Devuelve true si se guardó y false si falló (la importación masiva de productos necesita saberlo).
   const addProducto = async (item) => {
     try {
       await setDoc(productoDocRef(item.id), item);
+      return true;
     } catch (e) {
       console.error("Error al guardar producto:", e);
       mostrarErrorGuardado('⚠ No se pudo guardar el producto en la nube.');
+      return false;
     }
   };
 

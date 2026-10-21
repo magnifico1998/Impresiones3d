@@ -40,6 +40,7 @@ de consola; el inicio de sesión con Google lo hacés vos.)
 - [ ] Editar un producto (nombre, precio, imágenes); ajustar precios masivo; recalcular.
 - [ ] Subir un G-code a un producto; ver el cupo del plan; mandarlo a una impresora (ver Conector).
 - [ ] Calculadora: cargar un G-code, calcular, **Guardar en la Biblioteca**, **Agregar pieza a pedido** (Cerrar deshace, Guardar deja), generar presupuesto.
+- [ ] **Cargar productos desde ZIP:** bajar la plantilla, armar un ZIP con 2 productos (uno con 2 colores y fotos), ver la vista previa, importar; revisar stock por color, fotos y precio. Probar un color inexistente, un producto repetido y una foto que falte (se rechazan en la vista previa) y **Cancelar** (no sube nada).
 
 ## Compras, inventario y clientes
 - [ ] Nueva compra (filamento y otro insumo); el inventario suma; consumo de un pedido descuenta.

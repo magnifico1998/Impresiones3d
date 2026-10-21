@@ -423,6 +423,29 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   `sinImpresion: true`) y no muestran G-code ni "Calcular u.". Guardar desde la
   Calculadora con el nombre de un producto sin impresión se rechaza.
   (`src/utils/productoSinImpresion.js`, `ModalProductoSinImpresion.jsx`).
+- **Carga masiva de productos sin impresión (ZIP):** Biblioteca → "Cargar productos
+  desde ZIP". El ZIP lleva un `productos.csv` (una fila por color) y las fotos, que se
+  indican por NOMBRE de archivo (un navegador no puede abrir rutas de la PC; las fotos
+  pueden estar en cualquier carpeta del ZIP). Las filas se agrupan por `codigo` (o por
+  `nombre`); los datos del producto se repiten o se dejan vacíos en las filas siguientes,
+  y si dos filas traen valores distintos el producto se rechaza. Columnas: `codigo, nombre,
+  categoria, subcategoria, subsubcategoria, desc_corta, desc_larga, notas_internas, costo,
+  margen, precio, color, stock, foto_principal, fotos_extra (con |), foto_color`. El precio
+  manda sobre el margen; sin ninguno de los dos se rechaza. Reglas: **máximo 50 productos
+  por carga** (con más, se rechaza todo el archivo), **hasta 15 fotos por producto**, el
+  **color tiene que existir** en Configuración → Colores, el **stock** es un entero ≥ 0
+  (puede ser 0 o vacío), y un producto cuyo **nombre ya está en la Biblioteca se rechaza**
+  (no se pisa). Cada producto se valida entero: un error en cualquiera de sus filas lo
+  rechaza. Antes de subir nada hay una **vista previa** (productos, colores y stock, fotos,
+  errores por producto) donde se puede destildar productos o cancelar. Se controla el
+  máximo `productosBiblioteca` del plan (si no entran todos, se destilda o se borra).
+  Cada producto se importa de a uno: sube sus fotos (comprimidas como en el alta común) y
+  lo guarda; si algo falla se borran las fotos que había subido y se informa, sin frenar
+  el resto. Un producto con colores queda con `limitarColores` y esos colores elegidos
+  (el catálogo ofrece sólo los suyos); las fotos de color van a `fotosColor`; el stock a
+  `stock`. No se publican solos en el catálogo y esta carga no se deshace en bloque.
+  (`src/utils/importarProductos.js`, `ModalImportarProductos.jsx`,
+  `pruebas/importar-productos.test.js`).
 - **Archivos G-code de la Biblioteca:** cada producto puede guardar sus
   archivos laminados (`.gcode`/`.gco` o el `.gcode.3mf` de Bambu Studio, hasta
   300 MB cada uno), con la impresora para la que se laminaron. Se suben desde
