@@ -379,7 +379,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
         </div>
 
         <label className="fl">Notas (se muestran en el PDF)</label>
-        <input type="text" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" />
+        <textarea rows={5} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" style={{ resize: 'vertical' }} />
 
         <div className="sep"></div>
 

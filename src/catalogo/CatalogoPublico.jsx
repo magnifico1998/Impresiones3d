@@ -938,19 +938,25 @@ export default function CatalogoPublico() {
 
       {imagenAmpliada && (
         <div
-          onClick={() => setImagenAmpliada(null)}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 40,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', cursor: 'zoom-out'
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px'
           }}
         >
-          <div style={{ textAlign: 'center', maxWidth: '100%' }} onClick={(e) => e.stopPropagation()}>
+          {/* Solo se cierra con este botón: tocar fuera de la imagen no la cierra, para evitar cierres sin querer. */}
+          <button
+            onClick={() => setImagenAmpliada(null)}
+            style={{ position: 'absolute', top: '14px', right: '14px', width: '38px', height: '38px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '20px', lineHeight: 1, cursor: 'pointer' }}
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+          <div style={{ textAlign: 'center', maxWidth: '100%' }}>
             <div style={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
               <img
                 src={imagenAmpliada.imagenes[imagenAmpliada.index]}
                 alt={imagenAmpliada.nombre}
-                onClick={() => setImagenAmpliada(null)}
-                style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', background: 'var(--bg2)', cursor: 'zoom-out' }}
+                style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: '8px', background: 'var(--bg2)' }}
               />
               {imagenAmpliada.imagenes.length > 1 && (
                 <>
