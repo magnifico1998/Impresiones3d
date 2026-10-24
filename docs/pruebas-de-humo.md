@@ -48,7 +48,8 @@ de consola; el inicio de sesión con Google lo hacés vos.)
 - [ ] Clientes: alta, edición, detalle con sus pedidos.
 
 ## Catálogo web
-- [ ] Marca del catálogo (logo, tamaños, texto destacado), publicar productos, ver el catálogo público en una ventana de incógnito.
+- [ ] Catálogo web con sus dos pestañas (**Productos y pedidos** y **Apariencia**): cambiar de una a otra y volver a entrar (recuerda la última). Marca del catálogo (logo, tamaños, texto destacado), publicar productos, ver el catálogo público en una ventana de incógnito.
+- [ ] Desactivar el catálogo: el link muestra logo, nombre y mensaje de mantenimiento; cambiar el mensaje en Apariencia → "Mensaje del catálogo desactivado" y comprobarlo.
 - [ ] En el público: armar un pedido, enviarlo; llega a "Catálogo web" del panel; botón "Volver al catálogo".
 
 ## Mi emprendimiento y configuración

@@ -500,6 +500,13 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   encabezado completo con los colores de la paleta del catálogo. Con un logo de más de
   64 px el encabezado deja de quedar fijo al desplazar, para no tapar la pantalla del
   celular. Se guardan en `catalogoTiendas/{uid}` (`src/utils/catalogoMarca.js`).
+- **Pestañas del Catálogo web:** la pantalla tiene arriba, siempre a la vista, el
+  **estado** (activo o inactivo) y la **dirección** del catálogo, y debajo dos pestañas:
+  **Productos y pedidos** (solicitudes pendientes, selección de productos a publicar e
+  historial; muestra entre paréntesis cuántas solicitudes esperan) y **Apariencia**
+  (formato, marca, mensaje del catálogo desactivado y paleta). Es la que abre por
+  defecto la primera vez; la elegida se recuerda en el navegador (`catalogo.seccion`).
+  Los borradores de texto no se pierden al cambiar de pestaña.
 - **Catálogo desactivado:** quien abre el link ve el **logo y el nombre** de la tienda
   (con su paleta), un título, un mensaje y, si la tienda tiene teléfono, un botón
   "Escribinos por WhatsApp". Por defecto dice "Estamos en mantenimiento" / "Estamos

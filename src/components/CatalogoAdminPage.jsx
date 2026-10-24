@@ -23,6 +23,25 @@ const ROLES_PALETA_CATALOGO = ['bg', 'accent', 'accent2', 'text', 'text2', 'text
 
 const CATALOGO_PATH = '/catalogo';
 
+// Dos pestañas: lo que se usa todos los días (solicitudes y productos publicados) y la apariencia del catálogo
+// (formato, marca, mensaje de desactivado y paleta). El estado y la dirección quedan siempre arriba.
+const SECCIONES = [
+  { id: 'pedidos', nombre: 'Productos y pedidos' },
+  { id: 'apariencia', nombre: 'Apariencia' }
+];
+const CLAVE_SECCION = 'catalogo.seccion';
+
+// La pestaña elegida se recuerda en este navegador. Si el almacenamiento no está disponible
+// (modo privado, bloqueado), arranca en la primera.
+function seccionGuardada() {
+  try {
+    const guardada = localStorage.getItem(CLAVE_SECCION);
+    return SECCIONES.some((sec) => sec.id === guardada) ? guardada : SECCIONES[0].id;
+  } catch {
+    return SECCIONES[0].id;
+  }
+}
+
 export default function CatalogoAdminPage() {
   const { biblioteca } = useBiblioteca();
   const { cfg, setCfg, fmt } = useConfig();
@@ -31,6 +50,16 @@ export default function CatalogoAdminPage() {
   const { pedidos } = usePedidos();
   const { clientes } = useClientes();
   const { showToast } = useUi();
+  const [seccion, setSeccion] = useState(seccionGuardada);
+
+  const elegirSeccion = (id) => {
+    setSeccion(id);
+    try {
+      localStorage.setItem(CLAVE_SECCION, id);
+    } catch {
+      // Sin almacenamiento: la pestaña sólo dura mientras la página está abierta.
+    }
+  };
 
   // Pasado el límite de aperturas del plan, el catálogo se sigue viendo pero
   // no acepta pedidos hasta el próximo ciclo (ver registrarAperturaCatalogo.js
@@ -256,6 +285,20 @@ export default function CatalogoAdminPage() {
             Tu tienda pública: solicitudes de clientes, link para compartir, personalización visual y productos publicados.
           </div>
         </div>
+
+        {/* Pestañas en cápsula, como las de Configuración. En "Productos y pedidos" se ve cuántas solicitudes esperan. */}
+        <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '999px', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+          {SECCIONES.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              className={`period-pill-btn ${seccion === sec.id ? 'active' : ''}`}
+              onClick={() => elegirSeccion(sec.id)}
+            >
+              {sec.nombre}{sec.id === 'pedidos' && pendientes.length > 0 ? ` (${pendientes.length})` : ''}
+            </button>
+          ))}
+        </div>
       </div>
 
       {catalogoSinPedidos && (
@@ -267,72 +310,6 @@ export default function CatalogoAdminPage() {
           </div>
         </div>
       )}
-
-      {/* Solicitudes pendientes arriba de todo: es lo que hay que revisar
-          primero cada vez que se entra a esta pantalla. */}
-      <div className="card">
-        <div className="card-title">Solicitudes pendientes ({pendientes.length})</div>
-        {!pendientes.length ? (
-          <div className="empty">No hay solicitudes nuevas desde el catálogo web.</div>
-        ) : (
-          pendientes.map(s => (
-            <div key={s._docId} className="card" style={{ marginBottom: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '13px' }}>{s.cliente || 'Sin nombre'}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
-                    {s.telefono || 'sin teléfono'} · {s.creado ? new Date(s.creado).toLocaleString('es-AR') : ''}
-                  </div>
-                </div>
-                <div style={{ fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{fmt(totalConfiable(s))}</div>
-              </div>
-
-              {s.comentarioGeneral && (
-                <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px', fontStyle: 'italic' }}>"{s.comentarioGeneral}"</div>
-              )}
-
-              <div style={{ borderTop: '1px dashed var(--border2)', paddingTop: '8px' }}>
-                {(s.items || []).map((it, i) => (
-                  <div key={i} style={{ fontSize: '12px', marginBottom: '6px' }}>
-                    <strong>{it.cantidad}×</strong> {it.nombre}
-                    {(it.versiones || []).map((v, vi) => (
-                      <div key={vi} style={{ fontSize: '11px', color: 'var(--text3)', marginLeft: '16px' }}>
-                        {v.cantidad}× {v.color || 'sin color'}{v.colorSecundario ? ` + ${v.colorSecundario}` : ''}{v.comentario ? ` — ${v.comentario}` : ''}
-                        {v.deStock !== undefined && <strong style={{ marginLeft: '6px', color: 'var(--accent)' }}>· {v.deStock >= v.cantidad ? 'de stock' : v.deStock > 0 ? `${v.deStock} de stock, ${v.cantidad - v.deStock} a pedido` : 'a pedido'}</strong>}
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                <button
-                  className="btn btn-primary btn-sm"
-                  disabled={importandoId === s._docId}
-                  onClick={() => handleImportar(s, 'nuevo')}
-                >
-                  + Crear pedido nuevo
-                </button>
-                {activePedidos.length > 0 && (
-                  <select
-                    className="btn-sm"
-                    style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 'var(--radius)', color: 'var(--text2)' }}
-                    disabled={importandoId === s._docId}
-                    defaultValue=""
-                    onChange={(e) => { if (e.target.value) handleImportar(s, e.target.value); }}
-                  >
-                    <option value="">Agregar a pedido existente…</option>
-                    {activePedidos.map(p => (
-                      <option key={p.id} value={p.id}>{p.cliente} — {p.desc || 'Sin descripción'}</option>
-                    ))}
-                  </select>
-                )}
-                <button className="btn btn-danger btn-sm" onClick={() => descartarSolicitud(s._docId)}>Descartar</button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
 
       {/* Config general del catálogo */}
       <div className="card">
@@ -400,6 +377,178 @@ export default function CatalogoAdminPage() {
         </div>
       </div>
 
+      {seccion === 'pedidos' && (
+        <>
+      {/* Solicitudes pendientes arriba de todo: es lo que hay que revisar
+          primero cada vez que se entra a esta pantalla. */}
+      <div className="card">
+        <div className="card-title">Solicitudes pendientes ({pendientes.length})</div>
+        {!pendientes.length ? (
+          <div className="empty">No hay solicitudes nuevas desde el catálogo web.</div>
+        ) : (
+          pendientes.map(s => (
+            <div key={s._docId} className="card" style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '13px' }}>{s.cliente || 'Sin nombre'}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+                    {s.telefono || 'sin teléfono'} · {s.creado ? new Date(s.creado).toLocaleString('es-AR') : ''}
+                  </div>
+                </div>
+                <div style={{ fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{fmt(totalConfiable(s))}</div>
+              </div>
+
+              {s.comentarioGeneral && (
+                <div style={{ fontSize: '12px', color: 'var(--text2)', marginBottom: '8px', fontStyle: 'italic' }}>"{s.comentarioGeneral}"</div>
+              )}
+
+              <div style={{ borderTop: '1px dashed var(--border2)', paddingTop: '8px' }}>
+                {(s.items || []).map((it, i) => (
+                  <div key={i} style={{ fontSize: '12px', marginBottom: '6px' }}>
+                    <strong>{it.cantidad}×</strong> {it.nombre}
+                    {(it.versiones || []).map((v, vi) => (
+                      <div key={vi} style={{ fontSize: '11px', color: 'var(--text3)', marginLeft: '16px' }}>
+                        {v.cantidad}× {v.color || 'sin color'}{v.colorSecundario ? ` + ${v.colorSecundario}` : ''}{v.comentario ? ` — ${v.comentario}` : ''}
+                        {v.deStock !== undefined && <strong style={{ marginLeft: '6px', color: 'var(--accent)' }}>· {v.deStock >= v.cantidad ? 'de stock' : v.deStock > 0 ? `${v.deStock} de stock, ${v.cantidad - v.deStock} a pedido` : 'a pedido'}</strong>}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  disabled={importandoId === s._docId}
+                  onClick={() => handleImportar(s, 'nuevo')}
+                >
+                  + Crear pedido nuevo
+                </button>
+                {activePedidos.length > 0 && (
+                  <select
+                    className="btn-sm"
+                    style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', borderRadius: 'var(--radius)', color: 'var(--text2)' }}
+                    disabled={importandoId === s._docId}
+                    defaultValue=""
+                    onChange={(e) => { if (e.target.value) handleImportar(s, e.target.value); }}
+                  >
+                    <option value="">Agregar a pedido existente…</option>
+                    {activePedidos.map(p => (
+                      <option key={p.id} value={p.id}>{p.cliente} — {p.desc || 'Sin descripción'}</option>
+                    ))}
+                  </select>
+                )}
+                <button className="btn btn-danger btn-sm" onClick={() => descartarSolicitud(s._docId)}>Descartar</button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Selección de productos a publicar */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            Productos publicados ({seleccionados.size} / {biblioteca.length})
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn btn-sm" onClick={toggleSeleccionarTodoCatalogo} disabled={!biblioteca.length}>
+              {todosSeleccionados ? 'Deseleccionar todo' : 'Seleccionar todo el catálogo'}
+            </button>
+            <button className="btn btn-primary btn-sm" disabled={guardando} onClick={handlePublicar}>
+              {guardando ? 'Publicando…' : 'Guardar cambios'}
+            </button>
+          </div>
+        </div>
+
+        {!biblioteca.length ? (
+          <div className="empty">Todavía no hay productos en tu Biblioteca.</div>
+        ) : (
+          uniqueCats.map(cat => {
+            const idsCat = idsDeCategoria(cat);
+            const seleccionadosEnCat = idsCat.filter(id => seleccionados.has(id)).length;
+            const expandida = catsExpandidas.has(cat);
+            return (
+              <div key={cat} className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '8px' }}>
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 12px', cursor: 'pointer'
+                  }}
+                  onClick={() => toggleCategoriaExpandida(cat)}
+                >
+                  <div style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{expandida ? '−' : '+'}</span>
+                    {cat}
+                    <span style={{ color: 'var(--text3)', fontWeight: 400, fontFamily: 'var(--mono)' }}>
+                      {seleccionadosEnCat}/{idsCat.length} publicados
+                    </span>
+                  </div>
+                  <button
+                    className="btn btn-sm"
+                    onClick={(e) => { e.stopPropagation(); toggleSeleccionarCategoria(cat); }}
+                  >
+                    {categoriaCompleta(cat) ? 'Deseleccionar categoría' : 'Seleccionar categoría'}
+                  </button>
+                </div>
+
+                {expandida && (
+                  <div style={{ padding: '0 12px 12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '8px' }}>
+                    {biblioteca.filter(p => p.cat === cat).map(p => (
+                      <label
+                        key={p.id}
+                        className="card"
+                        style={{
+                          margin: 0,
+                          padding: '10px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          cursor: 'pointer',
+                          borderColor: seleccionados.has(p.id) ? 'var(--accent)' : 'var(--border)'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={seleccionados.has(p.id)}
+                          onChange={() => toggleProducto(p.id)}
+                          style={{ width: 'auto', accentColor: 'var(--accent)', cursor: 'pointer' }}
+                        />
+                        {p.imagen ? (
+                          <img src={p.imagen} alt={p.nombre} style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px', background: 'var(--bg3)' }} />
+                        ) : (
+                          <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'var(--bg3)', flexShrink: 0 }} />
+                        )}
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{fmt(p.precioSugUnitario || p.costoUnitario)}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {procesadas.length > 0 && (
+        <div className="card">
+          <div className="card-title">Historial ({procesadas.length})</div>
+          {procesadas.map(s => (
+            <div key={s._docId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+              <span>{s.cliente || 'Sin nombre'}</span>
+              <span style={{ color: s.estado === 'importado' ? 'var(--accent)' : 'var(--text3)' }}>{s.estado}</span>
+            </div>
+          ))}
+        </div>
+      )}
+        </>
+      )}
+
+      {seccion === 'apariencia' && (
+        <>
       {/* Formato: catálogo (pedidos a medida) o tienda (stock + a pedido) */}
       <div className="card">
         <div className="card-title">Formato del catálogo</div>
@@ -649,104 +798,7 @@ export default function CatalogoAdminPage() {
         </div>
       </div>
 
-      {/* Selección de productos a publicar */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>
-            Productos publicados ({seleccionados.size} / {biblioteca.length})
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-sm" onClick={toggleSeleccionarTodoCatalogo} disabled={!biblioteca.length}>
-              {todosSeleccionados ? 'Deseleccionar todo' : 'Seleccionar todo el catálogo'}
-            </button>
-            <button className="btn btn-primary btn-sm" disabled={guardando} onClick={handlePublicar}>
-              {guardando ? 'Publicando…' : 'Guardar cambios'}
-            </button>
-          </div>
-        </div>
-
-        {!biblioteca.length ? (
-          <div className="empty">Todavía no hay productos en tu Biblioteca.</div>
-        ) : (
-          uniqueCats.map(cat => {
-            const idsCat = idsDeCategoria(cat);
-            const seleccionadosEnCat = idsCat.filter(id => seleccionados.has(id)).length;
-            const expandida = catsExpandidas.has(cat);
-            return (
-              <div key={cat} className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '8px' }}>
-                <div
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '10px 12px', cursor: 'pointer'
-                  }}
-                  onClick={() => toggleCategoriaExpandida(cat)}
-                >
-                  <div style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{expandida ? '−' : '+'}</span>
-                    {cat}
-                    <span style={{ color: 'var(--text3)', fontWeight: 400, fontFamily: 'var(--mono)' }}>
-                      {seleccionadosEnCat}/{idsCat.length} publicados
-                    </span>
-                  </div>
-                  <button
-                    className="btn btn-sm"
-                    onClick={(e) => { e.stopPropagation(); toggleSeleccionarCategoria(cat); }}
-                  >
-                    {categoriaCompleta(cat) ? 'Deseleccionar categoría' : 'Seleccionar categoría'}
-                  </button>
-                </div>
-
-                {expandida && (
-                  <div style={{ padding: '0 12px 12px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '8px' }}>
-                    {biblioteca.filter(p => p.cat === cat).map(p => (
-                      <label
-                        key={p.id}
-                        className="card"
-                        style={{
-                          margin: 0,
-                          padding: '10px 12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          cursor: 'pointer',
-                          borderColor: seleccionados.has(p.id) ? 'var(--accent)' : 'var(--border)'
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={seleccionados.has(p.id)}
-                          onChange={() => toggleProducto(p.id)}
-                          style={{ width: 'auto', accentColor: 'var(--accent)', cursor: 'pointer' }}
-                        />
-                        {p.imagen ? (
-                          <img src={p.imagen} alt={p.nombre} style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px', background: 'var(--bg3)' }} />
-                        ) : (
-                          <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'var(--bg3)', flexShrink: 0 }} />
-                        )}
-                        <div style={{ overflow: 'hidden' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>{fmt(p.precioSugUnitario || p.costoUnitario)}</div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {procesadas.length > 0 && (
-        <div className="card">
-          <div className="card-title">Historial ({procesadas.length})</div>
-          {procesadas.map(s => (
-            <div key={s._docId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-              <span>{s.cliente || 'Sin nombre'}</span>
-              <span style={{ color: s.estado === 'importado' ? 'var(--accent)' : 'var(--text3)' }}>{s.estado}</span>
-            </div>
-          ))}
-        </div>
+        </>
       )}
     </div>
   );
