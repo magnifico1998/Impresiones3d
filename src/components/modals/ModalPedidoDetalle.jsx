@@ -18,6 +18,7 @@ import CampoMoneda from '../CampoMoneda';
 import ModalUnirPedido from './ModalUnirPedido';
 import { esUnible } from '../../utils/unirPedidos';
 
+import CampoNumero from '../CampoNumero';
 // deshacerAgregado: { pedidoId, antes } cuando se llega a este pedido recién después de
 // agregarle productos (desde la Biblioteca o la Calculadora): "antes" es el pedido tal
 // como estaba. Cerrar sin guardar (Cerrar, ✕, Esc) quita lo agregado; "Guardar cambios"
@@ -1047,8 +1048,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                     {tieneVersiones && pz.versiones && pz.versiones.length > 0 ? (
                       <div className="prod-control">
                         <label>Cantidad</label>
-                        <input 
-                          type="number" 
+                        <CampoNumero 
                           value={pz.cantidad} 
                           min="1" 
                           onChange={(e) => handleUpdatePartQty(pz.id, e.target.value)} 
@@ -1066,15 +1066,13 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                     ) : (
                       <div className="prod-control">
                         <label>Cantidad</label>
-                        <input 
-                          type="number" 
+                        <CampoNumero 
                           value={pz.cantidad} 
                           min="1" 
                           onChange={(e) => handleUpdatePartQty(pz.id, e.target.value)} 
                         />
                         <label>Elaborados</label>
-                        <input 
-                          type="number" 
+                        <CampoNumero 
                           value={pz.elaborados || 0} 
                           min="0" 
                           max={pz.cantidad} 
@@ -1124,16 +1122,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                                 return (
                                   <div key={v.id} className="det-ver-row">
                                     <div className="det-ver-realizados">
-                                      <input 
-                                        type="number" 
+                                      <CampoNumero 
                                         value={v.realizados || 0} 
                                         min="0" 
                                         max={v.cantidad}
                                         onChange={(e) => handleUpdateVersion(pz.id, v.id, 'realizados', e.target.value)} 
                                       />
                                       <span>
-                                        / <input 
-                                          type="number" 
+                                        / <CampoNumero 
                                           value={v.cantidad} 
                                           min="1" 
                                           max={pz.cantidad - (pz.versiones || []).filter(x => x.id !== v.id).reduce((s, x) => s + x.cantidad, 0)} 
@@ -1263,8 +1259,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                   />
                   <span style={{ flex: 1 }}>{ins.nombre} <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)', fontSize: '11px' }}>({fmt(ins.precio)})</span></span>
                   {isChecked && (
-                    <input 
-                      type="number" 
+                    <CampoNumero 
                       className="insumo-qty det-ins-qty" 
                       min="0.1" 
                       step="0.1" 
@@ -1319,8 +1314,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
               </div>
               <div>
                 <label className="fl" style={{ marginTop: 0 }}>Porcentaje (%)</label>
-                <input 
-                  type="number" 
+                <CampoNumero 
                   min="0" 
                   max="100" 
                   step="0.1" 

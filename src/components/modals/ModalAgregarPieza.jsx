@@ -8,6 +8,7 @@ import { confirmarPedidoNuevoDeCliente } from '../../utils/unirPedidos';
 import { combinacionElegida } from '../../utils/combinacionesColor';
 import OpcionesCombinaciones from '../OpcionesCombinaciones';
 
+import CampoNumero from '../CampoNumero';
 // Igual que ModalArmarPedido.jsx (el que arma pedidos desde Biblioteca):
 // el pedido destino puede ser uno existente o "+ Crear pedido nuevo", y la
 // pieza soporta versiones (color/comentario) repartiendo la cantidad total
@@ -275,8 +276,7 @@ export default function ModalAgregarPieza({ isOpen, onClose, presupuestoActual, 
 
           {versiones.map(v => (
             <div key={v.id} className="version-row" style={{ gridTemplateColumns: '56px 1fr 1fr 1fr 24px' }}>
-              <input
-                type="number"
+              <CampoNumero
                 min="1"
                 max={cantidadTotal}
                 value={v.cantidad}

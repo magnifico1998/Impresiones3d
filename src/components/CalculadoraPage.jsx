@@ -4,6 +4,7 @@ import AvisoModoLectura from './AvisoModoLectura';
 import { formatoNumero } from '../utils/numeros';
 import CampoMoneda from './CampoMoneda';
 
+import CampoNumero from './CampoNumero';
 // Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
 // al índice correspondiente de cfg.impresoras, o null si no hay ninguna
 // elegida o ya no existe. Se guarda por NOMBRE (robusto ante reordenar o
@@ -1217,8 +1218,7 @@ export default function CalculadoraPage({
                       <strong>{m.type}</strong>{' '}
                       <span style={{ color: 'var(--text3)', fontSize: '11px', fontFamily: 'var(--mono)' }}>{m.color}</span>
                     </span>
-                    <input 
-                      type="number" 
+                    <CampoNumero 
                       value={m.totalG} 
                       step="0.1" 
                       id={`mfil-g-${i}`}
@@ -1265,8 +1265,7 @@ export default function CalculadoraPage({
                     <span id="tag-gcode-gramos" className="pill" style={{ display: 'inline-block' }}>desde archivo</span>
                   )}
                 </label>
-                <input 
-                  type="number" 
+                <CampoNumero 
                   id="gramos"
                   value={gramos} 
                   step="0.1" 
@@ -1274,8 +1273,7 @@ export default function CalculadoraPage({
                 />
                 
                 <label className="fl">Desperdicio (%)</label>
-                <input 
-                  type="number" 
+                <CampoNumero 
                   id="desperdicio"
                   value={desperdicio} 
                   step="1" 
@@ -1298,8 +1296,7 @@ export default function CalculadoraPage({
               <span id="tag-gcode-tiempo" className="pill" style={{ display: 'inline-block' }}>desde archivo</span>
             )}
           </label>
-          <input 
-            type="number" 
+          <CampoNumero 
             id="horas"
             value={horas} 
             step="0.25" 
@@ -1317,8 +1314,7 @@ export default function CalculadoraPage({
           {selImpresora === 'manual' && (
             <div id="imp-watts-wrap">
               <label className="fl">Consumo (W)</label>
-              <input 
-                type="number" 
+              <CampoNumero 
                 id="watts"
                 value={watts} 
                 step="10" 
@@ -1362,8 +1358,7 @@ export default function CalculadoraPage({
                     </span>
                   </span>
                   {stateObj.checked && (
-                    <input 
-                      type="number" 
+                    <CampoNumero 
                       className="insumo-qty" 
                       min="0.1" 
                       step="0.1" 
@@ -1394,8 +1389,7 @@ export default function CalculadoraPage({
           />
 
           <label className="fl">Horas de trabajo manual</label>
-          <input 
-            type="number" 
+          <CampoNumero 
             id="horas-trabajo"
             value={horasTrabajo} 
             step="0.25" 
@@ -1412,8 +1406,7 @@ export default function CalculadoraPage({
           />
 
           <label className="fl">Margen de ganancia (%)</label>
-          <input 
-            type="number" 
+          <CampoNumero 
             id="margen"
             value={margen} 
             step="5" 
@@ -1424,8 +1417,7 @@ export default function CalculadoraPage({
           <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }}></div>
           
           <label className="fl">Cantidad de unidades</label>
-          <input 
-            type="number" 
+          <CampoNumero 
             id="cantidad"
             value={cantidad} 
             step="1" 

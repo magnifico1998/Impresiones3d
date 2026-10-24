@@ -6,6 +6,7 @@ import { useCuenta, useConfig, useUi } from '../context/contextos';
 import { avisar } from './Dialogos';
 import { CUIT_MANAGER3D } from '../utils/facturacion';
 
+import CampoNumero from './CampoNumero';
 // Tarjeta "Facturación electrónica" de "Mi emprendimiento": el dueño
 // configura su CUIT y punto de venta, y el servidor verifica contra ARCA
 // que la delegación y el punto de venta estén bien
@@ -135,7 +136,7 @@ export default function TarjetaFacturacionCuenta() {
             </div>
             <div>
               <label className="fl" style={etiqueta}>Punto de venta (Web Services)</label>
-              <input type="number" min="1" value={form.ptoVta} onChange={cambiar('ptoVta')} />
+              <CampoNumero min="1" value={form.ptoVta} onChange={cambiar('ptoVta')} />
             </div>
             <div>
               <label className="fl" style={etiqueta}>Razón social / nombre (como figura en ARCA)</label>

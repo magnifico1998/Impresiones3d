@@ -5,6 +5,7 @@ import { httpsCallable } from 'firebase/functions';
 import { confirmar, avisar, pedirTexto } from '../Dialogos';
 import TablaComprobantes from '../TablaComprobantes';
 
+import CampoNumero from '../CampoNumero';
 // Facturación electrónica con ARCA (fase 1: el admin factura como
 // monotributista, siempre Factura C). La emisión y los números los maneja
 // el servidor (functions/facturacion.js); desde acá sólo se configura el
@@ -211,7 +212,7 @@ export default function SeccionFacturacion({ showToast }) {
       >
           <div style={grilla}>
             <label style={etiqueta}>CUIT<input type="text" style={input} value={config.cuit} onChange={cambiarConfig('cuit')} placeholder="20123456789" /></label>
-            <label style={etiqueta}>Punto de venta (Web Services)<input style={input} type="number" min="1" value={config.ptoVta} onChange={cambiarConfig('ptoVta')} /></label>
+            <label style={etiqueta}>Punto de venta (Web Services)<CampoNumero style={input} min="1" value={config.ptoVta} onChange={cambiarConfig('ptoVta')} /></label>
             <label style={etiqueta}>Razón social / nombre<input type="text" style={input} value={config.razonSocial} onChange={cambiarConfig('razonSocial')} /></label>
             <label style={etiqueta}>Domicilio comercial<input type="text" style={input} value={config.domicilio} onChange={cambiarConfig('domicilio')} /></label>
             <label style={etiqueta}>Ingresos Brutos<input type="text" style={input} value={config.iibb} onChange={cambiarConfig('iibb')} placeholder="Nro. o Exento" /></label>
@@ -279,8 +280,8 @@ export default function SeccionFacturacion({ showToast }) {
             {form.items.map((it, i) => (
               <div key={i} style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <input type="text" style={{ ...input, flex: '1 1 220px' }} placeholder="Descripción" value={it.descripcion} onChange={cambiarItem(i, 'descripcion')} />
-                <input style={{ ...input, width: '70px' }} type="number" min="1" placeholder="Cant." value={it.cantidad} onChange={cambiarItem(i, 'cantidad')} />
-                <input style={{ ...input, width: '120px' }} type="number" min="0" step="0.01" placeholder="Precio unit." value={it.precioUnitario} onChange={cambiarItem(i, 'precioUnitario')} />
+                <CampoNumero style={{ ...input, width: '70px' }} min="1" placeholder="Cant." value={it.cantidad} onChange={cambiarItem(i, 'cantidad')} />
+                <CampoNumero style={{ ...input, width: '120px' }} min="0" step="0.01" placeholder="Precio unit." value={it.precioUnitario} onChange={cambiarItem(i, 'precioUnitario')} />
                 {form.items.length > 1 && (
                   <button className="btn btn-ghost" style={botonChico} onClick={() => setForm((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}>Quitar</button>
                 )}

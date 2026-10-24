@@ -4,6 +4,7 @@ import { fotoDeColor } from '../utils/fotosColor';
 import { colorPermitido, combinacionPermitida, versionesSinColor } from '../utils/coloresProducto';
 import { normalizarStock, repartirConStock, stockDeVariante, stockTotal } from '../utils/stock';
 
+import CampoNumero from '../components/CampoNumero';
 // Formato "tienda" del catálogo web (catalogoConfig.modo === 'tienda'): categorías arriba como desplegables con sus
 // subcategorías, grilla de productos con imagen grande y botón Comprar. Por defecto muestra lo que hay en stock
 // (se entrega al instante); "Todo el catálogo" suma los productos a pedido. Una compra puede mezclar las dos cosas:
@@ -430,7 +431,7 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
               {soloStock ? (
                 // Vista "En stock": sólo se ofrecen las variantes que tienen stock.
                 <div style={{ display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                  <input type="number" min="1" max={disponiblePara(v)} value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
+                  <CampoNumero min="1" max={disponiblePara(v)} value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
                   <select
                     value={String(variantes.findIndex((l) => mismaVariante(l, v)))}
                     onChange={(e) => cambiarVariante(v.localId, variantes[parseInt(e.target.value, 10)])}
@@ -441,7 +442,7 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: p.modoColorSecundario === 'libre' ? '56px 1fr 1fr auto' : '56px 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                  <input type="number" min="0" value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
+                  <CampoNumero min="0" value={v.cantidad} onChange={(e) => cambiar(v.localId, 'cantidad', e.target.value)} />
                   {p.modoColorSecundario === 'combinaciones' ? (
                     <select
                       value={(() => { const i = combinaciones.findIndex((c) => c.color === v.color && c.colorSecundario === v.colorSecundario); return i >= 0 ? String(i) : ''; })()}

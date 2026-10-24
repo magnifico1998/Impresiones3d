@@ -9,6 +9,7 @@ import { confirmarPedidoNuevoDeCliente } from '../../utils/unirPedidos';
 import { combinacionElegida } from '../../utils/combinacionesColor';
 import OpcionesCombinaciones from '../OpcionesCombinaciones';
 
+import CampoNumero from '../CampoNumero';
 export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fixedOrderId, onClearSelection, onViewOrder, onAgregadoAPedido }) {
   const capaModal = useCapaModal({ onClose, activo: isOpen });
   const { pedidos, addPedido, updatePedido } = usePedidos();
@@ -388,8 +389,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
                   <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr', gap: '8px', alignItems: 'end' }}>
                     <div>
                       <label className="fl" style={{ marginTop: 0 }}>Cant.</label>
-                      <input 
-                        type="number" 
+                      <CampoNumero 
                         min="1" 
                         value={it.cantidad} 
                         onChange={(e) => handleQtyChange(idx, e.target.value)} 
@@ -424,8 +424,7 @@ export default function ModalArmarPedido({ isOpen, onClose, selectedProdIds, fix
                       
                       {it.versiones.map(v => (
                         <div key={v.id} className="version-row" style={{ gridTemplateColumns: '56px 1fr 1fr 1fr 24px' }}>
-                          <input
-                            type="number"
+                          <CampoNumero
                             min="1"
                             max={it.cantidad}
                             value={v.cantidad}

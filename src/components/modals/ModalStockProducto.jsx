@@ -6,6 +6,7 @@ import { normalizarStock } from '../../utils/stock';
 import { fotoDeColor } from '../../utils/fotosColor';
 import { colorPermitido, combinacionPermitida } from '../../utils/coloresProducto';
 
+import CampoNumero from '../CampoNumero';
 // Edita el stock de UN producto: una línea por color (y color secundario, si el producto lo usa).
 // Los colores salen de los de la cuenta (Configuración). Cada línea de stock lleva su color: en el catálogo no hay productos sin color.
 export default function ModalStockProducto({ producto, onClose }) {
@@ -97,7 +98,7 @@ export default function ModalStockProducto({ producto, onClose }) {
                 {secundarios.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             )}
-            <input type="number" min="0" value={l.cantidad} onChange={(e) => cambiar(i, 'cantidad', Math.max(0, parseInt(e.target.value, 10) || 0))} />
+            <CampoNumero min="0" value={l.cantidad} onChange={(e) => cambiar(i, 'cantidad', Math.max(0, parseInt(e.target.value, 10) || 0))} />
             <button className="btn btn-danger btn-sm" disabled={lineas.length === 1} onClick={() => setLineas((prev) => prev.filter((_, j) => j !== i))}>✕</button>
           </div>
         ))}

@@ -11,6 +11,7 @@ import { repartirConStock } from '../utils/stock';
 import { colorPermitido, combinacionPermitida, versionesSinColor } from '../utils/coloresProducto';
 import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe, textosSecundariosDe } from '../utils/catalogoMarca';
 
+import CampoNumero from '../components/CampoNumero';
 const newLocalId = () => Date.now() + Math.random();
 
 // Los campos de redes sociales se cargan en "Mi emprendimiento" como texto
@@ -735,8 +736,7 @@ export default function CatalogoPublico() {
                         <div style={{ background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: '12px', padding: '12px', marginTop: '12px' }}>
                           {draftVersiones.map(v => (
                             <div key={v.localId} style={{ display: 'grid', gridTemplateColumns: p.modoColorSecundario === 'libre' ? '56px 1fr 1fr 1fr auto' : '56px 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                              <input
-                                type="number" min="0" value={v.cantidad}
+                              <CampoNumero min="0" value={v.cantidad}
                                 onChange={(e) => actualizarDraftVersion(v.localId, 'cantidad', e.target.value)}
                               />
                               {p.modoColorSecundario === 'combinaciones' ? (

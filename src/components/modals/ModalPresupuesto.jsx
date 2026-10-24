@@ -10,6 +10,7 @@ import AdjuntosPresupuesto from '../AdjuntosPresupuesto';
 import { MAX_ADJUNTOS, adjuntoParaGuardar, porHojaDe } from '../../utils/adjuntosPresupuesto';
 import { borrarImagenDeFirebase, subirImagenAFirebase } from '../../utils/imageCompress';
 
+import CampoNumero from '../CampoNumero';
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
 // siempre, sin guardar nada) o guardarlo en la sección Presupuestos, desde
 // donde se sigue su estado y, si lo aprueban, se convierte en pedido (ver
@@ -402,7 +403,7 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
               {items.map(it => (
                 <div key={it.id} style={{ display: 'grid', gridTemplateColumns: '1fr 64px 100px 90px 24px', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
                   <input type="text" value={it.nombre} placeholder="Nombre del producto" onChange={(e) => handleItemChange(it.id, 'nombre', e.target.value)} />
-                  <input type="number" min="0" value={it.cantidad} onChange={(e) => handleItemChange(it.id, 'cantidad', e.target.value)} />
+                  <CampoNumero min="0" value={it.cantidad} onChange={(e) => handleItemChange(it.id, 'cantidad', e.target.value)} />
                   <CampoMoneda sinSimbolo type="number" min="0" value={it.precioUnitario} onChange={(e) => handleItemChange(it.id, 'precioUnitario', e.target.value)} />
                   <div style={{ fontFamily: 'var(--mono)', fontWeight: 600, textAlign: 'right' }}>{fmt(it.cantidad * it.precioUnitario)}</div>
                   <button className="btn btn-danger btn-sm" style={{ padding: '2px 5px' }} aria-label="Quitar línea" onClick={() => handleRemoveItem(it.id)}>✕</button>

@@ -8,6 +8,7 @@ import { CONDICIONES_IVA, pesosAR, receptorDesdeCliente } from '../../utils/fact
 import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
 
+import CampoNumero from '../CampoNumero';
 // Arma la Factura C de un pedido, precargada con sus piezas, la
 // bonificación y el envío, y el receptor desde la ficha del cliente. Todo
 // se puede ajustar antes de emitir (por ejemplo, facturar sólo la seña).
@@ -151,7 +152,7 @@ export default function ModalFacturarPedido({ pedido, cliente, precioVentaNeto, 
           {form.items.map((it, i) => (
             <div key={i} style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
               <input type="text" style={{ flex: '1 1 220px', width: 'auto' }} placeholder="Descripción" value={it.descripcion} onChange={cambiarItem(i, 'descripcion')} />
-              <input type="number" style={{ width: '80px' }} min="1" placeholder="Cant." value={it.cantidad} onChange={cambiarItem(i, 'cantidad')} />
+              <CampoNumero style={{ width: '80px' }} min="1" placeholder="Cant." value={it.cantidad} onChange={cambiarItem(i, 'cantidad')} />
               <CampoMoneda sinSimbolo type="number" style={{ width: '130px' }} min="0" step="0.01" placeholder="Precio unit." value={it.precioUnitario} onChange={cambiarItem(i, 'precioUnitario')} />
               {form.items.length > 1 && (
                 <button className="btn btn-ghost btn-sm" onClick={() => setForm((p) => ({ ...p, items: p.items.filter((_, j) => j !== i) }))}>Quitar</button>

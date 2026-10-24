@@ -4,6 +4,7 @@ import ConectoresImpresion from './ConectoresImpresion';
 import { paletas, paletasList } from '../utils/paletas';
 import CampoMoneda from './CampoMoneda';
 
+import CampoNumero from './CampoNumero';
 // La configuración se divide en dos pestañas: las herramientas de trabajo
 // del taller (materiales, impresoras, costos de la Calculadora) y cómo
 // funciona la app (apariencia, envíos, gastos en Resumen, capacidad).
@@ -185,8 +186,7 @@ export default function ConfiguracionPage() {
                     <div className="sep"></div>
 
                     <label className="fl">Cantidad de impresoras</label>
-                    <input
-                      type="number"
+                    <CampoNumero
                       min="1"
                       step="1"
                       value={cfg.capacidadProduccion?.cantidadImpresoras ?? 1}
@@ -194,8 +194,7 @@ export default function ConfiguracionPage() {
                     />
 
                     <label className="fl">Horas de trabajo por día</label>
-                    <input
-                      type="number"
+                    <CampoNumero
                       min="1"
                       max="24"
                       step="1"
@@ -204,8 +203,7 @@ export default function ConfiguracionPage() {
                     />
 
                     <label className="fl">Hora de inicio de la jornada</label>
-                    <input
-                      type="number"
+                    <CampoNumero
                       min="0"
                       max="23"
                       step="1"
@@ -408,8 +406,7 @@ export default function ConfiguracionPage() {
                     <div className="grid2" style={{ marginTop: '8px' }}>
                       <div>
                         <label className="fl">Mínimo por defecto filamento (g)</label>
-                        <input
-                          type="number"
+                        <CampoNumero permitirVacio
                           min="0"
                           step="50"
                           placeholder="Ej: 500"
@@ -419,8 +416,7 @@ export default function ConfiguracionPage() {
                       </div>
                       <div>
                         <label className="fl">Mínimo por defecto resto (u.)</label>
-                        <input
-                          type="number"
+                        <CampoNumero permitirVacio
                           min="0"
                           step="1"
                           placeholder="Ej: 1"
@@ -576,8 +572,7 @@ export default function ConfiguracionPage() {
                         placeholder="Nombre"
                         onChange={(e) => handleUpdateField('impresoras', i, 'nombre', e.target.value)}
                       />
-                      <input
-                        type="number"
+                      <CampoNumero
                         value={imp.watts}
                         placeholder="W"
                         title="Watts"
@@ -764,8 +759,7 @@ export default function ConfiguracionPage() {
                 {/* Margen con el que arranca la Calculadora: lo que se cambie allá vale
                     sólo para ese cálculo (o el producto que se guarde), no pisa éste. */}
                 <label className="fl">Margen de ganancia (%)</label>
-                <input
-                  type="number"
+                <CampoNumero
                   value={cfg.margen}
                   step="5"
                   min="0"
@@ -773,8 +767,7 @@ export default function ConfiguracionPage() {
                 />
 
                 <label className="fl">Desperdicio (%)</label>
-                <input
-                  type="number"
+                <CampoNumero
                   value={cfg.desperdicio}
                   step="1"
                   onChange={(e) => handleDefaultValueChange('desperdicio', e.target.value)}

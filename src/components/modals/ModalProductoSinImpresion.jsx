@@ -6,6 +6,7 @@ import BotonSubirImagenes from '../BotonSubirImagenes';
 import { comprimirImagen, subirImagenAFirebase } from '../../utils/imageCompress';
 import { camposSinImpresion, margenDesdePrecio, precioDesdeMargen } from '../../utils/productoSinImpresion';
 
+import CampoNumero from '../CampoNumero';
 const MAX_IMAGENES = 15;
 const MARGEN_INICIAL = 50;
 
@@ -147,15 +148,15 @@ export default function ModalProductoSinImpresion({ isOpen, onClose, productoId 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginTop: '4px' }}>
           <div>
             <label className="fl">Costo de compra</label>
-            <input type="number" min="0" step="0.01" value={costo} onChange={(e) => cambiarCosto(e.target.value)} placeholder="0" />
+            <CampoNumero min="0" step="0.01" value={costo} onChange={(e) => cambiarCosto(e.target.value)} placeholder="0" />
           </div>
           <div>
             <label className="fl">Margen %</label>
-            <input type="number" step="0.1" value={margen} onChange={(e) => cambiarMargen(e.target.value)} />
+            <CampoNumero step="0.1" value={margen} onChange={(e) => cambiarMargen(e.target.value)} />
           </div>
           <div>
             <label className="fl">Precio de venta</label>
-            <input type="number" min="0" step="0.01" value={precio} onChange={(e) => cambiarPrecio(e.target.value)} placeholder="0" />
+            <CampoNumero min="0" step="0.01" value={precio} onChange={(e) => cambiarPrecio(e.target.value)} placeholder="0" />
           </div>
         </div>
         <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>

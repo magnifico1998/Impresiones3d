@@ -9,6 +9,7 @@ import SelectorBuscable from '../SelectorBuscable';
 import { confirmar as confirmarDialogo } from '../Dialogos';
 import { useCapaModal } from '../CapaModal';
 
+import CampoNumero from '../CampoNumero';
 // "Descontar del inventario" de un pedido: propone cuánto filamento usó
 // cada versión de cada producto (en los multicolor, por material) y los
 // insumos del pedido, sugiere de qué artículo del inventario sale cada cosa,
@@ -164,7 +165,7 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
                       </div>
                     </td>
                     <td>
-                      <input type="number" min="0" step="1" value={f.cantidad} placeholder="g" onChange={(e) => cambiar('filamento', i, 'cantidad', e.target.value)} />
+                      <CampoNumero min="0" step="1" value={f.cantidad} placeholder="g" onChange={(e) => cambiar('filamento', i, 'cantidad', e.target.value)} />
                       {f.sinDatos && (
                         <div style={{ fontSize: '11px', color: 'var(--warn)', marginTop: '2px' }}>Sin gramos en el producto: cargalos.</div>
                       )}
@@ -199,7 +200,7 @@ export default function ModalConsumoPedido({ pedido, onClose }) {
                   {filas.insumos.map((f, i) => (
                     <tr key={`${f.nombre}-${i}`}>
                       <td style={{ whiteSpace: 'nowrap' }}>{f.nombre}</td>
-                      <td><input type="number" min="0" step="1" value={f.cantidad} onChange={(e) => cambiar('insumos', i, 'cantidad', e.target.value)} /></td>
+                      <td><CampoNumero min="0" step="1" value={f.cantidad} onChange={(e) => cambiar('insumos', i, 'cantidad', e.target.value)} /></td>
                       <td>{selectorArticulo('insumos', i, f, otros)}</td>
                     </tr>
                   ))}

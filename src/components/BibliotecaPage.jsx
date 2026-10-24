@@ -13,6 +13,7 @@ import { escucharArchivosGcode } from '../utils/archivosGcode';
 import { useCapaModal } from './CapaModal';
 import { formatoNumero } from '../utils/numeros';
 
+import CampoNumero from './CampoNumero';
 /**
  * Recalcula costos de un producto manteniendo estructura física pero actualizando precios
  * - Filamentos: busca por nombre en cfg.filamentos actual
@@ -1004,7 +1005,7 @@ function ModalAjustarPrecio({ items, onConfirm, onClose }) {
           <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             <input type="radio" checked={mode === 'fixed'} onChange={() => setMode('fixed')} /> Monto fijo
           </label>
-          <input type="number" value={value} onChange={(e) => setValue(e.target.value)} style={{ width: '120px', marginLeft: 'auto' }} />
+          <CampoNumero value={value} onChange={(e) => setValue(e.target.value)} style={{ width: '120px', marginLeft: 'auto' }} />
           <div style={{ fontSize: '12px', color: 'var(--text3)' }}>Preview</div>
         </div>
 

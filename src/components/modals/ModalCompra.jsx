@@ -8,6 +8,7 @@ import SelectorConAlta from '../SelectorConAlta';
 import { useCapaModal } from '../CapaModal';
 import CampoMoneda from '../CampoMoneda';
 
+import CampoNumero from '../CampoNumero';
 // Una compra es un ingreso tipo carrito: varias líneas, cada una con su
 // categoría (un mismo pedido al proveedor puede traer filamentos y
 // boquillas). Las líneas de filamento llevan tipo, marca y color; el resto,
@@ -360,13 +361,13 @@ export default function ModalCompra({ isOpen, onClose, editId }) {
                           </div>
                           {l.clase === 'Filamento' && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} title="Peso de cada rollo (el inventario lleva el filamento en gramos)">
-                              <input type="number" min="1" step="50" value={l.pesoRollo} onChange={(e) => cambiarLinea(i, 'pesoRollo', e.target.value)} />
+                              <CampoNumero min="1" step="50" value={l.pesoRollo} onChange={(e) => cambiarLinea(i, 'pesoRollo', e.target.value)} />
                               <span style={{ color: 'var(--text3)' }}>g</span>
                             </div>
                           )}
                       </div>
                     </td>
-                    <td><input type="number" min="1" step="1" value={l.qty} onChange={(e) => cambiarLinea(i, 'qty', e.target.value)} /></td>
+                    <td><CampoNumero min="1" step="1" value={l.qty} onChange={(e) => cambiarLinea(i, 'qty', e.target.value)} /></td>
                     <td><CampoMoneda sinSimbolo type="number" min="0" step="100" value={l.precio} placeholder="0" onChange={(e) => cambiarLinea(i, 'precio', e.target.value)} /></td>
                     <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
                       {fmtPesos((parseFloat(l.qty) || 0) * (parseFloat(l.precio) || 0))}
