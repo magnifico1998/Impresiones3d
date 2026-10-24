@@ -1014,7 +1014,7 @@ function CatalogoEnMantenimiento({ config, paleta }) {
     <div style={{ ...paleta, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', color: 'var(--text2)', background: 'var(--bg)' }}>
       <div style={{ maxWidth: '440px' }}>
         {config.logo ? (
-          <img src={config.logo} alt={nombre} style={{ height: `${tamano}px`, width: 'auto', maxWidth: '80vw', objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamano / 4))}px`, marginBottom: '18px' }} />
+          <img src={config.logo} alt={nombre} style={{ height: `${tamano}px`, width: 'auto', maxWidth: '80vw', objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamano / 4))}px`, display: 'block', margin: '0 auto 18px' }} />
         ) : nombre ? (
           <div style={{
             width: `${tamano}px`, height: `${tamano}px`, borderRadius: `${Math.min(14, Math.round(tamano / 4))}px`, margin: '0 auto 18px', background: 'var(--text)', color: 'var(--bg)',
