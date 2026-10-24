@@ -463,13 +463,18 @@ export default function CatalogoPublico() {
     return <EstadoCentrado>Cargando catálogo…</EstadoCentrado>;
   }
 
-  if (!config || !config.activo) {
+  if (!config) {
     return (
-      <EstadoCentrado paleta={estiloPaleta(config)}>
+      <EstadoCentrado>
         Este catálogo no está disponible en este momento.
         <br />Volvé a intentar más tarde.
       </EstadoCentrado>
     );
+  }
+
+  // Catálogo desactivado por la tienda: se ve su marca y un aviso de mantenimiento.
+  if (!config.activo) {
+    return <CatalogoEnMantenimiento config={config} paleta={estiloPaleta(config)} />;
   }
 
   // Marca elegida por la tienda (Catálogo web → "Marca del catálogo").
@@ -995,6 +1000,41 @@ export default function CatalogoPublico() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Pantalla del catálogo desactivado: el logo y el nombre de la tienda (con su paleta) y un mensaje de mantenimiento.
+// Si la tienda tiene WhatsApp cargado, ofrece escribirle (es el mismo número que muestra el catálogo activo).
+function CatalogoEnMantenimiento({ config, paleta }) {
+  const tamano = Math.min(tamanoLogoDe(config), 140);
+  const nombre = config.empresaNombre || '';
+  const waLink = config.telefono ? `https://wa.me/${config.telefono.replace(/\D/g, '')}` : null;
+  return (
+    <div style={{ ...paleta, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px', color: 'var(--text2)', background: 'var(--bg)' }}>
+      <div style={{ maxWidth: '440px' }}>
+        {config.logo ? (
+          <img src={config.logo} alt={nombre} style={{ height: `${tamano}px`, width: 'auto', maxWidth: '80vw', objectFit: 'contain', borderRadius: `${Math.min(14, Math.round(tamano / 4))}px`, marginBottom: '18px' }} />
+        ) : nombre ? (
+          <div style={{
+            width: `${tamano}px`, height: `${tamano}px`, borderRadius: `${Math.min(14, Math.round(tamano / 4))}px`, margin: '0 auto 18px', background: 'var(--text)', color: 'var(--bg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: `${Math.round(tamano * 0.4)}px`
+          }}>
+            {nombre[0].toUpperCase()}
+          </div>
+        ) : null}
+        {nombre && <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '14px' }}>{nombre}</div>}
+        <div style={{ fontSize: '40px', marginBottom: '6px' }}>🛠️</div>
+        <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>Estamos en mantenimiento</div>
+        <div style={{ fontSize: '15px', lineHeight: 1.6 }}>
+          Estamos preparando novedades para vos.<br />Volvé a visitarnos pronto, ¡te vamos a sorprender!
+        </div>
+        {waLink && (
+          <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '20px', padding: '10px 18px', borderRadius: '999px', border: '1px solid var(--border2)', color: 'var(--text)', textDecoration: 'none', fontSize: '14px' }}>
+            Escribinos por WhatsApp
+          </a>
+        )}
+      </div>
     </div>
   );
 }
