@@ -54,6 +54,37 @@ export const esloganTamanoDe = (config) => {
   return Number.isFinite(n) && n > 0 ? Math.min(32, Math.max(10, Math.round(n))) : ESLOGAN_TAMANO_POR_DEFECTO;
 };
 
+// Mensaje que ve el visitante cuando el catálogo está desactivado (Catálogo web → "Mensaje del catálogo desactivado").
+// Se guarda en catalogoTiendas/{uid} (mantenimientoTitulo, mantenimientoTexto); sin nada guardado, se muestra el de siempre.
+export const TITULO_MANTENIMIENTO_POR_DEFECTO = 'Estamos en mantenimiento';
+export const TEXTO_MANTENIMIENTO_POR_DEFECTO = 'Estamos preparando novedades para vos.\nVolvé a visitarnos pronto, ¡te vamos a sorprender!';
+export const MAX_CARACTERES_TITULO_MANTENIMIENTO = 60;
+export const MAX_CARACTERES_TEXTO_MANTENIMIENTO = 300;
+export const MAX_LINEAS_TEXTO_MANTENIMIENTO = 5;
+
+// Lo que la tienda escribió (sin el valor por defecto): el título en una línea, y el texto en hasta 5 líneas y 300
+// caracteres, sin líneas vacías ni espacios de más. Vacío = no personalizó nada.
+export const tituloMantenimientoPropio = (config) => String(config?.mantenimientoTitulo ?? '')
+  .replace(/\s+/g, ' ').trim().slice(0, MAX_CARACTERES_TITULO_MANTENIMIENTO);
+export const textoMantenimientoPropio = (config) => String(config?.mantenimientoTexto ?? '')
+  .split(/\r?\n/)
+  .map((linea) => linea.replace(/\s+/g, ' ').trim())
+  .filter(Boolean)
+  .slice(0, MAX_LINEAS_TEXTO_MANTENIMIENTO)
+  .join('\n')
+  .slice(0, MAX_CARACTERES_TEXTO_MANTENIMIENTO);
+
+// Lo que se muestra: lo propio o, si está vacío, el de siempre.
+export const tituloMantenimientoDe = (config) => tituloMantenimientoPropio(config) || TITULO_MANTENIMIENTO_POR_DEFECTO;
+export const textoMantenimientoDe = (config) => textoMantenimientoPropio(config) || TEXTO_MANTENIMIENTO_POR_DEFECTO;
+
+// Para el campo de texto mientras se escribe: corta lo que pasa de 5 líneas o de 300 caracteres, sin sacar los espacios.
+export const recortarBorradorTextoMantenimiento = (texto) => String(texto ?? '')
+  .split(/\r?\n/)
+  .slice(0, MAX_LINEAS_TEXTO_MANTENIMIENTO)
+  .join('\n')
+  .slice(0, MAX_CARACTERES_TEXTO_MANTENIMIENTO);
+
 // Mezcla de dos colores hex: `pct` % de `a` y el resto de `b` (devuelve un hex).
 export function mezclarHex(a, b, pct) {
   const leer = (h) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : null; };

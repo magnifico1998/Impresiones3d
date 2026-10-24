@@ -5,7 +5,12 @@ import { functions } from '../firebase';
 import { motivoNombreInvalido, normalizarNombre } from '../utils/nombreCatalogo';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import { paletas, paletasList } from '../utils/paletas';
-import { textosSecundariosDe, LOGO_MAX_ENCABEZADO_FIJO, MAX_CARACTERES_LINEA, MAX_LINEAS_ESLOGAN, TAMANOS_ESLOGAN, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, recortarBorradorEslogan, tamanoLogoDe } from '../utils/catalogoMarca';
+import {
+  textosSecundariosDe, LOGO_MAX_ENCABEZADO_FIJO, MAX_CARACTERES_LINEA, MAX_CARACTERES_TEXTO_MANTENIMIENTO, MAX_CARACTERES_TITULO_MANTENIMIENTO,
+  MAX_LINEAS_ESLOGAN, MAX_LINEAS_TEXTO_MANTENIMIENTO, TAMANOS_ESLOGAN, TAMANOS_LOGO, TEXTO_ENCABEZADO_POR_DEFECTO,
+  TEXTO_MANTENIMIENTO_POR_DEFECTO, TITULO_MANTENIMIENTO_POR_DEFECTO, esloganDe, esloganTamanoDe, recortarBorradorEslogan,
+  recortarBorradorTextoMantenimiento, tamanoLogoDe, textoMantenimientoDe, textoMantenimientoPropio, tituloMantenimientoDe, tituloMantenimientoPropio
+} from '../utils/catalogoMarca';
 import { confirmar } from './Dialogos';
 import { clienteDeSolicitud, confirmarPedidoNuevoDeCliente } from '../utils/unirPedidos';
 
@@ -138,6 +143,25 @@ export default function CatalogoAdminPage() {
     await guardarCatalogoConfig({ eslogan: esloganDe({ eslogan: texto }) });
     setEsloganBorrador(null);
     showToast(texto.trim() ? 'Texto destacado guardado.' : 'Texto destacado quitado.');
+  };
+
+  // Mensaje del catálogo desactivado: título y texto propios (vacío = el de siempre). Borradores hasta guardar.
+  const tituloMantGuardado = tituloMantenimientoPropio(catalogoConfig);
+  const textoMantGuardado = textoMantenimientoPropio(catalogoConfig);
+  const [tituloMantBorrador, setTituloMantBorrador] = useState(null);
+  const [textoMantBorrador, setTextoMantBorrador] = useState(null);
+  const tituloMantValor = tituloMantBorrador ?? tituloMantGuardado;
+  const textoMantValor = textoMantBorrador ?? textoMantGuardado;
+  const mantCambiado = tituloMantenimientoPropio({ mantenimientoTitulo: tituloMantValor }) !== tituloMantGuardado
+    || textoMantenimientoPropio({ mantenimientoTexto: textoMantValor }) !== textoMantGuardado;
+  const guardarMantenimiento = async (titulo, texto) => {
+    await guardarCatalogoConfig({
+      mantenimientoTitulo: tituloMantenimientoPropio({ mantenimientoTitulo: titulo }),
+      mantenimientoTexto: textoMantenimientoPropio({ mantenimientoTexto: texto })
+    });
+    setTituloMantBorrador(null);
+    setTextoMantBorrador(null);
+    showToast(titulo.trim() || texto.trim() ? 'Mensaje guardado.' : 'Se vuelve a mostrar el mensaje original.');
   };
 
   const handleToggleActivo = () => {
@@ -494,6 +518,62 @@ export default function CatalogoAdminPage() {
           </div>
           <div style={{ padding: '10px 16px', fontSize: '10.5px', textTransform: 'uppercase', letterSpacing: '.6px', fontWeight: 600, color: paletaCatalogoActual('text3') }}>
             {TEXTO_ENCABEZADO_POR_DEFECTO}
+          </div>
+        </div>
+      </div>
+
+      {/* Mensaje que ven los visitantes cuando el catálogo está desactivado */}
+      <div className="card">
+        <div className="card-title">Mensaje del catálogo desactivado</div>
+        <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>
+          Es lo que ve quien abre tu link mientras el catálogo está inactivo, junto con tu logo y tu nombre. Si no escribís nada, se muestra el mensaje de siempre.
+        </div>
+
+        <label className="fl">Título</label>
+        <input
+          type="text"
+          maxLength={MAX_CARACTERES_TITULO_MANTENIMIENTO}
+          value={tituloMantValor}
+          onChange={(e) => setTituloMantBorrador(e.target.value)}
+          placeholder={TITULO_MANTENIMIENTO_POR_DEFECTO}
+        />
+
+        <label className="fl">Mensaje</label>
+        <textarea
+          rows={4}
+          value={textoMantValor}
+          onChange={(e) => setTextoMantBorrador(recortarBorradorTextoMantenimiento(e.target.value))}
+          placeholder={TEXTO_MANTENIMIENTO_POR_DEFECTO}
+          style={{ width: '100%', resize: 'vertical' }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)' }}>
+            {textoMantValor.length} de {MAX_CARACTERES_TEXTO_MANTENIMIENTO} caracteres · hasta {MAX_LINEAS_TEXTO_MANTENIMIENTO} líneas
+          </span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {(tituloMantValor || textoMantValor) && (
+              <button className="btn btn-sm" onClick={() => guardarMantenimiento('', '')}>Volver al mensaje original</button>
+            )}
+            <button className="btn btn-sm btn-primary" disabled={!mantCambiado} onClick={() => guardarMantenimiento(tituloMantValor, textoMantValor)}>
+              Guardar mensaje
+            </button>
+          </div>
+        </div>
+
+        {/* Vista previa: cómo se ve la pantalla con los colores del catálogo. */}
+        <div style={{ marginTop: '14px', borderRadius: '8px', border: '1px solid var(--border)', background: paletaCatalogoActual('bg'), padding: '22px 16px', textAlign: 'center' }}>
+          {catalogoConfig?.logo && (
+            <img src={catalogoConfig.logo} alt="" style={{ display: 'block', margin: '0 auto 12px', height: `${Math.min(tamanoLogo, 96)}px`, width: 'auto', maxWidth: '70%', objectFit: 'contain' }} />
+          )}
+          <div style={{ fontWeight: 700, fontSize: '16px', color: paletaCatalogoActual('text'), marginBottom: '8px' }}>
+            {catalogoConfig?.empresaNombre || 'Tu emprendimiento'}
+          </div>
+          <div style={{ fontSize: '26px' }}>🛠️</div>
+          <div style={{ fontWeight: 600, fontSize: '15px', color: paletaCatalogoActual('text'), margin: '4px 0 6px', overflowWrap: 'anywhere' }}>
+            {tituloMantenimientoDe({ mantenimientoTitulo: tituloMantValor })}
+          </div>
+          <div style={{ fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-line', overflowWrap: 'anywhere', color: paletaCatalogoActual('text2') }}>
+            {textoMantenimientoDe({ mantenimientoTexto: textoMantValor })}
           </div>
         </div>
       </div>

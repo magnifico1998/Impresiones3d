@@ -500,6 +500,16 @@ Se guardan en `users/{uid}/presupuestos`. Código:
   encabezado completo con los colores de la paleta del catálogo. Con un logo de más de
   64 px el encabezado deja de quedar fijo al desplazar, para no tapar la pantalla del
   celular. Se guardan en `catalogoTiendas/{uid}` (`src/utils/catalogoMarca.js`).
+- **Catálogo desactivado:** quien abre el link ve el **logo y el nombre** de la tienda
+  (con su paleta), un título, un mensaje y, si la tienda tiene teléfono, un botón
+  "Escribinos por WhatsApp". Por defecto dice "Estamos en mantenimiento" / "Estamos
+  preparando novedades para vos. Volvé a visitarnos pronto, ¡te vamos a sorprender!".
+  En Catálogo web → "Mensaje del catálogo desactivado" la tienda puede cambiar el
+  **título** (hasta 60 caracteres) y el **mensaje** (hasta 5 líneas y 300 caracteres,
+  `mantenimientoTitulo` y `mantenimientoTexto` en `catalogoTiendas/{uid}`), con vista
+  previa; cada parte vacía vuelve al texto por defecto y "Volver al mensaje original"
+  borra las dos. Un catálogo que no existe o no se puede leer muestra un aviso genérico,
+  sin marca (`CatalogoEnMantenimiento` en `CatalogoPublico.jsx`).
 - **Pedido enviado desde el catálogo:** la pantalla de confirmación ofrece "Avisar
   por WhatsApp" y **"Volver al catálogo"**, que vacía el carrito (el pedido ya se
   mandó, así no se repite por error) y conserva el nombre y el contacto por si arma

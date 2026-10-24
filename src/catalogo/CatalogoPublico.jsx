@@ -9,7 +9,7 @@ import VistaTienda, { ESTILOS_TIENDA } from './VistaTienda';
 import { nombreDeRuta } from '../utils/nombreCatalogo';
 import { repartirConStock } from '../utils/stock';
 import { colorPermitido, combinacionPermitida, versionesSinColor } from '../utils/coloresProducto';
-import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe, textosSecundariosDe } from '../utils/catalogoMarca';
+import { LOGO_MAX_ENCABEZADO_FIJO, TEXTO_ENCABEZADO_POR_DEFECTO, esloganDe, esloganTamanoDe, tamanoLogoDe, textoMantenimientoDe, textosSecundariosDe, tituloMantenimientoDe } from '../utils/catalogoMarca';
 
 import CampoNumero from '../components/CampoNumero';
 const newLocalId = () => Date.now() + Math.random();
@@ -1025,9 +1025,9 @@ function CatalogoEnMantenimiento({ config, paleta }) {
         ) : null}
         {nombre && <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text)', marginBottom: '14px' }}>{nombre}</div>}
         <div style={{ fontSize: '40px', marginBottom: '6px' }}>🛠️</div>
-        <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>Estamos en mantenimiento</div>
-        <div style={{ fontSize: '15px', lineHeight: 1.6 }}>
-          Estamos preparando novedades para vos.<br />Volvé a visitarnos pronto, ¡te vamos a sorprender!
+        <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px', overflowWrap: 'anywhere' }}>{tituloMantenimientoDe(config)}</div>
+        <div style={{ fontSize: '15px', lineHeight: 1.6, whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
+          {textoMantenimientoDe(config)}
         </div>
         {waLink && (
           <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: '20px', padding: '10px 18px', borderRadius: '999px', border: '1px solid var(--border2)', color: 'var(--text)', textDecoration: 'none', fontSize: '14px' }}>
