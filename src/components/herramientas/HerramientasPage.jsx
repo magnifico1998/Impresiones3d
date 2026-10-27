@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import SepararColoresPage from './SepararColoresPage';
+import LlaverosPage from './LlaverosPage';
 
 // Cada herramienta nueva se suma acá: una pestaña por herramienta.
 const HERRAMIENTAS = [
   { id: 'separar-colores', nombre: 'Separar por colores', Componente: SepararColoresPage },
+  { id: 'llaveros', nombre: 'Llaveros y nombres', Componente: LlaverosPage },
 ];
 
 const CLAVE_PESTANA = 'herramientas.pestana';
