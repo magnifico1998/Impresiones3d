@@ -19,6 +19,7 @@ import ConfiguracionPage from './components/ConfiguracionPage';
 import EmpresaPage from './components/EmpresaPage';
 import AdminPage from './components/AdminPage';
 import FaqPage from './components/FaqPage';
+import SepararColoresPage from './components/herramientas/SepararColoresPage';
 import Toasts from './components/Toasts';
 import SoportePage from './components/soporte/SoportePage';
 import CentroSoporte from './components/soporte/CentroSoporte';
@@ -651,6 +652,9 @@ function App() {
 
       case 'stock':
         return <StockPage />;
+
+      case 'separar':
+        return <SepararColoresPage />;
 
       case 'faq':
         return (

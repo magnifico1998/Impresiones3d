@@ -94,6 +94,16 @@ export default function Sidebar({ isOpen, onClose }) {
             </svg>
           )
         },
+        {
+          id: 'separar',
+          name: 'Separar por colores',
+          icon: (
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M3 7l5-3 5 3v6l-5 3-5-3V7z" strokeLinejoin="round" />
+              <path d="M13 9.5l4 2.3v4.4l-4 2.3-3.2-1.8" strokeLinejoin="round" />
+            </svg>
+          )
+        },
         ...(cfg?.stockHabilitado ? [{
           id: 'stock',
           name: 'Productos en stock',

@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-18 (el aviso de pedido listo nombra los productos).
+Última revisión: 2026-10-27 (herramienta "Separar por colores" y campo `herramientasStl` de los planes).
 
 ---
 
@@ -96,7 +96,8 @@ el panel Admin (`src/components/modals/ModalPlan.jsx`). **Los precios y
 límites no están en el código**: se cambian desde el panel.
 
 Campos de cada plan: `nombre`, `precioMensual`, `orden`, `activo` (visible
-para contratar), `gratuito`, y `limites`:
+para contratar), `gratuito`, `facturacionElectronica`, `herramientasStl`
+(herramientas de modelado, ver "Herramientas de modelado de STL") y `limites`:
 
 | Límite | Qué controla | Qué pasa al llegar | Dónde se hace cumplir |
 |---|---|---|---|
@@ -909,3 +910,51 @@ Código: `src/utils/stock.js`, `src/components/StockPage.jsx`, `src/catalogo/Vis
 
 - **Tipos de archivo con insignia:** en las listas de archivos (Biblioteca → 📄, 🖨 Enviar de una pieza del pedido, el selector de archivo y la lista de envíos) cada archivo lleva una insignia con ícono y color propios, para no confundir archivos que se llaman igual: **📄 G-code** (azul, `info`), **📦 3MF laminado** (verde, acento; `*.gcode.3mf`, listo para imprimir) y **🧩 Proyecto 3MF** (ámbar, aviso; `.3mf` sin laminar, se abre en el slicer). Los colores salen de la paleta de la app. La clasificación es `tipoDeArchivo` en `utils/formatoEnvio.js`; las filas del envío desde el pedido muestran además la fecha en que se subió.
 - **El conector usa la paleta de la app:** la app (componente `SincronizarTemaConector`, siempre montado) deja en cada conector vinculado, en `users/{cuenta}/conectores/{id}.tema`, los colores de la paleta que se usa (la elegida más los retoques de "Paleta personalizada"); el conector los escucha, los limpia (`conector/src/tema.js`: sólo nombres simples y valores hex o rgb), los guarda en su configuración y el panel los aplica como variables de color. Se actualiza solo al cambiar la paleta y al vincular un conector nuevo. Requiere la regla de Firestore que permite a la cuenta escribir `tema` (un mapa) en su conector: si todavía no está desplegada, la app deja de intentarlo en esa sesión y el panel conserva sus colores de siempre.
+
+## Herramientas de modelado de STL: separar por colores
+
+Sección "Separar por colores": parte un STL o 3MF en piezas para imprimir
+cada color por separado (y armarlas con encastres) o para mandarlo armado a
+una impresora multicolor. Es la primera de las herramientas de modelado que
+se venden como beneficio del plan.
+
+- **Quién la tiene** (`utils/accesoHerramientas.js`): las cuentas cuyo plan
+  tiene activado "Herramientas de modelado" (`planes/{id}.herramientasStl`,
+  se prende por plan desde el panel admin). Las cuentas **en prueba sin plan
+  asignado** también, para conocerla antes de pagar; si la cuenta en prueba
+  ya tiene plan, manda el plan. En **lectura o suspendida, no**. El admin
+  siempre. Sin acceso, la sección muestra qué hace y el botón "Ver planes";
+  al elegir plan, los que la incluyen lo dicen.
+- **Es sólo del navegador:** el archivo no se sube ni se guarda nada en
+  Firestore o Storage, así que el control de acceso es del cliente y no hay
+  reglas que tocar.
+- **Cómo corta:** se marca la zona con la varita (sigue la superficie y se
+  frena en los pliegues de más del ángulo elegido; con "frenar sólo en los
+  valles" toma los cantos hacia afuera, como una letra en relieve entera),
+  con pincel o borrando. El corte sigue las aristas de la malla, así que la
+  pieza y el resto comparten el mismo borde. "Afinar malla" parte los
+  triángulos largos (sin cambiar la forma) para marcar con más detalle.
+- **Cierre plano:** la pieza termina en una tapa plana a la profundidad
+  elegida por debajo del punto más hundido de la zona; se imprime apoyada
+  sobre esa tapa. No se permite si la zona se dobla hacia atrás (más del 1 %
+  del área mirando en contra): ahí se pide cierre curvo.
+- **Cierre curvo:** la pieza copia la superficie hacia adentro la
+  profundidad elegida. No lleva encastre (se pega o se imprime con AMS).
+- **Encastres** (sólo con cierre plano): perno, doble perno o llave cuadrada
+  (no gira). El perno sale del fondo del hueco en el resto y el agujero queda
+  en la pieza, con holgura radial por material: PLA 0,15 mm, PETG 0,2, ABS/ASA
+  0,2, TPU 0,25, o una propia; el agujero es 0,3 mm más profundo que el
+  perno. Se ubica donde la tapa tiene más lugar, con al menos 0,8 mm de pared
+  alrededor; si no entra, no se corta. Si la pieza es fina, el perno se acorta
+  para dejar 0,8 mm de pared hasta la cara visible (mínimo 1 mm de alto).
+- **Revisión antes de aplicar:** la pieza y el resto tienen que ser sólidos
+  cerrados (si no, no se puede aplicar). Se avisa en rojo dónde el fondo del
+  hueco queda a menos de 0,8 mm del otro lado del modelo; ahí se puede
+  "Aplicar igual". Los cortes se acumulan y se pueden deshacer.
+- **Exportar:** ZIP con un STL por pieza o un 3MF con un color por pieza, en
+  posición original (en Bambu Studio / Orca se abre como un objeto con una
+  parte por color) o para imprimir (las piezas con tapa plana acostadas
+  sobre ella y todas en fila).
+- Código: `utils/mallas3d.js` (lectura, escritura y revisión de mallas),
+  `utils/separarPiezas.js` (selección, corte, encastres y revisión),
+  `components/herramientas/`.
