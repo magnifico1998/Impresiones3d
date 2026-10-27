@@ -630,3 +630,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
   /* Selectores de color/estado en línea y buscadores con ancho fijo: ocupan el ancho disponible. */
   [style*="width: 160px"], [style*="width: 150px"], [style*="width: 140px"], [style*="width: 130px"], [style*="width: 120px"] { max-width: 100%; }
 }
+
+/* Herramienta "Separar por colores": panel y visor lado a lado; en pantallas
+   angostas el visor va arriba y el panel abajo. */
+@media (max-width: 900px) {
+  .herr-separar{grid-template-columns:1fr !important}
+  .herr-separar-visor{position:relative !important;top:0 !important;height:60vh !important;order:-1}
+}
