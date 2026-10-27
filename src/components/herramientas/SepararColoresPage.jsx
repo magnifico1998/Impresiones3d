@@ -13,8 +13,7 @@ export default function SepararColoresPage() {
   const habilitada = puedeUsarHerramientas({ suscripcion, planContratado, isAdmin });
 
   return (
-    <div className="page active">
-      <div className="page-title">Separar por colores</div>
+    <div>
       <div className="page-sub">
         Partí un STL o 3MF en piezas para imprimir cada color por separado y armarlas después con encastres, o para mandarlo armado a una impresora multicolor.
       </div>

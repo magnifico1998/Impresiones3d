@@ -95,8 +95,8 @@ export default function Sidebar({ isOpen, onClose }) {
           )
         },
         {
-          id: 'separar',
-          name: 'Separar por colores',
+          id: 'herramientas',
+          name: 'Herramientas',
           icon: (
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M3 7l5-3 5 3v6l-5 3-5-3V7z" strokeLinejoin="round" />
