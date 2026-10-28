@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import fs from 'node:fs';
 import opentypeNs from 'opentype.js';
 import { coloresIniciales, plantaLetrasUnidas, letrasUnidas, areaDeCaminos, engrosarFormas, textoAFormas, sanearParametros, infoPausa, armarConjunto, armarLlavero, armarLapiz, PARAMETROS_INICIALES, cajaDeMalla, entraEnCama, aplicarMayusculas } from '../src/utils/llaveros';
@@ -10,6 +10,8 @@ const leerFuente = (nombre) => {
   return opentype.parse(b.buffer.slice(b.byteOffset, b.byteOffset + b.length));
 };
 const fuente = leerFuente('fredoka');
+// La resta 3D del lápiz tarda ~1 s por pieza y varias pruebas arman más de una.
+vi.setConfig({ testTimeout: 30000 });
 const P = (extra = {}) => ({ ...PARAMETROS_INICIALES, estilo: 'marco', ...extra });
 
 describe('llavero', () => {
@@ -370,10 +372,13 @@ describe('nombre para lápiz con letras unidas', () => {
   });
 
   it('el desnivel suma altura en Z a las letras impares: más desnivel, más material', () => {
-    expect(volumenMalla(unidas({ desnivel: 6 }).letras)).toBeGreaterThan(volumenMalla(unidas({ desnivel: 0 }).letras));
-    expect(cajaDeMalla(unidas({ desnivel: 0 }).letras).max[2]).toBeCloseTo(lado);
-    expect(cajaDeMalla(unidas({ desnivel: 6 }).letras).max[2]).toBeCloseTo(lado + 6);
-  });
+    // Cada pieza se arma una sola vez: la resta 3D tarda y el test se pasaba del límite.
+    const sin = unidas({ desnivel: 0 }).letras;
+    const con = unidas({ desnivel: 6 }).letras;
+    expect(volumenMalla(con)).toBeGreaterThan(volumenMalla(sin));
+    expect(cajaDeMalla(sin).max[2]).toBeCloseTo(lado);
+    expect(cajaDeMalla(con).max[2]).toBeCloseTo(lado + 6);
+  }, 30000);
 
   it('en Z hay dos alturas: las letras 1.ª, 3.ª… llegan más arriba y las demás se quedan en el tubo', () => {
     const r = unidas({ desnivel: 5, alturaLetra: 20 }, 'LEONARDO');
