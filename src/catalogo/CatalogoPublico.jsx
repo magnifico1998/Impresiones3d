@@ -951,7 +951,7 @@ export default function CatalogoPublico() {
           {/* Solo se cierra con este botón: tocar fuera de la imagen no la cierra, para evitar cierres sin querer. */}
           <button
             onClick={() => setImagenAmpliada(null)}
-            style={{ position: 'absolute', top: '14px', right: '14px', width: '38px', height: '38px', borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: '20px', lineHeight: 1, cursor: 'pointer' }}
+            style={{ position: 'absolute', top: '14px', right: '14px', width: '44px', height: '44px', borderRadius: '50%', border: '2px solid #fff', background: 'var(--danger)', color: '#fff', fontSize: '22px', fontWeight: 700, lineHeight: 1, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,.5)' }}
             aria-label="Cerrar"
           >
             ✕
