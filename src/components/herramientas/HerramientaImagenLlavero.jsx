@@ -6,10 +6,11 @@ import VisorPiezas from './VisorPiezas';
 import { CAMAS } from '../../utils/camasImpresion';
 import { descargar, nombreArchivo } from '../../utils/descargas';
 import { stlBinario, crear3mf } from '../../utils/mallas3d';
+import { crearBambu3mf } from '../../utils/bambu3mf';
 import { unirMallas, entraEnCama } from '../../utils/llaveros';
 import {
   prepararMascara, cuantizar, asignarAPaleta, colorEnPunto, limpiarIndices, fundirZonaEn, aplicarLimpiezas, pixelDeModelo, armarLlaveroImagen, sanearImagen, colorAHex, hexAColor,
-  CANTIDADES_COLORES, POSICIONES_ARGOLLA, MODOS_IMAGEN, PARAMETROS_IMAGEN, SIN_COLOR
+  CANTIDADES_COLORES, POSICIONES_ARGOLLA, MODOS_IMAGEN, CARAS_IMAGEN, BOQUILLAS, PARAMETROS_IMAGEN, SIN_COLOR
 } from '../../utils/imagenLlavero';
 
 const MAX_ARCHIVO_MB = 15;
@@ -148,6 +149,14 @@ export default function HerramientaImagenLlavero() {
   const base = nombreArchivo(imagen?.nombre, 'llavero-imagen');
   const exportable = cuerpos.length > 0;
   const exportarStl = () => descargar(stlBinario(unirMallas(cuerpos.map((c) => c.malla)), base), `${base}.stl`, 'model/stl');
+  // Proyecto de Bambu Studio: cada color es una pieza con su filamento ya asignado.
+  const exportarBambu = () => {
+    try {
+      descargar(crearBambu3mf(cuerpos, { nombre: imagen?.nombre || 'Llavero' }), `${base} - Bambu A1.3mf`, 'model/3mf');
+    } catch (e) {
+      showToast(e.message || 'No se pudo armar el archivo para Bambu Studio.', 'error');
+    }
+  };
   const exportar3mf = () => descargar(crear3mf(cuerpos, { ensamblado: true }), `${base}.3mf`, 'model/3mf');
   const exportarZip = () => {
     const archivos = {};
@@ -291,16 +300,37 @@ export default function HerramientaImagenLlavero() {
           <label className="fl">Estilo</label>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {MODOS_IMAGEN.map((m) => (
-              <button key={m.id} type="button" className={`btn btn-sm ${p.modo === m.id ? 'btn-primary' : ''}`} onClick={() => cambiar('modo', m.id)}>{m.nombre}</button>
+              <button key={m.id} type="button" className={`btn btn-sm ${p.modo === m.id ? 'btn-primary' : ''}`} onClick={() => setP((a) => ({ ...a, modo: m.id, caras: m.id === 'relieve' ? 'una' : 'ambas' }))}>{m.nombre}</button>
             ))}
+          </div>
+          <label className="fl">Tu boquilla</label>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {BOQUILLAS.map((b) => (
+              <button key={b} type="button" className={`btn btn-sm ${p.boquilla === b ? 'btn-primary' : ''}`} onClick={() => setP((a) => ({ ...a, boquilla: b, anchoMinimo: b }))}>{fmt(b, 1)} mm</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {campo('anchoMinimo', 'Ancho mínimo de las líneas (mm)', { min: 0, step: 0.05, ayuda: 'Las líneas más finas se engrosan hasta este ancho para que la boquilla las pueda imprimir sin cortes. Se ajusta solo al elegir la boquilla; 0 = no forzar.' })}
+          </div>
+          <label className="fl">Colores en</label>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {CARAS_IMAGEN.map((c) => (
+              <button key={c.id} type="button" className={`btn btn-sm ${p.caras === c.id ? 'btn-primary' : ''}`} onClick={() => cambiar('caras', c.id)}>{c.nombre}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+            {p.modo === 'plano'
+              ? (p.caras === 'una' ? 'La imagen es una capa fina arriba, sobre una base lisa: el dorso queda de un solo color.' : 'Los colores atraviesan la placa y se ven de los dos lados (el dorso se ve espejado).')
+              : (p.caras === 'una' ? 'Relieve de color sólo arriba.' : 'Relieve de color arriba y abajo (el de abajo se ve espejado).')}
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {campo('anchoMm', 'Ancho del dibujo (mm)', { min: 10, step: 1 })}
             {campo('grosor', p.modo === 'relieve' ? 'Grosor de la base (mm)' : 'Grosor (mm)', { min: 0.8, step: 0.2 })}
           </div>
           {p.modo === 'relieve' && <div style={{ display: 'flex', gap: '8px' }}>{campo('relieve', 'Relieve de los colores (mm)', { min: 0.2, step: 0.2 })}</div>}
+          {p.modo === 'plano' && p.caras === 'una' && <div style={{ display: 'flex', gap: '8px' }}>{campo('capaColor', 'Grosor de la capa de color (mm)', { min: 0.2, step: 0.2, ayuda: 'Con 0,8 mm la imagen tapa bien la base.' })}</div>}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {campo('suavizadoBordes', 'Suavizado de bordes (0 a 4)', { min: 0, step: 1, ayuda: 'Redondea el escalonado de los contornos. 0 = sin suavizar.' })}
+            {campo('suavizadoBordes', 'Suavizado de bordes (0 a 4)', { min: 0, step: 1, ayuda: 'Redondea el escalonado de los contornos. 0 = sin suavizar. Sin ancho mínimo, puede borrar líneas de 1 o 2 píxeles.' })}
             {campo('margen', 'Margen alrededor (mm)', { min: 0, step: 0.5, ayuda: 'La base sobresale este tanto de la imagen.' })}
             {campo('agujero', 'Agujero argolla (mm)', { min: 2, step: 0.5 })}
           </div>
@@ -320,7 +350,7 @@ export default function HerramientaImagenLlavero() {
 
         <div className="card">
           <div className="card-title">{paleta.length > 0 ? '4' : '3'} · Exportar</div>
-          <label className="fl">Tu cama de impresión</label>
+          <label className="fl">Tu cama de impresión (sólo para avisar si entra)</label>
           <select value={cama} onChange={(e) => setCama(e.target.value)}>
             {CAMAS.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
@@ -332,12 +362,13 @@ export default function HerramientaImagenLlavero() {
           )}
           {conjunto?.avisos.map((a) => <div key={a} style={{ fontSize: '12px', marginTop: '6px', color: 'var(--text2)' }}>⚠ {a}</div>)}
           <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-primary" disabled={!exportable} onClick={exportar3mf}>3MF a color</button>
+            <button type="button" className="btn btn-primary" disabled={!exportable} onClick={exportarBambu} title="Proyecto de Bambu Studio con cada color ya asignado a un filamento">3MF para Bambu Studio (A1)</button>
+            <button type="button" className="btn" disabled={!exportable} onClick={exportar3mf}>3MF genérico</button>
             <button type="button" className="btn" disabled={!exportable} onClick={exportarStl}>STL</button>
             <button type="button" className="btn" disabled={!exportable} onClick={exportarZip}>ZIP por colores</button>
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '8px' }}>
-            El 3MF se abre en Bambu Studio u Orca con una parte por color: asignale el filamento a cada una.
+            El <strong>3MF para Bambu Studio</strong> es un proyecto con cada color como una pieza ya asignada a su filamento (hasta 16), con la configuración de una Bambu Lab A1 de 0,4 mm: se abre sin avisos y sin pintar nada. El <strong>3MF genérico</strong> sirve para otras impresoras u Orca: trae una pieza por color con su color, y Bambu Studio avisa que no es suyo, pero igual los carga. La cama que elegís arriba no cambia los archivos.
           </div>
           <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
             <button type="button" className="btn btn-sm" onClick={() => { setP(PARAMETROS_IMAGEN); setImagen(null); }}>Empezar de nuevo</button>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { prepararMascara, cuantizar, asignarAPaleta, colorEnPunto, fundirZonaEn, aplicarLimpiezas, suavizarCaminos, pixelDeModelo, limpiarIndices, regionesPorColor, armarLlaveroImagen, PARAMETROS_IMAGEN, SIN_COLOR, hexAColor } from '../src/utils/imagenLlavero';
+import { sanearImagen, prepararMascara, cuantizar, asignarAPaleta, colorEnPunto, fundirZonaEn, aplicarLimpiezas, suavizarCaminos, pixelDeModelo, engrosarFinas, limpiarIndices, regionesPorColor, armarLlaveroImagen, PARAMETROS_IMAGEN, SIN_COLOR, hexAColor } from '../src/utils/imagenLlavero';
 import { areaDeCaminos } from '../src/utils/llaveros';
 import { volumenMalla, revisarCerrada } from '../src/utils/mallas3d';
 
@@ -143,7 +143,7 @@ describe('llavero de imagen', () => {
   });
 
   it('en modo relieve hay una base y los colores van encima', () => {
-    const r = armarLlaveroImagen(entrada, P({ modo: 'relieve', grosor: 1.6, relieve: 0.8 }));
+    const r = armarLlaveroImagen(entrada, P({ modo: 'relieve', caras: 'una', grosor: 1.6, relieve: 0.8 }));
     const base = r.cuerpos.find((c) => c.nombre === 'Base');
     const color = r.cuerpos.find((c) => c.nombre === 'Color 1');
     expect(rangoZ(base.malla)[1]).toBeCloseTo(1.6);
@@ -364,7 +364,7 @@ describe('tocar el modelo y llegar al píxel de la imagen', () => {
   const q = cuantizar(rgba, prepararMascara(rgba, w, h), w, h, 4);
   const entrada = { indices: q.indices, w, h, paleta: q.paleta };
 
-  for (const [nombre, extra, minimo, exactitud] of [['sin suavizar', { suavizadoBordes: 0 }, 4, 1], ['con suavizado', { suavizadoBordes: 3 }, 10, 0.85]]) {
+  for (const [nombre, extra, minimo, exactitud] of [['sin suavizar', { suavizadoBordes: 0, anchoMinimo: 0 }, 4, 1], ['con suavizado', { suavizadoBordes: 3 }, 10, 0.85]]) {
     it(`cada punto de una pieza cae en un píxel de ese mismo color (${nombre})`, () => {
       const r = armarLlaveroImagen(entrada, { ...PARAMETROS_IMAGEN, anchoMm: 60, margen: 2, argolla: 'arriba', ...extra });
       let probados = 0, aciertos = 0;
@@ -391,7 +391,7 @@ describe('tocar el modelo y llegar al píxel de la imagen', () => {
   }
 
   it('las esquinas de la imagen caen en las esquinas del modelo, sin espejo', () => {
-    const r = armarLlaveroImagen(entrada, { ...PARAMETROS_IMAGEN, anchoMm: 36, margen: 0, argolla: 'derecha', suavizadoBordes: 0 });
+    const r = armarLlaveroImagen(entrada, { ...PARAMETROS_IMAGEN, anchoMm: 36, margen: 0, argolla: 'derecha', suavizadoBordes: 0, anchoMinimo: 0 });
     // 36 mm para 32 píxeles de ancho (4..35): 1,125 mm por píxel. Se arma sin margen.
     const mm = r.mapa.mm;
     const aXY = (px, py) => ({ X: (px - r.mapa.x0 + 0.5) * mm - r.mapa.cajaX, Y: (r.mapa.y1 - py + 0.5) * mm - r.mapa.cajaY });
@@ -403,5 +403,173 @@ describe('tocar el modelo y llegar al píxel de la imagen', () => {
     expect(aXY(4, 3).Y).toBeGreaterThan(aXY(4, 26).Y);
     // Izquierda en la imagen es menos X en el modelo.
     expect(aXY(4, 3).X).toBeLessThan(aXY(35, 3).X);
+  });
+});
+
+describe('colores en una cara o en ambas', () => {
+  const w = 40, h = 30;
+  const rgba = imagen(w, h, { fondo: [0, 0, 0, 0], rects: [[5, 5, 20, 25, ROJO], [20, 5, 35, 25, AZUL]] });
+  const q = cuantizar(rgba, prepararMascara(rgba, w, h), w, h, 4);
+  const entrada = { indices: q.indices, w, h, paleta: q.paleta };
+  const P = (extra = {}) => ({ ...PARAMETROS_IMAGEN, suavizadoBordes: 0, anchoMinimo: 0, ...extra });
+  const rangoZ = (m) => { const a = []; for (let i = 2; i < m.pos.length; i += 3) a.push(m.pos[i]); return [Math.min(...a), Math.max(...a)]; };
+  const color = (r, n) => r.cuerpos.find((c) => c.nombre === n);
+
+  it('plano en ambas caras: los colores atraviesan toda la placa', () => {
+    const r = armarLlaveroImagen(entrada, P({ modo: 'plano', caras: 'ambas', grosor: 2.4 }));
+    for (const c of r.cuerpos) {
+      const [min, max] = rangoZ(c.malla);
+      expect(min).toBeCloseTo(0);
+      expect(max).toBeCloseTo(2.4);
+    }
+  });
+
+  it('plano en una cara: una capa fina de color arriba y una base lisa abajo', () => {
+    const r = armarLlaveroImagen(entrada, P({ modo: 'plano', caras: 'una', grosor: 2.4, capaColor: 0.8 }));
+    const base = color(r, 'Base');
+    expect(rangoZ(base.malla)[0]).toBeCloseTo(0);
+    expect(rangoZ(base.malla)[1]).toBeCloseTo(2.4);
+    for (const c of r.cuerpos.filter((b) => b.id.startsWith('color-'))) {
+      const [min, max] = rangoZ(c.malla);
+      expect(min).toBeCloseTo(1.6); // 2,4 − 0,8
+      expect(max).toBeCloseTo(2.4);
+    }
+    // El dorso queda liso: ningún color toca la cama.
+    expect(r.cuerpos.filter((b) => b.id.startsWith('color-')).every((c) => rangoZ(c.malla)[0] > 1)).toBe(true);
+  });
+
+  it('el material total es parecido: la placa es la misma con colores en una o en ambas caras', () => {
+    const vol = (r) => r.cuerpos.reduce((a, c) => a + volumenMalla(c.malla), 0);
+    const ambas = armarLlaveroImagen(entrada, P({ modo: 'plano', caras: 'ambas' }));
+    const una = armarLlaveroImagen(entrada, P({ modo: 'plano', caras: 'una' }));
+    expect(vol(una) / vol(ambas)).toBeGreaterThan(0.97);
+    expect(vol(una) / vol(ambas)).toBeLessThan(1.03);
+  });
+
+  it('con una sola cara hay menos material de color (el resto es base)', () => {
+    const colorVol = (r) => r.cuerpos.filter((b) => b.id.startsWith('color-')).reduce((a, c) => a + volumenMalla(c.malla), 0);
+    const ambas = armarLlaveroImagen(entrada, P({ modo: 'plano', caras: 'ambas' }));
+    const una = armarLlaveroImagen(entrada, P({ modo: 'plano', caras: 'una' }));
+    expect(colorVol(una)).toBeLessThan(colorVol(ambas) * 0.5);
+  });
+
+  it('una capa de color más gruesa que la placa no rompe: queda siempre una base', () => {
+    const r = armarLlaveroImagen(entrada, P({ modo: 'plano', caras: 'una', grosor: 1.2, capaColor: 5 }));
+    expect(rangoZ(color(r, 'Base').malla)[1]).toBeCloseTo(1.2);
+    expect(rangoZ(color(r, 'Color 1').malla)[0]).toBeGreaterThanOrEqual(0.39);
+  });
+
+  it('relieve en una cara: el relieve sólo arriba', () => {
+    const r = armarLlaveroImagen(entrada, P({ modo: 'relieve', caras: 'una', grosor: 1.6, relieve: 0.8 }));
+    expect(rangoZ(color(r, 'Base').malla)).toEqual([expect.closeTo(0), expect.closeTo(1.6)]);
+    expect(rangoZ(color(r, 'Color 1').malla)[0]).toBeCloseTo(1.6);
+    expect(rangoZ(color(r, 'Color 1').malla)[1]).toBeCloseTo(2.4);
+  });
+
+  it('relieve en ambas caras: la base sube y hay relieve arriba y abajo', () => {
+    const r = armarLlaveroImagen(entrada, P({ modo: 'relieve', caras: 'ambas', grosor: 1.6, relieve: 0.8 }));
+    const base = rangoZ(color(r, 'Base').malla);
+    expect(base[0]).toBeCloseTo(0.8);
+    expect(base[1]).toBeCloseTo(2.4);
+    const rojo = rangoZ(color(r, 'Color 1').malla);
+    expect(rojo[0]).toBeCloseTo(0); // relieve de abajo, sobre la cama
+    expect(rojo[1]).toBeCloseTo(3.2); // relieve de arriba: 0,8 + 1,6 + 0,8
+  });
+
+  it('un valor desconocido de caras se trata como ambas', () => {
+    expect(sanearImagen(P({ caras: 'tres' })).caras).toBe('ambas');
+    expect(sanearImagen(P({ caras: 'una' })).caras).toBe('una');
+  });
+});
+
+describe('ancho mínimo de las líneas', () => {
+  // Una imagen de 100 × 60 píxeles a 10 mm de ancho: 1 píxel = 0,1 mm.
+  const w = 100, h = 60;
+  const celeste = [180, 220, 245], negro = [20, 20, 30], rojo = [220, 40, 40];
+  const construir = (dibujar) => {
+    const rgba = imagen(w, h, { fondo: [...celeste, 255] });
+    dibujar((x0, y0, x1, y1, c) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) rgba.set([...c, 255], (y * w + x) * 4); });
+    const q = cuantizar(rgba, prepararMascara(rgba, w, h), w, h, 4, { fusion: 5 });
+    return { indices: q.indices, w, h, paleta: q.paleta };
+  };
+  const arma = (entrada, extra = {}) => armarLlaveroImagen(entrada, { ...PARAMETROS_IMAGEN, anchoMm: 10, margen: 1, suavizadoBordes: 0, minPixeles: 1, ...extra });
+  const cuerpoDe = (r, rgb) => r.cuerpos.filter((c) => c.id.startsWith('color-')).find((c) => {
+    const [a, b, k] = [1, 3, 5].map((i) => parseInt(c.color.slice(i, i + 2), 16));
+    return Math.abs(a - rgb[0]) + Math.abs(b - rgb[1]) + Math.abs(k - rgb[2]) < 60;
+  });
+  const caja = (m) => {
+    const mn = [Infinity, Infinity], mx = [-Infinity, -Infinity];
+    for (let i = 0; i < m.pos.length; i += 3) for (let k = 0; k < 2; k++) { mn[k] = Math.min(mn[k], m.pos[i + k]); mx[k] = Math.max(mx[k], m.pos[i + k]); }
+    return { ancho: mx[0] - mn[0], alto: mx[1] - mn[1] };
+  };
+
+  it('una línea de 1 píxel (0,1 mm) sin forzar queda de 0,1 mm', () => {
+    const e = construir((r) => r(10, 28, 90, 29, negro));
+    const r = arma(e, { anchoMinimo: 0 });
+    expect(caja(cuerpoDe(r, negro).malla).alto).toBeLessThan(0.15);
+  });
+
+  it('con ancho mínimo 0,4 la misma línea mide al menos 0,4 mm, sin pasarse mucho', () => {
+    const e = construir((r) => r(10, 28, 90, 29, negro));
+    const alto = caja(cuerpoDe(arma(e, { anchoMinimo: 0.4 }), negro).malla).alto;
+    expect(alto).toBeGreaterThanOrEqual(0.39);
+    expect(alto).toBeLessThan(0.7); // w + hasta w/3 de la última vuelta + 0,1 mm del contacto entre colores
+  });
+
+  it('el ancho mínimo se adapta a la boquilla: 0,6 da líneas más anchas que 0,4', () => {
+    const e = construir((r) => r(10, 28, 90, 29, negro));
+    const a4 = caja(cuerpoDe(arma(e, { anchoMinimo: 0.4 }), negro).malla).alto;
+    const a6 = caja(cuerpoDe(arma(e, { anchoMinimo: 0.6 }), negro).malla).alto;
+    expect(a6).toBeGreaterThanOrEqual(0.59);
+    expect(a6).toBeGreaterThan(a4 + 0.1);
+  });
+
+  it('una línea que ya es ancha no se toca', () => {
+    const e = construir((r) => r(10, 25, 90, 31, negro)); // 0,6 mm
+    const sin = caja(cuerpoDe(arma(e, { anchoMinimo: 0 }), negro).malla).alto;
+    const con = caja(cuerpoDe(arma(e, { anchoMinimo: 0.4 }), negro).malla).alto;
+    // Sólo el crecimiento de 0,05 mm por lado con el que los colores se tocan; no se engrosa hasta otro ancho.
+    expect(con).toBeGreaterThanOrEqual(sin - 0.01);
+    expect(con).toBeLessThanOrEqual(sin + 0.12);
+  });
+
+  it('una línea fina pegada a una zona ancha también se engrosa, y la zona ancha no cambia de tamaño', () => {
+    // Un rectángulo rojo de 30 × 30 con una raya negra de 1 píxel que sale de él.
+    const e = construir((r) => { r(10, 15, 40, 45, rojo); r(40, 30, 90, 31, negro); });
+    const sin = arma(e, { anchoMinimo: 0 });
+    const con = arma(e, { anchoMinimo: 0.4 });
+    expect(caja(cuerpoDe(con, negro).malla).alto).toBeGreaterThanOrEqual(0.39);
+    const rojoSin = volumenMalla(cuerpoDe(sin, rojo).malla), rojoCon = volumenMalla(cuerpoDe(con, rojo).malla);
+    // La zona ancha sólo gana su borde de 0,05 mm (el contacto con los vecinos), no se infla.
+    expect(Math.abs(rojoCon - rojoSin) / rojoSin).toBeLessThan(0.08);
+  });
+
+  it('un contorno de 1 píxel que rodea una zona (todo el color es fino) queda de al menos 0,4 mm', () => {
+    const e = construir((r) => { r(20, 10, 80, 50, negro); r(21, 11, 79, 49, rojo); });
+    const alto = (r) => {
+      const m = cuerpoDe(r, negro).malla;
+      // Grosor del lado de arriba: el contorno no puede ser más fino que el pedido.
+      return caja(m).alto;
+    };
+    expect(alto(arma(e, { anchoMinimo: 0.4 }))).toBeGreaterThan(3); // sigue siendo el marco entero
+    // Volumen: con el mínimo el marco tiene más material que sin él.
+    expect(volumenMalla(cuerpoDe(arma(e, { anchoMinimo: 0.4 }), negro).malla)).toBeGreaterThan(volumenMalla(cuerpoDe(arma(e, { anchoMinimo: 0 }), negro).malla) * 2);
+  });
+
+  it('engrosarFinas devuelve lo mismo si todo es ancho o si no se pide mínimo', () => {
+    const rect = [[{ X: 0, Y: 0 }, { X: 10000, Y: 0 }, { X: 10000, Y: 10000 }, { X: 0, Y: 10000 }]];
+    expect(engrosarFinas(rect, 0)).toBe(rect);
+    const r = engrosarFinas(rect, 0.4);
+    expect(areaDeCaminos(r)).toBeCloseTo(100, 0);
+  });
+
+  it('con un ancho mínimo enorme no se rompe', () => {
+    const e = construir((r) => r(10, 28, 90, 29, negro));
+    expect(() => arma(e, { anchoMinimo: 2 })).not.toThrow();
+  });
+
+  it('el valor por defecto viene activo para una boquilla de 0,4', () => {
+    expect(PARAMETROS_IMAGEN.anchoMinimo).toBe(0.4);
+    expect(PARAMETROS_IMAGEN.boquilla).toBe(0.4);
   });
 });

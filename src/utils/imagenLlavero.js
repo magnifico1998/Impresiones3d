@@ -5,11 +5,14 @@
 // prueba en Node.
 import {
   ESCALA_CLIPPER as E, desplazarCaminos, unirCaminos, restarCaminos, caminosAFormas, cajaDeCaminos,
-  discoCamino, limpiarCaminos, areaInterseccion, interseccionCaminos, areaCamino, esHueco, extruir, moverMalla
+  discoCamino, limpiarCaminos, areaInterseccion, interseccionCaminos, areaCamino, esHueco, extruir, moverMalla, unirMallas
 } from './llaveros';
 
 export const CANTIDADES_COLORES = [4, 8, 12];
 export const SIN_COLOR = 255; // índice de un píxel transparente o de fondo
+
+// Diámetros de boquilla más comunes (mm).
+export const BOQUILLAS = [0.2, 0.4, 0.6, 0.8];
 
 export const POSICIONES_ARGOLLA = [
   { id: 'izquierda', nombre: 'Izquierda' },
@@ -22,6 +25,15 @@ export const MODOS_IMAGEN = [
   { id: 'relieve', nombre: 'Relieve (base y colores encima)' }
 ];
 
+// En cuántas caras van los colores. Plano: con "una" la imagen es una capa fina
+// sobre una base lisa del color del borde (la otra cara queda lisa); con "ambas"
+// los colores atraviesan la placa y se ven de los dos lados (el dorso se ve
+// espejado). Relieve: con "ambas" hay relieve de color arriba y abajo.
+export const CARAS_IMAGEN = [
+  { id: 'una', nombre: 'Una cara' },
+  { id: 'ambas', nombre: 'Ambas caras' }
+];
+
 export const PARAMETROS_IMAGEN = Object.freeze({
   colores: 8,
   detalle: 256, // píxeles del lado más largo con los que se trabaja
@@ -29,11 +41,15 @@ export const PARAMETROS_IMAGEN = Object.freeze({
   toleranciaFondo: 40,
   fusion: 10, // colores más parecidos que esto (ΔE) se unen en uno
   suavizado: 1, // pasadas que borran píxeles sueltos
+  boquilla: 0.4, // diámetro de la boquilla (mm): sólo ayuda a elegir el ancho mínimo
+  anchoMinimo: 0.4, // ancho mínimo de las líneas (mm); 0 = no forzar
   suavizadoBordes: 3, // pasadas que redondean el escalonado de los contornos (0 = sin suavizar)
   minPixeles: 6,
   // Llavero
   anchoMm: 50,
   modo: 'plano',
+  caras: 'ambas',
+  capaColor: 0.8, // grosor de la capa de color cuando es plano y va en una sola cara
   grosor: 2.4,
   relieve: 0.8,
   margen: 1.5,
@@ -45,8 +61,8 @@ export const PARAMETROS_IMAGEN = Object.freeze({
 // Deja las medidas dentro de rangos que arman una pieza válida (un campo vacío
 // o en 0 no rompe la geometría).
 const LIMITES = {
-  colores: [2, 12], detalle: [32, 512], suavizadoBordes: [0, 4], toleranciaFondo: [0, 120], fusion: [0, 40], suavizado: [0, 3],
-  minPixeles: [1, 50], anchoMm: [10, 150], grosor: [0.8, 10], relieve: [0.2, 5], margen: [0, 10], agujero: [2, 10]
+  colores: [2, 12], detalle: [32, 512], suavizadoBordes: [0, 4], anchoMinimo: [0, 2], boquilla: [0.1, 1.2], toleranciaFondo: [0, 120], fusion: [0, 40], suavizado: [0, 3],
+  minPixeles: [1, 50], anchoMm: [10, 150], grosor: [0.8, 10], relieve: [0.2, 5], capaColor: [0.2, 5], margen: [0, 10], agujero: [2, 10]
 };
 export function sanearImagen(p) {
   const s = { ...p };
@@ -54,6 +70,7 @@ export function sanearImagen(p) {
     const v = Number(p[k]);
     s[k] = Math.min(max, Math.max(min, Number.isFinite(v) ? v : min));
   }
+  s.caras = p.caras === 'una' ? 'una' : 'ambas';
   s.suavizado = Math.round(s.suavizado);
   s.suavizadoBordes = Math.round(s.suavizadoBordes);
   return s;
@@ -452,18 +469,47 @@ export function suavizarCaminos(caminos, pasadas, corteMm) {
   return limpiarCaminos(suaves);
 }
 
-// Suaviza las zonas de cada color y las deja sin superponerse ni dejar rendijas:
-// cada una crece 0,05 mm (así se tocan) y se recorta a la silueta; después, de
-// la más chica a la más grande, cada zona cede lo que ya ocupó una anterior. Las
-// chicas (contornos, detalles) ganan sobre las grandes (los fondos).
-function zonasSinSolape(crudas, suavizar, silueta) {
-  const orden = crudas.map((_, i) => i).filter((i) => crudas[i].length)
-    .map((i) => ({ i, area: crudas[i].reduce((a, c) => a + Math.abs(areaCamino(c)), 0) }))
+// Engrosa las partes de una zona que son más finas que `w` mm hasta que midan al
+// menos `w` (una línea de 0,1 mm no sale con una boquilla de 0,4: el laminador
+// la descarta). Los bordes de las partes anchas no se tocan. Se repite, de a
+// poco, lo siguiente hasta que no quede nada fino:
+//  1) La "apertura" (achicar w/2 y volver a agrandar) deja sólo lo que tiene al
+//     menos w de ancho; lo que sobra son las partes finas.
+//  2) Entre lo que sobra también hay rebabas en las esquinas de las partes
+//     anchas: no son líneas. Las líneas de verdad son las que se alejan más de w
+//     de lo ancho (o son toda la zona, como un contorno); de ahí se recupera la
+//     línea entera, hasta su base.
+//  3) Esas líneas crecen un paso (w/6 por lado). Las que ya llegaron a w dejan de
+//     crecer, así todas terminan entre w y w + w/3 de ancho, parejas.
+export function engrosarFinas(caminos, w) {
+  if (!caminos.length || !(w > 0)) return caminos;
+  const paso = w / 6;
+  let resultado = caminos;
+  for (let vuelta = 0; vuelta < 8; vuelta++) {
+    const ancha = desplazarCaminos(desplazarCaminos(resultado, -w / 2), w / 2);
+    const finas = restarCaminos(resultado, ancha);
+    if (!finas.length) break;
+    const lejos = ancha.length ? restarCaminos(finas, desplazarCaminos(ancha, w)) : finas;
+    if (!lejos.length) break;
+    const lineas = ancha.length ? interseccionCaminos(finas, desplazarCaminos(lejos, w)) : finas;
+    resultado = limpiarCaminos(unirCaminos(resultado, desplazarCaminos(lineas, paso)));
+  }
+  return resultado;
+}
+
+// Deja las zonas de cada color sin superponerse ni dejar rendijas: cada una crece
+// 0,05 mm (así se tocan) y se recorta a la silueta; después, de la más chica a
+// la más grande, cada zona cede lo que ya ocupó una anterior. Las chicas
+// (contornos, detalles) ganan sobre las grandes (los fondos).
+function zonasSinSolape(zonas, silueta) {
+  const orden = zonas.map((_, i) => i).filter((i) => zonas[i].length)
+    // Área neta (los huecos restan): un marco fino es chico aunque su contorno exterior sea grande.
+    .map((i) => ({ i, area: zonas[i].reduce((suma, c) => suma + areaCamino(c), 0) }))
     .sort((a, b) => a.area - b.area);
-  const resultado = crudas.map(() => []);
+  const resultado = zonas.map(() => []);
   let ocupado = [];
   for (const { i } of orden) {
-    const crecida = interseccionCaminos(desplazarCaminos(suavizar(crudas[i]), 0.05), silueta);
+    const crecida = interseccionCaminos(desplazarCaminos(zonas[i], 0.05), silueta);
     const zona = ocupado.length ? restarCaminos(crecida, ocupado) : crecida;
     resultado[i] = limpiarCaminos(zona);
     ocupado = unirCaminos(ocupado, zona);
@@ -547,13 +593,25 @@ export function armarLlaveroImagen(entrada, p, { colores = [], excluidos = [] } 
   const mm = p.anchoMm / (x1 - x0 + 1);
   const crudas = regionesPorColor(indices, w, h, paleta.length, mm, omitir, [x0, h - 1 - y1]);
 
-  // Suavizado del escalonado: la silueta y cada color se suavizan con el mismo
-  // criterio, y cada color se recorta a la silueta para que no sobresalga.
+  // Suavizado del escalonado y ancho mínimo de las líneas: cada color se suaviza y
+  // se engrosa en lo fino; la silueta es la unión de todos, y cada color se recorta
+  // a ella para que no sobresalga ni se superponga con otro.
   const pasadasBordes = p.suavizadoBordes || 0;
-  const suavizar = (caminos) => suavizarCaminos(caminos, pasadasBordes, mm * 0.6);
-  const siluetaCruda = limpiarCaminos(unirCaminos(crudas.flat(), []));
-  const silueta = pasadasBordes ? quitarHuecosChicos(suavizar(siluetaCruda), 0.05) : siluetaCruda;
-  const regiones = pasadasBordes ? zonasSinSolape(crudas, suavizar, silueta) : crudas;
+  const anchoMinimo = p.anchoMinimo || 0;
+  let silueta, regiones;
+  if (pasadasBordes || anchoMinimo > 0) {
+    // Primero se engrosa lo fino y después se suaviza: el suavizado corta esquinas y
+    // una línea de 1 píxel (0,1 mm) desaparecería; una de 0,4 mm o más lo aguanta.
+    const suaves = crudas.map((r) => {
+      if (!r.length) return [];
+      return suavizarCaminos(anchoMinimo > 0 ? engrosarFinas(r, anchoMinimo) : r, pasadasBordes, mm * 0.6);
+    });
+    silueta = quitarHuecosChicos(limpiarCaminos(unirCaminos(suaves.flat(), [])), 0.05);
+    regiones = zonasSinSolape(suaves, silueta);
+  } else {
+    silueta = limpiarCaminos(unirCaminos(crudas.flat(), []));
+    regiones = crudas;
+  }
   const base0 = p.margen > 0 ? limpiarCaminos(desplazarCaminos(silueta, p.margen)) : silueta;
   const cajaBase = cajaDeCaminos(base0);
 
@@ -571,19 +629,36 @@ export function armarLlaveroImagen(entrada, p, { colores = [], excluidos = [] } 
 
   const cuerpos = [];
   const colorDe = (c) => colores[c] || colorAHex(paleta[c]);
-  const sumar = (id, nombre, color, caminos, z0, z1) => {
-    if (!caminos.length) return;
-    // Se limpian los puntos casi repetidos que dejan las restas de polígonos.
-    const malla = extruir(caminosAFormas(limpiarCaminos(caminos)), z0, z1);
-    if (malla.tri.length) cuerpos.push({ id, nombre, color, malla: mover(malla) });
+  // Un cuerpo (una pieza de un color) puede tener varias capas a distinta altura.
+  const sumar = (id, nombre, color, capas) => {
+    const mallas = [];
+    for (const { caminos, z0, z1 } of capas) {
+      if (!caminos.length || z1 - z0 <= 0) continue;
+      // Se limpian los puntos casi repetidos que dejan las restas de polígonos.
+      const malla = extruir(caminosAFormas(limpiarCaminos(caminos)), z0, z1);
+      if (malla.tri.length) mallas.push(malla);
+    }
+    if (mallas.length) cuerpos.push({ id, nombre, color, malla: mover(mallas.length === 1 ? mallas[0] : unirMallas(mallas)) });
   };
   const relieve = p.modo === 'relieve';
-  if (relieve) sumar('base', 'Base', p.colorBorde, baseFinal, 0, p.grosor);
-  else sumar('borde', 'Borde', p.colorBorde, restarCaminos(baseFinal, silueta), 0, p.grosor);
+  const ambas = p.caras !== 'una';
+  const T = p.grosor;
+  // Capa de color en el plano de una sola cara: nunca más gruesa que la placa menos una base.
+  const capa = Math.min(p.capaColor || 0.8, T - 0.4);
+  // Relieve en las dos caras: la base sube para dejar lugar al relieve de abajo.
+  const subida = relieve && ambas ? p.relieve : 0;
+  if (relieve) sumar('base', 'Base', p.colorBorde, [{ caminos: baseFinal, z0: subida, z1: subida + T }]);
+  else if (ambas) sumar('borde', 'Borde', p.colorBorde, [{ caminos: restarCaminos(baseFinal, silueta), z0: 0, z1: T }]);
+  else sumar('base', 'Base', p.colorBorde, [{ caminos: baseFinal, z0: 0, z1: T - capa }, { caminos: restarCaminos(baseFinal, silueta), z0: T - capa, z1: T }]);
   regiones.forEach((region, c) => {
     if (!region.length || omitir.has(c)) return;
     const sinHueco = restarCaminos(region, hueco);
-    sumar(`color-${c}`, `Color ${c + 1}`, colorDe(c), sinHueco, relieve ? p.grosor : 0, relieve ? p.grosor + p.relieve : p.grosor);
+    let capas;
+    if (relieve) {
+      capas = [{ caminos: sinHueco, z0: subida + T, z1: subida + T + p.relieve }];
+      if (ambas) capas.push({ caminos: sinHueco, z0: 0, z1: p.relieve });
+    } else capas = [{ caminos: sinHueco, z0: ambas ? 0 : T - capa, z1: T }];
+    sumar(`color-${c}`, `Color ${c + 1}`, colorDe(c), capas);
   });
   // Con esto se pasa un punto del modelo (mm) al píxel de la imagen (ver pixelDeModelo).
   const mapa = { mm, x0, y1, cajaX: caja.x0, cajaY: caja.y0 };
