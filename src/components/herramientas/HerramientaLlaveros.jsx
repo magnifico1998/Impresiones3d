@@ -2,6 +2,8 @@ import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { zipSync } from 'fflate';
 import { useUi } from '../../context/contextos';
 import CampoNumero from '../CampoNumero';
+import { CAMAS } from '../../utils/camasImpresion';
+import { descargar, nombreArchivo } from '../../utils/descargas';
 import VisorPiezas from './VisorPiezas';
 import { cargarFuente, parsearFuente, FUENTES } from '../../utils/fuentesLlaveros';
 import { stlBinario, crear3mf } from '../../utils/mallas3d';
@@ -10,26 +12,6 @@ import {
   IMPRESORAS, ESTILOS_BORDE, FORMAS_LAPIZ, TIPOS_LAPIZ, TOPES_LAPIZ, FORMAS_AGUJERO_LAPIZ, ALTURAS_CAPA
 } from '../../utils/llaveros';
 
-// Camas más comunes (mm). "Otra" deja escribir las medidas.
-const CAMAS = [
-  { id: 'bambu', nombre: 'Bambu Lab / 256 × 256', x: 256, y: 256 },
-  { id: 'ender', nombre: 'Ender / Creality 220 × 220', x: 220, y: 220 },
-  { id: 'prusa', nombre: 'Prusa MK4 / 250 × 210', x: 250, y: 210 },
-  { id: 'chica', nombre: 'Chica 180 × 180', x: 180, y: 180 }
-];
-
-function descargar(bytes, nombre, tipo) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: tipo }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nombre;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
-
-const nombreArchivo = (s) => (s || 'llavero').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'llavero';
 const fmt = (n, dec = 1) => Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: dec });
 
 // Valores con los que arranca cada herramienta: los toppers empiezan con las letras unidas.

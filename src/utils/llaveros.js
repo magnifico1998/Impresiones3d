@@ -213,7 +213,7 @@ function agujeroCircular(cx, cy, radio) {
 }
 
 // Extruye una forma de z0 a z1.
-function extruir(formas, z0, z1, segmentos = 10) {
+export function extruir(formas, z0, z1, segmentos = 10) {
   const lista = Array.isArray(formas) ? formas : [formas];
   if (!lista.length || z1 - z0 <= 0) return { pos: new Float32Array(0), tri: new Uint32Array(0) };
   const g = new THREE.ExtrudeGeometry(lista, { depth: z1 - z0, bevelEnabled: false, curveSegments: segmentos, steps: 1 });
@@ -248,6 +248,7 @@ function formasDeCamino(camino, dx, dy) {
 // ---------- Polígonos (Clipper) ----------
 
 const E = 1000; // Clipper trabaja con enteros: 1 unidad = 0,001 mm.
+export const ESCALA_CLIPPER = E;
 const aClipper = (pts) => pts.map((q) => ({ X: Math.round(q.x * E), Y: Math.round(q.y * E) }));
 const aPuntos = (camino) => camino.map((q) => new THREE.Vector2(q.X / E, q.Y / E));
 
@@ -271,7 +272,7 @@ function formasACaminos(formas) {
 
 // Desplaza los contornos `delta` mm hacia afuera (o adentro, si es negativo).
 // Une de paso los que se pisan.
-function desplazarCaminos(caminos, delta) {
+export function desplazarCaminos(caminos, delta) {
   const co = new Clipper.ClipperOffset(2, 0.025 * E);
   co.AddPaths(caminos, Clipper.JoinType.jtRound, Clipper.EndType.etClosedPolygon);
   const resultado = [];
@@ -288,14 +289,20 @@ function operarCaminos(tipo, sujeto, recorte) {
   return Clipper.Clipper.PolyTreeToPaths(arbol);
 }
 
-const unirCaminos = (a, b) => operarCaminos(Clipper.ClipType.ctUnion, a, b);
-const restarCaminos = (a, b) => operarCaminos(Clipper.ClipType.ctDifference, a, b);
-const areaInterseccion = (a, b) => operarCaminos(Clipper.ClipType.ctIntersection, a, b)
+export const unirCaminos = (a, b) => operarCaminos(Clipper.ClipType.ctUnion, a, b);
+export const restarCaminos = (a, b) => operarCaminos(Clipper.ClipType.ctDifference, a, b);
+export const interseccionCaminos = (a, b) => operarCaminos(Clipper.ClipType.ctIntersection, a, b);
+export const areaCamino = (c) => Clipper.Clipper.Area(c);
+export const esHueco = (c) => !Clipper.Clipper.Orientation(c);
+export const areaInterseccion = (a, b) => operarCaminos(Clipper.ClipType.ctIntersection, a, b)
   .reduce((suma, c) => suma + Math.abs(Clipper.Clipper.Area(c)), 0);
 
 // Caminos de Clipper de vuelta a formas de three (con sus huecos).
-function caminosAFormas(caminos) {
+export function caminosAFormas(caminos) {
   const c = new Clipper.Clipper();
+  // Polígonos estrictamente simples (sin vértices que se toquen): si no, el
+  // triangulado de three puede dejar triángulos sin dibujar en piezas con muchos huecos.
+  c.StrictlySimple = true;
   c.AddPaths(caminos, Clipper.PolyType.ptSubject, true);
   const arbol = new Clipper.PolyTree();
   c.Execute(Clipper.ClipType.ctUnion, arbol, Clipper.PolyFillType.pftNonZero, Clipper.PolyFillType.pftNonZero);
@@ -315,9 +322,9 @@ function caminosAFormas(caminos) {
 // Quita los puntos que quedan a menos de 0,02 mm de otro: la unión de curvas
 // deja tramos diminutos que, al extruir, hacen triángulos casi sin ancho y
 // complican la resta 3D.
-const limpiarCaminos = (caminos) => Clipper.Clipper.CleanPolygons(caminos, 0.02 * E);
+export const limpiarCaminos = (caminos) => Clipper.Clipper.CleanPolygons(caminos, 0.02 * E);
 
-function cajaDeCaminos(caminos) {
+export function cajaDeCaminos(caminos) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const c of caminos) for (const q of c) {
     if (q.X < x0) x0 = q.X;
@@ -328,7 +335,7 @@ function cajaDeCaminos(caminos) {
   return { x0: x0 / E, y0: y0 / E, x1: x1 / E, y1: y1 / E };
 }
 
-function discoCamino(cx, cy, radio, lados = 64) {
+export function discoCamino(cx, cy, radio, lados = 64) {
   const pts = [];
   for (let i = 0; i < lados; i++) {
     const a = (Math.PI * 2 * i) / lados;

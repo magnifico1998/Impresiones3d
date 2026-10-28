@@ -51,7 +51,7 @@ function pintar(geometria, colorBase, seleccion) {
 // toques sobre la superficie (onTocar) con el cuerpo, el triángulo y el
 // punto; las herramientas deciden qué hacer con eso.
 //   cuerpos: [{ id, malla, color, visible, despiece: [x,y,z] | null }]
-export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSeleccion, despiece, marcadores, herramienta, radioPincel, onTocar, encuadre }) {
+export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSeleccion, despiece, marcadores, herramienta, radioPincel, onTocar, encuadre, mira = false, vista = 'iso' }) {
   const contenedor = useRef(null);
   const estado = useRef(null);
   const props = useRef({});
@@ -239,6 +239,14 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
     }
   }, [marcadores]);
 
+  // Con la mira (elegir o borrar zonas tocando el modelo) arrastrar mueve la vista y el clic derecho gira.
+  useEffect(() => {
+    const s = estado.current;
+    if (!s) return;
+    s.controles.mouseButtons = { LEFT: mira ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: mira ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN };
+    s.controles.touches = { ONE: mira ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  }, [mira]);
+
   // Encuadrar la cámara cuando cambia el modelo (encuadre es un contador).
   useEffect(() => {
     const s = estado.current;
@@ -248,11 +256,13 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
     const radio = caja.getSize(new THREE.Vector3()).length() / 2 || 50;
     const dist = radio / Math.sin((s.camara.fov * Math.PI) / 360) * 0.9;
     s.controles.target.copy(centro);
-    s.camara.position.copy(centro.clone().add(new THREE.Vector3(0.55, -0.75, 0.6).normalize().multiplyScalar(dist)));
+    // Desde arriba (casi a plomo: un poco inclinada para que el eje vertical de la cámara no se indetermine).
+    const direccion = vista === 'arriba' ? new THREE.Vector3(0, -0.04, 1) : new THREE.Vector3(0.55, -0.75, 0.6);
+    s.camara.position.copy(centro.clone().add(direccion.normalize().multiplyScalar(dist)));
     s.camara.near = Math.max(0.1, dist / 200);
     s.camara.far = dist * 20;
     s.camara.updateProjectionMatrix();
-  }, [encuadre]);
+  }, [encuadre, vista]);
 
-  return <div ref={contenedor} style={{ width: '100%', height: '100%', minHeight: '420px', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)', touchAction: 'none', cursor: ['pincel', 'borrar'].includes(herramienta) ? 'crosshair' : 'default' }} />;
+  return <div ref={contenedor} style={{ width: '100%', height: '100%', minHeight: '420px', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)', touchAction: 'none', cursor: mira || ['pincel', 'borrar'].includes(herramienta) ? 'crosshair' : 'default' }} />;
 }
