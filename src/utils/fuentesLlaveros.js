@@ -16,13 +16,13 @@ import dancing from '@fontsource/dancing-script/files/dancing-script-latin-700-n
 const opentype = opentypeNs.parse ? opentypeNs : opentypeNs.default;
 
 export const FUENTES = [
+  { id: 'lobster', nombre: 'Lobster (cursiva)', url: lobster },
   { id: 'fredoka', nombre: 'Fredoka (redonda)', url: fredoka },
   { id: 'baloo', nombre: 'Baloo (redonda gruesa)', url: baloo },
   { id: 'bebas', nombre: 'Bebas Neue (alta, mayúsculas)', url: bebas },
   { id: 'righteous', nombre: 'Righteous (moderna)', url: righteous },
   { id: 'roboto-slab', nombre: 'Roboto Slab (con serif)', url: robotoSlab },
   { id: 'marker', nombre: 'Permanent Marker (marcador)', url: permanentMarker },
-  { id: 'lobster', nombre: 'Lobster (cursiva)', url: lobster },
   { id: 'pacifico', nombre: 'Pacifico (cursiva)', url: pacifico },
   { id: 'dancing', nombre: 'Dancing Script (cursiva fina)', url: dancing }
 ];
