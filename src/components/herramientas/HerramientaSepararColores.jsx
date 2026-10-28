@@ -360,8 +360,8 @@ export default function HerramientaSepararColores() {
   );
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '16px', alignItems: 'start' }} className="herr-separar">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div className="herr-separar">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="herr-separar-panel">
         <div className="card">
           <div className="card-title">1 · Modelo</div>
           <label className="drop-zone" style={{ padding: '14px', marginBottom: 0 }}
@@ -552,7 +552,7 @@ export default function HerramientaSepararColores() {
         )}
       </div>
 
-      <div style={{ position: 'sticky', top: '84px', height: 'calc(100vh - 120px)', minHeight: '420px' }} className="herr-separar-visor">
+      <div className="herr-separar-visor">
         <VisorPiezas
           cuerpos={cuerposVista}
           activoId={vistaPrevia ? null : activoId}

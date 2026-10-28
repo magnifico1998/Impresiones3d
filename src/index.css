@@ -631,9 +631,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
   [style*="width: 160px"], [style*="width: 150px"], [style*="width: 140px"], [style*="width: 130px"], [style*="width: 120px"] { max-width: 100%; }
 }
 
-/* Herramienta "Separar por colores": panel y visor lado a lado; en pantallas
-   angostas el visor va arriba y el panel abajo. */
+/* Herramientas de modelado (Separar por colores, Llaveros): el conjunto ocupa la
+   altura de la pantalla; el panel de opciones se desplaza por su cuenta y el
+   visor 3D queda fijo, así siempre se ve qué cambia al tocar una opción. (No
+   se usa position:sticky porque .main tiene overflow y lo anula.) */
+.herr-separar{display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:16px;height:calc(100vh - 230px);min-height:480px}
+.herr-separar-panel{min-height:0;overflow-y:auto;padding-right:6px;padding-bottom:12px;overscroll-behavior:contain}
+.herr-separar-visor{position:relative;min-height:0;height:100%}
+/* En pantallas angostas el visor va arriba, fijo, y las opciones se desplazan debajo. */
 @media (max-width: 900px) {
-  .herr-separar{grid-template-columns:1fr !important}
-  .herr-separar-visor{position:relative !important;top:0 !important;height:60vh !important;order:-1}
+  .herr-separar{grid-template-columns:1fr;grid-template-rows:minmax(220px,42%) minmax(0,1fr);height:calc(100vh - 190px);height:calc(100dvh - 190px);min-height:460px}
+  .herr-separar-visor{order:-1}
+  .herr-separar-visor > div{min-height:0 !important}
 }
