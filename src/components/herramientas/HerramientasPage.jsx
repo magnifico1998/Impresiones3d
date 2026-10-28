@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import SepararColoresPage from './SepararColoresPage';
 import LlaverosPage from './LlaverosPage';
+import ToppersPage from './ToppersPage';
 
 // Cada herramienta nueva se suma acá: una pestaña por herramienta.
 const HERRAMIENTAS = [
   { id: 'separar-colores', nombre: 'Separar por colores', Componente: SepararColoresPage },
-  { id: 'llaveros', nombre: 'Llaveros y nombres', Componente: LlaverosPage },
+  { id: 'llaveros', nombre: 'Llaveros', Componente: LlaverosPage },
+  { id: 'toppers', nombre: 'Toppers de nombres para lápices', Componente: ToppersPage },
 ];
 
 const CLAVE_PESTANA = 'herramientas.pestana';
@@ -20,11 +22,13 @@ function pestanaGuardada() {
 
 export default function HerramientasPage() {
   const [activa, setActiva] = useState(pestanaGuardada);
-  const herramienta = HERRAMIENTAS.find((h) => h.id === activa) || HERRAMIENTAS[0];
-  const { Componente } = herramienta;
+  // Las pestañas que ya se abrieron quedan montadas (ocultas), para no perder
+  // lo escrito ni el modelo cargado al cambiar de una a otra.
+  const [abiertas, setAbiertas] = useState(() => new Set([activa]));
 
   const elegir = (id) => {
     setActiva(id);
+    setAbiertas((a) => new Set(a).add(id));
     try { localStorage.setItem(CLAVE_PESTANA, id); } catch { /* no es crítico */ }
   };
 
@@ -32,22 +36,24 @@ export default function HerramientasPage() {
     <div className="page active">
       <div className="page-title">Herramientas</div>
 
-      {HERRAMIENTAS.length > 1 && (
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          {HERRAMIENTAS.map((h) => (
-            <button
-              key={h.id}
-              type="button"
-              className={`btn btn-sm periodo-btn ${herramienta.id === h.id ? 'active' : ''}`}
-              onClick={() => elegir(h.id)}
-            >
-              {h.nombre}
-            </button>
-          ))}
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        {HERRAMIENTAS.map((h) => (
+          <button
+            key={h.id}
+            type="button"
+            className={`btn btn-sm periodo-btn ${activa === h.id ? 'active' : ''}`}
+            onClick={() => elegir(h.id)}
+          >
+            {h.nombre}
+          </button>
+        ))}
+      </div>
 
-      <Componente />
+      {HERRAMIENTAS.filter((h) => abiertas.has(h.id)).map(({ id, Componente }) => (
+        <div key={id} style={{ display: activa === id ? 'block' : 'none' }}>
+          <Componente />
+        </div>
+      ))}
     </div>
   );
 }

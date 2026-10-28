@@ -6,8 +6,8 @@ import VisorPiezas from './VisorPiezas';
 import { cargarFuente, parsearFuente, FUENTES } from '../../utils/fuentesLlaveros';
 import { stlBinario, crear3mf } from '../../utils/mallas3d';
 import {
-  armarConjunto, sanearParametros, infoPausa, entraEnCama, unirMallas, PARAMETROS_INICIALES,
-  MODOS, IMPRESORAS, ESTILOS_BORDE, TIPOS_LAPIZ, TOPES_LAPIZ, FORMAS_AGUJERO_LAPIZ, ALTURAS_CAPA
+  armarConjunto, sanearParametros, infoPausa, coloresIniciales, estiloSigueLetras, entraEnCama, unirMallas, PARAMETROS_INICIALES,
+  IMPRESORAS, ESTILOS_BORDE, FORMAS_LAPIZ, TIPOS_LAPIZ, TOPES_LAPIZ, FORMAS_AGUJERO_LAPIZ, ALTURAS_CAPA
 } from '../../utils/llaveros';
 
 // Camas más comunes (mm). "Otra" deja escribir las medidas.
@@ -32,9 +32,16 @@ function descargar(bytes, nombre, tipo) {
 const nombreArchivo = (s) => (s || 'llavero').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'llavero';
 const fmt = (n, dec = 1) => Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: dec });
 
-export default function HerramientaLlaveros() {
+// Valores con los que arranca cada herramienta: los toppers empiezan con las letras unidas.
+const inicial = (modo) => {
+  const estilo = modo === 'lapiz' ? 'letras' : PARAMETROS_INICIALES.estilo;
+  return { ...PARAMETROS_INICIALES, modo, estilo, colores: coloresIniciales(modo, estilo) };
+};
+
+// modo: 'llavero' (llaveros) o 'lapiz' (toppers de nombres para lápices).
+export default function HerramientaLlaveros({ modo = 'llavero' }) {
   const { showToast } = useUi();
-  const [p, setP] = useState(PARAMETROS_INICIALES);
+  const [p, setP] = useState(() => inicial(modo));
   const [alturaCapa, setAlturaCapa] = useState(0.2);
   const [cama, setCama] = useState('bambu');
   const [fuenteId, setFuenteId] = useState(FUENTES[0].id);
@@ -43,6 +50,8 @@ export default function HerramientaLlaveros() {
   const [cargando, setCargando] = useState(true);
   const [encuadre, setEncuadre] = useState(0);
   const [historial, setHistorial] = useState([]);
+  // Mientras no se elijan colores, cada forma usa los suyos por defecto.
+  const [coloresPropios, setColoresPropios] = useState(false);
 
   const cambiar = (clave, valor) => setP((a) => ({ ...a, [clave]: valor }));
   // Los cambios de a uno van al historial para el botón Deshacer.
@@ -121,7 +130,15 @@ export default function HerramientaLlaveros() {
       : { ...a, nombres: [''], coloresNombres: [] }));
   };
   const coloresDe = (i) => p.coloresNombres[i] || p.colores;
-  const cambiarColorNombre = (i, clave, valor) => setP((a) => {
+  const elegirEstilo = (id) => {
+    setHistorial((h) => [...h.slice(-29), p]);
+    setP((a) => ({ ...a, estilo: id, colores: coloresPropios ? a.colores : coloresIniciales(a.modo, id) }));
+  };
+  const cambiarColorNombre = (i, clave, valor) => {
+    setColoresPropios(true);
+    cambiarColorNombreEn(i, clave, valor);
+  };
+  const cambiarColorNombreEn = (i, clave, valor) => setP((a) => {
     const lista = [...a.coloresNombres];
     while (lista.length <= i) lista.push(null);
     lista[i] = { ...(lista[i] || a.colores), [clave]: valor };
@@ -135,23 +152,33 @@ export default function HerramientaLlaveros() {
   };
   const empezarDeNuevo = () => {
     setHistorial((h) => [...h.slice(-29), p]);
-    setP(PARAMETROS_INICIALES);
+    setP(inicial(modo));
+    setColoresPropios(false);
     setAlturaCapa(0.2);
     setFuentePropia(null);
     setFuenteId(FUENTES[0].id);
   };
 
   const esLapiz = p.modo === 'lapiz';
+  // Los pasos se numeran en el orden en que aparecen (el del lápiz sólo existe en lápiz).
+  let paso = 0;
+  const titulo = (texto) => `${++paso} · ${texto}`;
   const pausa = p.impresora === 'pausa';
   const unColor = p.impresora === 'uno';
   const colorPorNombre = p.colorPorNombre && !pausa && !unColor;
-  const conBorde = !esLapiz && p.estilo !== 'placa';
+  const conBorde = !esLapiz && (p.estilo === 'marco' || p.estilo === 'doble');
+  const sigueLetras = !esLapiz && estiloSigueLetras(p.estilo);
+  // El lápiz tiene tres formas: tubo recto, cuerpo que sigue las letras o letras unidas.
+  const lapizUnidas = esLapiz && p.estilo === 'letras';
+  const lapizSigue = esLapiz && estiloSigueLetras(p.estilo);
+  const formasEstilo = esLapiz ? FORMAS_LAPIZ : ESTILOS_BORDE;
+  const estiloActivo = esLapiz ? (lapizUnidas ? 'letras' : lapizSigue ? 'contorno' : 'placa') : (p.estilo === 'letras' ? 'contorno' : p.estilo);
   const pausaInfo = infoPausa(limpio, alturaCapa);
   const colorInput = (clave, etiqueta) => (
     <div style={{ flex: 1, minWidth: '90px' }}>
       <label className="fl">{etiqueta}</label>
       <input type="color" value={p.colores[clave]} style={{ width: '100%', height: '34px', padding: '2px' }}
-        onChange={(e) => setP((a) => ({ ...a, colores: { ...a.colores, [clave]: e.target.value } }))} />
+        onChange={(e) => { setColoresPropios(true); setP((a) => ({ ...a, colores: { ...a.colores, [clave]: e.target.value } })); }} />
     </div>
   );
   const campo = (clave, etiqueta, { min, step = 0.1, ayuda } = {}) => (
@@ -166,38 +193,78 @@ export default function HerramientaLlaveros() {
     <div className="herr-separar">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="herr-separar-panel">
         <div className="card">
-          <div className="card-title">1 · Qué vas a hacer</div>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {MODOS.map((m) => (
-              <button key={m.id} type="button" className={`btn btn-sm ${p.modo === m.id ? 'btn-primary' : ''}`} onClick={() => cambiarConHistorial('modo', m.id)}>{m.nombre}</button>
-            ))}
-          </div>
-          {esLapiz && (
+          <div className="card-title">{titulo('Estilo y medidas')}</div>
+          {(
             <>
-              <label className="fl">Tipo de lápiz</label>
-              <select value={TIPOS_LAPIZ.find((t) => t.diametro === p.diametroLapiz)?.id || 'otro'}
-                onChange={(e) => { const t = TIPOS_LAPIZ.find((x) => x.id === e.target.value); if (t) setP((a) => ({ ...a, tipoLapiz: t.id, diametroLapiz: t.diametro })); }}>
-                {TIPOS_LAPIZ.map((t) => <option key={t.id} value={t.id}>{t.nombre} ({fmt(t.diametro)} mm)</option>)}
-                <option value="otro" disabled>Medida personalizada</option>
-              </select>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {campo('diametroLapiz', 'Diámetro interior (mm)', { min: 3, step: 0.1, ayuda: 'Sumale unas décimas si tu impresora cierra los agujeros.' })}
-                {campo('paredLapiz', 'Pared (mm)', { min: 0.8, step: 0.2 })}
+              <label className="fl">{esLapiz ? 'Forma' : 'Borde'}</label>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {formasEstilo.map((e) => (
+                  <button key={e.id} type="button" className={`btn btn-sm ${estiloActivo === e.id ? 'btn-primary' : ''}`} onClick={() => elegirEstilo(e.id)}>{e.nombre}</button>
+                ))}
               </div>
-              <label className="fl">Extremos</label>
-              <select value={p.tope} onChange={(e) => cambiar('tope', e.target.value)}>
-                {TOPES_LAPIZ.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-              </select>
-              <label className="fl">Forma del agujero</label>
-              <select value={p.formaAgujero} onChange={(e) => cambiar('formaAgujero', e.target.value)}>
-                {FORMAS_AGUJERO_LAPIZ.map((t) => <option key={t.id} value={t.id}>{t.nombre}{t.id === 'techo' ? ' (sin soportes)' : ''}</option>)}
-              </select>
+              {conBorde && <div style={{ display: 'flex', gap: '8px' }}>{campo('grosorBorde', p.estilo === 'doble' ? 'Grosor de la banda (mm)' : 'Grosor del marco (mm)', { min: 0.4, step: 0.2 })}</div>}
+              {(sigueLetras || lapizSigue) && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>La base sigue la forma de las letras: el margen de las opciones avanzadas define cuánto sobresale.{lapizSigue && ' El lápiz la atraviesa por el centro del texto.'}</div>}
+              {lapizUnidas && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>Cada letra es un bloque, pegadas entre sí, y el lápiz las atraviesa por el medio. Todas tienen la altura del tubo para rodear al lápiz, y algunas salen más altas. Si las letras son bajas en planta, se agrandan lo necesario.</div>}
             </>
           )}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {campo('alturaLetra', 'Alto de letra (mm)', { min: 3, step: 0.5 })}
+            {campo('engrosar', 'Letras más gruesas (mm)', { min: 0, step: 0.1, ayuda: 'Con tipografías finas o cursivas, 0,3 a 0,4 suele alcanzar.' })}
+          </div>
+          {lapizUnidas && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {campo('desnivel', 'Diferencia de altura entre letras (mm)', { min: 0, step: 0.5, ayuda: 'Las letras 1.ª, 3.ª, 5.ª… salen más altas (hacia arriba) que las demás.' })}
+            </div>
+          )}
+          <details style={{ marginTop: '12px' }}>
+            <summary style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text2)' }}>Opciones avanzadas</summary>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {!lapizUnidas && campo('reliveLetras', 'Relieve de letras (mm)', { min: 0.2, step: 0.2 })}
+              {!esLapiz && campo('grosorBase', 'Grosor de la placa (mm)', { min: 0.4, step: 0.2 })}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {!lapizUnidas && campo('margen', 'Margen alrededor (mm)', { min: 0.5, step: 0.5 })}
+              {!esLapiz && campo('esquinas', 'Esquinas redondeadas (mm)', { min: 0, step: 0.5 })}
+            </div>
+            {!esLapiz && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {campo('agujero', 'Agujero argolla (mm)', { min: 2, step: 0.5 })}
+                {!sigueLetras && campo('alturaFija', 'Alto fijo (mm, 0 = auto)', { min: 0, step: 1, ayuda: 'Mismo alto en todos los llaveros.' })}
+              </div>
+            )}
+            <label className="fl">Altura de capa (ajusta los grosores)</label>
+            <select value={alturaCapa} onChange={(e) => setAlturaCapa(Number(e.target.value))}>
+              {ALTURAS_CAPA.map((c) => <option key={c} value={c}>{fmt(c, 2)} mm</option>)}
+            </select>
+          </details>
         </div>
 
+        {esLapiz && (
+          <div className="card">
+            <div className="card-title">{titulo('Lápiz')}</div>
+        <label className="fl">Tipo de lápiz</label>
+        <select value={TIPOS_LAPIZ.find((t) => t.diametro === p.diametroLapiz)?.id || 'otro'}
+          onChange={(e) => { const t = TIPOS_LAPIZ.find((x) => x.id === e.target.value); if (t) setP((a) => ({ ...a, tipoLapiz: t.id, diametroLapiz: t.diametro })); }}>
+          {TIPOS_LAPIZ.map((t) => <option key={t.id} value={t.id}>{t.nombre} ({fmt(t.diametro)} mm)</option>)}
+          <option value="otro" disabled>Medida personalizada</option>
+        </select>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {campo('diametroLapiz', 'Diámetro interior (mm)', { min: 3, step: 0.1, ayuda: 'Sumale unas décimas si tu impresora cierra los agujeros.' })}
+          {campo('paredLapiz', 'Pared (mm)', { min: 0.8, step: 0.2 })}
+        </div>
+        <label className="fl">Extremos</label>
+        <select value={p.tope} onChange={(e) => cambiar('tope', e.target.value)}>
+          {TOPES_LAPIZ.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+        </select>
+        <label className="fl">Forma del agujero</label>
+        <select value={p.formaAgujero} onChange={(e) => cambiar('formaAgujero', e.target.value)}>
+          {FORMAS_AGUJERO_LAPIZ.map((t) => <option key={t.id} value={t.id}>{t.nombre}{t.id === 'techo' ? ' (sin soportes)' : ''}</option>)}
+        </select>
+          </div>
+        )}
+
         <div className="card">
-          <div className="card-title">2 · Nombres</div>
+          <div className="card-title">{titulo('Nombres')}</div>
           {p.nombres.map((n, i) => (
             <div key={i} style={{ marginBottom: '6px' }}>
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -206,7 +273,7 @@ export default function HerramientaLlaveros() {
               </div>
               {colorPorNombre && (
                 <div style={{ display: 'flex', gap: '6px', marginTop: '4px', fontSize: '10px', color: 'var(--text3)' }}>
-                  {[['fondo', 'Fondo'], ['letras', 'Letras'], ...(conBorde ? [['borde', 'Borde']] : [])].map(([clave, etiqueta]) => (
+                  {[...(lapizUnidas ? [] : [['fondo', 'Fondo']]), ['letras', lapizUnidas ? 'Color' : 'Letras'], ...(conBorde ? [['borde', 'Borde']] : [])].map(([clave, etiqueta]) => (
                     <label key={clave} style={{ flex: 1 }}>{etiqueta}
                       <input type="color" value={coloresDe(i)[clave]} style={{ width: '100%', height: '26px', padding: '1px' }}
                         onChange={(e) => cambiarColorNombre(i, clave, e.target.value)} />
@@ -236,7 +303,7 @@ export default function HerramientaLlaveros() {
         </div>
 
         <div className="card">
-          <div className="card-title">3 · Tipografía</div>
+          <div className="card-title">{titulo('Tipografía')}</div>
           <select value={fuentePropia ? 'propia' : fuenteId} onChange={(e) => { if (e.target.value !== 'propia') { setFuentePropia(null); setFuenteId(e.target.value); } }}>
             {FUENTES.map((f) => <option key={f.id} value={f.id}>{f.nombre}</option>)}
             {fuentePropia && <option value="propia">{fuentePropia.nombre}</option>}
@@ -247,50 +314,10 @@ export default function HerramientaLlaveros() {
         </div>
 
         <div className="card">
-          <div className="card-title">4 · Estilo y medidas</div>
-          {!esLapiz && (
-            <>
-              <label className="fl">Borde</label>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {ESTILOS_BORDE.map((e) => (
-                  <button key={e.id} type="button" className={`btn btn-sm ${p.estilo === e.id ? 'btn-primary' : ''}`} onClick={() => cambiarConHistorial('estilo', e.id)}>{e.nombre}</button>
-                ))}
-              </div>
-              {p.estilo !== 'placa' && <div style={{ display: 'flex', gap: '8px' }}>{campo('grosorBorde', 'Grosor del borde (mm)', { min: 0.4, step: 0.2 })}</div>}
-            </>
-          )}
+          <div className="card-title">{titulo('Colores')}</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {campo('alturaLetra', 'Alto de letra (mm)', { min: 3, step: 0.5 })}
-            {campo('engrosar', 'Letras más gruesas (mm)', { min: 0, step: 0.1, ayuda: 'Con tipografías finas o cursivas, 0,3 a 0,4 suele alcanzar.' })}
-          </div>
-          <details style={{ marginTop: '12px' }}>
-            <summary style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text2)' }}>Opciones avanzadas</summary>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {campo('reliveLetras', 'Relieve de letras (mm)', { min: 0.2, step: 0.2 })}
-              {!esLapiz && campo('grosorBase', 'Grosor de la placa (mm)', { min: 0.4, step: 0.2 })}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {campo('margen', 'Margen alrededor (mm)', { min: 0.5, step: 0.5 })}
-              {!esLapiz && campo('esquinas', 'Esquinas redondeadas (mm)', { min: 0, step: 0.5 })}
-            </div>
-            {!esLapiz && (
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {campo('agujero', 'Agujero argolla (mm)', { min: 2, step: 0.5 })}
-                {campo('alturaFija', 'Alto fijo (mm, 0 = auto)', { min: 0, step: 1, ayuda: 'Mismo alto en todos los llaveros.' })}
-              </div>
-            )}
-            <label className="fl">Altura de capa (ajusta los grosores)</label>
-            <select value={alturaCapa} onChange={(e) => setAlturaCapa(Number(e.target.value))}>
-              {ALTURAS_CAPA.map((c) => <option key={c} value={c}>{fmt(c, 2)} mm</option>)}
-            </select>
-          </details>
-        </div>
-
-        <div className="card">
-          <div className="card-title">5 · Colores</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {colorInput('fondo', 'Fondo')}
-            {colorInput('letras', pausa && conBorde ? 'Letras y borde' : 'Letras')}
+            {!lapizUnidas && colorInput('fondo', 'Fondo')}
+            {colorInput('letras', lapizUnidas ? 'Color' : pausa && p.estilo === 'marco' ? 'Letras y marco' : 'Letras')}
             {conBorde && !pausa && colorInput('borde', 'Borde')}
           </div>
           {p.nombres.length > 1 && !pausa && !unColor && (
@@ -299,12 +326,12 @@ export default function HerramientaLlaveros() {
               Un color distinto por nombre
             </label>
           )}
-          {colorPorNombre && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>Elegí los colores de cada nombre debajo de su casilla, en el paso 2. Cada color extra es un cambio de filamento más.</div>}
+          {colorPorNombre && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>Elegí los colores de cada nombre debajo de su casilla, en el paso de los nombres. Cada color extra es un cambio de filamento más.</div>}
           {unColor && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '8px' }}>Con un solo color, estos colores son sólo para la vista previa.</div>}
         </div>
 
         <div className="card">
-          <div className="card-title">6 · Exportar</div>
+          <div className="card-title">{titulo('Exportar')}</div>
           <label className="fl">Tu impresora</label>
           <select value={p.impresora} onChange={(e) => cambiar('impresora', e.target.value)}>
             {IMPRESORAS.map((i) => <option key={i.id} value={i.id}>{i.nombre}</option>)}
@@ -341,7 +368,7 @@ export default function HerramientaLlaveros() {
         <VisorPiezas cuerpos={cuerpos} activoId={null} seleccion={null} versionSeleccion={0} despiece={false} marcadores={[]} herramienta={null} radioPincel={3} onTocar={() => {}} encuadre={encuadre} />
         {(cargando || error || !cuerpos.length) && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '13px', pointerEvents: 'none' }}>
-            {cargando ? 'Cargando la tipografía…' : error || 'Escribí un nombre para ver el llavero'}
+            {cargando ? 'Cargando la tipografía…' : error || (esLapiz ? 'Escribí un nombre para ver el topper' : 'Escribí un nombre para ver el llavero')}
           </div>
         )}
       </div>
