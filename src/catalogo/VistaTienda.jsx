@@ -416,7 +416,7 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
         <div style={{ flex: '1 1 340px', minWidth: 0, padding: '16px 18px 18px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
             <div style={{ fontSize: '20px', fontWeight: 700, lineHeight: 1.25 }}>{p.nombre}</div>
-            <button className="btn btn-sm" style={{ borderRadius: '999px', width: '30px', height: '30px', padding: 0, justifyContent: 'center', flexShrink: 0 }} onClick={onCerrar} aria-label="Cerrar">✕</button>
+            <button style={{ borderRadius: '999px', width: '38px', height: '38px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: 'none', background: 'var(--danger)', color: '#fff', fontSize: '18px', fontWeight: 700, lineHeight: 1, cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,.3)' }} onClick={onCerrar} aria-label="Cerrar">✕</button>
           </div>
           <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--mono)', margin: '6px 0' }}>{fmt(p.precio)}</div>
           <div style={{ fontSize: '12px', fontWeight: 700, color: total > 0 ? 'var(--accent)' : 'var(--text3)' }}>
