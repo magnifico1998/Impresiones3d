@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import opentypeNs from 'opentype.js';
-import { armarConjunto, armarLlavero, armarLapiz, PARAMETROS_INICIALES, cajaDeMalla, entraEnCama, aplicarMayusculas } from '../src/utils/llaveros';
+import { engrosarFormas, textoAFormas, sanearParametros, infoPausa, armarConjunto, armarLlavero, armarLapiz, PARAMETROS_INICIALES, cajaDeMalla, entraEnCama, aplicarMayusculas } from '../src/utils/llaveros';
 import { revisarCerrada, volumenMalla, stlBinario, crear3mf, leer3mf } from '../src/utils/mallas3d';
 
 const opentype = opentypeNs.parse ? opentypeNs : opentypeNs.default;
@@ -74,7 +74,7 @@ describe('llavero', () => {
 describe('conjunto', () => {
   it('acomoda varios nombres en columnas sin superponerlos', () => {
     const r = armarConjunto(fuente, P({ nombres: ['Ana', 'Beto', 'Carla', 'Dani'], columnas: 2 }));
-    expect(r.cuerpos.map((c) => c.id)).toEqual(['fondo', 'letras', 'borde']);
+    expect(r.cuerpos.map((c) => c.nombre)).toEqual(['Fondo', 'Letras', 'Borde']);
     const solo = armarLlavero(fuente, 'Ana', P());
     expect(r.ancho).toBeGreaterThan(solo.ancho);
     expect(r.alto).toBeGreaterThan(solo.alto * 1.5);
@@ -136,5 +136,83 @@ describe('utilidades', () => {
     expect(entraEnCama(100, 50, { x: 256, y: 256 }).entra).toBe(true);
     expect(entraEnCama(300, 100, { x: 256, y: 350 })).toEqual({ entra: false, rotar: true });
     expect(entraEnCama(500, 500, { x: 256, y: 256 })).toEqual({ entra: false, rotar: false });
+  });
+});
+
+describe('letras más gruesas', () => {
+  it('engrosar agranda las letras y el llavero, y las mallas siguen válidas', () => {
+    const fino = armarLlavero(fuente, 'Ana', P({ engrosar: 0 }));
+    const grueso = armarLlavero(fuente, 'Ana', P({ engrosar: 0.6 }));
+    expect(volumenMalla(grueso.letras)).toBeGreaterThan(volumenMalla(fino.letras) * 1.05);
+    expect(grueso.ancho).toBeGreaterThan(fino.ancho);
+    expect(volumenMalla(grueso.letras)).toBeGreaterThan(0);
+  });
+
+  it('una letra con hueco (la O) conserva el hueco al engrosar', () => {
+    const { formas } = textoAFormas(fuente, 'O', 12, 0.4);
+    expect(formas.length).toBe(1);
+    expect(formas[0].holes.length).toBe(1);
+  });
+
+  it('engrosar una letra sin hueco no inventa huecos; el hueco se achica', () => {
+    const base = textoAFormas(fuente, 'O', 12, 0).formas[0].holes[0].getPoints(8);
+    const gruesa = textoAFormas(fuente, 'O', 12, 1).formas[0].holes[0].getPoints(8);
+    const ancho = (pts) => Math.max(...pts.map((q) => q.x)) - Math.min(...pts.map((q) => q.x));
+    expect(ancho(gruesa)).toBeLessThan(ancho(base));
+    expect(textoAFormas(fuente, 'I', 12, 0.5).formas[0].holes.length).toBe(0);
+  });
+
+  it('sin engrosar devuelve las mismas formas', () => {
+    const { formas } = textoAFormas(fuente, 'Ana', 12, 0);
+    expect(engrosarFormas(formas, 0)).toBe(formas);
+  });
+});
+
+describe('color por nombre y tipo de impresora', () => {
+  const colores = (f, l, b) => ({ fondo: f, letras: l, borde: b });
+  it('con color por nombre, los nombres con distinto color van en piezas distintas', () => {
+    const r = armarConjunto(fuente, P({
+      nombres: ['Ana', 'Beto'], colorPorNombre: true,
+      coloresNombres: [colores('#ff0000', '#ffffff', '#000000'), colores('#00ff00', '#ffffff', '#000000')]
+    }));
+    const fondos = r.cuerpos.filter((c) => c.nombre.startsWith('Fondo'));
+    expect(fondos.length).toBe(2);
+    expect(new Set(fondos.map((c) => c.color))).toEqual(new Set(['#ff0000', '#00ff00']));
+    // Letras y borde comparten color: una sola pieza cada uno.
+    expect(r.cuerpos.filter((c) => c.nombre.startsWith('Letras')).length).toBe(1);
+    expect(new Set(r.cuerpos.map((c) => c.id)).size).toBe(r.cuerpos.length);
+  });
+
+  it('un nombre sin colores propios usa los generales', () => {
+    const r = armarConjunto(fuente, P({ nombres: ['Ana', 'Beto'], colorPorNombre: true, coloresNombres: [colores('#ff0000', '#ffffff', '#000000')] }));
+    expect(r.cuerpos.filter((c) => c.nombre.startsWith('Fondo')).map((c) => c.color).sort()).toEqual(['#2f6fdb', '#ff0000']);
+  });
+
+  it('los colores de un nombre vacío no se corren a otro', () => {
+    const r = armarConjunto(fuente, P({ nombres: ['', 'Beto'], colorPorNombre: true, coloresNombres: [colores('#111111', '#222222', '#333333'), colores('#ff0000', '#ffffff', '#000000')] }));
+    expect(r.cuerpos.find((c) => c.nombre.startsWith('Fondo')).color).toBe('#ff0000');
+  });
+
+  it('con cambio de filamento hay dos piezas: fondo y relieve (letras + borde)', () => {
+    const r = armarConjunto(fuente, sanearParametros(P({ impresora: 'pausa', estilo: 'doble' })));
+    expect(r.cuerpos.map((c) => c.nombre)).toEqual(['Fondo', 'Letras']);
+    const solo = armarConjunto(fuente, sanearParametros(P({ impresora: 'ams', estilo: 'doble' })));
+    expect(volumenMalla(r.cuerpos[1].malla)).toBeCloseTo(volumenMalla(solo.cuerpos[1].malla) + volumenMalla(solo.cuerpos[2].malla), 3);
+  });
+
+  it('el cambio de filamento ignora el color por nombre', () => {
+    const s = sanearParametros(P({ impresora: 'pausa', colorPorNombre: true, colores: colores('#111111', '#eeeeee', '#ff0000') }));
+    expect(s.colorPorNombre).toBe(false);
+    expect(s.colores.borde).toBe('#eeeeee');
+  });
+
+  it('indica a qué altura y capa pausar', () => {
+    expect(infoPausa({ grosorBase: 2.4 }, 0.2)).toEqual({ altura: 2.4, capasHechas: 12 });
+  });
+
+  it('un campo vacío o negativo en engrosar no rompe', () => {
+    expect(sanearParametros(P({ engrosar: '' })).engrosar).toBe(0);
+    expect(sanearParametros(P({ engrosar: -3 })).engrosar).toBe(0);
+    expect(sanearParametros(P({ engrosar: 9 })).engrosar).toBe(2);
   });
 });

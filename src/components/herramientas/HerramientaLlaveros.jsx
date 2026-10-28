@@ -6,8 +6,8 @@ import VisorPiezas from './VisorPiezas';
 import { cargarFuente, parsearFuente, FUENTES } from '../../utils/fuentesLlaveros';
 import { stlBinario, crear3mf } from '../../utils/mallas3d';
 import {
-  armarConjunto, sanearParametros, entraEnCama, unirMallas, PARAMETROS_INICIALES,
-  MODOS, ESTILOS_BORDE, TIPOS_LAPIZ, TOPES_LAPIZ, FORMAS_AGUJERO_LAPIZ, ALTURAS_CAPA
+  armarConjunto, sanearParametros, infoPausa, entraEnCama, unirMallas, PARAMETROS_INICIALES,
+  MODOS, IMPRESORAS, ESTILOS_BORDE, TIPOS_LAPIZ, TOPES_LAPIZ, FORMAS_AGUJERO_LAPIZ, ALTURAS_CAPA
 } from '../../utils/llaveros';
 
 // Camas más comunes (mm). "Otra" deja escribir las medidas.
@@ -114,7 +114,19 @@ export default function HerramientaLlaveros() {
   // ---------- Nombres ----------
   const cambiarNombre = (i, v) => setP((a) => ({ ...a, nombres: a.nombres.map((n, k) => (k === i ? v : n)) }));
   const agregarNombre = () => cambiarConHistorial('nombres', [...p.nombres, '']);
-  const quitarNombre = (i) => cambiarConHistorial('nombres', p.nombres.length > 1 ? p.nombres.filter((_, k) => k !== i) : ['']);
+  const quitarNombre = (i) => {
+    setHistorial((h) => [...h.slice(-29), p]);
+    setP((a) => (a.nombres.length > 1
+      ? { ...a, nombres: a.nombres.filter((_, k) => k !== i), coloresNombres: a.coloresNombres.filter((_, k) => k !== i) }
+      : { ...a, nombres: [''], coloresNombres: [] }));
+  };
+  const coloresDe = (i) => p.coloresNombres[i] || p.colores;
+  const cambiarColorNombre = (i, clave, valor) => setP((a) => {
+    const lista = [...a.coloresNombres];
+    while (lista.length <= i) lista.push(null);
+    lista[i] = { ...(lista[i] || a.colores), [clave]: valor };
+    return { ...a, coloresNombres: lista };
+  });
 
   const deshacer = () => {
     if (!historial.length) return;
@@ -130,6 +142,11 @@ export default function HerramientaLlaveros() {
   };
 
   const esLapiz = p.modo === 'lapiz';
+  const pausa = p.impresora === 'pausa';
+  const unColor = p.impresora === 'uno';
+  const colorPorNombre = p.colorPorNombre && !pausa && !unColor;
+  const conBorde = !esLapiz && p.estilo !== 'placa';
+  const pausaInfo = infoPausa(limpio, alturaCapa);
   const colorInput = (clave, etiqueta) => (
     <div style={{ flex: 1, minWidth: '90px' }}>
       <label className="fl">{etiqueta}</label>
@@ -146,8 +163,8 @@ export default function HerramientaLlaveros() {
   );
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '16px', alignItems: 'start' }} className="herr-separar">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div className="herr-separar">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="herr-separar-panel">
         <div className="card">
           <div className="card-title">1 · Qué vas a hacer</div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -182,9 +199,21 @@ export default function HerramientaLlaveros() {
         <div className="card">
           <div className="card-title">2 · Nombres</div>
           {p.nombres.map((n, i) => (
-            <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
-              <input type="text" value={n} maxLength={40} placeholder="Escribí un nombre" onChange={(e) => cambiarNombre(i, e.target.value)} />
-              <button type="button" className="btn btn-sm" title="Quitar" onClick={() => quitarNombre(i)}>✕</button>
+            <div key={i} style={{ marginBottom: '6px' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input type="text" value={n} maxLength={40} placeholder="Escribí un nombre" onChange={(e) => cambiarNombre(i, e.target.value)} />
+                <button type="button" className="btn btn-sm" title="Quitar" onClick={() => quitarNombre(i)}>✕</button>
+              </div>
+              {colorPorNombre && (
+                <div style={{ display: 'flex', gap: '6px', marginTop: '4px', fontSize: '10px', color: 'var(--text3)' }}>
+                  {[['fondo', 'Fondo'], ['letras', 'Letras'], ...(conBorde ? [['borde', 'Borde']] : [])].map(([clave, etiqueta]) => (
+                    <label key={clave} style={{ flex: 1 }}>{etiqueta}
+                      <input type="color" value={coloresDe(i)[clave]} style={{ width: '100%', height: '26px', padding: '1px' }}
+                        onChange={(e) => cambiarColorNombre(i, clave, e.target.value)} />
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           <button type="button" className="btn btn-sm" onClick={agregarNombre}>+ Añadir nombre</button>
@@ -232,36 +261,54 @@ export default function HerramientaLlaveros() {
           )}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {campo('alturaLetra', 'Alto de letra (mm)', { min: 3, step: 0.5 })}
-            {campo('reliveLetras', 'Relieve de letras (mm)', { min: 0.2, step: 0.2 })}
+            {campo('engrosar', 'Letras más gruesas (mm)', { min: 0, step: 0.1, ayuda: 'Con tipografías finas o cursivas, 0,3 a 0,4 suele alcanzar.' })}
           </div>
-          {!esLapiz && (
+          <details style={{ marginTop: '12px' }}>
+            <summary style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--text2)' }}>Opciones avanzadas</summary>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {campo('grosorBase', 'Grosor de la placa (mm)', { min: 0.4, step: 0.2 })}
-              {campo('agujero', 'Agujero argolla (mm)', { min: 2, step: 0.5 })}
+              {campo('reliveLetras', 'Relieve de letras (mm)', { min: 0.2, step: 0.2 })}
+              {!esLapiz && campo('grosorBase', 'Grosor de la placa (mm)', { min: 0.4, step: 0.2 })}
             </div>
-          )}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {campo('margen', 'Margen alrededor (mm)', { min: 0.5, step: 0.5 })}
-            {!esLapiz && campo('esquinas', 'Esquinas redondeadas (mm)', { min: 0, step: 0.5 })}
-          </div>
-          {!esLapiz && <div style={{ display: 'flex', gap: '8px' }}>{campo('alturaFija', 'Alto fijo (mm, 0 = automático)', { min: 0, step: 1, ayuda: 'Para que todos los llaveros tengan el mismo alto.' })}</div>}
-          <label className="fl">Altura de capa (ajusta los grosores)</label>
-          <select value={alturaCapa} onChange={(e) => setAlturaCapa(Number(e.target.value))}>
-            {ALTURAS_CAPA.map((c) => <option key={c} value={c}>{fmt(c, 2)} mm</option>)}
-          </select>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {campo('margen', 'Margen alrededor (mm)', { min: 0.5, step: 0.5 })}
+              {!esLapiz && campo('esquinas', 'Esquinas redondeadas (mm)', { min: 0, step: 0.5 })}
+            </div>
+            {!esLapiz && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {campo('agujero', 'Agujero argolla (mm)', { min: 2, step: 0.5 })}
+                {campo('alturaFija', 'Alto fijo (mm, 0 = auto)', { min: 0, step: 1, ayuda: 'Mismo alto en todos los llaveros.' })}
+              </div>
+            )}
+            <label className="fl">Altura de capa (ajusta los grosores)</label>
+            <select value={alturaCapa} onChange={(e) => setAlturaCapa(Number(e.target.value))}>
+              {ALTURAS_CAPA.map((c) => <option key={c} value={c}>{fmt(c, 2)} mm</option>)}
+            </select>
+          </details>
         </div>
 
         <div className="card">
           <div className="card-title">5 · Colores</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {colorInput('fondo', 'Fondo')}
-            {colorInput('letras', 'Letras')}
-            {!esLapiz && p.estilo !== 'placa' && colorInput('borde', 'Borde')}
+            {colorInput('letras', pausa && conBorde ? 'Letras y borde' : 'Letras')}
+            {conBorde && !pausa && colorInput('borde', 'Borde')}
           </div>
+          {p.nombres.length > 1 && !pausa && !unColor && (
+            <label style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '10px', fontSize: '12px' }}>
+              <input type="checkbox" checked={p.colorPorNombre} onChange={(e) => cambiar('colorPorNombre', e.target.checked)} style={{ width: 'auto' }} />
+              Un color distinto por nombre
+            </label>
+          )}
+          {colorPorNombre && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>Elegí los colores de cada nombre debajo de su casilla, en el paso 2. Cada color extra es un cambio de filamento más.</div>}
+          {unColor && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '8px' }}>Con un solo color, estos colores son sólo para la vista previa.</div>}
         </div>
 
         <div className="card">
           <div className="card-title">6 · Exportar</div>
+          <label className="fl">Tu impresora</label>
+          <select value={p.impresora} onChange={(e) => cambiar('impresora', e.target.value)}>
+            {IMPRESORAS.map((i) => <option key={i.id} value={i.id}>{i.nombre}</option>)}
+          </select>
           <label className="fl">Tu cama de impresión</label>
           <select value={cama} onChange={(e) => setCama(e.target.value)}>
             {CAMAS.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -274,12 +321,14 @@ export default function HerramientaLlaveros() {
           )}
           {conjunto?.avisos.map((a) => <div key={a} style={{ fontSize: '12px', marginTop: '6px', color: 'var(--text2)' }}>⚠ {a}</div>)}
           <div style={{ display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-primary" disabled={!exportable} onClick={exportar3mf}>3MF a color</button>
-            <button type="button" className="btn" disabled={!exportable} onClick={exportarStl}>STL</button>
-            <button type="button" className="btn" disabled={!exportable} onClick={exportarZip}>ZIP por colores</button>
+            {p.impresora === 'ams' && <button type="button" className="btn btn-primary" disabled={!exportable} onClick={exportar3mf}>3MF a color</button>}
+            <button type="button" className={`btn ${p.impresora === 'ams' ? '' : 'btn-primary'}`} disabled={!exportable} onClick={exportarStl}>STL</button>
+            {p.impresora !== 'uno' && <button type="button" className="btn" disabled={!exportable} onClick={exportarZip}>ZIP por colores</button>}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '8px' }}>
-            El 3MF se abre en Bambu Studio u Orca con una parte por color: asignale el filamento a cada una. Con una impresora de un solo color, usá el STL, o el ZIP si querés cambiar de filamento a mano.
+            {p.impresora === 'ams' && 'El 3MF se abre en Bambu Studio u Orca con una parte por color: asignale el filamento a cada una.'}
+            {unColor && 'Imprimí el STL en un solo color: las letras y el borde quedan en relieve sobre la placa.'}
+            {pausa && `Imprimí el STL y pausá al terminar la placa: a ${fmt(pausaInfo.altura, 2)} mm de altura${pausaInfo.capasHechas ? ` (${pausaInfo.capasHechas} capas de ${fmt(alturaCapa, 2)} mm)` : ''}. Cambiá el filamento y seguí: las letras y el borde salen del segundo color.`}
           </div>
           <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
             <button type="button" className="btn btn-sm" disabled={!historial.length} onClick={deshacer}>↩ Deshacer</button>
@@ -288,7 +337,7 @@ export default function HerramientaLlaveros() {
         </div>
       </div>
 
-      <div style={{ position: 'sticky', top: '84px', height: 'calc(100vh - 120px)', minHeight: '420px' }} className="herr-separar-visor">
+      <div className="herr-separar-visor">
         <VisorPiezas cuerpos={cuerpos} activoId={null} seleccion={null} versionSeleccion={0} despiece={false} marcadores={[]} herramienta={null} radioPincel={3} onTocar={() => {}} encuadre={encuadre} />
         {(cargando || error || !cuerpos.length) && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '13px', pointerEvents: 'none' }}>

@@ -4,7 +4,11 @@
 // El texto se vuelve geometría con una fuente de opentype.js ya cargada; este
 // módulo no toca el navegador, así que se prueba en Node.
 import * as THREE from 'three';
+import ClipperNs from 'clipper-lib';
 import { soldar } from './mallas3d';
+
+// clipper-lib exporta distinto según el empaquetador.
+const Clipper = ClipperNs.ClipperOffset ? ClipperNs : ClipperNs.ClipperLib || ClipperNs.default;
 
 export const MODOS = [
   { id: 'llavero', nombre: 'Llavero' },
@@ -34,6 +38,12 @@ export const FORMAS_AGUJERO_LAPIZ = [
   { id: 'techo', nombre: 'Techo 45°' }
 ];
 
+export const IMPRESORAS = [
+  { id: 'uno', nombre: 'Un solo color' },
+  { id: 'pausa', nombre: 'Cambio de filamento a mano (pausa)' },
+  { id: 'ams', nombre: 'Multicolor (AMS / varios filamentos)' }
+];
+
 export const PARAMETROS_INICIALES = Object.freeze({
   modo: 'llavero',
   nombres: ['Valentina'],
@@ -42,6 +52,8 @@ export const PARAMETROS_INICIALES = Object.freeze({
   columnas: 1,
   separacion: 4,
   alturaFija: 0,
+  engrosar: 0,
+  impresora: 'ams',
   // Medidas (mm)
   alturaLetra: 12,
   grosorBase: 2.4,
@@ -59,7 +71,11 @@ export const PARAMETROS_INICIALES = Object.freeze({
   tope: 'final',
   formaAgujero: 'redondo',
   // Colores
-  colores: { fondo: '#2f6fdb', letras: '#ffffff', borde: '#f2b705' }
+  colores: { fondo: '#2f6fdb', letras: '#ffffff', borde: '#f2b705' },
+  // Un color distinto por nombre: coloresNombres[i] = { fondo, letras, borde }
+  // (los que faltan usan los colores generales).
+  colorPorNombre: false,
+  coloresNombres: []
 });
 
 // ---------- Utilidades de malla ----------
@@ -167,9 +183,44 @@ function formasDeCamino(camino, dx, dy) {
   return sp.toShapes(false);
 }
 
+// Engrosa (o afina, con valor negativo) las formas `delta` mm hacia cada lado.
+// Une de paso los contornos que se pisan (letras cursivas que se tocan).
+export function engrosarFormas(formas, delta) {
+  if (!formas.length || !delta) return formas;
+  const E = 1000;
+  const co = new Clipper.ClipperOffset(2, 0.25 * E * 0.1);
+  const aClipper = (pts) => pts.map((q) => ({ X: Math.round(q.x * E), Y: Math.round(q.y * E) }));
+  for (const f of formas) {
+    const { shape, holes } = f.extractPoints(12);
+    // Contorno externo antihorario y huecos horarios, como pide Clipper.
+    const ext = aClipper(shape);
+    if (!Clipper.Clipper.Orientation(ext)) ext.reverse();
+    co.AddPath(ext, Clipper.JoinType.jtRound, Clipper.EndType.etClosedPolygon);
+    for (const h of holes) {
+      const hu = aClipper(h);
+      if (Clipper.Clipper.Orientation(hu)) hu.reverse();
+      co.AddPath(hu, Clipper.JoinType.jtRound, Clipper.EndType.etClosedPolygon);
+    }
+  }
+  const arbol = new Clipper.PolyTree();
+  co.Execute(arbol, delta * E);
+  const aPuntos = (nodo) => nodo.Contour().map((q) => new THREE.Vector2(q.X / E, q.Y / E));
+  const resultado = [];
+  const recorrer = (nodo) => {
+    const forma = new THREE.Shape(aPuntos(nodo));
+    for (const hueco of nodo.Childs()) {
+      forma.holes.push(new THREE.Path(aPuntos(hueco)));
+      hueco.Childs().forEach(recorrer);
+    }
+    resultado.push(forma);
+  };
+  arbol.Childs().forEach(recorrer);
+  return resultado;
+}
+
 // Texto de un nombre como formas centradas en (0, 0). Devuelve también el
 // tamaño que ocupa. Si `dividir`, cada palabra va en su línea.
-export function textoAFormas(fuente, texto, alturaLetra) {
+export function textoAFormas(fuente, texto, alturaLetra, engrosar = 0) {
   const upm = fuente.unitsPerEm || 1000;
   const alturaMayus = (fuente.tables?.os2?.sCapHeight || upm * 0.7) / upm;
   const tam = alturaLetra / alturaMayus;
@@ -191,7 +242,9 @@ export function textoAFormas(fuente, texto, alturaLetra) {
     const yBase = altoTotal / 2 - alturaLetra - interlineado * i;
     formas.push(...formasDeCamino(camino, dx, yBase));
   });
-  return { formas, ancho: anchoMax, alto: altoTotal };
+  // Engrosar agranda el texto medio engrosar hacia cada lado.
+  const e = Math.max(0, engrosar || 0);
+  return { formas: engrosarFormas(formas, e / 2), ancho: anchoMax + e, alto: altoTotal + e };
 }
 
 // ---------- Llavero ----------
@@ -206,7 +259,7 @@ function textoDe(nombre, p) {
 // levantado. Devuelve las mallas por color, centradas con la esquina
 // inferior izquierda en (0, 0), y el tamaño de la placa.
 export function armarLlavero(fuente, nombre, p) {
-  const { formas, ancho: aTexto, alto: hTexto } = textoAFormas(fuente, textoDe(nombre, p), p.alturaLetra);
+  const { formas, ancho: aTexto, alto: hTexto } = textoAFormas(fuente, textoDe(nombre, p), p.alturaLetra, p.engrosar);
   const radioAg = p.agujero / 2;
   const pared = Math.max(1.2, p.grosorBorde + 0.6);
   const bordeTotal = p.estilo === 'doble' ? p.grosorBorde * 2 + 0.6 : p.estilo === 'contorno' ? p.grosorBorde : 0;
@@ -290,7 +343,7 @@ function tuboX(forma, x0, x1) {
 }
 
 export function armarLapiz(fuente, nombre, p) {
-  const { formas, ancho: aTexto, alto: hTexto } = textoAFormas(fuente, textoDe(nombre, p), p.alturaLetra);
+  const { formas, ancho: aTexto, alto: hTexto } = textoAFormas(fuente, textoDe(nombre, p), p.alturaLetra, p.engrosar);
   const { s: seccionHueca, lado } = seccionLapiz(p, true);
   const { s: seccionMaciza } = seccionLapiz(p, false);
   const margen = p.margen;
@@ -325,29 +378,44 @@ export function armarLapiz(fuente, nombre, p) {
 // Arma todos los nombres, los acomoda en una grilla y devuelve un cuerpo por
 // color: [{ id, nombre, color, malla }] (los vacíos se omiten).
 export function armarConjunto(fuente, p) {
-  const nombres = p.nombres.map((n) => n.trim()).filter(Boolean);
-  if (!nombres.length) return { cuerpos: [], ancho: 0, alto: 0, avisos: [] };
+  const entradas = p.nombres.map((n, i) => ({ nombre: n.trim(), indice: i })).filter((e) => e.nombre);
+  if (!entradas.length) return { cuerpos: [], ancho: 0, alto: 0, avisos: [] };
   const arma = p.modo === 'lapiz' ? armarLapiz : armarLlavero;
-  const piezas = nombres.map((n) => arma(fuente, n, p));
+  const piezas = entradas.map((e) => arma(fuente, e.nombre, p));
   const columnas = Math.max(1, Math.min(p.columnas || 1, piezas.length));
   const filas = Math.ceil(piezas.length / columnas);
   const anchoCol = Array.from({ length: columnas }, (_, c) => Math.max(...piezas.filter((_, i) => i % columnas === c).map((x) => x.ancho)));
   const altoFila = Array.from({ length: filas }, (_, f) => Math.max(...piezas.slice(f * columnas, f * columnas + columnas).map((x) => x.alto)));
   const sep = p.separacion;
-  const grupos = { fondo: [], letras: [], borde: [] };
+  // Una pieza por parte y color: con colores distintos por nombre, los
+  // nombres que comparten color van juntos. Con cambio de filamento a mano el
+  // borde se imprime junto con las letras.
+  const grupos = new Map();
   piezas.forEach((pz, i) => {
     const c = i % columnas, f = Math.floor(i / columnas);
     const x = anchoCol.slice(0, c).reduce((a, b) => a + b + sep, 0);
     // La primera fila arriba.
     const y = altoFila.slice(f + 1).reduce((a, b) => a + b + sep, 0);
-    for (const clave of Object.keys(grupos)) {
-      if (pz[clave].tri.length) grupos[clave].push(moverMalla(pz[clave], x, y, 0));
+    const colores = (p.colorPorNombre && p.coloresNombres[entradas[i].indice]) || p.colores;
+    for (const clave of ['fondo', 'letras', 'borde']) {
+      if (!pz[clave].tri.length) continue;
+      const parte = p.impresora === 'pausa' && clave === 'borde' ? 'letras' : clave;
+      const color = (p.impresora === 'pausa' && clave === 'borde' ? colores.letras : colores[clave]) || '#cccccc';
+      const llave = `${parte}|${color.toLowerCase()}`;
+      if (!grupos.has(llave)) grupos.set(llave, { parte, color, mallas: [] });
+      grupos.get(llave).mallas.push(moverMalla(pz[clave], x, y, 0));
     }
   });
   const etiquetas = { fondo: 'Fondo', letras: 'Letras', borde: 'Borde' };
-  const cuerpos = Object.keys(grupos)
-    .filter((k) => grupos[k].length)
-    .map((k) => ({ id: k, nombre: etiquetas[k], color: p.colores[k], malla: unirMallas(grupos[k]) }));
+  const variosColores = (parte) => [...grupos.values()].filter((g) => g.parte === parte).length > 1;
+  const cuerpos = [...grupos.values()]
+    .sort((a, b) => ['fondo', 'letras', 'borde'].indexOf(a.parte) - ['fondo', 'letras', 'borde'].indexOf(b.parte))
+    .map((g) => ({
+      id: `${g.parte}-${g.color.replace('#', '')}`,
+      nombre: variosColores(g.parte) ? `${etiquetas[g.parte]} ${g.color.toLowerCase()}` : etiquetas[g.parte],
+      color: g.color,
+      malla: unirMallas(g.mallas)
+    }));
   const ancho = anchoCol.reduce((a, b) => a + b, 0) + sep * (columnas - 1);
   const alto = altoFila.reduce((a, b) => a + b, 0) + sep * (filas - 1);
   const avisos = [];
@@ -369,7 +437,7 @@ export const ALTURAS_CAPA = [0.08, 0.12, 0.16, 0.2, 0.28];
 const LIMITES = {
   alturaLetra: [3, 80], grosorBase: [0.4, 20], reliveLetras: [0.2, 10], margen: [0.5, 30],
   esquinas: [0, 20], agujero: [2, 15], grosorBorde: [0.4, 6], separacion: [0, 50],
-  alturaFija: [0, 200], diametroLapiz: [3, 20], paredLapiz: [0.8, 8], columnas: [1, 12]
+  alturaFija: [0, 200], engrosar: [0, 2], diametroLapiz: [3, 20], paredLapiz: [0.8, 8], columnas: [1, 12]
 };
 
 const acotar = (v, [min, max]) => Math.min(max, Math.max(min, Number.isFinite(Number(v)) ? Number(v) : min));
@@ -385,5 +453,18 @@ export function sanearParametros(p, alturaCapa = 0) {
     s.grosorBase = Math.round(multiplo(s.grosorBase) * 1000) / 1000;
     s.reliveLetras = Math.round(multiplo(s.reliveLetras) * 1000) / 1000;
   }
+  if (s.impresora === 'pausa') {
+    // Con un solo cambio de filamento hay dos colores: fondo y relieve.
+    s.colores = { ...s.colores, borde: s.colores.letras };
+    s.colorPorNombre = false;
+  }
   return s;
+}
+
+// Indicaciones para imprimir con cambio de filamento a mano: a qué altura (y
+// en qué capa) pausar para pasar del color del fondo al de las letras.
+export function infoPausa(p, alturaCapa) {
+  const z = p.grosorBase;
+  const capas = alturaCapa > 0 ? Math.round(z / alturaCapa) : null;
+  return { altura: z, capasHechas: capas };
 }
