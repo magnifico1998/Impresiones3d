@@ -9,6 +9,8 @@ THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
+import { parcharMaterial } from '../../utils/shaderSuperficie';
+
 const COLOR_SELECCION = new THREE.Color('#ff7a00');
 const DESPIECE_MM = 18;
 
@@ -27,6 +29,18 @@ function geometriaDe(malla) {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(nt * 9), 3));
   g.computeVertexNormals();
+  g.computeBoundsTree();
+  return g;
+}
+
+// Geometría con índices para la vista previa en la GPU (el shader mueve los
+// vértices): trae las normales y cuánto recibe cada vértice de cada capa.
+function geometriaGpu(gpu) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(gpu.malla.pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(gpu.normal, 3));
+  g.setAttribute('aRecibe', new THREE.BufferAttribute(gpu.recibe, 4));
+  g.setIndex(new THREE.BufferAttribute(gpu.malla.tri, 1));
   g.computeBoundsTree();
   return g;
 }
@@ -195,13 +209,22 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
     for (const c of cuerpos) {
       vivos.add(c.id);
       let m = s.mallas.get(c.id);
-      if (m && m.userData.malla !== c.malla) {
+      const origen = c.gpu ? c.gpu.malla : c.malla;
+      if (m && m.userData.malla !== origen) {
         s.grupo.remove(m);
         m.geometry.disposeBoundsTree();
         m.geometry.dispose();
         m = null;
       }
-      if (!m) {
+      if (!m && c.gpu) {
+        const material = new THREE.MeshStandardMaterial({ color: c.color, roughness: 0.65, metalness: 0.05, flatShading: true, side: THREE.DoubleSide });
+        parcharMaterial(material, c.gpu.uniformes);
+        m = new THREE.Mesh(geometriaGpu(c.gpu), material);
+        m.frustumCulled = false; // el relieve sale de la caja del modelo
+        m.userData = { id: c.id, malla: origen };
+        s.mallas.set(c.id, m);
+        s.grupo.add(m);
+      } else if (!m) {
         m = new THREE.Mesh(geometriaDe(c.malla), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65, metalness: 0.05, side: THREE.DoubleSide }));
         m.userData = { id: c.id, malla: c.malla };
         s.mallas.set(c.id, m);
@@ -210,7 +233,8 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
       m.visible = c.visible !== false;
       const d = despiece && c.despiece ? c.despiece : [0, 0, 0];
       m.position.set(d[0] * DESPIECE_MM, d[1] * DESPIECE_MM, d[2] * DESPIECE_MM);
-      pintar(m.geometry, c.color, c.id === activoId ? seleccion : null);
+      if (c.gpu) m.material.color.set(c.color);
+      else pintar(m.geometry, c.color, c.id === activoId ? seleccion : null);
     }
     for (const [id, m] of s.mallas) {
       if (vivos.has(id)) continue;

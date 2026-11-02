@@ -470,11 +470,16 @@ function matriz3mf(m) {
 // puntos nuevos son puntos medios), pero la varita y el pincel pasan a
 // marcar con más detalle en modelos de pocos triángulos, donde un solo
 // triángulo largo puede cruzar toda una cara.
-export function afinarMalla(malla, largoMax = 1, maxTriangulos = 1500000) {
+// Con `activos` (un 1 por triángulo) sólo se parten los lados de esos
+// triángulos; los vecinos se parten lo justo para que la malla siga cerrada.
+// Devuelve también `padre`: el triángulo original de cada triángulo nuevo.
+export function afinarMalla(malla, largoMax = 1, maxTriangulos = 1500000, { activos } = {}) {
   let pos = Array.from(malla.pos);
   let tri = malla.tri;
+  let padre = Uint32Array.from({ length: tri.length / 3 }, (_, i) => i);
+  let act = activos ? Uint8Array.from(activos) : null;
   const l2 = largoMax * largoMax;
-  for (let vuelta = 0; vuelta < 12; vuelta++) {
+  for (let vuelta = 0; vuelta < 14; vuelta++) {
     const medios = new Map();
     const nv0 = pos.length / 3;
     const largo2 = (a, b) => {
@@ -484,6 +489,7 @@ export function afinarMalla(malla, largoMax = 1, maxTriangulos = 1500000) {
     // Las aristas a partir se deciden primero, para que los dos triángulos
     // que comparten una arista la partan en el mismo punto.
     for (let i = 0; i < tri.length; i += 3) {
+      if (act && !act[i / 3]) continue;
       for (let k = 0; k < 3; k++) {
         const a = tri[i + k], b = tri[i + ((k + 1) % 3)];
         const clave = a < b ? a * nv0 + b : b * nv0 + a;
@@ -496,26 +502,35 @@ export function afinarMalla(malla, largoMax = 1, maxTriangulos = 1500000) {
     if (!medios.size) break;
     const medio = (a, b) => medios.get(a < b ? a * nv0 + b : b * nv0 + a);
     const nuevos = [];
+    const nuevosPadre = [];
+    const nuevosAct = act ? [] : null;
     for (let i = 0; i < tri.length; i += 3) {
+      const antes = nuevos.length;
       const v = [tri[i], tri[i + 1], tri[i + 2]];
       const m = [medio(v[0], v[1]), medio(v[1], v[2]), medio(v[2], v[0])];
       const partidas = m.filter((x) => x !== undefined).length;
-      if (partidas === 0) { nuevos.push(...v); continue; }
-      if (partidas === 3) {
+      if (partidas === 0) nuevos.push(...v);
+      else if (partidas === 3) {
         nuevos.push(v[0], m[0], m[2], m[0], v[1], m[1], m[2], m[1], v[2], m[0], m[1], m[2]);
-        continue;
+      } else {
+        // Se gira el triángulo (sin cambiar su orientación) para que el caso
+        // quede siempre igual: con un lado partido, es x→y; con dos, x→y e y→z.
+        for (let r = 0; r < 3; r++) {
+          const [x, y, z] = [v[r], v[(r + 1) % 3], v[(r + 2) % 3]];
+          const [mxy, myz, mzx] = [m[r], m[(r + 1) % 3], m[(r + 2) % 3]];
+          if (partidas === 1 && mxy !== undefined) { nuevos.push(x, mxy, z, mxy, y, z); break; }
+          if (partidas === 2 && mzx === undefined) { nuevos.push(mxy, y, myz, x, mxy, myz, x, myz, z); break; }
+        }
       }
-      // Se gira el triángulo (sin cambiar su orientación) para que el caso
-      // quede siempre igual: con un lado partido, es x→y; con dos, x→y e y→z.
-      for (let r = 0; r < 3; r++) {
-        const [x, y, z] = [v[r], v[(r + 1) % 3], v[(r + 2) % 3]];
-        const [mxy, myz, mzx] = [m[r], m[(r + 1) % 3], m[(r + 2) % 3]];
-        if (partidas === 1 && mxy !== undefined) { nuevos.push(x, mxy, z, mxy, y, z); break; }
-        if (partidas === 2 && mzx === undefined) { nuevos.push(mxy, y, myz, x, mxy, myz, x, myz, z); break; }
+      for (let c = (nuevos.length - antes) / 3; c > 0; c--) {
+        nuevosPadre.push(padre[i / 3]);
+        if (nuevosAct) nuevosAct.push(act[i / 3]);
       }
     }
     tri = Uint32Array.from(nuevos);
+    padre = Uint32Array.from(nuevosPadre);
+    if (nuevosAct) act = Uint8Array.from(nuevosAct);
     if (tri.length / 3 > maxTriangulos) break;
   }
-  return { pos: Float32Array.from(pos), tri };
+  return { pos: Float32Array.from(pos), tri, padre };
 }
