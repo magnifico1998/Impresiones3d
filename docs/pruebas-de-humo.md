@@ -57,6 +57,13 @@ de consola; el inicio de sesión con Google lo hacés vos.)
 - [ ] Configuración: costos, impresoras, kWh, mano de obra (los campos de plata formateados).
 - [ ] Capacidad de producción.
 
+## Separar por colores
+- [ ] Cargar un STL y un 3MF de Bambu Studio; girar y "Elegir cara de apoyo".
+- [ ] Varita (con y sin "frenar sólo en los valles"), Ctrl+clic para sumar, pincel y borrar; "Afinar malla".
+- [ ] Revisar el corte con cierre plano y perno: dice que son sólidos cerrados; aplicar; deshacer y rehacer.
+- [ ] Exportar el 3MF a color y abrirlo en el slicer (una parte por color); bajar el ZIP en posición "para imprimir".
+- [ ] Con una cuenta cuyo plan no tiene "Herramientas de modelado", la sección ofrece "Ver planes".
+
 ## Conector de impresión (en test)
 - [ ] Bajar el conector desde Configuración → Impresión directa (versión PRUEBA), vincular con el código, cargar "Guardar en carpeta".
 - [ ] Mandar un G-code desde un pedido y desde la Biblioteca; queda en la carpeta; el envío aparece en la lista.

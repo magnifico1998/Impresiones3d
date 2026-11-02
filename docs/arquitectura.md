@@ -52,6 +52,7 @@ React 19 + Vite, sin router: la navegación es por estado.
 | `utils/registroSoporte.js`, `utils/formatoTicket.js`, `components/soporte/`, `components/admin/SeccionTickets.jsx` | Tickets de soporte: registro en memoria de la sesión (se instala en `AppPrivada.jsx`), modal con "Grabar el problema" (`CentroSoporte`, abierto con el evento `abrir-ticket`), página Soporte y pestaña Tickets del admin |
 | `utils/recorrido.js`, `Recorrido.jsx`, `utils/estadoRecorrido.js` | Recorrido guiado (driver.js, se descarga al empezar): pasos por sección; se ofrece a quien nunca lo hizo (en prueba, con el perfil completo) y se repite con el botón "🧭 Recorrido" del encabezado (también en Soporte y Preguntas frecuentes) |
 | `utils/novedades.js`, `modals/ModalNovedades.jsx` | Aviso "Novedades" al entrar: una entrada por versión mayor; la última vista se recuerda en el navegador por usuario. Se reabre tocando la versión del encabezado |
+| `components/herramientas/`, `utils/mallas3d.js`, `utils/separarPiezas.js`, `utils/accesoHerramientas.js` | Herramientas de modelado de STL ("Separar por colores"). Corren enteras en el navegador, sin Firestore ni Storage. El visor usa three.js con three-mesh-bvh y se carga con import dinámico al entrar a la sección, para no sumar peso al resto de la app |
 | `index.css` | Estilos globales y variables de color |
 
 ## Vercel (`api/` y `vercel.json`)

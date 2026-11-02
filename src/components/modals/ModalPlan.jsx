@@ -12,6 +12,7 @@ const FORM_VACIO = {
   activo: true,
   gratuito: false,
   facturacionElectronica: false,
+  herramientasStl: false,
   limites: { usuarios: '', productosBiblioteca: '', pedidosMes: '', aperturasCatalogoMes: '', montoFacturadoMes: '', gcodeGB: '' }
 };
 
@@ -34,6 +35,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
         activo: plan.activo !== false,
         gratuito: !!plan.gratuito,
         facturacionElectronica: !!plan.facturacionElectronica,
+        herramientasStl: !!plan.herramientasStl,
         limites: {
           usuarios: plan.limites?.usuarios ?? '',
           productosBiblioteca: plan.limites?.productosBiblioteca ?? '',
@@ -74,6 +76,7 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
         activo: !!form.activo,
         gratuito: !!form.gratuito,
         facturacionElectronica: !!form.facturacionElectronica,
+        herramientasStl: !!form.herramientasStl,
         limites: {
           usuarios: aNumeroONull(form.limites.usuarios),
           productosBiblioteca: aNumeroONull(form.limites.productosBiblioteca),
@@ -128,6 +131,12 @@ export default function ModalPlan({ isOpen, onClose, plan }) {
             <input type="checkbox" id="facturacionElectronica" checked={form.facturacionElectronica} onChange={(e) => setForm(prev => ({ ...prev, facturacionElectronica: e.target.checked }))} />
             <label htmlFor="facturacionElectronica" style={{ fontSize: '13px' }}>
               Facturación electrónica: las cuentas con este plan pueden emitir Factura C de sus pedidos (ARCA)
+            </label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+            <input type="checkbox" id="herramientasStl" checked={form.herramientasStl} onChange={(e) => setForm(prev => ({ ...prev, herramientasStl: e.target.checked }))} />
+            <label htmlFor="herramientasStl" style={{ fontSize: '13px' }}>
+              Herramientas de modelado: las cuentas con este plan pueden usar "Separar por colores" (y las herramientas de STL que se sumen)
             </label>
           </div>
         </div>

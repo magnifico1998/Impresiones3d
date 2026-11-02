@@ -7,6 +7,13 @@
 
 export const NOVEDADES = [
   {
+    version: 19,
+    fecha: '2026-10-27',
+    items: [
+      { texto: 'Nueva herramienta "Separar por colores": cargá un STL o 3MF, marcá la zona de cada color con la varita (sigue las formas del modelo) o con pincel, y Manager3D arma piezas cerradas para imprimir cada color por separado, con perno, doble perno o llave de alineación y la holgura justa para PLA, PETG, ABS o TPU. Exportás un STL por pieza o un 3MF a color que se abre armado en Bambu Studio u Orca. Todo pasa en tu computadora: el archivo no se sube.' }
+    ]
+  },
+  {
     version: 18,
     fecha: '2026-10-20',
     items: [
