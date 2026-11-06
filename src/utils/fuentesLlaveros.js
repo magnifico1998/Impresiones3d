@@ -29,8 +29,15 @@ export const FUENTES = [
 
 const cache = new Map();
 
+// Cada letra va a su glifo, sin ligaduras ni sustituciones: algunas tipografías (Roboto Slab) traen tablas de sustitución que
+// opentype.js no sabe leer y fallaban al dibujar el texto ("lookupType: 6 - substFormat: 2 is not yet supported"). Para rotular
+// alcanza con un glifo por letra (las tildes salen del carácter ya compuesto) y el kerning.
 export function parsearFuente(buffer) {
-  return opentype.parse(buffer);
+  const fuente = opentype.parse(buffer);
+  fuente.stringToGlyphs = function stringToGlyphs(texto) {
+    return Array.from(String(texto).normalize('NFC')).map((letra) => this.charToGlyph(letra));
+  };
+  return fuente;
 }
 
 export async function cargarFuente(id) {
