@@ -1,8 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { soldar, leerStl, stlBinario, revisarCerrada, cajaMalla, volumenMalla } from '../src/utils/mallas3d';
 import { TEXTURAS, CATEGORIAS_TEXTURA, resolucionSugerida, generarTextura, muestrear, suavizarTextura, invertirTextura, texturaDeImagen } from '../src/utils/texturasSuperficie';
 import { crearUniformes, llenarUniformes, escribirMapas, remuestrear, LADO_MAPA } from '../src/utils/shaderSuperficie';
 import { prepararVista, texturizar, texturizarCapas, estimarTriangulosCapas, estimarTriangulos, leerObj, normalEnPunto, PROYECCIONES, PARAMETROS_SUPERFICIE } from '../src/utils/superficie';
+
+// Generar todas las texturas del catálogo tarda varios segundos si la compu está ocupada.
+vi.setConfig({ testTimeout: 30000 });
 
 // Cubo de l mm con el vértice mínimo en el origen: sólo 12 triángulos.
 function cubo(l = 20) {

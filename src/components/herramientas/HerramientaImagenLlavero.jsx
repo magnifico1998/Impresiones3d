@@ -8,6 +8,7 @@ import { descargar, nombreArchivo } from '../../utils/descargas';
 import { stlBinario, crear3mf } from '../../utils/mallas3d';
 import { crearBambu3mf } from '../../utils/bambu3mf';
 import { unirMallas, entraEnCama } from '../../utils/llaveros';
+import TarjetaColapsable from '../TarjetaColapsable';
 import {
   prepararMascara, cuantizar, asignarAPaleta, colorEnPunto, limpiarIndices, fundirZonaEn, aplicarLimpiezas, pixelDeModelo, armarLlaveroImagen, sanearImagen, colorAHex, hexAColor,
   CANTIDADES_COLORES, POSICIONES_ARGOLLA, MODOS_IMAGEN, CARAS_IMAGEN, BOQUILLAS, PARAMETROS_IMAGEN, SIN_COLOR
@@ -212,13 +213,13 @@ export default function HerramientaImagenLlavero() {
   return (
     <div className="herr-separar">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="herr-separar-panel">
-        <div className="card">
-          <div className="card-title">1 · Imagen</div>
+        <TarjetaColapsable conservar titulo="1 · Imagen">
           <label className="drop-zone" style={{ padding: '14px', marginBottom: 0 }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); cargarArchivo(e.dataTransfer.files?.[0]); }}>
             <input type="file" accept="image/*" onChange={(e) => { cargarArchivo(e.target.files?.[0]); e.target.value = ''; }} />
             <div style={{ fontSize: '13px', fontWeight: 500 }}>{imagen ? `🖼️ ${imagen.nombre}` : 'Elegí o soltá una imagen'}</div>
+            <span className="btn btn-primary btn-sm" style={{ marginTop: '8px', pointerEvents: 'none' }}>📂 Elegir una imagen</span>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>PNG, JPG o WebP. La imagen no se sube: se procesa en tu computadora. Andan mejor los dibujos y logos simples.</div>
           </label>
 
@@ -267,11 +268,10 @@ export default function HerramientaImagenLlavero() {
               {campo('minPixeles', 'Zona mínima (píxeles)', { min: 1, step: 1, ayuda: 'Las zonas más chicas se funden con su entorno.' })}
             </div>
           </details>
-        </div>
+        </TarjetaColapsable>
 
         {paleta.length > 0 && (
-          <div className="card">
-            <div className="card-title">2 · Colores de la imagen</div>
+          <TarjetaColapsable conservar titulo="2 · Colores de la imagen">
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '8px' }}>
               {paletaManual ? 'Paleta elegida por vos: cada parte de la imagen va al color más parecido de esta lista.' : 'Cada color es un filamento.'} Izquierda, el color en la imagen; derecha, el color con el que se imprime. Destildalo para no imprimirlo.
             </div>
@@ -292,11 +292,10 @@ export default function HerramientaImagenLlavero() {
             </div>
             {seleccion && <div style={{ fontSize: '11px', color: 'var(--accent)', marginTop: '8px' }}>Tocá el modelo 3D, a la derecha, en una parte del color que querés {seleccion.tipo === 'agregar' ? 'sumar' : 'usar en lugar de este'}.</div>}
             {paleta.length >= 12 && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '6px' }}>Ya hay 12 colores, el máximo. Quitá alguno para agregar otro.</div>}
-          </div>
+          </TarjetaColapsable>
         )}
 
-        <div className="card">
-          <div className="card-title">{paleta.length > 0 ? '3' : '2'} · Llavero</div>
+        <TarjetaColapsable conservar titulo={`${paleta.length > 0 ? '3' : '2'} · Llavero`}>
           <label className="fl">Estilo</label>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {MODOS_IMAGEN.map((m) => (
@@ -346,10 +345,9 @@ export default function HerramientaImagenLlavero() {
               <input type="color" value={p.colorBorde} style={{ width: '100%', height: '34px', padding: '2px' }} onChange={(e) => cambiar('colorBorde', e.target.value)} />
             </div>
           </div>
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">{paleta.length > 0 ? '4' : '3'} · Exportar</div>
+        <TarjetaColapsable conservar titulo={`${paleta.length > 0 ? '4' : '3'} · Exportar`}>
           <label className="fl">Tu cama de impresión (sólo para avisar si entra)</label>
           <select value={cama} onChange={(e) => setCama(e.target.value)}>
             {CAMAS.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -373,7 +371,7 @@ export default function HerramientaImagenLlavero() {
           <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
             <button type="button" className="btn btn-sm" onClick={() => { setP(PARAMETROS_IMAGEN); setImagen(null); }}>Empezar de nuevo</button>
           </div>
-        </div>
+        </TarjetaColapsable>
       </div>
 
       <div className="herr-separar-visor">

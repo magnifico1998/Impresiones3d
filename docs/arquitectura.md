@@ -153,6 +153,8 @@ no cambia por el codebase, así que la app las llama igual. Para sumar otro code
 | `facturas/{id}` | Comprobantes emitidos a ARCA (`mp_{paymentId}` para los de suscripciones) | Solo Cloud Functions; lee el admin |
 | `users/{uid}/facturas`, `facturasPorPedido/{pedidoId}`, `facturacion/config` | Facturas de la cuenta, estado de la factura de cada pedido y datos del emisor | Solo Cloud Functions; leen el dueño y los miembros |
 | `cuitsFacturacion/{cuit}` | Qué cuenta tiene reservado cada CUIT | Solo Cloud Functions (sin acceso desde la app) |
+| `users/{uid}/disenosJarro` | Diseños de jarro guardados en la cuenta (`nombre`, `datos` con los parámetros en JSON hasta 700 KB, `miniatura` hasta 60 KB; hasta 30 por cuenta, la app lo controla) | Dueño y miembros |
+| `users/{uid}/simbolos` | Biblioteca de símbolos propios de la cuenta para los emblemas de Jarros (`nombre`, `datos` con los contornos en JSON; hasta 50 por cuenta, la app lo controla) | Dueño y miembros |
 | `users/{uid}/inventarioMovimientos` | Consumos, ajustes, bajas y carga inicial (importada de CSV) del inventario (el stock se calcula con las compras) | Dueño y miembros |
 | `configFacturacion/emisor` | Datos del emisor, entorno y si se factura automático | Admin |
 | `arcaTickets`, `arcaNumeracion` | Ticket de acceso a ARCA y candado de numeración | Solo Cloud Functions (sin acceso desde la app) |

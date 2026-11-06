@@ -958,3 +958,213 @@ se venden como beneficio del plan.
 - Código: `utils/mallas3d.js` (lectura, escritura y revisión de mallas),
   `utils/separarPiezas.js` (selección, corte, encastres y revisión),
   `components/herramientas/`.
+
+## Herramientas de modelado: tarjetas plegables
+
+- Los pasos de **todas** las herramientas (Llaveros y toppers, Imagen a llavero, Separar por colores, Modificador de
+  superficies y Jarros porta-lata) son **tarjetas plegables que arrancan cerradas**: se abren tocando el título
+  (`TarjetaColapsable` con `conservar`). Al cerrarse **no se desarma el contenido** (sólo se oculta), así no se
+  pierde lo escrito, el archivo cargado ni el punto elegido de un editor. No se recuerda cuál quedó abierta:
+  siempre se vuelve a empezar compacto. En Jarros, cada tarjeta cerrada muestra un **resumen** de lo elegido
+  (medidas de la lata, silueta, forma del asa, nombre del cartel, impresora). En Separar por colores, la tarjeta de
+  "Cortar" (con su propio encabezado) no es plegable.
+
+## Jarros porta-lata (herramienta de modelado)
+
+Pestaña "Jarros porta-lata" de Herramientas (Fases 0 y 1 del plan en
+`docs/plan-generador-jarros.md`, que tiene el recorrido completo de fases). Arma un jarro
+con el hueco para una lata y exporta para imprimir. Es sólo del navegador, como las otras
+herramientas, y **usa el mismo permiso de plan** (`herramientasStl`, `utils/accesoHerramientas.js`, con
+`PuertaPlan`).
+
+- **Lata y hueco:** se elige una lata de la lista (250 a 946 ml; la de **500 ml, de 70 × 170 mm**, es
+  la de arranque) o **"Medida propia"**. El **diámetro y el alto del hueco se pueden escribir a mano**:
+  el hueco es el diámetro de la lata más una **holgura** (0,5 mm de arranque) y escribir cualquiera
+  de los dos pasa a "Medida propia". Pared (desde 1,2 mm) y fondo del cuerpo.
+- **Silueta del cuerpo:** siete formas de lista (recto, más ancho arriba, más ancho abajo, barril, cintura,
+  copa y base ancha) o **a tu gusto** con un **editor de puntos**: cada punto es una altura (0 base a 1 borde)
+  y cuánto se **ensancha sobre la pared** (0 a 30 mm), así que la pared nunca queda más fina que la pedida; se
+  pueden agregar (hasta 8) y quitar puntos, y la curva pasa suave por ellos (interpolación monótona, sin
+  pasarse). Hay un aviso si la pared exterior se abre **más de 45°** hacia arriba (necesita soportes).
+- **Abertura en el fondo:** un agujero pasante (desde 4 mm; deja al menos 6 mm de aro) para empujar la lata hacia
+  arriba y sacarla. 0 = sin abertura.
+- **El diseño es una lista de piezas** (cuerpo, asa…), cada una con su malla, su color y una marca
+  **desmontable**. Cada pieza trae además su malla "de impresión", apoyada como se imprime (el asa,
+  acostada sobre su lado, sin soportes). Es la base de las piezas desmontables que se van sumando.
+- **Asa:** por defecto va **pegada**: sus extremos se meten en la pared (hasta 2 mm, sin llegar al hueco)
+  y se imprime junto al cuerpo. Con **"Asa desmontable (con encastre)"** el cuerpo lleva **dos placas de
+  montaje** con una ranura rectangular (que deja 1,2 mm de pared hacia adentro) y el asa trae **una espiga
+  en cada extremo**, con una **holgura de encastre** (0,3 mm de arranque; se ajusta con una prueba de
+  impresión). Las placas siguen la silueta del cuerpo (se apoyan donde la pared está más lejos del eje).
+- **Forma del asa:** cinco formas de lista (clásica, en D, oreja, angular y **sin soportes**) o **a tu
+  gusto** con un **editor de curva**: puntos que se arrastran sobre una cuadrícula (hacia afuera y de
+  abajo hacia arriba, hasta 8), **doble clic = esquina viva**, agregar y quitar puntos. Cada extremo
+  arranca con un **tramo recto horizontal de 4 mm** pegado a la pared (así el encastre apoya plano). Además:
+  cuánto sobresale, ancho, grosor, distancia de cada extremo al borde y a la base, redondez de la sección,
+  **más gruesa en los extremos** (100 a 160 %, 115 % de arranque) y **giro alrededor del jarro**
+  (de qué lado sale).
+- **Aviso de soportes del asa:** se calcula sobre la curva real: se suma el largo (mm) de los tramos con menos
+  de **40° de inclinación** (se pintan en rojo en el editor; los tramos rectos de arranque no cuentan). Hasta
+  **12 mm** se imprime sin soportes (cada giro deja unos 5 mm casi planos, que se aguantan como puente); más
+  de eso avisa cuántos mm son y propone la forma "Sin soportes" o hacer el asa desmontable e imprimirla
+  acostada. También avisa si la curva se cierra tanto que se pliega sobre sí misma para ese grosor (radio de
+  curvatura menor que la mitad del grosor más 0,5 mm).
+- **Nombre y cartel (Fase 2):** "Con cartel con el nombre" (apagado de arranque). El **nombre** puede tener
+  **hasta 4 renglones de 30 letras** (Enter = renglón nuevo) y usa las mismas **tipografías** que Llaveros
+  (o una propia que se lee en la compu y no se sube), con alto de letra, letras más gruesas,
+  mayúsculas/minúsculas y la **separación entre renglones** (1,35 de fábrica). **Alineación** del texto
+  (`cartelAlineacion`): izquierda, centrada (de fábrica), derecha, **ambos márgenes** (cada renglón llena el
+  ancho del más largo y el último queda a la izquierda) y **ambos márgenes (todo)** (llena también el último). Para
+  llenar el ancho se reparte lo que sobra entre las **palabras**; un renglón de **una sola palabra** se estira
+  repartiendo el espacio entre las **letras**. El cartel "ajustado" se mide con el renglón más largo y el
+  alto total. **Seis formas** (placa, pastilla, óvalo,
+  cinta, hexágono y etiqueta), en tamaño **ajustado a las letras** (con un **espacio alrededor**; cada forma
+  agrega lo que necesita para que el texto entre) o **medida propia** (avisa si el nombre no entra). Grosor de
+  la base, **relieve** de letras, borde y remaches, **bisel** (el borde de arriba en tres escalones),
+  **arco** (sube o baja el centro) y **onda**, **borde levantado** (con su ancho) y **remaches** (2 a los
+  costados o 4 con arriba y abajo, con tapa redondeada). Se ubica con la **altura** (del fondo al centro) y el
+  **giro alrededor** del jarro (0 = de frente); si se sale por arriba o por abajo se corre, y no puede dar más
+  de unos 170° de vuelta (se achica y avisa). También se **mueve agarrándolo en la vista 3D**: tocar el
+  cartel y arrastrarlo sobre el jarro lo hace seguir el puntero en vivo (gira alrededor del eje y sube o
+  baja) y al soltar se suman lo que se movió al giro y a la altura (con "Deshacer"). El arrastre usa el
+  cuerpo del jarro como superficie (el puntero se apoya en la pared), y no está activo con la vista
+  **Despiece** (ahí se mueve todo junto). Mientras se arrastra no se vuelve a calcular el jarro: el cartel
+  se mueve como un bloque y al soltar se arma de nuevo con la silueta exacta. Para poder **hacer ajustes
+  chicos seguidos**: cada arrastre se **suma** al anterior aunque el jarro todavía se esté rearmando; la
+  **cámara no se reencuadra** al mover el cartel, el asa o la silueta (sólo al cambiar el tamaño de la lata,
+  `claveEncuadre`); y la forma del cartel (plana, con arco y onda) se guarda aparte de su colocación, así moverlo
+  sólo lo vuelve a envolver y no recalcula las letras, el borde ni la cavidad.
+- **Emblemas (Fase 3):** "Con emblema" (apagado de arranque). Un **símbolo** de lista (estrella, corazón, escudo,
+  rayo, luna, gota o corona) sobre un **respaldo** (círculo, cuadrado, hexágono, octógono o **sin respaldo**, donde el
+  símbolo mismo es la pieza). Tamaño del símbolo (alto, 10 a 80 mm), espacio alrededor, grosor, relieve, bisel y
+  borde levantado. **De 1 a 4 emblemas repartidos parejo** alrededor del jarro desde el **giro** elegido (0 = de
+  frente, como el cartel; 180 = atrás), a una **altura** común. Se arman planos y se **envuelven** sobre la silueta,
+  igual que el cartel. Cada emblema es **una pieza** ("Emblema", "Emblema 1"…) con partes de color (respaldo,
+  borde y símbolo). **Desmontable** (de arranque): el cuerpo lleva una cavidad por emblema (contorno del respaldo
+  más la holgura de encastre) y el emblema se imprime parado, aparte; **pegado**: apenas se mete 0,6 mm en la pared.
+  Avisos: se corre si se sale por arriba o por abajo, no entran varios uno al lado del otro, se pisa con el cartel o
+  con el asa. No se arrastra en la vista 3D (sólo el cartel).
+  **Símbolo propio (SVG):** se puede subir un archivo `.svg` (hasta 300 KB) desde la compu; se lee en el navegador y
+  **no se sube a ningún servidor** (`utils/svgSimbolo.js`, con el lector de SVG de three). Se usan las **formas rellenas**
+  (con sus huecos; los trazos sin relleno se ignoran, hay que convertirlos a contorno en el programa de dibujo), de
+  cualquier color, y todo entra en el tamaño del símbolo (lado mayor) manteniendo la proporción. Se rechazan los archivos
+  que no son SVG, sin formas rellenas, de más de 300 KB o con más de 30000 puntos. Un SVG que ya no se pueda leer al armar el
+  jarro no lo rompe: se usa la estrella y se avisa. El texto del SVG vive en los parámetros (`emblemaSvg`, `emblemaSvgNombre`);
+  por ahora el diseño no se guarda entre sesiones.
+- **Estilos y diseños (Fase 7):** tarjeta "Estilos y diseños" (`utils/jarrosDisenos.js`). *Estilos listos para usar:* Cervecero,
+  Vikingo, Navideño, Rústico de madera, Fibra de carbono, Panal de miel y Minimalista. Un estilo **reemplaza el diseño** a partir del jarro
+  de fábrica (silueta, textura, asa y complementos, cartel, emblemas, aros y colores) pero **conserva la lata** (medidas, pared, fondo,
+  abertura y holgura) y los ajustes de impresión; se puede deshacer con "Deshacer". *Mis diseños:* un diseño son los parámetros del
+  jarro (saneados) en JSON; se guarda en la cuenta, colección `users/{uid}/disenosJarro` (`nombre` hasta 60 letras, `datos` hasta 700 KB y
+  `miniatura`, una foto de 160 px del visor, hasta 60 KB), con **hasta 30 por cuenta** (lo controla la app), y se puede reemplazar uno del mismo nombre
+  (pide confirmar). Dueño y miembros los comparten; en modo lectura o suspendida no se escribe (mismas reglas que clientes). Al abrir uno
+  se sanea todo (lo raro vuelve a su valor de siempre). Se escuchan sólo mientras la lista está abierta. *Compartir:* "Descargar este
+  diseño" baja un archivo `.jarro.json` (formato `manager3d-jarro`, versión 1) con todos los parámetros —también el SVG o el símbolo propio de
+  los emblemas— y "Abrir un diseño compartido" lo lee (hasta 800 KB), rechaza lo que no sea un diseño de Manager3D y sanea el contenido. No
+  lleva una tipografía propia cargada de la compu (el archivo no la incluye).
+- **Impresión y costos / Guardar en la Biblioteca (Fase 6):** tarjeta "Impresión y costos" (`utils/jarrosImpresion.js`). Es una
+  **estimación** a partir del **volumen de las piezas** (no se lamina nada): cada parte gasta su cáscara (perímetros y tapas) más el
+  relleno (15 % de arranque, editable) y los gramos salen de la densidad del PLA (1,24 g/cm³); el tiempo, del plástico depositado
+  (unos 12 mm³/s en promedio) más **0,5 min por cada cambio de filamento** en las piezas de varios colores. Muestra el **material por
+  color** y los costos con **los valores de la Configuración de la cuenta y la misma fórmula de la Calculadora**: filamento (el que se
+  elija, con el desperdicio), electricidad (watts de la impresora elegida por el precio del kWh), mantenimiento de esa impresora, mano de
+  obra (por las horas de trabajo que se indiquen, 0,5 h de arranque) y el **precio sugerido** con el margen de la cuenta. **"Guardar en la
+  Biblioteca"** abre el mismo modal de siempre (`ModalBibGuardar`) con esos costos, la **foto del modelo** tal como se ve (se sube al
+  guardar y queda de imagen principal; se puede destildar) y el **3MF a color** como archivo del producto: cuenta contra el cupo de
+  G-code del plan y **es el modelo sin laminar** (se abre en el laminador; no sirve para mandarlo tal cual a la impresora). Con el
+  modelo con textura, el 3MF que se guarda es el final, con todo el detalle.
+- **Botones para elegir archivos:** los selectores de archivo del navegador ("Seleccionar archivo / Ningún archivo seleccionado") se
+  reemplazaron por botones visibles (`BotonArchivo`) en las tipografías propias, el SVG de los emblemas y la imagen de las preguntas
+  frecuentes; las zonas de soltar archivos (imagen a llavero, separar por colores, superficies) muestran además un botón.
+- **Complementos del asa (Fase 5):** tarjeta "Complementos del asa" (sólo con asa). Son **piezas aparte** que se imprimen sueltas
+  y se pegan sobre el asa; cada una es una "manga" hueca que rodea al asa con la holgura de encastre y sigue su curva
+  (`utils/jarrosAsa.js`). Giran junto con el asa alrededor del jarro. *Envoltura del agarre:* estilo **lisa (cuero)**, **cuerda**
+  (nervios en hélice, con paso en mm), **bandas** o **acanalada**; largo (15 a 300 mm), posición en el asa (% del largo),
+  cuánto sobresale (1 a 8 mm) y extremos biselados; no se acerca a la pared (deja libre el tramo recto de arranque) y se
+  acorta y avisa si no entra. *Collarines:* anillos de otro color, **en las dos puntas de la envoltura** y/o **uno junto a cada
+  pared** (ancho 3 a 15 mm, sobresalen 0,8 a 4 mm). *Descanso para el pulgar:* almohadilla en forma de lente sobre el lado de
+  afuera del asa (posición en % desde arriba, largo, altura 1 a 8 mm y cuánto abraza, 40° a 160°). La envoltura y los
+  collarines se arman en **dos mitades cortadas por el plano de la curva**, así entran aunque el asa esté pegada al jarro; en
+  la placa y el ZIP salen acostadas sobre su cara de corte, una al lado de la otra (una sola pieza por complemento). Avisos: el largo
+  se acortó, el espesor es excesivo para la curva del asa, no hay lugar para los collarines, y el descanso o un collarín se
+  pisan con la envoltura. *Símbolo sobre el asa:* una plaquita (respaldo y símbolo, de dos colores) con **el mismo símbolo que se
+  eligió en Emblemas** (de lista, SVG, dibujado o de la biblioteca), tamaño (6 a 30 mm; avisa si es más ancho que el asa),
+  posición en % desde arriba y relieve; se curva a lo largo del asa y se imprime **plana**, apoyada sobre su cara de atrás.
+  *Placas de montaje decorativas:* un **rosetón plano** (círculo, cuadrado, hexágono u octógono, 14 a 60 mm, grosor 1 a 6 mm)
+  alrededor de cada extremo del asa, con un agujero del tamaño de la sección del asa más la holgura de encastre; va contra la
+  pared (la asa pegada: se mete lo que hace falta por la curva de la pared) o contra la placa de montaje del asa desmontable;
+  se imprimen acostados sobre su cara de atrás. No reemplazan a las placas de encastre del cuerpo (esas siguen siendo las que sostienen el asa desmontable).
+- **Textura del cuerpo (Fase 4):** tarjeta "Textura del cuerpo" (lisa de arranque). Se elige una textura del **catálogo
+  de superficies** (madera, fibra de carbono y geométricas: las mismas de la herramienta Modificador de superficies) o
+  **duelas de madera**. El relieve es **real** y sólo **hunde** la pared exterior respecto de la silueta: lo más alto toca la
+  silueta de siempre, así el cartel, los emblemas, los aros y el asa (que se apoyan en esa silueta) siguen calzando. La
+  profundidad se limita para dejar **al menos 1,4 mm de pared** (con pared 3 mm, hasta 1,6 mm) y avisa si se pidió más.
+  Arriba y abajo hay un **borde liso** (3 mm de arranque) donde el relieve se apaga. *Catálogo:* tamaño de cada repetición
+  (4 a 60 mm; se ajusta a un número entero de repeticiones alrededor para que cierre sin costura), profundidad (0,1 a 3 mm) e
+  invertir. *Duelas:* cantidad (4 a 60), ancho y profundidad de la ranura entre duelas (0,4 a 4 mm y 0,3 a 3 mm),
+  **irregularidad** (duelas de distinto ancho y algo más hundidas unas que otras), **veta** (profundidad de las vetas
+  a lo largo de cada duela) y "Otra variante" (cambia la semilla, mismos ajustes; es repetible). La pared exterior se arma
+  como una **grilla** (ángulo × altura, `revolucionRelieve` en `utils/mallasJarro.js`, lógica en `utils/jarrosTextura.js`).
+  **Vista liviana y modelo final:** la vista 3D usa una grilla gruesa (hasta 150000 triángulos) y todas las
+  exportaciones (3MF, Bambu, STL, ZIP por piezas, placa) arman primero el **modelo final** con el detalle completo, con tope de
+  **600000 triángulos** en el cuerpo (si el detalle pedido lo pasa, se baja la resolución y se avisa). El "Detalle de la malla" (mm entre
+  puntos, 0 = automático) se puede ajustar. Las cavidades del cartel, los emblemas, los aros y las placas del asa se
+  restan igual sobre el cuerpo texturado.
+- **Biblioteca de símbolos y editor con simetrías (Fase 3):** el símbolo del emblema puede ser uno **propio** (`emblemaSimbolo
+  = 'propio'`, con sus contornos en `emblemaForma`, JSON). Se arma en el **editor con simetrías** (`EditorSimbolo.jsx`,
+  lógica en `utils/simbolosPropios.js`): se marcan los puntos de una parte y el resto sale solo — **espejo** (se dibuja el
+  lado derecho), **giratoria** (una porción de 360/n° que se repite, n de 2 a 16) o **giratoria con espejo** (media
+  porción) — más un **suavizado** de esquinas (0 a 3 vueltas). Hasta 40 puntos; clic = punto nuevo, arrastrar = mover,
+  doble clic = borrar. Los símbolos (dibujados o un SVG subido) se pueden **guardar en la biblioteca de la cuenta**,
+  colección `users/{uid}/simbolos` (`nombre` hasta 40 letras, `datos` = contornos en JSON de hasta 150 KB y 3000 puntos,
+  simplificados al guardar). **Hasta 50 por cuenta** (lo controla la app, no las reglas), nombres sin repetir. La ven y la
+  usan el dueño y los miembros (mismas reglas que clientes: en modo lectura o suspendida no se escribe). Elegir uno de la
+  biblioteca lo copia a los parámetros del jarro, así el diseño no depende de que el símbolo siga guardado. Un símbolo guardado que no se
+  pueda leer no rompe el jarro: se usa la estrella y se avisa. La biblioteca se escucha sólo mientras la herramienta
+  tiene un emblema activo.
+- **Aros decorativos (Fase 3):** "Aro arriba" y "Aro abajo" (apagados de arranque). Son bandas que dan toda la
+  vuelta y **siguen la silueta** del cuerpo (sólido de revolución con chaflán arriba y abajo): alto (3 a 20 mm),
+  cuánto sobresalen, distancia al borde de arriba o al fondo, y **remaches** (0 a 36 cabezas redondeadas repartidas
+  parejo, como parte de otro color). Pegados (de arranque) se meten 0,6 mm en la pared; **desmontables**: el cuerpo lleva
+  una **ranura redonda** y el aro se imprime parado, aparte, y se calza **deslizándolo desde arriba**. Avisos: con
+  desmontable y una silueta que se ensancha por encima del aro no se puede deslizar (se pega); demasiados
+  remaches (se tocan) o aro muy bajo para ellos; el aro se pisa con las placas del asa.
+- **Lo que se mete en la pared** (cartel, emblemas y aros desmontables) se limita para dejar al menos **1,4 mm de
+  pared** hacia adentro. Todas las cavidades se restan del cuerpo de una sola vez.
+- **Repetir el cartel:** `cartelCantidad` (1 a 4, de arranque 1) pone carteles **iguales repartidos parejo** alrededor
+  del jarro a partir del giro elegido, a la misma altura. Cada copia es una pieza ("Cartel 1", "Cartel 2"… con ids
+  `cartel`, `cartel2`…) con su cavidad si es desmontable; la forma plana se arma una vez y se envuelve por copia. Al arrastrar
+  uno en la vista 3D se mueven todos juntos (giro y altura). Avisa si no entran uno al lado del otro o si alguna copia se
+  pisa con el asa o con un emblema.
+- **El cartel se curva sobre el jarro:** se arma plano y se envuelve: cada punto queda a la distancia de la
+  pared que le toca a su altura, así sigue la silueta (también la de un barril o una copa) y su cara de atrás
+  apoya parejo. Cada color es una **parte** de la misma pieza (base, borde, letras y remaches), con su color.
+- **Cartel desmontable** (de arranque): el cuerpo lleva una **cavidad** con el contorno del cartel más la
+  **holgura del encastre** (0,3 mm), que se mete en la pared hasta 1,5 mm (limitado para dejar al menos 1,4 mm
+  de pared: `cartelEmpotrado`). El cartel se imprime **parado**, como va sobre el jarro (una placa curva de
+  pie no necesita soportes), apoyado en su borde de abajo; con arco u onda ese borde no es recto y avisa
+  que necesita soportes. **Pegado:** no se talla cavidad, el cartel se mete 0,6 mm en la pared y sale en la
+  misma impresión. Avisa si el cartel **se pisa con el asa** (mismo lado y misma altura).
+- **Placa y 3MF con partes de color:** las partes de una pieza (cartel, letras, borde, remaches) salen en la
+  **placa de impresión** como un solo objeto con varias partes (`grupo` en `crear3mf`), cada una con su color
+  para asignarle su filamento; las piezas de un solo color siguen como objetos sueltos. El **ZIP por piezas**
+  trae el cartel entero y, en una carpeta `por colores`, cada color suelto. El 3MF armado lista todas las
+  partes.
+- **Vista:** Liso, Colores, Alambre, Transparente, **Con lata** (la lata, translúcida, no se
+  exporta) y **Despiece**.
+- **Exportar:** como en las otras herramientas, según la impresora elegida: 3MF a color, 3MF para Bambu A1
+  (plantilla de la A1) y STL armado. Con piezas desmontables suma el **ZIP por piezas** (un STL de cada
+  una, apoyada como se imprime) y la **placa de impresión** en 3MF: las piezas sueltas acomodadas en
+  filas dentro de la cama elegida (hay un aviso si no entran juntas).
+- **Geometría:** el cuerpo es un sólido de revolución con la silueta de los puntos; el asa, un barrido de una
+  sección superelíptica a lo largo de la curva (con las uniones en esquina en inglete para que no se afinen). Las
+  placas y ranuras se hacen con operaciones booleanas con **Manifold** (WebAssembly, archivos de terceros en
+  `src/vendor/manifold/`, que garantiza sólidos cerrados; se carga en segundo plano al abrir la herramienta y
+  se usa a través de `utils/motorBooleano.js`). Si no cargara, se usa `three-bvh-csg`, que puede dejar alguna
+  arista abierta con paredes inclinadas. Todo está en `utils/jarros.js` (sin navegador, se prueba en Node con
+  `pruebas/jarros.test.js`, `pruebas/jarros-fase1.test.js` y `pruebas/jarros-cartel.test.js`); el cartel está
+  en `utils/jarrosCartel.js` (contornos, capas con bisel, curvado y cavidad; guarda en memoria el último
+  cartel armado, así editar el asa no lo recalcula); la pantalla es
+  `components/herramientas/HerramientaJarros.jsx`, los editores de puntos son
+  `components/herramientas/EditoresJarro.jsx` y el visor (`VisorPiezas.jsx`) suma los modos de vista y los
+  cuerpos "fantasma".

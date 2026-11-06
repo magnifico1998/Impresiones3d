@@ -231,7 +231,7 @@ export function aplicarMayusculas(texto, modo) {
 
 // Pasa los comandos de un camino de opentype (Y hacia abajo) a formas de
 // three (Y hacia arriba), corridas (dx, dy).
-function formasDeCamino(camino, dx, dy) {
+export function formasDeCamino(camino, dx, dy) {
   const sp = new THREE.ShapePath();
   for (const c of camino.commands) {
     const x = c.x + dx, y = -c.y + dy;
@@ -254,7 +254,7 @@ const aPuntos = (camino) => camino.map((q) => new THREE.Vector2(q.X / E, q.Y / E
 
 // Formas de three como caminos de Clipper: contornos externos antihorarios y
 // huecos horarios.
-function formasACaminos(formas) {
+export function formasACaminos(formas) {
   const caminos = [];
   for (const f of formas) {
     const { shape, holes } = f.extractPoints(12);

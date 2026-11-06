@@ -5,6 +5,8 @@ import React, { useState } from 'react';
 // `clave`, recuerda en este navegador si quedó abierta; si no hay
 // almacenamiento, arranca como dice `abiertaInicial`.
 //   resumen: texto chico al lado del título, visible también cerrada.
+//   conservar: con la tarjeta cerrada el contenido sigue armado (sólo oculto), para no perder lo que tenga adentro
+//   (el punto elegido de un editor, un archivo cargado…). Por defecto el contenido se desarma al cerrar.
 
 const leer = (clave, porDefecto) => {
   if (!clave) return porDefecto;
@@ -16,7 +18,7 @@ const leer = (clave, porDefecto) => {
   }
 };
 
-export default function TarjetaColapsable({ titulo, resumen, clave, abiertaInicial = false, children }) {
+export default function TarjetaColapsable({ titulo, resumen, clave, abiertaInicial = false, conservar = false, children }) {
   const [abierta, setAbierta] = useState(() => leer(clave, abiertaInicial));
 
   const alternar = () => {
@@ -46,7 +48,7 @@ export default function TarjetaColapsable({ titulo, resumen, clave, abiertaInici
         {abierta ? '▾' : '▸'} {titulo}
         {resumen && <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text3)', marginLeft: '8px', textTransform: 'none', letterSpacing: 0 }}>{resumen}</span>}
       </div>
-      {abierta && children}
+      {conservar ? <div style={abierta ? undefined : { display: 'none' }}>{children}</div> : abierta && children}
     </div>
   );
 }

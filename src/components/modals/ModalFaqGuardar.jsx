@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import BotonArchivo from '../BotonArchivo';
 import { useFaq, useConfig, useUi, useCuenta } from '../../context/contextos';
 import { comprimirImagen, subirImagenAFirebase, borrarImagenDeFirebase } from '../../utils/imageCompress';
 import { obtenerBloques } from '../../utils/faqBloques';
@@ -281,7 +282,7 @@ export default function ModalFaqGuardar({ isOpen, onClose, editId }) {
                       <button className="btn btn-danger btn-sm" style={{ marginTop: '6px', fontSize: '11px' }} onClick={() => handleQuitarImagen(idx)}>Quitar imagen</button>
                     </div>
                   ) : (
-                    <input type="file" accept="image/*" onChange={(e) => handleImagenChange(idx, e)} />
+                    <BotonArchivo accept="image/*" etiqueta="📷 Elegir una imagen" alElegir={(f, e) => handleImagenChange(idx, e)} />
                   )
                 )}
               </div>

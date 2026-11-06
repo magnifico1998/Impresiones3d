@@ -241,6 +241,30 @@ service cloud.firestore {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
       allow write: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
     }
+    // Símbolos propios de la cuenta para los emblemas de Jarros (src/hooks/useSimbolosCuenta.js): { nombre, datos
+    // (contornos en JSON), creadoPor, creadoEl }. Dueño y miembros comparten la biblioteca. Los límites (50 símbolos) los
+    // pone la app; acá se cuida la forma del doc y que no pase de 150 KB.
+    // Diseños de jarro guardados en la cuenta (src/hooks/useDisenosCuenta.js): { nombre, datos (los parámetros en JSON, hasta
+    // 700 KB: un doc admite 1 MiB), miniatura (foto chica o null, hasta 60 KB), creadoPor, creadoEl }. Dueño y miembros comparten
+    // los diseños. El límite de 30 por cuenta lo pone la app.
+    match /users/{uid}/disenosJarro/{docId} {
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+      allow create, update: if tieneAcceso(uid) && cuentaPuedeEscribir(uid)
+        && request.resource.data.keys().hasOnly(['nombre', 'datos', 'miniatura', 'creadoPor', 'creadoEl'])
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() <= 60
+        && request.resource.data.datos is string && request.resource.data.datos.size() <= 700000
+        && ('miniatura' in request.resource.data) && (request.resource.data.miniatura == null
+          || (request.resource.data.miniatura is string && request.resource.data.miniatura.size() <= 60000));
+    }
+    match /users/{uid}/simbolos/{docId} {
+      allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
+      allow delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+      allow create, update: if tieneAcceso(uid) && cuentaPuedeEscribir(uid)
+        && request.resource.data.keys().hasOnly(['nombre', 'datos', 'creadoPor', 'creadoEl'])
+        && request.resource.data.nombre is string && request.resource.data.nombre.size() > 0 && request.resource.data.nombre.size() <= 40
+        && request.resource.data.datos is string && request.resource.data.datos.size() <= 150000;
+    }
     match /users/{uid}/biblioteca/{docId} {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
       allow update, delete: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);

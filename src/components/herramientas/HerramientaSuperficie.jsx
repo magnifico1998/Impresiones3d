@@ -15,6 +15,7 @@ import {
 import { crearLlamador } from '../../utils/trabajadorSuperficie';
 import { crearUniformes, llenarUniformes, escribirMapas } from '../../utils/shaderSuperficie';
 
+import TarjetaColapsable from '../TarjetaColapsable';
 const fmt = (n, dec = 1) => Number(n || 0).toLocaleString('es-AR', { maximumFractionDigits: dec });
 const MAX_ARCHIVO_MB = 80;
 const TRIANGULOS_VISTA = 150000; // la vista exacta no pasa de esto para que responda
@@ -434,13 +435,13 @@ export default function HerramientaSuperficie() {
   return (
     <div className="herr-separar">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="herr-separar-panel">
-        <div className="card">
-          <div className="card-title">1 · Modelo</div>
+        <TarjetaColapsable conservar titulo="1 · Modelo">
           <label className="drop-zone" style={{ padding: '14px', marginBottom: 0 }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); cargarArchivo(e.dataTransfer.files?.[0]); }}>
             <input type="file" accept=".stl,.obj,.3mf" onChange={(e) => { cargarArchivo(e.target.files?.[0]); e.target.value = ''; }} />
             <div style={{ fontSize: '13px', fontWeight: 500 }}>{modelo ? `📦 ${modelo.nombre}` : 'Elegí o soltá un STL, OBJ o 3MF'}</div>
+            <span className="btn btn-primary btn-sm" style={{ marginTop: '8px', pointerEvents: 'none' }}>📂 Elegir un modelo</span>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>El archivo no se sube: se procesa en tu computadora.</div>
           </label>
           {aviso && <div style={{ fontSize: '12px', color: 'var(--warn)', marginTop: '8px' }}>⚠ {aviso}</div>}
@@ -460,10 +461,9 @@ export default function HerramientaSuperficie() {
               </>
             );
           })()}
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">2 · Capas</div>
+        <TarjetaColapsable conservar titulo="2 · Capas">
           {capas.map((c, i) => (
             <div key={c.id} onClick={() => setActiva(i)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', marginBottom: '6px', border: i === activa ? '2px solid var(--accent)' : '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer', opacity: c.visible ? 1 : 0.55 }}>
               <input type="checkbox" checked={c.visible} title="Mostrar esta capa" style={{ width: 'auto' }} onClick={(e) => e.stopPropagation()} onChange={() => alternarVisible(i)} />
@@ -484,10 +484,9 @@ export default function HerramientaSuperficie() {
           <div style={{ fontSize: '10px', color: 'var(--text3)', marginTop: '6px' }}>
             Cada capa tiene su textura, su proyección, su tamaño y sus zonas. Se aplican de la 1 a la última: una capa que <strong>cubre</strong> reemplaza lo de abajo donde la pintás; una que <strong>suma</strong> le agrega su relieve. Las capas nuevas arrancan sin cubrir nada: pintá dónde van. Lo que ves abajo es de la capa marcada.
           </div>
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">3 · Textura {textoCapa}</div>
+        <TarjetaColapsable conservar titulo={`3 · Textura ${textoCapa}`}>
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
             {[{ id: 'todas', nombre: 'Todas' }, ...CATEGORIAS_TEXTURA].map((c) => (
               <button key={c.id} type="button" className={`btn btn-sm ${categoria === c.id ? 'btn-primary' : ''}`} onClick={() => setCategoria(c.id)}>{c.nombre}</button>
@@ -507,10 +506,9 @@ export default function HerramientaSuperficie() {
           <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
             {campo('suavizadoTextura', 'Suavizado de la textura', { min: 0, step: 0.5, ayuda: 'Desenfoca el relieve (0 = nada).' })}
           </div>
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">4 · Proyección y tamaño {textoCapa}</div>
+        <TarjetaColapsable conservar titulo={`4 · Proyección y tamaño ${textoCapa}`}>
           <label className="fl">Proyección</label>
           <select value={p.proyeccion} onChange={(e) => cambiar('proyeccion', e.target.value)}>
             {PROYECCIONES.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
@@ -554,10 +552,9 @@ export default function HerramientaSuperficie() {
             {campo('desfaseV', 'Desfase V (mm)', { min: -200, step: 0.5 })}
             {campo('rotacion', 'Rotación (°)', { min: -180, step: 5 })}
           </div>
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">5 · Relieve {textoCapa}</div>
+        <TarjetaColapsable conservar titulo={`5 · Relieve ${textoCapa}`}>
           <div style={{ display: 'flex', gap: '8px' }}>
             {campo('profundidad', 'Profundidad (mm)', { min: 0.02, step: 0.1, ayuda: 'Entre lo más hundido y lo más alto.' })}
           </div>
@@ -566,10 +563,9 @@ export default function HerramientaSuperficie() {
           {limpio.profundidad > 0.1 * dimMin && (
             <div style={{ fontSize: '11px', color: 'var(--warn)', marginTop: '6px' }}>⚠ Es más del 10% de la dimensión más chica del modelo: puede superponerse.</div>
           )}
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">6 · Dónde va la textura {textoCapa}</div>
+        <TarjetaColapsable conservar titulo={`6 · Dónde va la textura ${textoCapa}`}>
           <div style={{ display: 'flex', gap: '8px' }}>
             {campo('anguloInferior', 'Sin textura abajo (°)', { min: 0, step: 5, ayuda: 'Caras que miran hacia abajo dentro de este ángulo. Sirve para que la base apoye lisa.' })}
             {campo('anguloSuperior', 'Sin textura arriba (°)', { min: 0, step: 5, ayuda: 'Lo mismo para las que miran hacia arriba.' })}
@@ -598,10 +594,9 @@ export default function HerramientaSuperficie() {
             </div>
           </div>
           {sinZonas && <div style={{ fontSize: '11px', color: 'var(--warn)', marginTop: '6px' }}>⚠ En "solo incluir" esta capa no texturiza nada hasta que pintes alguna zona.</div>}
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">7 · Calidad</div>
+        <TarjetaColapsable conservar titulo="7 · Calidad">
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
             {campoG('resolucion', 'Resolución (mm)', { min: 0.1, step: 0.05, ayuda: 'Largo máximo de los lados en las zonas con textura: más chico, más detalle y más triángulos.' })}
             <button type="button" className="btn btn-sm" style={{ marginBottom: '2px' }} onClick={() => cambiarG('resolucion', sugerida)} title="Según el tamaño y el detalle de la textura de esta capa">Sugerir ({fmt(sugerida, 2)})</button>
@@ -618,10 +613,9 @@ export default function HerramientaSuperficie() {
             {casillaGeneral(g.protegerVoladizos, (v) => cambiarG('protegerVoladizos', v), 'Proteger voladizos', 'Ningún punto baja en Z: la textura no crea voladizos nuevos. Los movimientos en X e Y no cambian.')}
             {casillaGeneral(g.baseLisa, (v) => cambiarG('baseLisa', v), 'Base lisa', 'Lo que está a menos de 0,1 mm de la cama queda justo en el plano, para que apoye perfecto.')}
           </details>
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">8 · Exportar</div>
+        <TarjetaColapsable conservar titulo="8 · Exportar">
           {avisos.map((a) => <div key={a} style={{ fontSize: '12px', marginBottom: '6px', color: 'var(--text2)' }}>⚠ {a}</div>)}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             <button type="button" className="btn btn-primary" disabled={!modelo || !!ocupado} onClick={() => exportar('stl')}>Exportar STL</button>
@@ -633,7 +627,7 @@ export default function HerramientaSuperficie() {
           <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
             <button type="button" className="btn btn-sm" onClick={() => { setCapas([nuevaCapa(0, modelo ? modelo.malla.tri.length / 3 : 0)]); setActiva(0); setG(GLOBALES); setVersionSel((v) => v + 1); }}>Restablecer valores</button>
           </div>
-        </div>
+        </TarjetaColapsable>
       </div>
 
       <div className="herr-separar-visor">

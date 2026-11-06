@@ -12,6 +12,7 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 import { parcharMaterial } from '../../utils/shaderSuperficie';
 
 const COLOR_SELECCION = new THREE.Color('#ff7a00');
+const COLOR_LISO = '#c9ccc7';
 const DESPIECE_MM = 18;
 
 // Geometría sin índices (cada triángulo con sus propios vértices) para poder
@@ -64,14 +65,19 @@ function pintar(geometria, colorBase, seleccion) {
 // Visor 3D de las piezas. Es "tonto": dibuja lo que le pasan y avisa los
 // toques sobre la superficie (onTocar) con el cuerpo, el triángulo y el
 // punto; las herramientas deciden qué hacer con eso.
-//   cuerpos: [{ id, malla, color, visible, despiece: [x,y,z] | null }]
-export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSeleccion, despiece, marcadores, herramienta, radioPincel, onTocar, encuadre, mira = false, vista = 'iso' }) {
+//   cuerpos: [{ id, malla, color, visible, despiece: [x,y,z] | null, fantasma }]
+//   arrastre: { desde(cuerpoId) → bool, sobre: id del cuerpo sobre el que se desliza, alTerminar({ dAngulo, dAltura }) } para
+//   mover algo agarrándolo (el cartel del jarro): mientras se arrastra, los cuerpos que cumplen `desde` giran y suben o bajan
+//   en vivo; al soltar se avisa cuánto se movieron (grados alrededor del eje Z y mm de altura).
+//   modoVista: 'colores' (por defecto), 'liso', 'alambre' o 'transparente'. Un cuerpo "fantasma" (ej. la lata del jarro)
+//   se dibuja siempre translúcido y sin alambre.
+export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSeleccion, despiece, marcadores, herramienta, radioPincel, onTocar, encuadre, mira = false, vista = 'iso', modoVista = 'colores', arrastre = null, alListo = null }) {
   const contenedor = useRef(null);
   const estado = useRef(null);
   const props = useRef({});
   // Los manejadores del mouse se instalan una sola vez y leen de acá lo último.
   useEffect(() => {
-    props.current = { herramienta, onTocar, activoId, radioPincel };
+    props.current = { herramienta, onTocar, activoId, radioPincel, arrastre, alListo };
   });
 
   // Escena, cámara y controles: una sola vez.
@@ -117,6 +123,13 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
     observador.observe(el);
     ajustar();
 
+    // Foto del modelo tal como se ve: se la entrega a quien la pida (alListo) como una función.
+    props.current.alListo?.(() => {
+      controles.update();
+      renderer.render(escena, camara);
+      return renderer.domElement.toDataURL('image/jpeg', 0.9);
+    });
+
     let animando = true;
     const ciclo = () => {
       if (!animando) return;
@@ -141,6 +154,64 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
       const p = hit.point.clone().sub(hit.object.position);
       return { cuerpoId: hit.object.userData.id, triangulo, punto: [p.x, p.y, p.z], normal: hit.face.normal, puntoMundo: hit.point };
     };
+    // ---- Arrastrar algo sobre un cuerpo (el cartel sobre el jarro) ----
+    let arrastrando = null; // { th0, z0, dTh, dZ, base: Map(malla → { z, r }) } (de dónde parte cada malla en este arrastre)
+    const golpeSobre = (ev, id) => {
+      const r = renderer.domElement.getBoundingClientRect();
+      const ndc = new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camara);
+      const hit = raycaster.intersectObjects(grupo.children.filter((m) => m.visible && m.userData.id === id), false)[0];
+      return hit ? hit.point : null;
+    };
+    const giroEntre = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+    // En fase de captura, para frenar los controles de la cámara antes de que reaccionen al mismo clic.
+    const abajoArrastre = (ev) => {
+      const a = props.current.arrastre;
+      if (!a || ev.button !== 0) return;
+      const t = tocar(ev);
+      if (!t || !a.desde(t.cuerpoId)) return;
+      const base = golpeSobre(ev, a.sobre);
+      if (!base) return;
+      controles.enabled = false;
+      renderer.domElement.setPointerCapture?.(ev.pointerId);
+      renderer.domElement.style.cursor = 'grabbing';
+      arrastrando = {
+        th0: Math.atan2(base.y, base.x), z0: base.z, dTh: 0, dZ: 0, base: new Map()
+      };
+    };
+    const moverArrastre = (ev) => {
+      const a = props.current.arrastre;
+      const p = a && golpeSobre(ev, a.sobre);
+      if (!p) return;
+      arrastrando.dTh = giroEntre(arrastrando.th0, Math.atan2(p.y, p.x));
+      arrastrando.dZ = p.z - arrastrando.z0;
+      // El movimiento se SUMA a lo que cada malla ya traiga (un arrastre anterior que todavía se está rearmando), y si
+      // las mallas se reemplazan a mitad del arrastre (llegó el jarro rearmado), las nuevas arrancan de su posición.
+      for (const m of grupo.children) {
+        if (!a.desde(m.userData.id)) continue;
+        if (!arrastrando.base.has(m)) arrastrando.base.set(m, { z: m.position.z, r: m.rotation.z });
+        const b = arrastrando.base.get(m);
+        m.rotation.z = b.r + arrastrando.dTh;
+        m.position.z = b.z + arrastrando.dZ;
+      }
+    };
+    const terminarArrastre = (ev) => {
+      const { dTh, dZ } = arrastrando;
+      arrastrando = null;
+      controles.enabled = true;
+      renderer.domElement.releasePointerCapture?.(ev.pointerId);
+      renderer.domElement.style.cursor = '';
+      // Sólo si se movió de verdad: un simple clic no cambia nada.
+      if (Math.abs(dTh) > 1e-3 || Math.abs(dZ) > 0.05) props.current.arrastre?.alTerminar({ dAngulo: (dTh * 180) / Math.PI, dAltura: dZ });
+    };
+    // Con el puntero encima de algo que se puede agarrar, la mano.
+    const manoSobreArrastrable = (ev) => {
+      const a = props.current.arrastre;
+      if (!a) { if (renderer.domElement.style.cursor) renderer.domElement.style.cursor = ''; return; }
+      const t = tocar(ev);
+      renderer.domElement.style.cursor = t && a.desde(t.cuerpoId) ? 'grab' : '';
+    };
+
     let pintando = false;
     let inicio = null;
     const usaPincel = () => ['pincel', 'borrar'].includes(props.current.herramienta);
@@ -165,11 +236,14 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
       }
     };
     const mover = (ev) => {
+      if (arrastrando) { moverArrastre(ev); return; }
+      manoSobreArrastrable(ev);
       const t = usaPincel() ? tocar(ev) : null;
       moverCursor(t);
       if (pintando && t && t.cuerpoId === props.current.activoId) props.current.onTocar?.({ ...t, tipo: 'pintar', ev });
     };
     const arriba = (ev) => {
+      if (arrastrando) { terminarArrastre(ev); return; }
       if (pintando) {
         pintando = false;
         controles.enabled = true;
@@ -184,6 +258,7 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
       inicio = null;
     };
     const dom = renderer.domElement;
+    dom.addEventListener('pointerdown', abajoArrastre, { capture: true });
     dom.addEventListener('pointerdown', abajo);
     dom.addEventListener('pointermove', mover);
     dom.addEventListener('pointerup', arriba);
@@ -192,6 +267,7 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
     estado.current = { escena, camara, controles, grupo, grupoMarcas, mallas: new Map(), renderer };
     return () => {
       animando = false;
+      props.current.alListo?.(null);
       observador.disconnect();
       for (const m of estado.current.mallas.values()) { m.geometry.disposeBoundsTree(); m.geometry.dispose(); m.material.dispose(); }
       controles.dispose();
@@ -231,10 +307,18 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
         s.grupo.add(m);
       }
       m.visible = c.visible !== false;
+      m.rotation.z = 0; // el movimiento en vivo de un arrastre se reemplaza por la malla nueva
       const d = despiece && c.despiece ? c.despiece : [0, 0, 0];
       m.position.set(d[0] * DESPIECE_MM, d[1] * DESPIECE_MM, d[2] * DESPIECE_MM);
       if (c.gpu) m.material.color.set(c.color);
-      else pintar(m.geometry, c.color, c.id === activoId ? seleccion : null);
+      else pintar(m.geometry, modoVista === 'liso' && !c.fantasma ? COLOR_LISO : c.color, c.id === activoId ? seleccion : null);
+      // Modo de vista: alambre y transparencia (la lata fantasma siempre es translúcida).
+      const translucido = !!c.fantasma || modoVista === 'transparente';
+      const mat = m.material;
+      if (mat.transparent !== translucido) { mat.transparent = translucido; mat.needsUpdate = true; }
+      mat.opacity = c.fantasma ? 0.28 : translucido ? 0.4 : 1;
+      mat.depthWrite = !translucido;
+      mat.wireframe = modoVista === 'alambre' && !c.fantasma;
     }
     for (const [id, m] of s.mallas) {
       if (vivos.has(id)) continue;
@@ -246,7 +330,7 @@ export default function VisorPiezas({ cuerpos, activoId, seleccion, versionSelec
     }
   // versionSeleccion: el pincel cambia la selección en el lugar (sin copiarla
   // en cada movimiento del mouse) y avisa con este contador.
-  }, [cuerpos, activoId, seleccion, versionSeleccion, despiece]);
+  }, [cuerpos, activoId, seleccion, versionSeleccion, despiece, modoVista]);
 
   // Puntos con problemas, en rojo.
   useEffect(() => {

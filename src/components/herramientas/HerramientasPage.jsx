@@ -4,6 +4,7 @@ import LlaverosPage from './LlaverosPage';
 import ToppersPage from './ToppersPage';
 import ImagenLlaveroPage from './ImagenLlaveroPage';
 import SuperficiePage from './SuperficiePage';
+import JarrosPage from './JarrosPage';
 
 // Cada herramienta nueva se suma acá: una pestaña por herramienta.
 const HERRAMIENTAS = [
@@ -12,6 +13,7 @@ const HERRAMIENTAS = [
   { id: 'toppers', nombre: 'Toppers de nombres para lápices', Componente: ToppersPage },
   { id: 'imagen', nombre: 'Imagen a llavero', Componente: ImagenLlaveroPage },
   { id: 'superficie', nombre: 'Modificador de superficies', Componente: SuperficiePage },
+  { id: 'jarros', nombre: 'Jarros porta-lata', Componente: JarrosPage },
 ];
 
 const CLAVE_PESTANA = 'herramientas.pestana';

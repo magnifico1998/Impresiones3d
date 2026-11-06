@@ -7,6 +7,8 @@ import { descargar, nombreArchivo } from '../../utils/descargas';
 import VisorPiezas from './VisorPiezas';
 import { cargarFuente, parsearFuente, FUENTES } from '../../utils/fuentesLlaveros';
 import { stlBinario, crear3mf } from '../../utils/mallas3d';
+import TarjetaColapsable from '../TarjetaColapsable';
+import BotonArchivo from '../BotonArchivo';
 import {
   armarConjunto, sanearParametros, infoPausa, coloresIniciales, estiloSigueLetras, entraEnCama, unirMallas, PARAMETROS_INICIALES,
   IMPRESORAS, ESTILOS_BORDE, FORMAS_LAPIZ, TIPOS_LAPIZ, TOPES_LAPIZ, FORMAS_AGUJERO_LAPIZ, ALTURAS_CAPA
@@ -174,8 +176,7 @@ export default function HerramientaLlaveros({ modo = 'llavero' }) {
   return (
     <div className="herr-separar">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="herr-separar-panel">
-        <div className="card">
-          <div className="card-title">{titulo('Estilo y medidas')}</div>
+        <TarjetaColapsable conservar titulo={titulo('Estilo y medidas')}>
           {(
             <>
               <label className="fl">{esLapiz ? 'Forma' : 'Borde'}</label>
@@ -219,11 +220,10 @@ export default function HerramientaLlaveros({ modo = 'llavero' }) {
               {ALTURAS_CAPA.map((c) => <option key={c} value={c}>{fmt(c, 2)} mm</option>)}
             </select>
           </details>
-        </div>
+        </TarjetaColapsable>
 
         {esLapiz && (
-          <div className="card">
-            <div className="card-title">{titulo('Lápiz')}</div>
+          <TarjetaColapsable conservar titulo={titulo('Lápiz')}>
         <label className="fl">Tipo de lápiz</label>
         <select value={TIPOS_LAPIZ.find((t) => t.diametro === p.diametroLapiz)?.id || 'otro'}
           onChange={(e) => { const t = TIPOS_LAPIZ.find((x) => x.id === e.target.value); if (t) setP((a) => ({ ...a, tipoLapiz: t.id, diametroLapiz: t.diametro })); }}>
@@ -242,11 +242,10 @@ export default function HerramientaLlaveros({ modo = 'llavero' }) {
         <select value={p.formaAgujero} onChange={(e) => cambiar('formaAgujero', e.target.value)}>
           {FORMAS_AGUJERO_LAPIZ.map((t) => <option key={t.id} value={t.id}>{t.nombre}{t.id === 'techo' ? ' (sin soportes)' : ''}</option>)}
         </select>
-          </div>
+          </TarjetaColapsable>
         )}
 
-        <div className="card">
-          <div className="card-title">{titulo('Nombres')}</div>
+        <TarjetaColapsable conservar titulo={titulo('Nombres')}>
           {p.nombres.map((n, i) => (
             <div key={i} style={{ marginBottom: '6px' }}>
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -282,21 +281,19 @@ export default function HerramientaLlaveros({ modo = 'llavero' }) {
               {campo('separacion', 'Separación (mm)', { min: 0, step: 0.5 })}
             </div>
           )}
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">{titulo('Tipografía')}</div>
+        <TarjetaColapsable conservar titulo={titulo('Tipografía')}>
           <select value={fuentePropia ? 'propia' : fuenteId} onChange={(e) => { if (e.target.value !== 'propia') { setFuentePropia(null); setFuenteId(e.target.value); } }}>
             {FUENTES.map((f) => <option key={f.id} value={f.id}>{f.nombre}</option>)}
             {fuentePropia && <option value="propia">{fuentePropia.nombre}</option>}
           </select>
           <label className="fl">Usar una tipografía tuya</label>
-          <input type="file" accept=".ttf,.otf,.woff" onChange={(e) => { cargarPropia(e.target.files?.[0]); e.target.value = ''; }} />
+          <BotonArchivo accept=".ttf,.otf,.woff" etiqueta="📂 Elegir una tipografía (.ttf, .otf)" alElegir={cargarPropia} />
           <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>El archivo no se sube: se lee en tu computadora.</div>
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">{titulo('Colores')}</div>
+        <TarjetaColapsable conservar titulo={titulo('Colores')}>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {!lapizUnidas && colorInput('fondo', 'Fondo')}
             {colorInput('letras', lapizUnidas ? 'Color' : pausa && p.estilo === 'marco' ? 'Letras y marco' : 'Letras')}
@@ -310,10 +307,9 @@ export default function HerramientaLlaveros({ modo = 'llavero' }) {
           )}
           {colorPorNombre && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>Elegí los colores de cada nombre debajo de su casilla, en el paso de los nombres. Cada color extra es un cambio de filamento más.</div>}
           {unColor && <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '8px' }}>Con un solo color, estos colores son sólo para la vista previa.</div>}
-        </div>
+        </TarjetaColapsable>
 
-        <div className="card">
-          <div className="card-title">{titulo('Exportar')}</div>
+        <TarjetaColapsable conservar titulo={titulo('Exportar')}>
           <label className="fl">Tu impresora</label>
           <select value={p.impresora} onChange={(e) => cambiar('impresora', e.target.value)}>
             {IMPRESORAS.map((i) => <option key={i.id} value={i.id}>{i.nombre}</option>)}
@@ -343,7 +339,7 @@ export default function HerramientaLlaveros({ modo = 'llavero' }) {
             <button type="button" className="btn btn-sm" disabled={!historial.length} onClick={deshacer}>↩ Deshacer</button>
             <button type="button" className="btn btn-sm" onClick={empezarDeNuevo}>Empezar de nuevo</button>
           </div>
-        </div>
+        </TarjetaColapsable>
       </div>
 
       <div className="herr-separar-visor">

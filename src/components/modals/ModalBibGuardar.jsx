@@ -21,6 +21,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   const [subsubcat, setSubsubcat] = useState('');
   const [imagenes, setImagenes] = useState([]);
   const [guardarGcode, setGuardarGcode] = useState(true);
+  const [usarFoto, setUsarFoto] = useState(true); // la foto del modelo que trae el generador de jarros
   const dragIndex = useRef(null);
   const [overIndex, setOverIndex] = useState(null);
 
@@ -48,6 +49,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
       setSubsubcat('');
       setImagenes([]);
       setGuardarGcode(true);
+      setUsarFoto(true);
     }
   }, [isOpen, presupuestoActual]);
 
@@ -146,6 +148,24 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
   };
 
 
+  // La foto del modelo (de una herramienta de modelado) se sube recién al guardar y queda de imagen principal.
+  const imagenesElegidas = imagenes;
+  const agregarFoto = async (lista) => {
+    const foto = presupuestoActual.fotoInicial;
+    if (!usarFoto || !foto) return lista;
+    try {
+      const blob = await (await fetch(foto)).blob();
+      const archivo = new File([blob], 'modelo.jpg', { type: blob.type || 'image/jpeg' });
+      const { dataUrl } = await comprimirImagen(archivo, { maxWidth: 640, maxHeight: 640, maxBytes: 90 * 1024 });
+      const url = await subirImagenAFirebase(dataUrl, { userId: cuentaId, fileName: archivo.name });
+      return [url, ...lista].slice(0, MAX_IMAGENES);
+    } catch (err) {
+      console.error('No se pudo subir la foto del modelo:', err);
+      showToast('No se pudo subir la foto del modelo: el producto se guarda sin ella.', 'error');
+      return lista;
+    }
+  };
+
   const handleSave = async () => {
     const nameTrimmed = nombre.trim();
     if (!nameTrimmed) {
@@ -154,6 +174,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
     }
 
     const p = presupuestoActual;
+    const imagenes = await agregarFoto(imagenesElegidas);
 
     const snap = {
       id: getNewId(),
@@ -335,6 +356,13 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
         </datalist>
 
         <label className="fl">Imágenes del producto (la primera es la principal; con varias, arrastralas para reordenar)</label>
+        {presupuestoActual.fotoInicial && (
+          <label style={{ display: 'flex', gap: '10px', alignItems: 'center', margin: '8px 0', fontSize: '12px' }}>
+            <input type="checkbox" checked={usarFoto} onChange={(e) => setUsarFoto(e.target.checked)} />
+            <img src={presupuestoActual.fotoInicial} alt="Foto del modelo" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '6px' }} />
+            <span>Usar esta foto del modelo como imagen principal</span>
+          </label>
+        )}
         <BotonSubirImagenes alElegir={handleImageChange} deshabilitado={subiendoImagen} cantidad={imagenes.length} maximo={MAX_IMAGENES} />
         {subiendoImagen && (
           <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text2)', fontFamily: 'var(--mono)' }}>
@@ -429,7 +457,7 @@ export default function ModalBibGuardar({ isOpen, onClose, presupuestoActual, on
               <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', cursor: 'pointer' }}>
                 <input type="checkbox" checked={guardarGcode} onChange={(e) => setGuardarGcode(e.target.checked)} style={{ marginTop: '3px' }} />
                 <span>
-                  Guardar también {archivosCalc.length === 1 ? 'el archivo' : `los ${archivosCalc.length} archivos`} G-code ({archivosCalc.map((f) => f.name).join(', ')}, {formatoBytes(archivosCalc.reduce((s, f) => s + f.size, 0))})
+                  Guardar también {presupuestoActual.esModelo ? 'el modelo 3MF (sin laminar: se abre en tu laminador)' : archivosCalc.length === 1 ? 'el archivo' : `los ${archivosCalc.length} archivos`}{presupuestoActual.esModelo ? '' : ' G-code'} ({archivosCalc.map((f) => f.name).join(', ')}, {formatoBytes(archivosCalc.reduce((s, f) => s + f.size, 0))})
                   <span style={{ display: 'block', fontSize: '11px', color: 'var(--text3)' }}>Se guarda comprimido al máximo y lo bajás tal cual desde 📄 en el producto.</span>
                 </span>
               </label>

@@ -446,7 +446,26 @@ export function crear3mf(cuerpos, { ensamblado = true } = {}) {
     objetos.push(`<object id="${idEnsamble}" name="Modelo separado" type="model"><components>${cuerpos.map((_, i) => `<component objectid="${i + 2}" />`).join('')}</components></object>`);
     build = `<item objectid="${idEnsamble}" />`;
   } else {
-    build = cuerpos.map((c, i) => `<item objectid="${i + 2}"${c.transformacion ? ` transform="${matriz3mf(c.transformacion)}"` : ''} />`).join('');
+    // Los cuerpos que comparten `grupo` van juntos como partes (cada una con su color) de un mismo objeto; los demás,
+    // cada uno como objeto suelto.
+    const miembrosDe = new Map();
+    cuerpos.forEach((c, i) => { if (c.grupo) miembrosDe.set(c.grupo, [...(miembrosDe.get(c.grupo) || []), i]); });
+    let siguienteId = cuerpos.length + 2;
+    const hechos = new Set();
+    const items = [];
+    cuerpos.forEach((c, i) => {
+      const miembros = c.grupo ? miembrosDe.get(c.grupo) : null;
+      if (miembros && miembros.length > 1) {
+        if (hechos.has(c.grupo)) return;
+        hechos.add(c.grupo);
+        const id = siguienteId++;
+        objetos.push(`<object id="${id}" name="${escaparXml(c.grupoNombre || c.grupo)}" type="model"><components>${miembros.map((k) => `<component objectid="${k + 2}" />`).join('')}</components></object>`);
+        items.push(`<item objectid="${id}" />`);
+      } else {
+        items.push(`<item objectid="${i + 2}"${c.transformacion ? ` transform="${matriz3mf(c.transformacion)}"` : ''} />`);
+      }
+    });
+    build = items.join('');
   }
   const modelo = `<?xml version="1.0" encoding="UTF-8"?>
 <model unit="millimeter" xml:lang="es-AR" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><metadata name="Application">Manager3D</metadata><resources><basematerials id="1">${colores}</basematerials>${objetos.join('')}</resources><build>${build}</build></model>`;

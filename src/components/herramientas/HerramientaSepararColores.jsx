@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { zipSync } from 'fflate';
 import { useConfig, useUi } from '../../context/contextos';
 import VisorPiezas from './VisorPiezas';
+import TarjetaColapsable from '../TarjetaColapsable';
 import {
   leerStl, leer3mf, resoldar, revisarCerrada, volumenMalla, cajaMalla, transformarMalla,
   matrizRotacion, matrizAlinear, partesSueltas, afinarMalla, stlBinario, crear3mf
@@ -362,13 +363,13 @@ export default function HerramientaSepararColores() {
   return (
     <div className="herr-separar">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }} className="herr-separar-panel">
-        <div className="card">
-          <div className="card-title">1 · Modelo</div>
+        <TarjetaColapsable conservar titulo="1 · Modelo">
           <label className="drop-zone" style={{ padding: '14px', marginBottom: 0 }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { e.preventDefault(); cargarArchivo(e.dataTransfer.files?.[0]); }}>
             <input type="file" accept=".stl,.3mf" onChange={(e) => { cargarArchivo(e.target.files?.[0]); e.target.value = ''; }} />
             <div style={{ fontSize: '13px', fontWeight: 500 }}>{nombreModelo ? `📦 ${nombreModelo}` : 'Elegí o soltá un STL o 3MF'}</div>
+            <span className="btn btn-primary btn-sm" style={{ marginTop: '8px', pointerEvents: 'none' }}>📂 Elegir un modelo</span>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>El archivo no se sube: se procesa en tu computadora.</div>
           </label>
           {avisoModelo && <div style={{ fontSize: '12px', color: 'var(--warn)', marginTop: '8px' }}>⚠ {avisoModelo}</div>}
@@ -385,12 +386,11 @@ export default function HerramientaSepararColores() {
               </div>
             </>
           )}
-        </div>
+        </TarjetaColapsable>
 
         {cuerpos.length > 0 && (
           <>
-            <div className="card">
-              <div className="card-title">2 · Orientación</div>
+            <TarjetaColapsable conservar titulo="2 · Orientación">
               <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '8px' }}>Dejá la base del modelo apoyada en la cama.</div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 <button type="button" className="btn btn-sm" onClick={() => rotar('x')} disabled={!!vistaPrevia}>↻ X 90°</button>
@@ -398,10 +398,9 @@ export default function HerramientaSepararColores() {
                 <button type="button" className="btn btn-sm" onClick={() => rotar('z')} disabled={!!vistaPrevia}>↻ Z 90°</button>
                 {botonHerramienta('apoyo', 'Elegir cara de apoyo', 'Hacé clic en la cara que va contra la cama')}
               </div>
-            </div>
+            </TarjetaColapsable>
 
-            <div className="card">
-              <div className="card-title">3 · Marcar la zona de otro color</div>
+            <TarjetaColapsable conservar titulo="3 · Marcar la zona de otro color">
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 {botonHerramienta('varita', '🪄 Varita', 'Clic: marca una zona entera siguiendo las formas. Ctrl+clic suma otra; Alt+clic la saca.')}
                 {botonHerramienta('pincel', '🖌 Pincel', 'Arrastrá sobre el modelo para sumar a la zona')}
@@ -430,10 +429,9 @@ export default function HerramientaSepararColores() {
                 <button type="button" className="btn btn-sm btn-ghost" onClick={limpiar} disabled={!cantidadSel || !!vistaPrevia}>Limpiar</button>
                 <span style={{ fontSize: '12px', color: 'var(--text3)', marginLeft: 'auto' }}>{fmt(cantidadSel, 0)} triángulos</span>
               </div>
-            </div>
+            </TarjetaColapsable>
 
-            <div className="card">
-              <div className="card-title">4 · Cierre y encastre</div>
+            <TarjetaColapsable conservar titulo="4 · Cierre y encastre">
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
                 <button type="button" className={`btn btn-sm ${cierre === 'plano' ? 'btn-primary' : ''}`} onClick={() => setCierre('plano')} disabled={!!vistaPrevia}>Cierre plano</button>
                 <button type="button" className={`btn btn-sm ${cierre === 'curvo' ? 'btn-primary' : ''}`} onClick={() => setCierre('curvo')} disabled={!!vistaPrevia}>Cierre curvo</button>
@@ -504,7 +502,7 @@ export default function HerramientaSepararColores() {
                   </div>
                 </div>
               )}
-            </div>
+            </TarjetaColapsable>
 
             <div className="card">
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
@@ -533,8 +531,7 @@ export default function HerramientaSepararColores() {
               ))}
             </div>
 
-            <div className="card">
-              <div className="card-title">6 · Exportar</div>
+            <TarjetaColapsable conservar titulo="6 · Exportar">
               <label className="fl">Posición de las piezas</label>
               <select value={posicionExport} onChange={(e) => setPosicionExport(e.target.value)}>
                 <option value="original">Original: se arman solas en el slicer (AMS)</option>
@@ -547,7 +544,7 @@ export default function HerramientaSepararColores() {
               <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '8px' }}>
                 En Bambu Studio u Orca, el 3MF en posición original se abre como un solo objeto con una parte por color: asignale el filamento a cada parte.
               </div>
-            </div>
+            </TarjetaColapsable>
           </>
         )}
       </div>
