@@ -7,6 +7,16 @@
 
 export const NOVEDADES = [
   {
+    version: 20,
+    fecha: '2026-11-06',
+    items: [
+      { texto: 'Nueva herramienta "Jarros porta-lata" (en Herramientas): diseñá un jarro para tu lata (elegís la medida o escribís el diámetro y el alto del hueco) con silueta editable, asa de curva libre (pegada o desmontable con encastre), cartel con el nombre (varios renglones, que se arrastra sobre el jarro y se puede repetir), emblemas con símbolos, tu propio SVG o uno dibujado con simetrías, aros con remaches, texturas del cuerpo (duelas de madera y las del modificador de superficies) y complementos del asa (envoltura, collarines, descanso del pulgar, símbolo y placas). Las piezas que no dan la vuelta entera salen desmontables para imprimirlas por separado, y exportás 3MF a color, proyecto de Bambu Studio A1, STL, ZIP por piezas o una placa de impresión.' },
+      { texto: 'Estilos listos (Cervecero, Vikingo, Navideño y más), diseños de jarro guardados en tu cuenta o compartidos como archivo, y biblioteca de símbolos propios.' },
+      { texto: 'En el jarro, la vista previa de impresión estima el material por color, el tiempo y el costo con los valores de tu Configuración, y "Guardar en la Biblioteca" crea el producto con esos costos, la foto del modelo y el 3MF.' },
+      { texto: 'En todas las herramientas las opciones son tarjetas plegables que arrancan cerradas, así la pantalla no se hace tan larga, y elegir archivos ahora es un botón bien visible.' }
+    ]
+  },
+  {
     version: 19,
     fecha: '2026-10-27',
     items: [

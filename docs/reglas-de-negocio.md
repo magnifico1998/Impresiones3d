@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-10-27 (herramienta "Separar por colores" y campo `herramientasStl` de los planes).
+Última revisión: 2026-11-06 (herramienta "Jarros porta-lata": colecciones `simbolos` y `disenosJarro`, estilos, texturas, costos y guardado en la Biblioteca).
 
 ---
 
