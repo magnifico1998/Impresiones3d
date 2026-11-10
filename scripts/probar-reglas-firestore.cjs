@@ -32,6 +32,12 @@ const mail = (uid) => `${uid}@gmail.com`.toLowerCase();
   const trae = (ruta, data) => ({ function: 'get', args: [doc(ruta)], result: { value: { data } } });
   // Suscripción de la cuenta UID con el estado dado (y sin límites de plan: cicloId/planId nulos).
   const suscripcion = (estado, extra = {}) => [existe(`users/${UID}/suscripcion/actual`, true), trae(`users/${UID}/suscripcion/actual`, { estado, cicloId: null, planId: null, ...extra })];
+  // Cuenta activa con un plan que topea el monto facturado en 500.000 y ese monto ya acumulado en el ciclo.
+  const conMontoDelCiclo = (monto) => [
+    ...suscripcion('activa', { cicloId: 'c1', planId: 'boceto' }),
+    existe('planes/boceto', true), trae('planes/boceto', { limites: { montoFacturadoMes: 500000 } }),
+    existe(`users/${UID}/suscripcion/actual/contadores/c1`, true), trae(`users/${UID}/suscripcion/actual/contadores/c1`, { montoFacturado: monto })
+  ];
   const sinInvitacion = (email) => existe(`invitacionesMiembro/${email}`, false);
   const esAdmin = (email, valor) => existe(`admins/${email}`, valor);
 
@@ -61,6 +67,13 @@ const mail = (uid) => `${uid}@gmail.com`.toLowerCase();
     caso('sin login NO lee un pedido', 'DENY', 'get', `users/${UID}/pedidos/1`, null, { mocks: suscripcion('trial') }),
     caso('modo lectura: puede leer', 'ALLOW', 'get', `users/${UID}/pedidos/1`, dueno, { mocks: suscripcion('lectura') }),
     caso('modo lectura: NO puede actualizar', 'DENY', 'update', `users/${UID}/pedidos/1`, dueno, { datos: { cliente: 'x' }, existente: { cliente: 'y' }, mocks: suscripcion('lectura') }),
+    // --- Tope de monto facturado: tampoco se puede subir el monto de un pedido existente ---
+    caso('tope de monto alcanzado: NO puede subir el precio de un pedido', 'DENY', 'update', `users/${UID}/pedidos/1`, dueno, { datos: { precioVenta: 20000 }, existente: { precioVenta: 0 }, mocks: conMontoDelCiclo(600000) }),
+    caso('tope de monto alcanzado: NO puede achicar el descuento (sube el neto)', 'DENY', 'update', `users/${UID}/pedidos/1`, dueno, { datos: { precioVenta: 10000, descuentoPct: 10 }, existente: { precioVenta: 10000, descuentoPct: 50 }, mocks: conMontoDelCiclo(600000) }),
+    caso('tope de monto alcanzado: SÍ puede bajar el precio', 'ALLOW', 'update', `users/${UID}/pedidos/1`, dueno, { datos: { precioVenta: 5000 }, existente: { precioVenta: 10000 }, mocks: conMontoDelCiclo(600000) }),
+    caso('tope de monto alcanzado: SÍ puede completar y cobrar (el monto no cambia)', 'ALLOW', 'update', `users/${UID}/pedidos/1`, dueno, { datos: { precioVenta: 10000, estado: 'completado', montoAbonado: 10000 }, existente: { precioVenta: 10000, estado: 'listo' }, mocks: conMontoDelCiclo(600000) }),
+    caso('tope de monto alcanzado: SÍ puede unir pedidos', 'ALLOW', 'update', `users/${UID}/pedidos/1`, dueno, { datos: { precioVenta: 30000, unidos: [2] }, existente: { precioVenta: 10000 }, mocks: conMontoDelCiclo(600000) }),
+    caso('por debajo del tope: SÍ puede subir el precio', 'ALLOW', 'update', `users/${UID}/pedidos/1`, dueno, { datos: { precioVenta: 20000 }, existente: { precioVenta: 0 }, mocks: conMontoDelCiclo(100000) }),
     caso('dueño activo: guarda un diseño de jarro con miniatura', 'ALLOW', 'create', `users/${UID}/disenosJarro/1`, dueno, { datos: { nombre: 'Vikingo', datos: '{}', miniatura: 'data:image/jpeg;base64,xx', creadoPor: null, creadoEl: ahora }, mocks: suscripcion('activa') }),
     caso('diseño de jarro sin miniatura (null): SÍ', 'ALLOW', 'create', `users/${UID}/disenosJarro/1`, dueno, { datos: { nombre: 'Vikingo', datos: '{}', miniatura: null }, mocks: suscripcion('activa') }),
     caso('diseño de jarro sin el campo miniatura: NO', 'DENY', 'create', `users/${UID}/disenosJarro/1`, dueno, { datos: { nombre: 'Vikingo', datos: '{}' }, mocks: suscripcion('activa') }),

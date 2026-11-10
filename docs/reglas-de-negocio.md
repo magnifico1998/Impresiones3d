@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-11-06 (herramienta "Jarros porta-lata": colecciones `simbolos` y `disenosJarro`, estilos, texturas, costos y guardado en la Biblioteca).
+Última revisión: 2026-11-10 (tope de monto facturado: tampoco se puede subir el monto de un pedido existente).
 
 ---
 
@@ -102,7 +102,7 @@ para contratar), `gratuito`, `facturacionElectronica`, `herramientasStl`
 | Límite | Qué controla | Qué pasa al llegar | Dónde se hace cumplir |
 |---|---|---|---|
 | `pedidosMes` | Pedidos nuevos por ciclo | No puede crear pedidos nuevos | `firestore.rules` (`dentroDelLimiteDePedidos`) |
-| `montoFacturadoMes` | Monto facturado en pedidos por ciclo | No puede crear pedidos nuevos; los existentes se pueden seguir editando y completando | `firestore.rules` (`dentroDelLimiteDeMonto`) |
+| `montoFacturadoMes` | Monto facturado en pedidos por ciclo | No puede crear pedidos nuevos **ni subir el monto de los existentes** (precio o menos descuento); sí puede bajarlo, completarlos, cobrarlos y unirlos | `firestore.rules` (`dentroDelLimiteDeMonto`, `editaSinSubirElMonto`) y el aviso en `src/context/accionesDatos.js` |
 | `aperturasCatalogoMes` | Aperturas del catálogo web por ciclo | El catálogo **se sigue viendo, pero no acepta pedidos** (la apertura que llega justo al límite todavía puede pedir) | `firestore.rules` (`dentroDelLimiteDeAperturas`) y `functions/http/registrarAperturaCatalogo.js` |
 | `productosBiblioteca` | Productos guardados en total (no por mes) | No puede guardar productos nuevos | `firestore.rules` (`dentroDelLimiteDeBiblioteca`) |
 | `usuarios` | Personas con acceso a la cuenta, contando al dueño | No puede invitar a nadie más | `functions/http/gestionarMiembros.js` |

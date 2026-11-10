@@ -1,6 +1,7 @@
 import { doc, setDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { camposCambiados, hayCambios, proyeccionCatalogoProducto, refCatalogoProducto } from './documentos';
+import { precioNeto } from '../utils/precioNeto';
 
 // Altas, cambios y bajas de cada colección de la cuenta (compras, presupuestos,
 // clientes, biblioteca, FAQ, pedidos). Son funciones comunes, sin estado propio:
@@ -343,9 +344,20 @@ export function crearAccionesDatos(ctx) {
       return `Llegaste al límite de ${limites.pedidosMes} pedidos por mes de tu plan. Vas a poder crear pedidos nuevos cuando empiece el próximo ciclo, o antes si pasás a un plan superior.`;
     }
     if (limites.montoFacturadoMes != null && (consumoActual.montoFacturado || 0) >= limites.montoFacturadoMes) {
-      return 'Llegaste al monto facturado por mes de tu plan. Vas a poder crear pedidos nuevos cuando empiece el próximo ciclo, o antes si pasás a un plan superior. Los pedidos que ya tenés se pueden seguir editando.';
+      return 'Llegaste al monto facturado por mes de tu plan. Vas a poder crear pedidos nuevos cuando empiece el próximo ciclo, o antes si pasás a un plan superior. Los pedidos que ya tenés se pueden seguir editando, pero sin subirles el monto.';
     }
     return null;
+  };
+
+  // Editar un pedido que ya existe tampoco puede subir el monto del ciclo una vez alcanzado el tope de monto
+  // facturado (lo hace cumplir firestore.rules: editaSinSubirElMonto). Se avisa acá con un mensaje claro en
+  // vez del error genérico. Unir pedidos mueve plata de uno a otro sin sumar nada: pasa.
+  const motivoLimiteMontoAlEditar = (actual, nuevo) => {
+    const tope = planContratado?.limites?.montoFacturadoMes;
+    if (tope == null || !consumoActual || (consumoActual.montoFacturado || 0) < tope) return null;
+    if (precioNeto(nuevo) <= precioNeto(actual)) return null;
+    if ((nuevo.unidos || []).length > (actual.unidos || []).length) return null;
+    return 'Llegaste al monto facturado por mes de tu plan: no se puede subir el precio de un pedido hasta que empiece el próximo ciclo, o antes si pasás a un plan superior. Sí podés bajarlo, completarlo y cobrarlo.';
   };
 
   // Devuelve true si el pedido se guardó (lo usa la aprobación de un
@@ -371,6 +383,11 @@ export function crearAccionesDatos(ctx) {
       const actual = pedidos.find(p => p.id === id);
       if (!actual) return;
       const nuevo = typeof updater === 'function' ? updater(actual) : { ...actual, ...updater };
+      const motivo = motivoLimiteMontoAlEditar(actual, nuevo);
+      if (motivo) {
+        showToast(`⚠ ${motivo}`, 'error', 8000);
+        return;
+      }
       const cambios = camposCambiados(actual, nuevo);
       if (hayCambios(cambios)) await updateDoc(pedidoDocRef(id), cambios);
     } catch (e) {

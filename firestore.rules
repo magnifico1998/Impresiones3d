@@ -147,6 +147,32 @@ service cloud.firestore {
           get(/databases/$(database)/documents/planes/$(get(suscripcionRef(uid)).data.planId)).data.get('limites', {}).get('montoFacturadoMes', null);
     }
 
+    // Monto neto de un pedido (precioVenta menos descuento): la misma fórmula que
+    // netoDePedido en functions/triggers/onPedidoCreado.js, que es lo que suma
+    // al contador montoFacturado. Los valores que no son números cuentan como 0.
+    function numeroONada(v) {
+      return v is number ? v : 0;
+    }
+    function netoDePedido(d) {
+      let precio = numeroONada(d.get('precioVenta', 0));
+      let descMonto = numeroONada(d.get('descuentoMonto', 0));
+      let descPct = numeroONada(d.get('descuentoPct', 0));
+      let pctAcotado = descPct < 0 ? 0 : (descPct > 100 ? 100 : descPct);
+      let descuento = descMonto > 0 ? descMonto : precio * pctAcotado / 100;
+      return precio - descuento > 0 ? precio - descuento : 0;
+    }
+
+    // Editar un pedido existente tampoco puede SUBIR el monto del ciclo una vez
+    // alcanzado el tope de monto facturado: si no, se crearía el pedido en $0 y se
+    // le cargaría el precio después. Bajar el monto, o cambiar cualquier otra cosa,
+    // sigue permitido (también completar y cobrar). Unir pedidos suma el monto de
+    // uno al otro sin plata nueva: esa edición (crece la lista "unidos") pasa.
+    function editaSinSubirElMonto(uid, antes, despues) {
+      return netoDePedido(despues) <= netoDePedido(antes) ||
+        despues.get('unidos', []).size() > antes.get('unidos', []).size() ||
+        dentroDelLimiteDeMonto(uid);
+    }
+
     // Límite de aperturas del catálogo web por ciclo
     // (planes.limites.aperturasCatalogoMes) sobre
     // contadores/{cicloId}.aperturasCatalogo, que suma
@@ -329,7 +355,8 @@ service cloud.firestore {
       allow read: if tieneAcceso(uid) && cuentaPuedeLeer(uid);
       // Los pedidos no se borran, sólo se cancelan (estado 'cancelado'):
       // no se permite delete, ni siquiera para el dueño de la cuenta.
-      allow update: if tieneAcceso(uid) && cuentaPuedeEscribir(uid);
+      allow update: if tieneAcceso(uid) && cuentaPuedeEscribir(uid) &&
+        editaSinSubirElMonto(uid, resource.data, request.resource.data);
 
       // Crear un pedido nuevo exige además que la cuenta no esté en modo
       // lectura/suspendida, y que no haya superado el límite de pedidos ni
