@@ -1107,7 +1107,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                                 {faltanAsignar === 0 ? '✓ Cantidades asignadas completas' : `⚠ Faltan asignar ${faltanAsignar} unidad(es) entre versiones`}
                               </div>
                               
-                              <div style={{ fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: '4px', display: 'grid', gridTemplateColumns: '84px 1fr 1fr 1fr auto', gap: '6px' }}>
+                              <div style={{ fontSize: '10px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginBottom: '4px', display: 'grid', gridTemplateColumns: '132px 1fr 1fr 1fr auto', gap: '6px' }}>
                                 <span>Real / Total</span>
                                 <span>Color</span>
                                 <span>Color 2</span>
@@ -1133,7 +1133,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
                                           value={v.cantidad} 
                                           min="1" 
                                           max={pz.cantidad - (pz.versiones || []).filter(x => x.id !== v.id).reduce((s, x) => s + x.cantidad, 0)} 
-                                          style={{ width: '34px', fontSize: '11px', padding: '2px 3px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)', textAlign: 'center' }}
+                                          style={{ width: '54px', fontSize: '11px', padding: '2px 3px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '4px', color: 'var(--text)', textAlign: 'center' }}
                                           onChange={(e) => handleUpdateVersion(pz.id, v.id, 'cantidad', e.target.value)} 
                                         />
                                       </span>

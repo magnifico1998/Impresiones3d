@@ -282,10 +282,10 @@ select option{background:var(--bg3)}
 .prod-control input::-webkit-outer-spin-button, .prod-control input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .prod-control input[type=number] { -moz-appearance: textfield; }
 .prod-status { font-size:11px; font-family:var(--mono); text-align:right; flex-grow:1; }
-.det-ver-row { display:grid; grid-template-columns:84px 1fr 1fr 1fr auto; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+.det-ver-row { display:grid; grid-template-columns:132px 1fr 1fr 1fr auto; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
 .det-ver-row:last-child { border-bottom:none; }
 .det-ver-realizados { display:flex; align-items:center; gap:3px; }
-.det-ver-realizados input { width:38px; font-size:12px; padding:3px 4px; text-align:center; background:var(--bg2); border:1px solid var(--border); border-radius:4px; color:var(--text1); }
+.det-ver-realizados input { width:56px; font-size:12px; padding:3px 4px; text-align:center; background:var(--bg2); border:1px solid var(--border); border-radius:4px; color:var(--text1); }
 .det-ver-realizados span { font-size:11px; color:var(--text3); font-family:var(--mono); white-space:nowrap; }
 .det-ver-badge { font-size:10px; font-family:var(--mono); padding:2px 6px; border-radius:10px; white-space:nowrap; font-weight:700; }
 .det-ver-badge.ok { background:rgba(0,200,100,.15); color:var(--accent); }
@@ -606,18 +606,21 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
 
   /* Filas con columnas fijas (versiones, líneas de presupuesto, stock, pagos): 2 columnas, el primer campo entero. */
   [style*="grid-template-columns: 56px 1fr"],
-  [style*="grid-template-columns: 84px 1fr"],
+  [style*="grid-template-columns: 132px 1fr"],
   [style*="grid-template-columns: 40px 1fr"],
   [style*="grid-template-columns: 64px 1fr"],
   [style*="grid-template-columns: 1fr 64px"],
   [style*="grid-template-columns: minmax(0, 2fr)"],
   [style*="grid-template-columns: 1fr 1fr 1fr"] { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   [style*="grid-template-columns: 56px 1fr"] > :first-child,
-  [style*="grid-template-columns: 84px 1fr"] > :first-child,
+  [style*="grid-template-columns: 132px 1fr"] > :first-child,
   [style*="grid-template-columns: 40px 1fr"] > :first-child,
   [style*="grid-template-columns: 64px 1fr"] > :first-child,
   [style*="grid-template-columns: 1fr 64px"] > :first-child,
   [style*="grid-template-columns: minmax(0, 2fr)"] > :first-child { grid-column: 1 / -1; }
+  /* Versiones de una pieza en el detalle del pedido (clase, no estilo en línea): igual que las filas de arriba. */
+  .det-ver-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .det-ver-row > :first-child { grid-column: 1 / -1; }
   /* Columnas con mínimos que suman más que la pantalla: una sola. */
   [style*="grid-template-columns: minmax(150px"],
   [style*="grid-template-columns: minmax(140px"],
