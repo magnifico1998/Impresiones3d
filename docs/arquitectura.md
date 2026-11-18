@@ -146,6 +146,7 @@ no cambia por el codebase, así que la app las llama igual. Para sumar otro code
 | `faq`, `faqMeta` | Preguntas frecuentes | Admin |
 | `solicitudesContacto/{uid}` | Formulario "contactate con el área comercial" | Dueño (datos) / admin (estado) |
 | `datosSuscriptor/{uid}` | Datos personales e impositivos (uso interno); los completa el suscriptor al contratar | Admin / revendedor, y `crearSuscripcionMP` |
+| `preferenciasUi/{uid}` | Orden y secciones ocultas de cada pantalla ("Personalizar pantalla" y menú lateral). El uid es el de la **persona** que inició sesión, no el de la cuenta. Llega en tiempo real a sus otros dispositivos (`src/context/preferenciasUi.js`) | Cada persona, sólo la suya |
 | `revendedores/{codigo}` (+ `ventas/{YYYY-MM}`) | Revendedores y sus ventas por mes | Solo Cloud Functions |
 | `codigosPromocionales/{codigo}` (+ `activaciones`) | Códigos de comercios | Solo Cloud Functions |
 | `pagosMP/{paymentId}` | Registro de cobros de Mercado Pago (candado anti duplicados) | Solo Cloud Functions |

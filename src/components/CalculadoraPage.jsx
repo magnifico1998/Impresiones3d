@@ -6,6 +6,7 @@ import CampoMoneda from './CampoMoneda';
 
 import CampoNumero from './CampoNumero';
 import { buildCompositeGcode } from '../utils/productoGcode';
+import SeccionesPersonalizables from './SeccionesPersonalizables';
 // Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
 // al índice correspondiente de cfg.impresoras, o null si no hay ninguna
 // elegida o ya no existe. Se guarda por NOMBRE (robusto ante reordenar o
@@ -867,25 +868,15 @@ export default function CalculadoraPage({
     return <AvisoModoLectura titulo="La Calculadora no está disponible en modo lectura" />;
   }
 
-  return (
-    <div className="page active" id="page-calc">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span>Calculadora de Costos</span>
-            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
-              Cotizador
-            </span>
-          </div>
-          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
-            Calculá el costo exacto de cada pieza a partir de su G-code o de forma manual, y exportalo a presupuesto o pedido.
-          </div>
-        </div>
-      </div>
-
-
-      {/* 1. Card Importar archivo */}
-      <div className="card">
+  // Secciones que la persona puede acomodar con "Personalizar pantalla". Las que alimentan el
+  // cálculo (todas menos "Importar archivo") se pueden mover pero no ocultar: si no, quedarían
+  // sumando valores que no se ven. Las tres de datos y las dos del resumen se dibujan en columnas.
+  const secciones = [
+    {
+      id: 'importar',
+      titulo: 'Importar archivo',
+      nodo: (
+<div className="card">
         <div className="card-title">Importar archivo</div>
         <label 
           className={`drop-zone ${isDragOver ? 'over' : ''}`}
@@ -1081,11 +1072,15 @@ export default function CalculadoraPage({
         )}
 
       </div>
-
-      {/* 3. Filamentos, Electricidad y tiempo, y Mano de obra y margen en tres columnas */}
-      <div className="grid3">
-        {/* Filaments Card */}
-        <div className="card">
+      )
+    },
+    {
+      id: 'filamentos',
+      titulo: 'Filamentos',
+      fija: true,
+      grupo: 'datos',
+      nodo: (
+<div className="card">
           <div className="card-title">Filamentos</div>
           <div id="filamentos-body">
             {isGcodeApplied && gcodeData && gcodeData.tipo === 'bambu' && Object.keys(bambuMats).length > 1 ? (
@@ -1189,9 +1184,15 @@ export default function CalculadoraPage({
             )}
           </div>
         </div>
-
-        {/* Electric & Time Card */}
-        <div className="card">
+      )
+    },
+    {
+      id: 'electricidad',
+      titulo: 'Electricidad y tiempo',
+      fija: true,
+      grupo: 'datos',
+      nodo: (
+<div className="card">
           <div className="card-title">Electricidad y tiempo</div>
           
           <div className="campo-linea">
@@ -1240,9 +1241,15 @@ export default function CalculadoraPage({
             />
           </div>
         </div>
-
-        {/* Labor Card */}
-        <div className="card">
+      )
+    },
+    {
+      id: 'manoObra',
+      titulo: 'Mano de obra y margen',
+      fija: true,
+      grupo: 'datos',
+      nodo: (
+<div className="card">
           <div className="card-title">Mano de obra y margen</div>
           
           <div className="campo-linea">
@@ -1305,10 +1312,14 @@ export default function CalculadoraPage({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* 4. Insumos adicionales Card */}
-      <div className="card">
+      )
+    },
+    {
+      id: 'insumos',
+      titulo: 'Insumos adicionales',
+      fija: true,
+      nodo: (
+<div className="card">
         <div className="card-title">Insumos adicionales</div>
         {/* En columnas, igual que en el detalle del pedido: la lista larga ocupa menos alto. */}
         <div id="lista-insumos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', columnGap: '24px' }}>
@@ -1346,11 +1357,15 @@ export default function CalculadoraPage({
           )}
         </div>
       </div>
-
-      {/* 5. Resumen en dos columnas: los costos a la izquierda; precio de venta, ganancia, margen y acciones a la derecha */}
-      <div className="grid2">
-        {/* Costos */}
-        <div className="card">
+      )
+    },
+    {
+      id: 'costos',
+      titulo: 'Costos',
+      fija: true,
+      grupo: 'resumen',
+      nodo: (
+<div className="card">
           <div className="card-title">Costos</div>
           <div className="result-box">
             <div className="r-row">
@@ -1443,9 +1458,15 @@ export default function CalculadoraPage({
             </div>
           </div>
         </div>
-
-        {/* Precio de venta, ganancia y margen, con las acciones debajo */}
-        <div className="card">
+      )
+    },
+    {
+      id: 'precio',
+      titulo: 'Precio de venta',
+      fija: true,
+      grupo: 'resumen',
+      nodo: (
+<div className="card">
           <div className="card-title">Precio de venta</div>
           <div className="result-box">
             <div className="r-row price" style={{ alignItems: 'center' }}>
@@ -1546,7 +1567,32 @@ export default function CalculadoraPage({
             Guardar en biblioteca habilita versiones, colores y precio de venta editable por pieza. "Agregar a pedido" es para productos simples que no necesitás guardar.
           </div>
         </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="page active" id="page-calc">
+      <SeccionesPersonalizables
+        pantalla="calculadora"
+        secciones={secciones}
+        grupos={{ datos: 'grid3', resumen: 'grid2' }}
+        encabezado={(
+<div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>Calculadora de Costos</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, padding: '3px 10px', borderRadius: '20px', background: 'var(--accentDim)', color: 'var(--accent)', fontFamily: 'var(--mono)' }}>
+              Cotizador
+            </span>
+          </div>
+          <div className="page-sub" style={{ marginBottom: 0, marginTop: '4px' }}>
+            Calculá el costo exacto de cada pieza a partir de su G-code o de forma manual, y exportalo a presupuesto o pedido.
+          </div>
+        </div>
       </div>
+        )}
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { textoEstadoPedido } from '../../utils/estadosPedido';
 import TarjetaColapsable from '../TarjetaColapsable';
 
 import CampoNumero from '../CampoNumero';
+import SeccionesPersonalizables from '../SeccionesPersonalizables';
 // deshacerAgregado: { pedidoId, antes } cuando se llega a este pedido recién después de
 // agregarle productos (desde la Biblioteca o la Calculadora): "antes" es el pedido tal
 // como estaba. Cerrar sin guardar (Cerrar, ✕, Esc) quita lo agregado; "Guardar cambios"
@@ -960,6 +961,10 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           </div>
         )}
 
+        <SeccionesPersonalizables
+          pantalla="pedido"
+          encabezado={(
+            <>
         {/* Resumen rápido: lo principal del pedido a la vista, sin abrir nada.
             Las secciones de abajo se abren de a una y recuerdan en este
             navegador si quedaron abiertas. */}
@@ -995,6 +1000,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           </div>
         </div>
 
+            </>
+          )}
+          secciones={[
+            {
+              id: 'piezas',
+              titulo: 'Piezas / G-codes',
+              nodo: (
+                <>
         {/* Pieces checklist section */}
         <TarjetaColapsable compacta conservar clave="pedido.piezas" titulo="Piezas / G-codes" resumen={resumenPiezas}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '10px' }}>
@@ -1283,7 +1296,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         </div>
 
         </TarjetaColapsable>
-
+                </>
+              )
+            },
+            {
+              id: 'insumos',
+              titulo: 'Insumos del pedido',
+              nodo: (
+                <>
         {/* Consumables (Insumos) checklist section */}
         <TarjetaColapsable compacta conservar clave="pedido.insumos" titulo="Insumos del pedido" resumen={resumenInsumos}>
         <div id="det-insumos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', columnGap: '24px' }}>
@@ -1319,7 +1339,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
         </div>
 
         </TarjetaColapsable>
-
+                </>
+              )
+            },
+            {
+              id: 'cobro',
+              titulo: 'Totales, descuento y cobro',
+              nodo: (
+                <>
         {/* Totals Summary */}
         <TarjetaColapsable compacta conservar clave="pedido.cobro" titulo="Totales, descuento y cobro" resumen={resumenCobro}>
         <div className="total-section">
@@ -1458,7 +1485,15 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           </div>
         </div>
         </TarjetaColapsable>
-
+                </>
+              )
+            },
+            {
+              id: 'factura',
+              titulo: 'Factura electrónica',
+              fija: true,
+              nodo: (
+                <>
         <SeccionFacturaPedido
           pedido={draft}
           cliente={clienteDelPedido}
@@ -1466,9 +1501,24 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           persistirBorrador={persistDraft}
           cerrarPedido={onClose}
         />
-
+                </>
+              )
+            },
+            {
+              id: 'inventario',
+              titulo: 'Inventario',
+              fija: true,
+              nodo: (
+                <>
         <SeccionInventarioPedido pedido={draft} />
-
+                </>
+              )
+            },
+            {
+              id: 'envio',
+              titulo: 'Datos de envío',
+              nodo: (
+                <>
         {/* Shipping details */}
         <TarjetaColapsable compacta conservar clave="pedido.envio" titulo="Datos de envío" resumen={resumenEnvio}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -1495,7 +1545,14 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           </div>
         </div>
         </TarjetaColapsable>
-
+                </>
+              )
+            },
+            {
+              id: 'nota',
+              titulo: 'Nota general del pedido',
+              nodo: (
+                <>
         {/* Comment general */}
         <TarjetaColapsable compacta conservar clave="pedido.nota" titulo="Nota general del pedido" resumen={resumenNota}>
         <textarea
@@ -1519,6 +1576,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           onChange={(e) => handleFieldChange('notaGeneral', e.target.value)}
         />
         </TarjetaColapsable>
+                </>
+              )
+            }
+          ]}
+        />
 
         <div className="modal-footer">
           {draft.estado !== 'cancelado' && (

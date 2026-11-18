@@ -521,6 +521,19 @@ service cloud.firestore {
     // un admin desde "Consultar datos" en el panel de Suscriptores; el
     // dueño de la cuenta no tiene hoy ninguna pantalla que lo muestre, pero
     // puede leer el suyo por si el día de mañana se expone.
+    // ---- Preferencias de pantalla de cada persona ----
+    // preferenciasUi/{uid}: el orden y las secciones ocultas que cada persona (el dueño o un miembro del equipo)
+    // eligió en "Personalizar pantalla" (src/context/preferenciasUi.js). El uid es el de la PERSONA que inició
+    // sesión, no el de la cuenta: cada uno arma la suya. Es sólo estético: no toca datos del negocio, plan ni
+    // permisos, así que se puede guardar aunque la cuenta esté en modo lectura o bloqueada. Sólo la propia persona
+    // lo lee y lo escribe, y se limita la forma del documento para que no sirva para guardar otras cosas.
+    match /preferenciasUi/{uid} {
+      allow read, delete: if esDueno(uid);
+      allow create, update: if esDueno(uid) &&
+        request.resource.data.keys().hasOnly(['pantallas', 'actualizado']) &&
+        request.resource.data.get('pantallas', {}).size() <= 30;
+    }
+
     match /datosSuscriptor/{uid} {
       allow read: if tieneAcceso(uid) || esAdmin() || esRevendedorDe(uid);
       allow write: if esAdmin() || esRevendedorDe(uid);

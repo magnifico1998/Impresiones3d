@@ -5,6 +5,7 @@ import { paletas, paletasList } from '../utils/paletas';
 import CampoMoneda from './CampoMoneda';
 
 import CampoNumero from './CampoNumero';
+import SeccionesPersonalizables from './SeccionesPersonalizables';
 // La configuración se divide en dos pestañas: las herramientas de trabajo
 // del taller (materiales, impresoras, costos de la Calculadora) y cómo
 // funciona la app (apariencia, envíos, gastos en Resumen, capacidad).
@@ -159,8 +160,16 @@ export default function ConfiguracionPage() {
 
 
       {seccion === 'aplicacion' && (
-        <div className="grid2" style={{ alignItems: 'flex-start' }}>
-          <div>
+      <SeccionesPersonalizables
+        pantalla="config.aplicacion"
+        grupos={{ cols: 'cols-2' }}
+        secciones={[
+          {
+            id: 'capacidad',
+            titulo: 'Capacidad de producción',
+            grupo: 'cols',
+            nodo: (
+              <>
               {/* Capacidad de producción instalada -- etapa 1 de la estimación
                   de ETA de pedidos (ver AppContext.jsx). Por ahora sólo define
                   la capacidad; el cálculo de fechas estimadas se suma en una
@@ -247,7 +256,15 @@ export default function ConfiguracionPage() {
                   </>
                 )}
               </div>
-
+              </>
+            )
+          },
+          {
+            id: 'paletas',
+            titulo: 'Paletas de colores',
+            grupo: 'cols',
+            nodo: (
+              <>
               <div className="card">
                 <div className="card-title">Paletas de colores</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', marginTop: '8px' }}>
@@ -285,7 +302,15 @@ export default function ConfiguracionPage() {
                   })}
                 </div>
               </div>
-
+              </>
+            )
+          },
+          {
+            id: 'paletaPropia',
+            titulo: 'Paleta personalizada',
+            grupo: 'cols',
+            nodo: (
+              <>
               {/* Paleta personalizada: arranca con los 5 colores de la paleta
                   elegida en "Paletas de colores" y se puede retocar color por color. Cada
                   cuadrito es un <input type="color"> nativo escondido detrás
@@ -341,8 +366,15 @@ export default function ConfiguracionPage() {
                   })}
                 </div>
               </div>
-          </div>
-          <div>
+              </>
+            )
+          },
+          {
+            id: 'avisosClientes',
+            titulo: 'Avisos a clientes',
+            grupo: 'cols',
+            nodo: (
+              <>
               {/* Aviso por mail al cliente cuando el pedido pasa a "Listo p/ entregar". */}
               <div className="card">
                 <div className="card-title">Avisos a clientes</div>
@@ -363,6 +395,15 @@ export default function ConfiguracionPage() {
                   notificaciones por mail". Las respuestas te llegan al email de tu empresa.
                 </p>
               </div>
+              </>
+            )
+          },
+          {
+            id: 'stock',
+            titulo: 'Productos en stock',
+            grupo: 'cols',
+            nodo: (
+              <>
               {/* Productos en stock: prende la sección "Productos en stock" (unidades terminadas, para la tienda del catálogo). */}
               <div className="card">
                 <div className="card-title">Productos en stock</div>
@@ -382,6 +423,15 @@ export default function ConfiguracionPage() {
                   la tienda del catálogo web, que vende al instante lo que hay en stock y fabrica a pedido el resto.
                 </p>
               </div>
+              </>
+            )
+          },
+          {
+            id: 'inventario',
+            titulo: 'Inventario',
+            grupo: 'cols',
+            nodo: (
+              <>
               {/* Inventario: prende la pestaña "Inventario" en Compras. */}
               <div className="card">
                 <div className="card-title">Inventario</div>
@@ -431,10 +481,26 @@ export default function ConfiguracionPage() {
                   </>
                 )}
               </div>
-
+              </>
+            )
+          },
+          {
+            id: 'conectores',
+            titulo: 'Conectores de impresión',
+            grupo: 'cols',
+            nodo: (
+              <>
               {/* Conectores de impresión directa (G-code de la Biblioteca → impresora). */}
               <ConectoresImpresion />
-
+              </>
+            )
+          },
+          {
+            id: 'gastos',
+            titulo: 'Cálculo de gastos',
+            grupo: 'cols',
+            nodo: (
+              <>
               {/* Cómo se calculan los gastos en Resumen: es una preferencia de
                   cómo mostrar los números, no un valor de la Calculadora. */}
               <div className="card">
@@ -458,7 +524,15 @@ export default function ConfiguracionPage() {
                   "Gastos compras", para no contar el mismo gasto dos veces.
                 </p>
               </div>
-
+              </>
+            )
+          },
+          {
+            id: 'envios',
+            titulo: 'Métodos de envío',
+            grupo: 'cols',
+            nodo: (
+              <>
               {/* Shipping config card */}
               <div className="card">
                 <div className="card-title">Métodos de envío</div>
@@ -505,13 +579,24 @@ export default function ConfiguracionPage() {
                   + Agregar
                 </button>
               </div>
-          </div>
-        </div>
+              </>
+            )
+          }
+        ]}
+      />
       )}
 
       {seccion === 'herramientas' && (
-        <div className="grid2" style={{ alignItems: 'flex-start' }}>
-          <div>
+        <SeccionesPersonalizables
+          pantalla="config.herramientas"
+          grupos={{ cols: 'cols-2' }}
+          secciones={[
+            {
+              id: 'filamentos',
+              titulo: 'Filamentos',
+              grupo: 'cols',
+              nodo: (
+                <>
               {/* Filaments Config Card */}
               <div className="card">
                 <div className="card-title">Filamentos</div>
@@ -553,7 +638,15 @@ export default function ConfiguracionPage() {
                   + Agregar
                 </button>
               </div>
-
+                </>
+              )
+            },
+            {
+              id: 'impresoras',
+              titulo: 'Impresoras',
+              grupo: 'cols',
+              nodo: (
+                <>
               {/* Printers Config Card */}
               <div className="card">
                 <div className="card-title">Impresoras</div>
@@ -601,7 +694,15 @@ export default function ConfiguracionPage() {
                   + Agregar
                 </button>
               </div>
-
+                </>
+              )
+            },
+            {
+              id: 'colores',
+              titulo: 'Colores disponibles',
+              grupo: 'cols',
+              nodo: (
+                <>
               {/* Color list config card */}
               <div className="card">
                 <div className="card-title">Colores disponibles</div>
@@ -643,7 +744,15 @@ export default function ConfiguracionPage() {
                   + Agregar
                 </button>
               </div>
-
+                </>
+              )
+            },
+            {
+              id: 'combinaciones',
+              titulo: 'Combinaciones de colores',
+              grupo: 'cols',
+              nodo: (
+                <>
               {/* Color combinations config card */}
               <div className="card">
                 <div className="card-title">Combinaciones de colores</div>
@@ -679,8 +788,15 @@ export default function ConfiguracionPage() {
                   + Agregar combinación
                 </button>
               </div>
-          </div>
-          <div>
+                </>
+              )
+            },
+            {
+              id: 'insumos',
+              titulo: 'Insumos y accesorios',
+              grupo: 'cols',
+              nodo: (
+                <>
               {/* Consumables (Insumos) card */}
               <div className="card">
                 <div className="card-title">Insumos y accesorios</div>
@@ -717,7 +833,15 @@ export default function ConfiguracionPage() {
                   + Agregar
                 </button>
               </div>
-
+                </>
+              )
+            },
+            {
+              id: 'valoresDefecto',
+              titulo: 'Valores por defecto',
+              grupo: 'cols',
+              nodo: (
+                <>
               {/* Default values configuration */}
               <div className="card">
                 <div className="card-title">Valores por defecto</div>
@@ -773,8 +897,11 @@ export default function ConfiguracionPage() {
                   onChange={(e) => handleDefaultValueChange('desperdicio', e.target.value)}
                 />
               </div>
-          </div>
-        </div>
+                </>
+              )
+            }
+          ]}
+        />
       )}
     </div>
   );

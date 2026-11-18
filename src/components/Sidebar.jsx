@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUi, useCuenta, useConfig } from '../context/contextos';
 import { useTicketsPendientes } from './soporte/AvisosTicketsAdmin';
 import { useTicketsSinVer } from './soporte/AvisosTicketsCuenta';
+import { usePreferenciasUi } from '../context/preferenciasUi';
+import { combinarLayout } from '../utils/layoutPantalla';
+import ModalPersonalizarMenu from './modals/ModalPersonalizarMenu';
 
 export default function Sidebar({ isOpen, onClose }) {
   const { activePage, setActivePage } = useUi();
   const { isAdmin, esRevendedor } = useCuenta();
   const { cfg } = useConfig();
+  const { layoutDe } = usePreferenciasUi();
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const ticketsPendientes = useTicketsPendientes();
   const { sinVer: ticketsSinVer } = useTicketsSinVer();
 
@@ -221,6 +226,15 @@ export default function Sidebar({ isOpen, onClose }) {
     }] : [])
   ];
 
+  // El grupo "Navegación" se puede ordenar y ocultar (Personalizar menú). Lo guardado se combina con los
+  // ítems de hoy: uno nuevo aparece en su lugar por defecto. Configuración y Mi emprendimiento (grupo
+  // "Sistema") no se tocan, así siempre queda un camino de vuelta.
+  const linksNavegacion = items[0].links;
+  const layoutMenu = combinarLayout(linksNavegacion.map((l) => l.id), layoutDe('menu'), []);
+  const visiblesNavegacion = layoutMenu.orden
+    .filter((id) => !layoutMenu.ocultas.includes(id))
+    .map((id) => linksNavegacion.find((l) => l.id === id));
+
   return (
     <>
       {/* Fondo oscuro detrás del drawer en mobile. No se renderiza en
@@ -232,7 +246,7 @@ export default function Sidebar({ isOpen, onClose }) {
         {items.map((group, gi) => (
           <React.Fragment key={gi}>
             <div className="nav-label">{group.label}</div>
-            {group.links.map(link => (
+            {(gi === 0 ? visiblesNavegacion : group.links).map(link => (
               <button
                 type="button"
                 key={link.id}
@@ -249,7 +263,11 @@ export default function Sidebar({ isOpen, onClose }) {
             ))}
           </React.Fragment>
         ))}
+        <button type="button" className="nav-item" onClick={() => setMenuAbierto(true)} style={{ marginTop: '10px', fontSize: '12px', opacity: 0.8 }}>
+          ⚙ Personalizar menú
+        </button>
       </nav>
+      <ModalPersonalizarMenu isOpen={menuAbierto} onClose={() => setMenuAbierto(false)} links={linksNavegacion.map((l) => ({ id: l.id, name: l.name }))} />
     </>
   );
 }

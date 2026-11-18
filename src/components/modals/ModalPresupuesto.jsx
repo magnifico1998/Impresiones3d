@@ -12,6 +12,7 @@ import { borrarImagenDeFirebase, subirImagenAFirebase } from '../../utils/imageC
 
 import CampoNumero from '../CampoNumero';
 import TarjetaColapsable from '../TarjetaColapsable';
+import SeccionesPersonalizables from '../SeccionesPersonalizables';
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
 // siempre, sin guardar nada) o guardarlo en la sección Presupuestos, desde
 // donde se sigue su estado y, si lo aprueban, se convierte en pedido (ver
@@ -365,6 +366,10 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
           </>
         )}
 
+        <SeccionesPersonalizables
+          pantalla="presupuesto"
+          encabezado={(
+            <>
         {/* Resumen rápido: lo principal a la vista con las secciones cerradas.
             Las secciones se abren de a una y recuerdan en este navegador si
             quedaron abiertas. */}
@@ -389,6 +394,15 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
           </div>
         </div>
 
+            </>
+          )}
+          secciones={[
+            {
+              id: 'datos',
+              titulo: 'Datos del interesado',
+              fija: true,
+              nodo: (
+                <>
         <TarjetaColapsable compacta conservar abiertaInicial clave="presupuesto.datos" titulo="Datos del interesado" resumen={[telefono, email].filter(Boolean).join(' · ') || 'sin contacto'}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
           <div>
@@ -408,11 +422,26 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
           </div>
         </div>
         </TarjetaColapsable>
-
+                </>
+              )
+            },
+            {
+              id: 'notas',
+              titulo: 'Notas (se muestran en el PDF)',
+              nodo: (
+                <>
         <TarjetaColapsable compacta conservar clave="presupuesto.notas" titulo="Notas (se muestran en el PDF)" resumen={notas.trim() ? 'con notas' : 'sin notas'}>
         <textarea rows={5} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" style={{ resize: 'vertical' }} />
         </TarjetaColapsable>
-
+                </>
+              )
+            },
+            {
+              id: 'productos',
+              titulo: 'Productos del presupuesto',
+              fija: true,
+              nodo: (
+                <>
         <TarjetaColapsable compacta conservar abiertaInicial clave="presupuesto.productos" titulo="Productos del presupuesto" resumen={`${items.length} · ${fmt(total)}`}>
         <div style={{ maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
           {!items.length ? (
@@ -490,10 +519,22 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
           </div>
         )}
         </TarjetaColapsable>
-
+                </>
+              )
+            },
+            {
+              id: 'adjuntos',
+              titulo: 'Imágenes adjuntas',
+              nodo: (
+                <>
         <TarjetaColapsable compacta conservar clave="presupuesto.adjuntos" titulo="Imágenes adjuntas" resumen={adjuntos.length ? `${adjuntos.length}/${MAX_ADJUNTOS}` : 'ninguna'}>
           <AdjuntosPresupuesto adjuntos={adjuntos} setAdjuntos={setAdjuntos} porHoja={adjuntosPorHoja} setPorHoja={setAdjuntosPorHoja} showToast={showToast} />
         </TarjetaColapsable>
+                </>
+              )
+            }
+          ]}
+        />
 
         <div className="total-section">
           <div className="cost-line strong">

@@ -9,6 +9,7 @@ import { fechaLocalHoy } from '../utils/fechaCompletado';
 import { movimientosVenta, pendienteDePedido } from '../utils/finanzasPedido';
 import { useFiltroPeriodo } from '../hooks/useFiltroPeriodo';
 import { formatoNumero } from '../utils/numeros';
+import SeccionesPersonalizables from './SeccionesPersonalizables';
 
 // Cuántos días faltan hasta un Timestamp de Firestore, redondeado para
 // arriba (así "faltan 0 días" nunca se muestra como "ya venció" de
@@ -566,14 +567,15 @@ export default function ResumenPage() {
       Otros: 'badge-cancelled'
     }[cat] || '');
 
-  return (
-    <div className="page active">
-      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} onAbrirSuscribirse={esMiembro ? null : () => setModalSuscribirseOpen(true)} contactoEnviado={contactoEnviado} esMiembro={esMiembro} />
-      <div className="page-title">Resumen</div>
-      <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
-      
-      {/* Encabezado y Selector de Período Moderno */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+  // Secciones que la persona puede acomodar u ocultar con "Personalizar pantalla".
+  // El selector de período se puede mover pero no ocultar: de él depende todo lo demás.
+  const secciones = [
+    {
+      id: 'periodo',
+      titulo: 'Período y filtros',
+      fija: true,
+      nodo: (
+<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
         <div>
           <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span>Panel de Rendimiento</span>
@@ -635,9 +637,13 @@ export default function ResumenPage() {
           </div>
         </div>
       </div>
-
-      {/* Modern KPI Cards Grid */}
-      <div className="grid6" style={{ marginBottom: '20px' }}>
+      )
+    },
+    {
+      id: 'indicadores',
+      titulo: 'Indicadores',
+      nodo: (
+<div className="grid6" style={{ marginBottom: '20px' }}>
         {/* Ventas */}
         <div className="metric-card-modern accent-top">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -746,9 +752,13 @@ export default function ResumenPage() {
           </div>
         </div>
       </div>
-
-      {/* Graph and Printer Usage (2/3 Ventas Acumuladas, 1/3 Carga de Impresoras) */}
-      <div className="dashboard-main-grid" style={{ marginBottom: '20px', alignItems: 'stretch' }}>
+      )
+    },
+    {
+      id: 'grafico',
+      titulo: 'Ventas acumuladas y carga de impresoras',
+      nodo: (
+<div className="dashboard-main-grid" style={{ marginBottom: '20px', alignItems: 'stretch' }}>
         <div className="glow-card" style={{ padding: '22px', display: 'flex', flexDirection: 'column', minHeight: '310px' }}>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -813,11 +823,13 @@ export default function ResumenPage() {
           </div>
         </div>
       </div>
-
-
-
-      {/* Orders completed/list table */}
-      <div className="card">
+      )
+    },
+    {
+      id: 'pedidosCompletados',
+      titulo: 'Pedidos completados / listos para entregar',
+      nodo: (
+<div className="card">
         <div className="card-title">Pedidos completados / listos para entregar</div>
         {!sortedCompletados.length ? (
           <div className="empty">Sin pedidos completados en el período.</div>
@@ -861,9 +873,13 @@ export default function ResumenPage() {
           </div>
         )}
       </div>
-
-      {/* Expenses table */}
-      <div className="card">
+      )
+    },
+    {
+      id: 'compras',
+      titulo: 'Compras del período',
+      nodo: (
+<div className="card">
         <div className="card-title">Compras del período</div>
         {!sortedCompras.length ? (
           <div className="empty">Sin compras en el período.</div>
@@ -900,6 +916,19 @@ export default function ResumenPage() {
           </div>
         )}
       </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="page active">
+      <CartelSuscripcion suscripcion={suscripcion} planContratado={planContratado} onAbrirContacto={() => setModalContactoOpen(true)} onAbrirPromo={() => setModalPromoOpen(true)} onAbrirSuscribirse={esMiembro ? null : () => setModalSuscribirseOpen(true)} contactoEnviado={contactoEnviado} esMiembro={esMiembro} />
+      <SeccionesPersonalizables pantalla="resumen" secciones={secciones} encabezado={(
+        <>
+<div className="page-title">Resumen</div>
+      <div className="page-sub">Análisis de ventas, rentabilidad y uso de impresoras por período.</div>
+        </>
+      )} />
 
       <ModalContacto
         isOpen={modalContactoOpen}

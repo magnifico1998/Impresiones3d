@@ -657,3 +657,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 
   .herr-separar-visor{order:-1}
   .herr-separar-visor > div{min-height:0 !important}
 }
+
+/* Personalizar pantalla: cada sección se puede subir, bajar u ocultar (components/SeccionesPersonalizables.jsx). */
+.seccion-panel{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;margin:8px 0 14px;border:1px solid var(--accent);border-radius:var(--radius2);background:var(--accentDim2)}
+.seccion-editable{min-width:0}
+.seccion-barra{display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:6px;border:1px dashed var(--accent);border-radius:var(--radius);background:var(--bg2);font-size:12px}
+/* Dos columnas que se acomodan solas según el alto de cada sección (pantallas personalizables). */
+.cols-2{column-count:2;column-gap:16px}
+.cols-2>*,.cols-2>*>*{break-inside:avoid}
+@media(max-width:900px){.cols-2{column-count:1}}

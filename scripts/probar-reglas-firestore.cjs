@@ -98,6 +98,16 @@ const mail = (uid) => `${uid}@gmail.com`.toLowerCase();
     // --- Suscripción ---
     caso('dueño lee su suscripción', 'ALLOW', 'get', `users/${UID}/suscripcion/actual`, dueno, { mocks: [sinInvitacion(`${mail(UID)}`)] }),
     caso('dueño NO se escribe la suscripción', 'DENY', 'update', `users/${UID}/suscripcion/actual`, dueno, { datos: { estado: 'activa' }, existente: { estado: 'trial' }, mocks: suscripcion('trial') }),
+    // --- Preferencias de pantalla (orden y secciones ocultas de cada persona) ---
+    caso('preferencias de pantalla: cada persona lee las suyas', 'ALLOW', 'get', `preferenciasUi/${UID}`, dueno),
+    caso('preferencias de pantalla: NO lee las de otra persona', 'DENY', 'get', `preferenciasUi/${UID}`, ajeno),
+    caso('preferencias de pantalla: sin login NO lee', 'DENY', 'get', `preferenciasUi/${UID}`, null),
+    caso('preferencias de pantalla: cada persona guarda las suyas', 'ALLOW', 'create', `preferenciasUi/${UID}`, dueno, { datos: { pantallas: { calculadora: { orden: ['a', 'b'], ocultas: [], ts: 1 } }, actualizado: ahora } }),
+    caso('preferencias de pantalla: actualiza una pantalla', 'ALLOW', 'update', `preferenciasUi/${UID}`, dueno, { datos: { pantallas: { calculadora: { orden: ['b', 'a'], ocultas: [], ts: 2 } }, actualizado: ahora }, existente: { pantallas: {} } }),
+    caso('preferencias de pantalla: NO escribe las de otra persona', 'DENY', 'update', `preferenciasUi/${UID}`, ajeno, { datos: { pantallas: {}, actualizado: ahora }, existente: { pantallas: {} } }),
+    caso('preferencias de pantalla: con un campo de más NO', 'DENY', 'create', `preferenciasUi/${UID}`, dueno, { datos: { pantallas: {}, plan: 'pro' } }),
+    caso('preferencias de pantalla: con más de 30 pantallas NO', 'DENY', 'create', `preferenciasUi/${UID}`, dueno, { datos: { pantallas: Object.fromEntries(Array.from({ length: 31 }, (_, i) => [`p${i}`, { orden: [] }])) } }),
+    caso('preferencias de pantalla: se guardan aunque la cuenta esté en modo lectura', 'ALLOW', 'create', `preferenciasUi/${UID}`, dueno, { datos: { pantallas: { resumen: { orden: ['a'], ocultas: [], ts: 1 } } }, mocks: suscripcion('lectura') }),
     // --- Planes, FAQ y admins ---
     caso('planes: lectura pública', 'ALLOW', 'get', 'planes/p1', null),
     caso('planes: un usuario común NO escribe', 'DENY', 'update', 'planes/p1', dueno, { datos: { precioMensual: 1 }, existente: { precioMensual: 2 }, mocks: [esAdmin(`${mail(UID)}`, false)] }),

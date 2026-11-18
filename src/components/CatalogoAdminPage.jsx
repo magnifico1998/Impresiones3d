@@ -13,6 +13,7 @@ import {
 } from '../utils/catalogoMarca';
 import { confirmar } from './Dialogos';
 import { clienteDeSolicitud, confirmarPedidoNuevoDeCliente } from '../utils/unirPedidos';
+import SeccionesPersonalizables from './SeccionesPersonalizables';
 
 // Los mismos 7 roles editables que "Paleta personalizada" en Configuración
 // (ver ConfiguracionPage.jsx), pero acá para el catálogo web público -- se
@@ -379,6 +380,17 @@ export default function CatalogoAdminPage() {
 
       {seccion === 'pedidos' && (
         <>
+      <SeccionesPersonalizables
+        pantalla="catalogo.pedidos"
+        grupos={{ cols: 'cols-2' }}
+        secciones={[
+          {
+            id: 'pendientes',
+            titulo: 'Solicitudes pendientes',
+            fija: true,
+            grupo: 'cols',
+            nodo: (
+              <>
       {/* Solicitudes pendientes arriba de todo: es lo que hay que revisar
           primero cada vez que se entra a esta pantalla. */}
       <div className="card">
@@ -444,7 +456,15 @@ export default function CatalogoAdminPage() {
           ))
         )}
       </div>
-
+              </>
+            )
+          },
+          {
+            id: 'productos',
+            titulo: 'Productos publicados',
+            grupo: 'cols',
+            nodo: (
+              <>
       {/* Selección de productos a publicar */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
@@ -532,8 +552,16 @@ export default function CatalogoAdminPage() {
           })
         )}
       </div>
-
-      {procesadas.length > 0 && (
+              </>
+            )
+          },
+          ...(procesadas.length > 0 ? [
+          {
+            id: 'historial',
+            titulo: 'Historial',
+            grupo: 'cols',
+            nodo: (
+              <>
         <div className="card">
           <div className="card-title">Historial ({procesadas.length})</div>
           {procesadas.map(s => (
@@ -543,12 +571,26 @@ export default function CatalogoAdminPage() {
             </div>
           ))}
         </div>
-      )}
+              </>
+            )
+          }] : [])
+        ]}
+      />
         </>
       )}
 
       {seccion === 'apariencia' && (
         <>
+      <SeccionesPersonalizables
+        pantalla="catalogo.apariencia"
+        grupos={{ cols: 'cols-2' }}
+        secciones={[
+          {
+            id: 'formato',
+            titulo: 'Formato del catálogo',
+            grupo: 'cols',
+            nodo: (
+              <>
       {/* Formato: catálogo (pedidos a medida) o tienda (stock + a pedido) */}
       <div className="card">
         <div className="card-title">Formato del catálogo</div>
@@ -580,7 +622,15 @@ export default function CatalogoAdminPage() {
           </p>
         )}
       </div>
-
+              </>
+            )
+          },
+          {
+            id: 'marca',
+            titulo: 'Marca del catálogo',
+            grupo: 'cols',
+            nodo: (
+              <>
       {/* Marca del catálogo: tamaño del logo y texto destacado */}
       <div className="card">
         <div className="card-title">Marca del catálogo</div>
@@ -670,7 +720,15 @@ export default function CatalogoAdminPage() {
           </div>
         </div>
       </div>
-
+              </>
+            )
+          },
+          {
+            id: 'mensajeInactivo',
+            titulo: 'Mensaje del catálogo desactivado',
+            grupo: 'cols',
+            nodo: (
+              <>
       {/* Mensaje que ven los visitantes cuando el catálogo está desactivado */}
       <div className="card">
         <div className="card-title">Mensaje del catálogo desactivado</div>
@@ -726,7 +784,15 @@ export default function CatalogoAdminPage() {
           </div>
         </div>
       </div>
-
+              </>
+            )
+          },
+          {
+            id: 'paleta',
+            titulo: 'Paleta del catálogo',
+            grupo: 'cols',
+            nodo: (
+              <>
       {/* Paleta de colores del catálogo — independiente de la de la app */}
       <div className="card">
         <div className="card-title">Paleta del catálogo</div>
@@ -797,7 +863,11 @@ export default function CatalogoAdminPage() {
           ))}
         </div>
       </div>
-
+              </>
+            )
+          }
+        ]}
+      />
         </>
       )}
     </div>

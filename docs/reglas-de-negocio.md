@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-11-18 (boletín de novedades: filtro por plan contratado, además del estado).
+Última revisión: 2026-11-18 (personalizar pantallas: orden y secciones ocultas por persona).
 
 ---
 
@@ -702,6 +702,13 @@ En Mi emprendimiento → Facturación ARCA, la tarjeta "Facturación y monotribu
   alquileres.
 
 ---
+
+## Personalizar pantallas (orden y secciones ocultas)
+
+- Cada **persona** (el dueño y cada miembro del equipo) puede acomodar a su gusto el menú lateral ("⚙ Personalizar menú") y las pantallas que lo permiten ("⚙ Personalizar pantalla"): subir, bajar u ocultar secciones. Hoy: menú lateral, Resumen, Calculadora, Configuración (pestañas Aplicación y Herramientas), Mi emprendimiento (pestaña Emprendimiento), Catálogo web (pestañas Productos y pedidos, y Apariencia) y los detalles del pedido y del presupuesto.
+- Se guarda en `preferenciasUi/{uid de la persona}`, **no en la cuenta**: cada uno arma la suya. Llega en tiempo real a sus otros dispositivos, con un aviso ("Pantallas acomodadas desde otro dispositivo"). Si la persona está personalizando esa pantalla, un cambio ajeno no le mueve nada hasta que termine. Cada pantalla se guarda por separado y gana el último cambio. El navegador guarda una copia sólo para dibujar al instante; nunca pisa lo del servidor (se sube una única vez si todavía no hay nada guardado).
+- Es **sólo estético**: no da ni quita permisos ni funciones del plan, y se puede guardar aunque la cuenta esté en modo lectura o bloqueada. `firestore.rules` deja leer y escribir ese documento sólo a la propia persona, con forma limitada.
+- Las secciones que alimentan un cálculo o tienen datos obligatorios son **fijas**: se mueven pero no se ocultan (en la Calculadora, todas menos "Importar archivo"; en el Resumen, el selector de período; en el Catálogo web, "Solicitudes pendientes", para no perder pedidos nuevos; en el pedido, Factura e Inventario, que tienen avisos y propuestas automáticas; en el presupuesto, Datos del interesado y Productos). Siempre hay un camino de vuelta: "Restaurar orden original" y la lista de secciones ocultas. Configuración y Mi emprendimiento (menú) no se pueden ocultar. Una sección nueva que se agregue en una versión posterior aparece en su lugar por defecto (`utils/layoutPantalla.js`).
 
 ## 9. Soporte: tickets
 

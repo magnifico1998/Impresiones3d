@@ -15,6 +15,7 @@ import { crearAccionesEquipo } from './accionesEquipo';
 import { useDatosEnVivo } from './useDatosEnVivo';
 import { useConfigCuenta } from './useConfigCuenta';
 import { useSesion } from './useSesion';
+import { iniciarPreferenciasUi } from './preferenciasUi';
 
 // Acciones que el proveedor expone con identidad estable (ver más abajo).
 const nuevoIdAviso = () => Date.now() + Math.random();
@@ -183,6 +184,11 @@ export const AppProvider = ({ children }) => {
     cuentaId, setUser, setCuentaId, setEsMiembro, setLoading, setDatosCargadosOk, setLoadError, setLoadErrorDetalle,
     cargarConfigDeFirestore, omitirProximoGuardadoConfig, showToast
   });
+
+  // Orden y secciones ocultas de cada pantalla, de la persona que inició sesión (preferenciasUi/{uid}).
+  useEffect(() => {
+    iniciarPreferenciasUi(user?.uid || null, (texto) => showToast(texto, 'info'));
+  }, [user?.uid]);
 
   // Los datos de contacto/marca del catálogo público (nombre, teléfono,
   // logo, colores) siempre se toman en vivo de "Mi emprendimiento" -- antes

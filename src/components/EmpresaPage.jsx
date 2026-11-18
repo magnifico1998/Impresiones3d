@@ -13,6 +13,7 @@ import { PESTANAS_EMPRESA, pestanaEmpresaGuardada, guardarPestanaEmpresa } from 
 import { sincronizarPagoMP } from '../utils/pagosMP';
 import { cupoGcode, formatoBytes } from '../utils/archivosGcode';
 import { TAMANOS_LOGO_PDF, tamanoLogoPdfDe } from '../utils/logoPdf';
+import SeccionesPersonalizables from './SeccionesPersonalizables';
 
 // Texto del estado del débito automático de Mercado Pago
 // (suscripcion.cobro.estado, lo mantiene el webhook).
@@ -243,8 +244,16 @@ export default function EmpresaPage() {
 
       {pestanaVisible === 'emprendimiento' && (
         <>
-        <div className="grid2" style={{ alignItems: 'flex-start' }}>
-          <div>
+        <SeccionesPersonalizables
+          pantalla="empresa.emprendimiento"
+          grupos={{ cols: 'cols-2' }}
+          secciones={[
+            {
+              id: 'logo',
+              titulo: 'Logo',
+              grupo: 'cols',
+              nodo: (
+                <>
             {/* Logo upload card */}
             <div className="card">
               <div className="card-title">Logo</div>
@@ -313,7 +322,15 @@ export default function EmpresaPage() {
                 </>
               )}
             </div>
-
+                </>
+              )
+            },
+            {
+              id: 'generales',
+              titulo: 'Datos generales',
+              grupo: 'cols',
+              nodo: (
+                <>
             {/* General business profile metadata card */}
             <div className="card">
               <div className="card-title">Datos generales</div>
@@ -346,7 +363,15 @@ export default function EmpresaPage() {
                 </div>
               </div>
             </div>
-
+                </>
+              )
+            },
+            {
+              id: 'bancarios',
+              titulo: 'Datos bancarios',
+              grupo: 'cols',
+              nodo: (
+                <>
             {/* Datos para que el cliente pague por transferencia: salen en
                 los PDF de presupuestos y pedidos (ver utils/datosBancarios.js). */}
             <div className="card">
@@ -393,10 +418,15 @@ export default function EmpresaPage() {
                 Con CBU/CVU o alias cargado, los PDF suman un recuadro "Datos para transferencia" (en los pedidos, sólo si queda saldo pendiente).
               </div>
             </div>
-          </div>
-
-          {/* Contact info card */}
-          <div>
+                </>
+              )
+            },
+            {
+              id: 'contacto',
+              titulo: 'Contacto',
+              grupo: 'cols',
+              nodo: (
+                <>
             <div className="card">
               <div className="card-title">Contacto</div>
               
@@ -417,7 +447,15 @@ export default function EmpresaPage() {
                 <input type="text" id="instagram" value={empresa.instagram || ''} placeholder="Ej: @miemprendimiento" onChange={handleChange} />
               </div>
             </div>
-
+                </>
+              )
+            },
+            {
+              id: 'plan',
+              titulo: 'Tu plan y consumo',
+              grupo: 'cols',
+              nodo: (
+                <>
             {/* ---- Plan contratado y consumo: debajo de Contacto, en la misma columna, para compactar la pantalla ---- */}
             <div className="card">
               <div className="card-title">Tu plan y consumo</div>
@@ -513,11 +551,16 @@ export default function EmpresaPage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* ---- Contacto del revendedor (si esta cuenta fue activada por uno) ---- */}
-        {suscripcion?.revendedorContacto && (
+                </>
+              )
+            },
+            ...(suscripcion?.revendedorContacto ? [
+            {
+              id: 'ejecutivo',
+              titulo: 'Tu ejecutivo',
+              grupo: 'cols',
+              nodo: (
+                <>
           <div className="card">
             <div className="card-title">Tu ejecutivo</div>
             <div style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: 1.6 }}>
@@ -532,8 +575,15 @@ export default function EmpresaPage() {
               {suscripcion.revendedorContacto.telefono && <div>{suscripcion.revendedorContacto.telefono}</div>}
             </div>
           </div>
-        )}
-
+                </>
+              )
+            }] : []),
+            {
+              id: 'usuarios',
+              titulo: 'Usuarios con acceso',
+              grupo: 'cols',
+              nodo: (
+                <>
         {/* ---- Usuarios con acceso a la cuenta ---- */}
         <div className="card">
           <div className="card-title">Usuarios con acceso</div>
@@ -610,6 +660,11 @@ export default function EmpresaPage() {
             </>
           )}
         </div>
+                </>
+              )
+            }
+          ]}
+        />
         </>
       )}
 
