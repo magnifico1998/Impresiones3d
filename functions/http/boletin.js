@@ -3,6 +3,7 @@ const { logger } = require('firebase-functions');
 const { db, Timestamp } = require('../admin');
 const { enviarEmail, gmailAppPassword, EMAIL_ADMIN } = require('../mailer');
 const { renderContenido, contenidoPlantilla, obtenerOverridesPlantillas } = require('../emailTemplates');
+const { coincidePlan, contarPorEstadoYPlan } = require('../filtroBoletin');
 
 // Boletín de novedades: un mail a todos los suscriptores con el contenido
 // de la plantilla "boletin" (se edita desde el panel para cada campaña).
@@ -39,11 +40,11 @@ async function suscriptores() {
   const lista = [];
   for (const d of snap.docs) {
     if (d.id !== 'actual') continue;
-    const { email, estado } = d.data();
+    const { email, estado, planId } = d.data();
     const e = normalEmail(email);
     if (!e || vistos.has(e) || bajas.has(e)) continue;
     vistos.add(e);
-    lista.push({ uid: d.ref.parent.parent.id, email: e, estado: estado || '' });
+    lista.push({ uid: d.ref.parent.parent.id, email: e, estado: estado || '', planId: planId || null });
   }
   return lista;
 }
@@ -118,11 +119,17 @@ exports.gestionarBoletin = onCall({ secrets: [gmailAppPassword], timeoutSeconds:
   const d = request.data || {};
 
   switch (d.accion) {
-    // Cuántos suscriptores hay por estado (sin bajas) y la lista de bajas.
+    // Cuántos suscriptores hay por estado y por plan (sin bajas), los planes
+    // para tildar y la lista de bajas. `porEstadoYPlan` usa la clave
+    // "estado|plan" (plan = id, o "sin-plan"): el panel suma lo tildado.
     case 'resumen': {
-      const lista = await suscriptores();
+      const [lista, planesSnap] = await Promise.all([suscriptores(), db.collection('planes').get()]);
       const porEstado = Object.fromEntries(ESTADOS.map((e) => [e, lista.filter((s) => s.estado === e).length]));
-      return { porEstado, excluidos: [...(await excluidos())].sort() };
+      const planes = planesSnap.docs
+        .map((p) => ({ id: p.id, nombre: p.data().nombre || p.id, gratuito: p.data().gratuito === true, orden: p.data().orden ?? 99 }))
+        .sort((a, b) => a.orden - b.orden)
+        .map(({ orden, ...p }) => p);
+      return { porEstado, porEstadoYPlan: contarPorEstadoYPlan(lista), planes, excluidos: [...(await excluidos())].sort() };
     }
 
     case 'guardarExcluidos': {
@@ -143,13 +150,18 @@ exports.gestionarBoletin = onCall({ secrets: [gmailAppPassword], timeoutSeconds:
     case 'enviar': {
       const estados = (Array.isArray(d.estados) ? d.estados : []).filter((e) => ESTADOS.includes(e));
       if (!estados.length) throw new HttpsError('invalid-argument', 'Elegí al menos un estado de suscripción.');
-      const destinatarios = (await suscriptores()).filter((s) => estados.includes(s.estado)).map(({ uid, email }) => ({ uid, email }));
-      if (!destinatarios.length) throw new HttpsError('failed-precondition', 'No hay suscriptores para esos estados.');
+      // Los planes son opcionales: sin ellos se manda a todos los planes.
+      const planes = Array.isArray(d.planes) ? d.planes.map(String) : undefined;
+      if (planes && !planes.length) throw new HttpsError('invalid-argument', 'Elegí al menos un plan (o "Sin plan").');
+      const destinatarios = (await suscriptores())
+        .filter((s) => estados.includes(s.estado) && coincidePlan(s.planId, planes))
+        .map(({ uid, email }) => ({ uid, email }));
+      if (!destinatarios.length) throw new HttpsError('failed-precondition', 'No hay suscriptores para esos estados y planes.');
       const { subject, bodyHtml } = contenidoPlantilla('boletin', await obtenerOverridesPlantillas());
       const ref = db.collection('boletines').doc();
       const ahora = Timestamp.now();
       await ref.set({
-        subject, bodyHtml, estados, destinatarios, enviados: [], fallidos: [],
+        subject, bodyHtml, estados, planes: planes || null, destinatarios, enviados: [], fallidos: [],
         estado: 'enviando', creadoEl: ahora, actualizadoEl: ahora, creadoPor: adminEmail
       });
       return { id: ref.id, total: destinatarios.length, ...(await enviarTanda(ref)) };

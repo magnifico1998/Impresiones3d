@@ -19,6 +19,9 @@ const ESTADOS = [
   { id: 'suspendida', nombre: 'Bloqueadas' }
 ];
 
+// Mismo valor que SIN_PLAN en functions/filtroBoletin.js.
+const PLAN_SIN = 'sin-plan';
+
 const ETIQUETA_ESTADO_ENVIO = {
   enviando: { texto: 'Enviando…', clase: 'badge-progress' },
   pausado: { texto: 'Pausado', clase: 'badge-pending' },
@@ -30,6 +33,7 @@ const fecha = (ts) => (ts?.toDate ? ts.toDate().toLocaleString('es-AR', { dateSt
 export default function SeccionBoletin({ showToast }) {
   const [resumen, setResumen] = useState(null);
   const [estados, setEstados] = useState(ESTADOS.map((e) => e.id));
+  const [planes, setPlanes] = useState(null); // null = todos los planes
   const [bajas, setBajas] = useState('');
   const [envios, setEnvios] = useState([]);
   const [plantilla, setPlantilla] = useState(null);
@@ -58,9 +62,19 @@ export default function SeccionBoletin({ showToast }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const total = resumen ? estados.reduce((s, e) => s + (resumen.porEstado[e] || 0), 0) : 0;
+  // Planes tildables: los de la colección `planes` más "Sin plan" (cuentas
+  // que todavía no tienen plan asignado: prueba o nunca eligieron).
+  const opcionesPlan = resumen ? [...(resumen.planes || []).map((p) => ({ id: p.id, nombre: p.nombre })), { id: PLAN_SIN, nombre: 'Sin plan' }] : [];
+
+  // Sin el filtro de plan hasta que carga el resumen: por defecto van todos.
+  const planesElegidos = planes ?? opcionesPlan.map((p) => p.id);
+
+  const cuentasDe = (estado, plan) => resumen?.porEstadoYPlan?.[`${estado}|${plan}`] || 0;
+  const total = resumen ? estados.reduce((s, e) => s + planesElegidos.reduce((t, p) => t + cuentasDe(e, p), 0), 0) : 0;
+  const cuentasPorPlan = (plan) => ESTADOS.reduce((s, e) => s + (estados.includes(e.id) ? cuentasDe(e.id, plan) : 0), 0);
 
   const alternarEstado = (id) => setEstados((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
+  const alternarPlan = (id) => setPlanes(planesElegidos.includes(id) ? planesElegidos.filter((p) => p !== id) : [...planesElegidos, id]);
 
   const editarContenido = async () => {
     setOcupado('editar');
@@ -97,7 +111,7 @@ export default function SeccionBoletin({ showToast }) {
   const enviar = async () => {
     if (!total) return;
     if (!(await confirmar(`Se va a mandar el contenido actual del boletín a ${total} suscriptor${total === 1 ? '' : 'es'}. ¿Mandaste antes una prueba para revisarlo?`, { titulo: 'Enviar boletín', textoConfirmar: `Enviar a ${total}` }))) return;
-    await accion('enviar', { accion: 'enviar', estados }, resultadoEnvio);
+    await accion('enviar', { accion: 'enviar', estados, planes: planesElegidos }, resultadoEnvio);
   };
 
   const guardarBajas = () => accion(
@@ -141,6 +155,23 @@ export default function SeccionBoletin({ showToast }) {
             </label>
           ))}
         </div>
+      )}
+
+      {resumen && (
+        <>
+          <label className="fl">Plan contratado</label>
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '13px', marginBottom: '4px' }}>
+            {opcionesPlan.map((p) => (
+              <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input type="checkbox" checked={planesElegidos.includes(p.id)} onChange={() => alternarPlan(p.id)} />
+                {p.nombre} <span style={{ color: 'var(--text3)', fontFamily: 'var(--mono)' }}>({cuentasPorPlan(p.id)})</span>
+              </label>
+            ))}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px' }}>
+            Se manda a quien cumple las dos cosas: el estado y el plan. Ej.: "Modo lectura" + "Boceto" son quienes usaron el plan gratuito y lo dejaron vencer.
+          </div>
+        </>
       )}
       <button className="btn btn-primary" disabled={!!ocupado || !total} onClick={enviar}>
         {ocupado === 'enviar' ? 'Enviando…' : `Enviar a ${total} suscriptor${total === 1 ? '' : 'es'}`}

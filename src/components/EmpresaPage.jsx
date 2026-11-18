@@ -318,50 +318,32 @@ export default function EmpresaPage() {
             <div className="card">
               <div className="card-title">Datos generales</div>
               
-              <label className="fl" style={{ marginTop: 0 }}>Nombre completo / del emprendimiento</label>
-              <input 
-                type="text" 
-                id="nombre" 
-                value={empresa.nombre || ''} 
-                placeholder="Ej: Juan Pérez 3D Prints" 
-                onChange={handleChange} 
-              />
-              
-              <label className="fl">CUIT</label>
-              <input 
-                type="text" 
-                id="cuit" 
-                value={empresa.cuit || ''} 
-                placeholder="Ej: 20-12345678-9" 
-                onChange={handleChange} 
-              />
-              
-              <label className="fl">Dirección</label>
-              <input 
-                type="text" 
-                id="direccion" 
-                value={empresa.direccion || ''} 
-                placeholder="Ej: Av. Siempre Viva 742" 
-                onChange={handleChange} 
-              />
-              
-              <label className="fl">Código postal</label>
-              <input
-                type="text"
-                id="cp"
-                value={empresa.cp || ''}
-                placeholder="Ej: X5000"
-                onChange={handleChange}
-              />
-
-              <label className="fl">País del emprendimiento</label>
-              <select id="pais" value={empresa.pais || PAIS_DEFAULT} onChange={handlePaisChange}>
-                {paisesList.map(p => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
-                ))}
-              </select>
-              <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-                Define la moneda de los precios y el formato de teléfono en toda la app.
+              <div className="campo-linea">
+                <label className="fl" htmlFor="nombre">Nombre / emprendimiento</label>
+                <input type="text" id="nombre" value={empresa.nombre || ''} placeholder="Ej: Juan Pérez 3D Prints" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="cuit">CUIT</label>
+                <input type="text" id="cuit" value={empresa.cuit || ''} placeholder="Ej: 20-12345678-9" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="direccion">Dirección</label>
+                <input type="text" id="direccion" value={empresa.direccion || ''} placeholder="Ej: Av. Siempre Viva 742" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="cp">Código postal</label>
+                <input type="text" id="cp" value={empresa.cp || ''} placeholder="Ej: X5000" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="pais">País</label>
+                <select id="pais" value={empresa.pais || PAIS_DEFAULT} onChange={handlePaisChange}>
+                  {paisesList.map(p => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+                <div className="campo-ayuda">
+                  Define la moneda de los precios y el formato de teléfono en toda la app.
+                </div>
               </div>
             </div>
 
@@ -370,29 +352,34 @@ export default function EmpresaPage() {
             <div className="card">
               <div className="card-title">Datos bancarios</div>
 
-              <label className="fl" style={{ marginTop: 0 }}>CBU / CVU</label>
-              <input
-                type="text"
-                id="cbu"
-                inputMode="numeric"
-                value={empresa.cbu || ''}
-                placeholder="22 dígitos"
-                onChange={(e) => setEmpresa(prev => ({ ...prev, cbu: e.target.value.replace(/[^\d ]/g, '') }))}
-              />
-              {empresa.cbu && empresa.cbu.replace(/\D/g, '').length !== 22 && (
-                <div style={{ fontSize: '11px', color: 'var(--warn)', marginTop: '4px' }}>
-                  El CBU/CVU tiene 22 dígitos (tiene {empresa.cbu.replace(/\D/g, '').length}).
-                </div>
-              )}
-
-              <label className="fl">Alias</label>
-              <input type="text" id="alias" value={empresa.alias || ''} placeholder="Ej: mi.emprendimiento.3d" onChange={handleChange} />
-
-              <label className="fl">Titular de la cuenta</label>
-              <input type="text" id="titularCuenta" value={empresa.titularCuenta || ''} placeholder="Ej: Juan Pérez" onChange={handleChange} />
-
-              <label className="fl">Entidad / Banco</label>
-              <input type="text" id="banco" value={empresa.banco || ''} placeholder="Ej: Banco Nación, Mercado Pago" onChange={handleChange} />
+              <div className="campo-linea">
+                <label className="fl" htmlFor="cbu">CBU / CVU</label>
+                <input
+                  type="text"
+                  id="cbu"
+                  inputMode="numeric"
+                  value={empresa.cbu || ''}
+                  placeholder="22 dígitos"
+                  onChange={(e) => setEmpresa(prev => ({ ...prev, cbu: e.target.value.replace(/[^d ]/g, '') }))}
+                />
+                {empresa.cbu && empresa.cbu.replace(/D/g, '').length !== 22 && (
+                  <div className="campo-ayuda" style={{ color: 'var(--warn)' }}>
+                    El CBU/CVU tiene 22 dígitos (tiene {empresa.cbu.replace(/D/g, '').length}).
+                  </div>
+                )}
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="alias">Alias</label>
+                <input type="text" id="alias" value={empresa.alias || ''} placeholder="Ej: mi.emprendimiento.3d" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="titularCuenta">Titular</label>
+                <input type="text" id="titularCuenta" value={empresa.titularCuenta || ''} placeholder="Ej: Juan Pérez" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="banco">Entidad / Banco</label>
+                <input type="text" id="banco" value={empresa.banco || ''} placeholder="Ej: Banco Nación, Mercado Pago" onChange={handleChange} />
+              </div>
 
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginTop: '12px', cursor: 'pointer' }}>
                 <input
@@ -413,41 +400,22 @@ export default function EmpresaPage() {
             <div className="card">
               <div className="card-title">Contacto</div>
               
-              <label className="fl" style={{ marginTop: 0 }}>Dirección de mail</label>
-              <input 
-                type="email" 
-                id="email" 
-                value={empresa.email || ''} 
-                placeholder="Ej: contacto@miemprendimiento.com" 
-                onChange={handleChange} 
-              />
-              
-              <label className="fl">Teléfono</label>
-              <input 
-                type="text" 
-                id="telefono" 
-                value={empresa.telefono || ''} 
-                placeholder="Ej: +54 9 351 1234567" 
-                onChange={handleChange} 
-              />
-              
-              <label className="fl">Facebook</label>
-              <input 
-                type="text" 
-                id="facebook" 
-                value={empresa.facebook || ''} 
-                placeholder="Ej: facebook.com/miemprendimiento" 
-                onChange={handleChange} 
-              />
-              
-              <label className="fl">Instagram</label>
-              <input 
-                type="text" 
-                id="instagram" 
-                value={empresa.instagram || ''} 
-                placeholder="Ej: @miemprendimiento" 
-                onChange={handleChange} 
-              />
+              <div className="campo-linea">
+                <label className="fl" htmlFor="email">Mail</label>
+                <input type="email" id="email" value={empresa.email || ''} placeholder="Ej: contacto@miemprendimiento.com" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="telefono">Teléfono</label>
+                <input type="text" id="telefono" value={empresa.telefono || ''} placeholder="Ej: +54 9 351 1234567" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="facebook">Facebook</label>
+                <input type="text" id="facebook" value={empresa.facebook || ''} placeholder="Ej: facebook.com/miemprendimiento" onChange={handleChange} />
+              </div>
+              <div className="campo-linea">
+                <label className="fl" htmlFor="instagram">Instagram</label>
+                <input type="text" id="instagram" value={empresa.instagram || ''} placeholder="Ej: @miemprendimiento" onChange={handleChange} />
+              </div>
             </div>
 
             {/* ---- Plan contratado y consumo: debajo de Contacto, en la misma columna, para compactar la pantalla ---- */}

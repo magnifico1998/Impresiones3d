@@ -11,6 +11,7 @@ import { MAX_ADJUNTOS, adjuntoParaGuardar, porHojaDe } from '../../utils/adjunto
 import { borrarImagenDeFirebase, subirImagenAFirebase } from '../../utils/imageCompress';
 
 import CampoNumero from '../CampoNumero';
+import TarjetaColapsable from '../TarjetaColapsable';
 // Presupuesto para un potencial cliente. Se puede generar sólo el PDF (como
 // siempre, sin guardar nada) o guardarlo en la sección Presupuestos, desde
 // donde se sigue su estado y, si lo aprueban, se convierte en pedido (ver
@@ -332,6 +333,9 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
     onClose();
   };
 
+  const tileResumen = { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 };
+  const rotuloResumen = { fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px' };
+
   return (
     <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
@@ -361,6 +365,31 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
           </>
         )}
 
+        {/* Resumen rápido: lo principal a la vista con las secciones cerradas.
+            Las secciones se abren de a una y recuerdan en este navegador si
+            quedaron abiertas. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px 16px', padding: '12px 14px', marginBottom: '12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius2)' }}>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Interesado</span>
+            <span style={{ fontSize: '14px', fontWeight: 600, overflowWrap: 'anywhere', color: nombreCliente.trim() ? 'var(--text)' : 'var(--danger)' }}>
+              {nombreCliente.trim() || 'Falta el nombre'}
+            </span>
+          </div>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Productos</span>
+            <span style={{ fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)' }}>{items.length}</span>
+          </div>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Total</span>
+            <span style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--accent)' }}>{fmt(total)}</span>
+          </div>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Imágenes</span>
+            <span style={{ fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)' }}>{adjuntos.length}/{MAX_ADJUNTOS}</span>
+          </div>
+        </div>
+
+        <TarjetaColapsable compacta conservar abiertaInicial clave="presupuesto.datos" titulo="Datos del interesado" resumen={[telefono, email].filter(Boolean).join(' · ') || 'sin contacto'}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
           <div>
             <label className="fl" style={{ marginTop: 0 }}>Nombre del interesado *</label>
@@ -378,16 +407,13 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Opcional" />
           </div>
         </div>
+        </TarjetaColapsable>
 
-        <label className="fl">Notas (se muestran en el PDF)</label>
+        <TarjetaColapsable compacta conservar clave="presupuesto.notas" titulo="Notas (se muestran en el PDF)" resumen={notas.trim() ? 'con notas' : 'sin notas'}>
         <textarea rows={5} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Opcional" style={{ resize: 'vertical' }} />
+        </TarjetaColapsable>
 
-        <div className="sep"></div>
-
-        <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '10px' }}>
-          Productos del presupuesto
-        </div>
-
+        <TarjetaColapsable compacta conservar abiertaInicial clave="presupuesto.productos" titulo="Productos del presupuesto" resumen={`${items.length} · ${fmt(total)}`}>
         <div style={{ maxHeight: '280px', overflowY: 'auto', paddingRight: '4px' }}>
           {!items.length ? (
             <div className="empty">Todavía no hay productos. Agregalos desde la Biblioteca o con "+ Línea libre".</div>
@@ -463,10 +489,11 @@ export default function ModalPresupuesto({ isOpen, onClose, selectedProdIds, pre
             </div>
           </div>
         )}
+        </TarjetaColapsable>
 
-        <AdjuntosPresupuesto adjuntos={adjuntos} setAdjuntos={setAdjuntos} porHoja={adjuntosPorHoja} setPorHoja={setAdjuntosPorHoja} showToast={showToast} />
-
-        <div className="sep"></div>
+        <TarjetaColapsable compacta conservar clave="presupuesto.adjuntos" titulo="Imágenes adjuntas" resumen={adjuntos.length ? `${adjuntos.length}/${MAX_ADJUNTOS}` : 'ninguna'}>
+          <AdjuntosPresupuesto adjuntos={adjuntos} setAdjuntos={setAdjuntos} porHoja={adjuntosPorHoja} setPorHoja={setAdjuntosPorHoja} showToast={showToast} />
+        </TarjetaColapsable>
 
         <div className="total-section">
           <div className="cost-line strong">

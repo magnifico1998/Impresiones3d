@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useConfig, useBiblioteca, useUi, useCuenta } from '../context/contextos';
 import AvisoModoLectura from './AvisoModoLectura';
 import { formatoNumero } from '../utils/numeros';
 import CampoMoneda from './CampoMoneda';
 
 import CampoNumero from './CampoNumero';
+import { buildCompositeGcode } from '../utils/productoGcode';
 // Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
 // al índice correspondiente de cfg.impresoras, o null si no hay ninguna
 // elegida o ya no existe. Se guarda por NOMBRE (robusto ante reordenar o
@@ -122,14 +123,24 @@ export default function CalculadoraPage({
   }, [cfg, selImpresora]);
 
   // Adjust inputs based on selections
+  // Con un archivo de un solo material, el filamento y el precio que se
+  // eligen acá se anotan también en ese material: así se conservan al sumar
+  // otro archivo (ver aplicarItems) en vez de volver al del primer cálculo.
+  const anotarEnMaterialUnico = (cambios) => {
+    setBambuMats(prev => (Object.keys(prev).length === 1 ? { 0: { ...prev[0], ...cambios } } : prev));
+  };
+
   const handleFilamentoSelectChange = (val) => {
     setSelFilamento(val);
     if (val !== 'manual') {
       const idx = parseInt(val, 10);
       if (cfg.filamentos[idx]) {
         setPrecioRollo(cfg.filamentos[idx].precio);
+        anotarEnMaterialUnico({ selFil: val, precioKg: cfg.filamentos[idx].precio });
+        return;
       }
     }
+    anotarEnMaterialUnico({ selFil: val });
   };
 
   const handleImpresoraSelectChange = (val) => {
@@ -204,36 +215,18 @@ export default function CalculadoraPage({
     });
   };
 
+  // Sumar o quitar un archivo sólo cambia la lista: el efecto de más abajo
+  // (aplicarItems) vuelve a calcular el producto y lo manda solo a la
+  // calculadora, sin un paso aparte de "aplicar".
   const appendGcodeItem = (item) => {
-    setGcodeItems(prev => {
-      const next = [...prev, item];
-      if (next.length === 1) {
-        setGcodeData(item);
-      } else {
-        setGcodeData(buildCompositeGcode(next));
-      }
-      return next;
-    });
-    setStatus(`Archivo agregado: ${item.nombre}`, 'success');
+    setGcodeItems(prev => [...prev, item]);
+    setStatus(`Archivo agregado y aplicado a la calculadora: ${item.nombre}`, 'success');
     setPrecioVentaTocado(false);
     setPrecioVentaManual('');
   };
 
   const handleRemoveGcodeItem = (index) => {
-    setGcodeItems(prev => {
-      const next = prev.filter((_, i) => i !== index);
-      if (next.length === 1) {
-        setGcodeData(next[0]);
-        setIsGcodeApplied(false);
-      } else if (next.length > 1) {
-        setGcodeData(buildCompositeGcode(next));
-        setIsGcodeApplied(false);
-      } else {
-        setGcodeData(null);
-        setIsGcodeApplied(false);
-      }
-      return next;
-    });
+    setGcodeItems(prev => prev.filter((_, i) => i !== index));
   };
 
   const leerArchivo = async (file) => {
@@ -323,21 +316,6 @@ export default function CalculadoraPage({
       setPrecioVentaTocado(false);
       setPrecioVentaManual('');
 
-      const matsObj = {};
-      Object.values(matMap).forEach((m, i) => {
-        matsObj[i] = { 
-          type: m.type,
-          color: m.color,
-          totalG: m.totalG, 
-          precioKg: m.precioKg,
-          selFil: 'manual'
-        };
-      });
-
-      if (gcodeItems.length === 0) {
-        setBambuMats(matsObj);
-      }
-
       return parsedData;
     } catch (err) {
       setStatus('Error parseando: ' + err.message, 'error');
@@ -419,20 +397,6 @@ export default function CalculadoraPage({
     setPrecioVentaTocado(false);
     setPrecioVentaManual('');
 
-    const matsObj = {};
-    Object.values(matMap).forEach((m, i) => {
-      matsObj[i] = { 
-        type: m.type,
-        color: m.color,
-        totalG: m.totalG, 
-        precioKg: m.precioKg,
-        selFil: 'manual'
-      };
-    });
-    if (gcodeItems.length === 0) {
-      setBambuMats(matsObj);
-    }
-
     return parsedData;
   };
 
@@ -454,21 +418,26 @@ export default function CalculadoraPage({
     return t || null;
   };
 
-  // Toggle single plate checkbox inside Bambu multi-plate view (preview stage)
+  // Tildar o destildar una placa cambia la selección dentro del archivo al
+  // que pertenece (el índice es el de la lista de placas de todos los
+  // archivos juntos) y la calculadora se actualiza sola.
   const handleTogglePlate = (idx, sel) => {
-    setGcodeData(prev => {
-      if (!prev) return prev;
-      const placas = prev.placas.map((p, i) => i === idx ? { ...p, sel } : p);
-      return { ...prev, placas };
+    setGcodeItems(prev => {
+      let inicio = 0;
+      return prev.map(item => {
+        if (item.tipo !== 'bambu') return item;
+        const desde = inicio;
+        inicio += item.placas.length;
+        if (idx < desde || idx >= inicio) return item;
+        return { ...item, placas: item.placas.map((p, i) => (i === idx - desde ? { ...p, sel } : p)) };
+      });
     });
   };
 
   const handleToggleAllPlates = (sel) => {
-    setGcodeData(prev => {
-      if (!prev) return prev;
-      const placas = prev.placas.map(p => ({ ...p, sel }));
-      return { ...prev, placas };
-    });
+    setGcodeItems(prev => prev.map(item => (
+      item.tipo === 'bambu' ? { ...item, placas: item.placas.map(p => ({ ...p, sel })) } : item
+    )));
   };
 
   // Compute weights for selected plates in Bambu multi-material reactively
@@ -551,82 +520,53 @@ export default function CalculadoraPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetTick]);
 
-  const buildCompositeGcode = (items) => {
-    if (!items || !items.length) return null;
-    const isAllBambu = items.every(item => item.tipo === 'bambu');
-
-    const composite = {
-      tipo: isAllBambu ? 'bambu' : 'gcode',
-      nombre: items.length === 1 ? items[0].nombre : `Producto compuesto (${items.length})`,
-      placas: [],
-      matMap: {},
-      totalSeg: 0,
-      gramos: 0,
-      tiempo: 0,
-      filamento: null
-    };
-
-    items.forEach(item => {
-      if (item.tipo === 'bambu') {
-        composite.placas = [...composite.placas, ...(item.placas || [])];
-        composite.totalSeg += item.totalSeg || 0;
-        Object.entries(item.matMap || {}).forEach(([k, m]) => {
-          composite.matMap[k] = composite.matMap[k] || { type: m.type, color: m.color, totalG: 0, precioKg: m.precioKg };
-          composite.matMap[k].totalG += m.totalG || 0;
-          composite.matMap[k].precioKg = composite.matMap[k].precioKg || m.precioKg;
-        });
-      } else {
-        composite.gramos += item.gramos || 0;
-        composite.tiempo += item.tiempo || 0;
-        if (!composite.filamento && item.filamento) {
-          composite.filamento = item.filamento;
-        }
-      }
-    });
-
-    if (isAllBambu) {
-      composite.placas = composite.placas.map(p => ({ ...p, sel: p.sel !== false }));
+  // Manda el producto armado con los archivos importados a la calculadora
+  // (horas, gramos, materiales y precios). Se llama solo cada vez que cambia
+  // la lista de archivos o la selección de placas. Lo que el usuario eligió
+  // para cada material (el filamento y su precio) se conserva si el material
+  // sigue estando; un material nuevo arranca con el filamento de
+  // Configuración que mejor le coincide por nombre.
+  const aplicarItems = (items) => {
+    const composite = buildCompositeGcode(items);
+    if (!composite) {
+      setGcodeData(null);
+      setBambuMats({});
+      setIsGcodeApplied(false);
+      return;
     }
-
-    return composite;
-  };
-
-  const handleAplicarGcode = () => {
-    if (!gcodeItems.length) return;
-
-    const composite = buildCompositeGcode(gcodeItems);
-    if (!composite) return;
 
     setGcodeData(composite);
 
     if (composite.tipo === 'bambu') {
+      const previos = {};
+      Object.values(bambuMats).forEach(m => { previos[`${m.type}|${m.color}`] = m; });
       const newBambuMats = {};
       Object.keys(composite.matMap).forEach((k, i) => {
         const m = composite.matMap[k];
-        const currentBMat = bambuMats[i] || { precioKg: m.precioKg, selFil: 'manual' };
+        const previo = previos[k];
+        const idxCfg = cfg.filamentos.findIndex(f => f.nombre.toLowerCase().includes(String(m.type).toLowerCase()));
         newBambuMats[i] = {
           type: m.type,
           color: m.color,
           totalG: m.totalG,
-          precioKg: currentBMat.precioKg,
-          selFil: currentBMat.selFil
+          precioKg: previo ? previo.precioKg : m.precioKg,
+          selFil: previo ? previo.selFil : (idxCfg >= 0 ? String(idxCfg) : 'manual')
         };
       });
       setBambuMats(newBambuMats);
       setHoras((composite.totalSeg || 0) / 3600);
       const matsArray = Object.values(newBambuMats);
-      if (matsArray.length === 1) {
+      if (matsArray.length === 0) {
+        setGramos(0);
+      } else if (matsArray.length === 1) {
         setGramos(matsArray[0].totalG);
         setPrecioRollo(matsArray[0].precioKg);
-        setSelFilamento(matsArray[0].selFil !== 'manual' ? matsArray[0].selFil : 'manual');
+        setSelFilamento(matsArray[0].selFil);
       }
     } else {
-      if (composite.gramos !== null) {
-        setGramos(composite.gramos);
-      }
-      if (composite.tiempo !== null) {
-        setHoras(composite.tiempo);
-      }
+      setBambuMats({});
+      setGramos(composite.gramos);
+      setHoras(composite.tiempo);
       if (composite.filamento) {
         const idx = cfg.filamentos.findIndex(f => f.nombre.toLowerCase().includes(composite.filamento.toLowerCase()));
         if (idx >= 0) {
@@ -641,8 +581,18 @@ export default function CalculadoraPage({
     setIsGcodeApplied(true);
     setPrecioVentaTocado(false);
     setPrecioVentaManual('');
-    showToast('✓ Producto compuesto aplicado a la calculadora.');
   };
+
+  // Se aplica solo al sumar, quitar o tildar placas. Con la lista vacía de
+  // entrada no se hace nada: un producto cargado desde la Biblioteca no tiene
+  // archivos y no hay que borrarle lo que trae.
+  const habiaArchivos = useRef(false);
+  useEffect(() => {
+    if (!gcodeItems.length && !habiaArchivos.current) return;
+    habiaArchivos.current = gcodeItems.length > 0;
+    aplicarItems(gcodeItems);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gcodeItems]);
 
   const handleLoadLibraryItem = (id) => {
     const prod = biblioteca.find(p => p.id === id);
@@ -1042,40 +992,9 @@ export default function CalculadoraPage({
               {/* Bambu materials & plates tables */}
               {gcodeData.tipo === 'bambu' && (
                 <>
-                  <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-                    Materiales detectados
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px' }}>
+                    Los materiales, sus gramos y el filamento de cada uno se ajustan abajo, en <strong>Filamentos</strong>.
                   </div>
-                  {Object.values(gcodeData.matMap).map((m, i) => {
-                    const matState = bambuMats[i] || { precioKg: m.precioKg, selFil: 'manual' };
-                    const currentGrams = selectedPlatesMaterialGrams[`${m.type}|${m.color}`] || 0;
-                    return (
-                      <div key={i} className="mat-row">
-                        <span className="color-dot" style={{ background: m.color }}></span>
-                        <span>
-                          <strong>{m.type}</strong>{' '}
-                          <span style={{ color: 'var(--text3)', fontSize: '11px', fontFamily: 'var(--mono)' }}>{m.color}</span>{' '}
-                          — <span>{formatoNumero(currentGrams, 2)}g</span>
-                        </span>
-                        <select 
-                          value={matState.selFil || 'manual'} 
-                          onChange={(e) => handleBambuMatSelectChange(i, e.target.value)}
-                        >
-                          <option value="manual">Manual</option>
-                          {cfg.filamentos.map((f, fi) => (
-                            <option key={fi} value={fi}>{f.nombre}</option>
-                          ))}
-                        </select>
-                        <CampoMoneda sinSimbolo 
-                          type="number" 
-                          value={matState.precioKg} 
-                          step="100" 
-                          onChange={(e) => handleBambuMatPriceChange(i, e.target.value)} 
-                        />
-                        <span style={{ fontSize: '10px', color: 'var(--text3)' }}>$/kg</span>
-                      </div>
-                    );
-                  })}
-
                   <div style={{ height: '1px', background: 'var(--border)', margin: '12px 0' }}></div>
                   <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
                     Placas
@@ -1155,47 +1074,16 @@ export default function CalculadoraPage({
               )}
             </div>
 
-            {/* Actions apply or reset Gcode */}
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-              <button className="btn btn-primary" onClick={handleAplicarGcode}>
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path d="M5 10l4 4 6-8" />
-                </svg>
-                Aplicar a la calculadora
-              </button>
-              <button className="btn" onClick={handleResetGcode}>
-                Limpiar
-              </button>
+            <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '12px' }}>
+              Los datos ya están aplicados en la calculadora: sumar o quitar archivos, o tildar placas, la actualiza sola.
             </div>
           </div>
         )}
 
       </div>
 
-      {/* 2. KPIs grid4 */}
-      <div className="grid4">
-        <div className="metric">
-          <div className="metric-label">Costo total</div>
-          <div className="metric-value" id="sc-costo">{fmt(calcOutput.totalCost)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Precio venta</div>
-          <div className="metric-value accent" id="sc-precio">{fmt(calcOutput.finalPrice)}</div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Ganancia</div>
-          <div className="metric-value" id="sc-ganancia" style={{ color: calcOutput.finalPrice - calcOutput.totalCost >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
-            {fmt(calcOutput.finalPrice - calcOutput.totalCost)}
-          </div>
-        </div>
-        <div className="metric">
-          <div className="metric-label">Margen</div>
-          <div className="metric-value" id="sc-margen">{formatoNumero(calcOutput.margenEfectivo, 0)}%</div>
-        </div>
-      </div>
-
-      {/* 3. Grid2 Filamentos & Electricidad y Tiempo */}
-      <div className="grid2">
+      {/* 3. Filamentos, Electricidad y tiempo, y Mano de obra y margen en tres columnas */}
+      <div className="grid3">
         {/* Filaments Card */}
         <div className="card">
           <div className="card-title">Filamentos</div>
@@ -1214,11 +1102,23 @@ export default function CalculadoraPage({
                 {Object.values(bambuMats).map((m, i) => (
                   <div key={i} style={{ display: 'grid', gridTemplateColumns: '14px 1fr 90px 90px', gap: '8px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
                     <span className="color-dot" style={{ background: m.color }}></span>
-                    <span>
+                    <span style={{ minWidth: 0 }}>
                       <strong>{m.type}</strong>{' '}
                       <span style={{ color: 'var(--text3)', fontSize: '11px', fontFamily: 'var(--mono)' }}>{m.color}</span>
+                      {/* Mismo selector de filamento que tenía la vista previa: elegir uno trae su precio. */}
+                      <select
+                        value={m.selFil || 'manual'}
+                        onChange={(e) => handleBambuMatSelectChange(i, e.target.value)}
+                        aria-label={`Filamento para ${m.type} ${m.color}`}
+                        style={{ display: 'block', width: '100%', marginTop: '4px', fontSize: '12px', padding: '4px 6px' }}
+                      >
+                        <option value="manual">— Manual —</option>
+                        {cfg.filamentos.map((f, fi) => (
+                          <option key={fi} value={fi}>{f.nombre} · {fmt(f.precio)}/kg</option>
+                        ))}
+                      </select>
                     </span>
-                    <CampoNumero 
+                    <CampoNumero
                       value={m.totalG} 
                       step="0.1" 
                       id={`mfil-g-${i}`}
@@ -1238,49 +1138,53 @@ export default function CalculadoraPage({
               </div>
             ) : (
               <div id="manual-fil-wrap">
-                <label className="fl">Filamento</label>
-                <select value={selFilamento} onChange={(e) => handleFilamentoSelectChange(e.target.value)} id="sel-filamento">
-                  <option value="manual">— Manual —</option>
-                  {cfg.filamentos.map((f, i) => (
-                    <option key={i} value={i}>{f.nombre} · {fmt(f.precio)}/kg</option>
-                  ))}
-                </select>
-                
+                <div className="campo-linea">
+                  <label className="fl" htmlFor="sel-filamento">Filamento</label>
+                  <select value={selFilamento} onChange={(e) => handleFilamentoSelectChange(e.target.value)} id="sel-filamento">
+                    <option value="manual">— Manual —</option>
+                    {cfg.filamentos.map((f, i) => (
+                      <option key={i} value={i}>{f.nombre} · {fmt(f.precio)}/kg</option>
+                    ))}
+                  </select>
+                </div>
+
                 {selFilamento === 'manual' && (
-                  <div id="fil-precio-wrap">
-                    <label className="fl">Precio del rollo ($/kg)</label>
-                    <CampoMoneda sinSimbolo 
-                      type="number" 
+                  <div id="fil-precio-wrap" className="campo-linea">
+                    <label className="fl" htmlFor="precio-rollo">Rollo ($/kg)</label>
+                    <CampoMoneda sinSimbolo
+                      type="number"
                       id="precio-rollo"
-                      value={precioRollo} 
-                      step="100" 
-                      onChange={(e) => setPrecioRollo(parseFloat(e.target.value) || 0)} 
+                      value={precioRollo}
+                      step="100"
+                      onChange={(e) => { const v = parseFloat(e.target.value) || 0; setPrecioRollo(v); anotarEnMaterialUnico({ precioKg: v }); }}
                     />
                   </div>
                 )}
-                
-                <label className="fl">
-                  Gramos usados (g){' '}
+
+                <div className="campo-linea">
+                  <label className="fl" htmlFor="gramos">Gramos (g)</label>
+                  <CampoNumero
+                    id="gramos"
+                    value={gramos}
+                    step="0.1"
+                    onChange={(e) => setGramos(parseFloat(e.target.value) || 0)}
+                  />
                   {isGcodeApplied && (
-                    <span id="tag-gcode-gramos" className="pill" style={{ display: 'inline-block' }}>desde archivo</span>
+                    <div className="campo-ayuda"><span id="tag-gcode-gramos" className="pill" style={{ display: 'inline-block' }}>desde archivo</span></div>
                   )}
-                </label>
-                <CampoNumero 
-                  id="gramos"
-                  value={gramos} 
-                  step="0.1" 
-                  onChange={(e) => setGramos(parseFloat(e.target.value) || 0)} 
-                />
-                
-                <label className="fl">Desperdicio (%)</label>
-                <CampoNumero 
-                  id="desperdicio"
-                  value={desperdicio} 
-                  step="1" 
-                  min="0" 
-                  max="100" 
-                  onChange={(e) => setDesperdicio(parseFloat(e.target.value) || 0)} 
-                />
+                </div>
+
+                <div className="campo-linea">
+                  <label className="fl" htmlFor="desperdicio">Desperdicio (%)</label>
+                  <CampoNumero
+                    id="desperdicio"
+                    value={desperdicio}
+                    step="1"
+                    min="0"
+                    max="100"
+                    onChange={(e) => setDesperdicio(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -1290,54 +1194,124 @@ export default function CalculadoraPage({
         <div className="card">
           <div className="card-title">Electricidad y tiempo</div>
           
-          <label className="fl">
-            Tiempo de impresión (horas){' '}
+          <div className="campo-linea">
+            <label className="fl" htmlFor="horas">Tiempo (horas)</label>
+            <CampoNumero
+              id="horas"
+              value={horas}
+              step="0.25"
+              onChange={(e) => setHoras(parseFloat(e.target.value) || 0)}
+            />
             {isGcodeApplied && (
-              <span id="tag-gcode-tiempo" className="pill" style={{ display: 'inline-block' }}>desde archivo</span>
+              <div className="campo-ayuda"><span id="tag-gcode-tiempo" className="pill" style={{ display: 'inline-block' }}>desde archivo</span></div>
             )}
-          </label>
-          <CampoNumero 
-            id="horas"
-            value={horas} 
-            step="0.25" 
-            onChange={(e) => setHoras(parseFloat(e.target.value) || 0)} 
-          />
+          </div>
 
-          <label className="fl">Impresora</label>
-          <select value={selImpresora} onChange={(e) => handleImpresoraSelectChange(e.target.value)} id="sel-impresora">
-            <option value="manual">— Manual —</option>
-            {cfg.impresoras.map((imp, i) => (
-              <option key={i} value={i}>{imp.nombre} · {imp.watts}W</option>
-            ))}
-          </select>
+          <div className="campo-linea">
+            <label className="fl" htmlFor="sel-impresora">Impresora</label>
+            <select value={selImpresora} onChange={(e) => handleImpresoraSelectChange(e.target.value)} id="sel-impresora">
+              <option value="manual">— Manual —</option>
+              {cfg.impresoras.map((imp, i) => (
+                <option key={i} value={i}>{imp.nombre} · {imp.watts}W</option>
+              ))}
+            </select>
+          </div>
 
           {selImpresora === 'manual' && (
-            <div id="imp-watts-wrap">
-              <label className="fl">Consumo (W)</label>
-              <CampoNumero 
+            <div id="imp-watts-wrap" className="campo-linea">
+              <label className="fl" htmlFor="watts">Consumo (W)</label>
+              <CampoNumero
                 id="watts"
-                value={watts} 
-                step="10" 
-                onChange={(e) => setWatts(parseFloat(e.target.value) || 0)} 
+                value={watts}
+                step="10"
+                onChange={(e) => setWatts(parseFloat(e.target.value) || 0)}
               />
             </div>
           )}
 
-          <label className="fl">Costo electricidad ($/kWh)</label>
-          <CampoMoneda sinSimbolo 
-            type="number" 
-            id="precio-kwh"
-            value={precioKwh} 
-            step="1" 
-            onChange={(e) => setPrecioKwh(parseFloat(e.target.value) || 0)} 
-          />
+          <div className="campo-linea">
+            <label className="fl" htmlFor="precio-kwh">Electricidad ($/kWh)</label>
+            <CampoMoneda sinSimbolo
+              type="number"
+              id="precio-kwh"
+              value={precioKwh}
+              step="1"
+              onChange={(e) => setPrecioKwh(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+        </div>
+
+        {/* Labor Card */}
+        <div className="card">
+          <div className="card-title">Mano de obra y margen</div>
+          
+          <div className="campo-linea">
+            <label className="fl" htmlFor="mano-obra">Mano de obra ($/h)</label>
+            <CampoMoneda sinSimbolo
+              type="number"
+              id="mano-obra"
+              value={manoObra}
+              step="50"
+              onChange={(e) => setManoObra(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+
+          <div className="campo-linea">
+            <label className="fl" htmlFor="horas-trabajo">Horas de trabajo</label>
+            <CampoNumero
+              id="horas-trabajo"
+              value={horasTrabajo}
+              step="0.25"
+              onChange={(e) => setHorasTrabajo(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+
+          <div className="campo-linea">
+            <label className="fl" htmlFor="extras">Gastos extra ($)</label>
+            <CampoMoneda sinSimbolo
+              type="number"
+              id="extras"
+              value={extras}
+              step="100"
+              onChange={(e) => setExtras(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+
+          <div className="campo-linea">
+            <label className="fl" htmlFor="margen">Margen (%)</label>
+            <CampoNumero
+              id="margen"
+              value={margen}
+              step="5"
+              min="0"
+              onChange={(e) => setMargen(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+
+          <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }}></div>
+
+          <div className="campo-linea">
+            <label className="fl" htmlFor="cantidad">Cantidad de unidades</label>
+            <CampoNumero
+              id="cantidad"
+              value={cantidad}
+              step="1"
+              min="1"
+              style={{ fontSize: '16px', fontWeight: 600 }}
+              onChange={(e) => setCantidad(parseFloat(e.target.value) || 1)}
+            />
+            <div className="campo-ayuda" style={{ fontFamily: 'var(--mono)' }}>
+              El costo y precio se multiplican por la cantidad
+            </div>
+          </div>
         </div>
       </div>
 
       {/* 4. Insumos adicionales Card */}
       <div className="card">
         <div className="card-title">Insumos adicionales</div>
-        <div id="lista-insumos">
+        {/* En columnas, igual que en el detalle del pedido: la lista larga ocupa menos alto. */}
+        <div id="lista-insumos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', columnGap: '24px' }}>
           {!cfg.insumos || !cfg.insumos.length ? (
             <div className="empty">Configurá tus insumos en Configuración.</div>
           ) : (
@@ -1373,66 +1347,11 @@ export default function CalculadoraPage({
         </div>
       </div>
 
-      {/* 5. Grid2 Labor details & Summary info */}
+      {/* 5. Resumen en dos columnas: los costos a la izquierda; precio de venta, ganancia, margen y acciones a la derecha */}
       <div className="grid2">
-        {/* Labor Card */}
+        {/* Costos */}
         <div className="card">
-          <div className="card-title">Mano de obra y margen</div>
-          
-          <label className="fl">Mano de obra ($/hora)</label>
-          <CampoMoneda sinSimbolo 
-            type="number" 
-            id="mano-obra"
-            value={manoObra} 
-            step="50" 
-            onChange={(e) => setManoObra(parseFloat(e.target.value) || 0)} 
-          />
-
-          <label className="fl">Horas de trabajo manual</label>
-          <CampoNumero 
-            id="horas-trabajo"
-            value={horasTrabajo} 
-            step="0.25" 
-            onChange={(e) => setHorasTrabajo(parseFloat(e.target.value) || 0)} 
-          />
-
-          <label className="fl">Gastos extra ($)</label>
-          <CampoMoneda sinSimbolo 
-            type="number" 
-            id="extras"
-            value={extras} 
-            step="100" 
-            onChange={(e) => setExtras(parseFloat(e.target.value) || 0)} 
-          />
-
-          <label className="fl">Margen de ganancia (%)</label>
-          <CampoNumero 
-            id="margen"
-            value={margen} 
-            step="5" 
-            min="0" 
-            onChange={(e) => setMargen(parseFloat(e.target.value) || 0)} 
-          />
-
-          <div style={{ height: '1px', background: 'var(--border)', margin: '14px 0' }}></div>
-          
-          <label className="fl">Cantidad de unidades</label>
-          <CampoNumero 
-            id="cantidad"
-            value={cantidad} 
-            step="1" 
-            min="1" 
-            style={{ fontSize: '16px', fontWeight: 600 }}
-            onChange={(e) => setCantidad(parseFloat(e.target.value) || 1)} 
-          />
-          <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--mono)', marginTop: '4px' }}>
-            El costo y precio se multiplican por la cantidad
-          </div>
-        </div>
-
-        {/* Summary Card */}
-        <div className="card">
-          <div className="card-title">Resumen</div>
+          <div className="card-title">Costos</div>
           <div className="result-box">
             <div className="r-row">
               <span>Filamentos</span>
@@ -1522,7 +1441,13 @@ export default function CalculadoraPage({
               <span>Costo total</span>
               <span id="r-total">{fmt(calcOutput.totalCost)}</span>
             </div>
-            
+          </div>
+        </div>
+
+        {/* Precio de venta, ganancia y margen, con las acciones debajo */}
+        <div className="card">
+          <div className="card-title">Precio de venta</div>
+          <div className="result-box">
             <div className="r-row price" style={{ alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 400, fontFamily: 'var(--sans)', color: 'var(--text2)' }}>
                 Precio venta <span style={{ fontSize: '9px', color: 'var(--text3)', textTransform: 'none' }}>(editable)</span>
@@ -1566,6 +1491,14 @@ export default function CalculadoraPage({
                   ↺
                 </button>
               </span>
+            </div>
+            <div className="r-row">
+              <span>Ganancia</span>
+              <span id="r-ganancia" style={{ color: calcOutput.finalPrice - calcOutput.totalCost >= 0 ? 'var(--accent)' : 'var(--danger)' }}>{fmt(calcOutput.finalPrice - calcOutput.totalCost)}</span>
+            </div>
+            <div className="r-row">
+              <span>Margen</span>
+              <span id="r-margen">{formatoNumero(calcOutput.margenEfectivo, 0)}%</span>
             </div>
           </div>
 

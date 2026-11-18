@@ -18,7 +18,9 @@ const leer = (clave, porDefecto) => {
   }
 };
 
-export default function TarjetaColapsable({ titulo, resumen, clave, abiertaInicial = false, conservar = false, children }) {
+// compacta: versión para dentro de un modal (el detalle del pedido): menos relleno
+// y fondo del modal, para que varias secciones cerradas ocupen poco alto.
+export default function TarjetaColapsable({ titulo, resumen, clave, abiertaInicial = false, conservar = false, compacta = false, children }) {
   const [abierta, setAbierta] = useState(() => leer(clave, abiertaInicial));
 
   const alternar = () => {
@@ -35,7 +37,7 @@ export default function TarjetaColapsable({ titulo, resumen, clave, abiertaInici
   };
 
   return (
-    <div className="card">
+    <div className="card" style={compacta ? { padding: '10px 14px', marginBottom: '8px', background: 'var(--bg)' } : undefined}>
       <div
         className="card-title"
         role="button"
@@ -43,7 +45,7 @@ export default function TarjetaColapsable({ titulo, resumen, clave, abiertaInici
         aria-expanded={abierta}
         onClick={alternar}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } }}
-        style={{ cursor: 'pointer', userSelect: 'none', marginBottom: abierta ? undefined : 0 }}
+        style={{ cursor: 'pointer', userSelect: 'none', marginBottom: abierta ? (compacta ? '10px' : undefined) : 0, ...(compacta ? { fontSize: '13px', color: 'var(--text)' } : {}) }}
       >
         {abierta ? '▾' : '▸'} {titulo}
         {resumen && <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text3)', marginLeft: '8px', textTransform: 'none', letterSpacing: 0 }}>{resumen}</span>}

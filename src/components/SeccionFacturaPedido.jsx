@@ -5,6 +5,7 @@ import { db, functions } from '../firebase';
 import { useCuenta, useUi } from '../context/contextos';
 import { confirmar, avisar, pedirTexto } from './Dialogos';
 import ModalFacturarPedido from './modals/ModalFacturarPedido';
+import TarjetaColapsable from './TarjetaColapsable';
 import { numeroComprobante, pesosAR, descargarPdfBase64, compartirPdfBase64, guardarPestanaEmpresa } from '../utils/facturacion';
 
 // Bloque "Factura electrónica" del detalle del pedido. El estado sale de
@@ -92,11 +93,11 @@ export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto,
     setAbierto(true);
   };
 
-  const titulo = (
-    <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-      Factura electrónica
-    </div>
-  );
+  // Lo que se ve con la sección cerrada.
+  const resumenCerrada = !config?.verificado ? 'sin configurar'
+    : !resumen || resumen.estado === 'anulada' ? (resumen ? 'anulada' : 'sin facturar')
+      : resumen.estado === 'emitida' ? `facturado ${numeroComprobante(resumen.ptoVta, resumen.numero)}`
+        : resumen.estado === 'error' ? 'con error' : 'emitiendo';
   const fila = { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' };
 
   let contenido;
@@ -169,9 +170,11 @@ export default function SeccionFacturaPedido({ pedido, cliente, precioVentaNeto,
 
   return (
     <>
-      <div className="sep"></div>
-      {titulo}
-      {contenido}
+      {/* conservar: con la sección cerrada se sigue armada, así no se pierde lo que tenga adentro. */}
+      <TarjetaColapsable compacta conservar clave="pedido.factura" titulo="Factura electrónica" resumen={resumenCerrada}>
+        {contenido}
+      </TarjetaColapsable>
+      {/* El modal queda fuera de la tarjeta: cerrada, su contenido está oculto. */}
       {abierto && (
         <ModalFacturarPedido pedido={pedido} cliente={cliente} precioVentaNeto={precioVentaNeto} onClose={() => setAbierto(false)} />
       )}

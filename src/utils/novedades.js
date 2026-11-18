@@ -7,6 +7,15 @@
 
 export const NOVEDADES = [
   {
+    version: 21,
+    fecha: '2026-11-18',
+    items: [
+      { texto: 'Calculadora más directa: al subir un G-code o un 3MF los datos van solos a la calculadora, sin apretar "Aplicar". Podés sumar varios archivos al mismo producto, y en los 3MF de Bambu, tildar o destildar placas recalcula el costo al instante. Cuando el archivo trae varios materiales, elegís el filamento de cada uno directamente en la tarjeta Filamentos.' },
+      { texto: 'Detalle del pedido y del presupuesto con resumen rápido: arriba ves lo principal (estado, avance de fabricación, total, saldo y envío en el pedido; interesado, productos y total en el presupuesto) y el resto está en secciones que se abren de a una y recuerdan en tu navegador cómo las dejaste, así no hace falta desplazarse tanto.' },
+      { texto: 'En Productos en stock podés filtrar por categoría y subcategoría, junto con el buscador y "Sólo con stock".' }
+    ]
+  },
+  {
     version: 20,
     fecha: '2026-11-06',
     items: [

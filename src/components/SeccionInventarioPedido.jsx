@@ -5,6 +5,7 @@ import { useMovimientosInventario } from '../hooks/useMovimientosInventario';
 import { formatoCantidad } from '../utils/inventario';
 import { consumosDelPedido, marcaSinDescuento, pedidoSinConsumo, ESTADOS_QUE_CONSUMEN } from '../utils/consumoPedido';
 import ModalConsumoPedido from './modals/ModalConsumoPedido';
+import TarjetaColapsable from './TarjetaColapsable';
 
 // Bloque "Inventario" del detalle del pedido: lo que ya se descontó (con
 // opción de deshacer), la marca de que se confirmó sin descontar, o el
@@ -38,12 +39,11 @@ export default function SeccionInventarioPedido({ pedido }) {
     for (const m of consumos) await borrarMovimiento(m.id);
   };
 
+  const resumenCerrada = yaDescontado ? 'descontado' : sinDescuento ? 'sin descuento' : sinConsumo ? 'no consume' : 'sin descontar';
+
   return (
     <>
-      <div className="sep"></div>
-      <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-        Inventario
-      </div>
+      <TarjetaColapsable compacta conservar clave="pedido.inventario" titulo="Inventario" resumen={resumenCerrada}>
       {yaDescontado ? (
         <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', flexWrap: 'wrap', fontSize: '13px' }}>
           <div style={{ flex: 1, minWidth: '200px' }}>
@@ -68,6 +68,8 @@ export default function SeccionInventarioPedido({ pedido }) {
           <button className="btn btn-sm" onClick={() => setAbierto(true)}>Descontar del inventario</button>
         </div>
       )}
+      </TarjetaColapsable>
+      {/* El modal queda fuera de la tarjeta: se abre solo al confirmar el pedido, aunque la sección esté cerrada. */}
       {abierto && <ModalConsumoPedido pedido={pedido} onClose={() => setAbierto(false)} />}
     </>
   );

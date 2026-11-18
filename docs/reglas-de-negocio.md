@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-11-10 (tope de monto facturado: tampoco se puede subir el monto de un pedido existente).
+Última revisión: 2026-11-18 (boletín de novedades: filtro por plan contratado, además del estado).
 
 ---
 
@@ -759,8 +759,14 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
   suscriptores con el contenido de la plantilla `boletin`, que se reescribe
   para cada campaña.
   - Destinatarios: el email de cada cuenta (no los miembros del equipo), según
-    los estados elegidos (prueba, activas, lectura, bloqueadas), sin repetidos
-    y sin las **bajas** (lista de emails que se carga a mano con quienes
+    los estados elegidos (prueba, activas, lectura, bloqueadas) **y** los
+    planes tildados (cada plan de `planes` más "Sin plan", las cuentas que no
+    tienen `planId`), sin repetidos y sin las **bajas**. Las dos condiciones se
+    combinan: "Modo lectura" + "Boceto" son quienes usaron el plan gratuito y lo
+    dejaron vencer; "En prueba" + "Sin plan", quienes se registraron y no
+    eligieron nada. Si el envío no trae planes (clientes viejos), va a todos
+    los planes. Cada envío guarda en `boletines/{id}` los `planes` usados. Las
+    **bajas** (lista de emails que se carga a mano con quienes
     respondieron BAJA). El saludo es "Hola {nombre}," con el nombre de la
     ficha del suscriptor, o "Hola,".
   - Primero se manda una **prueba** al admin. Al enviar, el contenido se copia

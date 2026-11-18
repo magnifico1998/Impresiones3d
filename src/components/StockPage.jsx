@@ -5,6 +5,9 @@ import { normalizarStock, stockTotal, textoStock } from '../utils/stock';
 
 // Productos en stock: las unidades terminadas de cada producto de la Biblioteca. Son las que la tienda del
 // catálogo web muestra por defecto y vende al instante; lo que se pida de más queda a pedido.
+const SIN_CAT = '__sin_categoria__';
+const porNombre = (a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' });
+
 export default function StockPage() {
   const { biblioteca } = useBiblioteca();
   const { catalogoConfig } = useCatalogo();
@@ -12,15 +15,28 @@ export default function StockPage() {
   const hayColores = (cfg?.colores || []).length > 0 || (cfg?.combinacionesColores || []).length > 0;
   const [busqueda, setBusqueda] = useState('');
   const [soloConStock, setSoloConStock] = useState(false);
+  // '' = todas; SIN_CAT = productos sin categoría. La subcategoría sólo se ofrece al elegir una categoría.
+  const [catFiltro, setCatFiltro] = useState('');
+  const [subFiltro, setSubFiltro] = useState('');
   const [editando, setEditando] = useState(null);
+
+  const categorias = useMemo(() => [...new Set(biblioteca.map((p) => p.cat).filter(Boolean))].sort(porNombre), [biblioteca]);
+  const haySinCat = useMemo(() => biblioteca.some((p) => !p.cat), [biblioteca]);
+  const subcategorias = useMemo(() => (catFiltro && catFiltro !== SIN_CAT
+    ? [...new Set(biblioteca.filter((p) => p.cat === catFiltro).map((p) => p.subcat).filter(Boolean))].sort(porNombre)
+    : []), [biblioteca, catFiltro]);
+
+  const cambiarCategoria = (v) => { setCatFiltro(v); setSubFiltro(''); };
 
   const filas = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
     return biblioteca
       .map((p) => ({ p, total: stockTotal(p.stock) }))
+      .filter(({ p }) => !catFiltro || (catFiltro === SIN_CAT ? !p.cat : p.cat === catFiltro))
+      .filter(({ p }) => !subFiltro || p.subcat === subFiltro)
       .filter(({ p, total }) => (!t || `${p.nombre} ${p.cat || ''} ${p.subcat || ''} ${p.subsubcat || ''}`.toLowerCase().includes(t)) && (!soloConStock || total > 0))
       .sort((a, b) => a.p.nombre.localeCompare(b.p.nombre, 'es', { sensitivity: 'base' }));
-  }, [biblioteca, busqueda, soloConStock]);
+  }, [biblioteca, busqueda, soloConStock, catFiltro, subFiltro]);
   const unidades = useMemo(() => biblioteca.reduce((s, p) => s + stockTotal(p.stock), 0), [biblioteca]);
   const conStock = useMemo(() => biblioteca.filter((p) => stockTotal(p.stock) > 0).length, [biblioteca]);
 
@@ -34,6 +50,17 @@ export default function StockPage() {
 
       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', margin: '12px 0' }}>
         <input type="text" placeholder="Buscar producto o categoría…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} style={{ maxWidth: '320px' }} />
+        <select value={catFiltro} onChange={(e) => cambiarCategoria(e.target.value)} aria-label="Filtrar por categoría" style={{ width: 'auto', maxWidth: '220px' }}>
+          <option value="">Todas las categorías</option>
+          {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+          {haySinCat && <option value={SIN_CAT}>Sin categoría</option>}
+        </select>
+        {subcategorias.length > 0 && (
+          <select value={subFiltro} onChange={(e) => setSubFiltro(e.target.value)} aria-label="Filtrar por subcategoría" style={{ width: 'auto', maxWidth: '220px' }}>
+            <option value="">Todas las subcategorías</option>
+            {subcategorias.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )}
         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
           <input type="checkbox" checked={soloConStock} onChange={(e) => setSoloConStock(e.target.checked)} />
           Sólo con stock

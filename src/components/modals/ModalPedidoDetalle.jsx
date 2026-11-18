@@ -17,6 +17,8 @@ import { ajustarLogo, tamanoLogoPdfDe } from '../../utils/logoPdf';
 import CampoMoneda from '../CampoMoneda';
 import ModalUnirPedido from './ModalUnirPedido';
 import { esUnible } from '../../utils/unirPedidos';
+import { textoEstadoPedido } from '../../utils/estadosPedido';
+import TarjetaColapsable from '../TarjetaColapsable';
 
 import CampoNumero from '../CampoNumero';
 // deshacerAgregado: { pedidoId, antes } cuando se llega a este pedido recién después de
@@ -897,6 +899,18 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
     showToast('PDF generado correctamente');
   };
 
+  // Textos que se ven con cada sección cerrada, para no tener que abrirla
+  // sólo para saber cómo está.
+  const nInsumos = (draft.insumos || []).length;
+  const resumenPiezas = draft.piezas.length ? `${draft.piezas.length} pieza${draft.piezas.length === 1 ? '' : 's'} · ${totalElaboradas}/${totalUnidades} unidades` : 'sin piezas';
+  const resumenInsumos = nInsumos ? `${nInsumos} elegido${nInsumos === 1 ? '' : 's'}` : 'ninguno';
+  const resumenCobro = `total ${fmt(totalAbonar)} · saldo ${fmt(saldoPendiente)}`;
+  const resumenEnvio = [draft.metodoEnvio, draft.numeroSeguimiento].filter(Boolean).join(' · ') || 'sin especificar';
+  const resumenNota = (draft.notaGeneral || '').trim() ? 'con nota' : 'sin nota';
+
+  const tileResumen = { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 };
+  const rotuloResumen = { fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px' };
+
   return (
     <div className="modal-overlay open" {...capaModal}>
       <div className="modal modal-wide" style={{ maxWidth: '1000px' }} onClick={(e) => e.stopPropagation()}>
@@ -946,11 +960,44 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           </div>
         )}
 
-        {/* Pieces checklist section */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px' }}>
-            Piezas / G-codes
+        {/* Resumen rápido: lo principal del pedido a la vista, sin abrir nada.
+            Las secciones de abajo se abren de a una y recuerdan en este
+            navegador si quedaron abiertas. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px 16px', padding: '12px 14px', marginBottom: '12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius2)' }}>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Estado</span>
+            <span style={{ fontSize: '14px', fontWeight: 600 }}>{textoEstadoPedido(draft.estado)}</span>
           </div>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Fabricación</span>
+            <span style={{ fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)', color: pct === 100 ? 'var(--accent)' : 'var(--text)' }}>
+              {totalElaboradas}/{totalUnidades} · {pct}%
+            </span>
+            <div style={{ height: '4px', background: 'var(--bg3)', borderRadius: '2px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', transition: 'width .4s ease' }}></div>
+            </div>
+          </div>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Total a abonar</span>
+            <span style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)' }}>{fmt(totalAbonar)}</span>
+          </div>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Saldo pendiente</span>
+            <span style={{ fontSize: '16px', fontWeight: 700, fontFamily: 'var(--mono)', color: saldoPendiente > 0 ? 'var(--danger)' : 'var(--accent)' }}>{fmt(saldoPendiente)}</span>
+          </div>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Ganancia</span>
+            <span style={{ fontSize: '14px', fontWeight: 600, fontFamily: 'var(--mono)' }}>{fmt(ganancia)}</span>
+          </div>
+          <div style={tileResumen}>
+            <span style={rotuloResumen}>Envío</span>
+            <span style={{ fontSize: '13px', overflowWrap: 'anywhere' }}>{resumenEnvio}</span>
+          </div>
+        </div>
+
+        {/* Pieces checklist section */}
+        <TarjetaColapsable compacta conservar clave="pedido.piezas" titulo="Piezas / G-codes" resumen={resumenPiezas}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: '10px' }}>
           <button className="btn btn-primary btn-sm" onClick={() => { persistDraft(); onClose(); onAddProduct(draft.id); }}>
             <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M10 4v12M4 10h12" />
@@ -1235,12 +1282,10 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           )}
         </div>
 
-        <div className="sep"></div>
+        </TarjetaColapsable>
 
         {/* Consumables (Insumos) checklist section */}
-        <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '10px' }}>
-          Insumos del pedido
-        </div>
+        <TarjetaColapsable compacta conservar clave="pedido.insumos" titulo="Insumos del pedido" resumen={resumenInsumos}>
         <div id="det-insumos" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', columnGap: '24px' }}>
           {!cfg.insumos || !cfg.insumos.length ? (
             <div className="empty">Sin insumos configurados.</div>
@@ -1273,9 +1318,10 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           )}
         </div>
 
-        <div className="sep"></div>
+        </TarjetaColapsable>
 
         {/* Totals Summary */}
+        <TarjetaColapsable compacta conservar clave="pedido.cobro" titulo="Totales, descuento y cobro" resumen={resumenCobro}>
         <div className="total-section">
           <div className="cost-line">
             <span>Costo piezas</span>
@@ -1411,6 +1457,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             </div>
           </div>
         </div>
+        </TarjetaColapsable>
 
         <SeccionFacturaPedido
           pedido={draft}
@@ -1422,13 +1469,9 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
 
         <SeccionInventarioPedido pedido={draft} />
 
-        <div className="sep"></div>
-
         {/* Shipping details */}
-        <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          Datos de envío
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+        <TarjetaColapsable compacta conservar clave="pedido.envio" titulo="Datos de envío" resumen={resumenEnvio}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           <div>
             <label className="fl" style={{ marginTop: 0 }}>Método de envío</label>
             <select 
@@ -1451,12 +1494,11 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
             />
           </div>
         </div>
+        </TarjetaColapsable>
 
         {/* Comment general */}
-        <div style={{ fontSize: '10px', fontFamily: 'var(--mono)', color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: '8px' }}>
-          Nota general del pedido
-        </div>
-        <textarea 
+        <TarjetaColapsable compacta conservar clave="pedido.nota" titulo="Nota general del pedido" resumen={resumenNota}>
+        <textarea
           placeholder="Ej: Envío por correo, abonó seña 50%, pagar con transferencia..." 
           value={draft.notaGeneral || ''}
           style={{
@@ -1476,6 +1518,7 @@ export default function ModalPedidoDetalle({ isOpen, onClose, pedidoId, onEditOr
           }}
           onChange={(e) => handleFieldChange('notaGeneral', e.target.value)}
         />
+        </TarjetaColapsable>
 
         <div className="modal-footer">
           {draft.estado !== 'cancelado' && (
