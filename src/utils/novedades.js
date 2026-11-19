@@ -7,6 +7,14 @@
 
 export const NOVEDADES = [
   {
+    version: 22,
+    fecha: '2026-11-18',
+    items: [
+      { texto: 'Vista previa 3D del G-code en la Calculadora: al importar un archivo, el botón "Ver en 3D" muestra la pieza como la va a imprimir. La podés girar para ver todas sus caras, acercar, mirarla de frente, de arriba o de costado, recorrerla capa por capa y colorearla por parte de la pieza (paredes, relleno, soportes) o por altura. En los 3MF de Bambu con varias placas elegís cuál ver.' },
+      { texto: 'Personalizá tus pantallas: cada persona del equipo puede subir, bajar u ocultar secciones del menú lateral y de pantallas como el Resumen, la Calculadora, Configuración, Mi emprendimiento, el Catálogo web y el detalle del pedido y del presupuesto. Se guarda en tu usuario y te acompaña en tus otros dispositivos, sin cambiar lo que ven los demás.' }
+    ]
+  },
+  {
     version: 21,
     fecha: '2026-11-18',
     items: [
