@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useConfig, useBiblioteca, useUi, useCuenta } from '../context/contextos';
 import AvisoModoLectura from './AvisoModoLectura';
 import { formatoNumero } from '../utils/numeros';
@@ -7,6 +7,9 @@ import CampoMoneda from './CampoMoneda';
 import CampoNumero from './CampoNumero';
 import { buildCompositeGcode } from '../utils/productoGcode';
 import SeccionesPersonalizables from './SeccionesPersonalizables';
+
+// La vista previa 3D trae three.js: se descarga recién al abrirla.
+const VistaPreviaGcode = lazy(() => import('./VistaPreviaGcode'));
 // Resuelve cfg.impresoraDefault ("Impresora por defecto" en Configuración)
 // al índice correspondiente de cfg.impresoras, o null si no hay ninguna
 // elegida o ya no existe. Se guarda por NOMBRE (robusto ante reordenar o
@@ -65,7 +68,9 @@ export default function CalculadoraPage({
   // Parsed G-code data state
   const [gcodeData, setGcodeData] = useState(null);
   const [gcodeItems, setGcodeItems] = useState([]);
-  
+  // Archivo cuya vista previa 3D está abierta (el File del ítem importado).
+  const [archivoVista, setArchivoVista] = useState(null);
+
   // Applied status of current G-code
   const [isGcodeApplied, setIsGcodeApplied] = useState(false);
   
@@ -497,6 +502,7 @@ export default function CalculadoraPage({
   };
 
   const handleResetGcode = () => {
+    setArchivoVista(null);
     setGcodeData(null);
     setGcodeItems([]);
     setIsGcodeApplied(false);
@@ -924,12 +930,22 @@ export default function CalculadoraPage({
                     {item.tipo === 'bambu' ? `${item.placas.length} placas · ${formatH(item.totalSeg)}` : `${item.gramos != null ? formatoNumero(item.gramos, 1) : '—'}g · ${item.tiempo ? formatH(item.tiempo * 3600) : '—'}`}
                   </div>
                 </div>
-                <button className="btn btn-sm btn-danger" onClick={() => handleRemoveGcodeItem(idx)}>
+                {item.archivo && (
+                  <button className="btn btn-sm" onClick={() => setArchivoVista(archivoVista === item.archivo ? null : item.archivo)}>
+                    Ver en 3D
+                  </button>
+                )}
+                <button className="btn btn-sm btn-danger" onClick={() => { if (archivoVista === item.archivo) setArchivoVista(null); handleRemoveGcodeItem(idx); }}>
                   ✕
                 </button>
               </div>
             ))}
             <button className="btn btn-sm" onClick={handleResetGcode}>Limpiar archivos</button>
+            {archivoVista && (
+              <Suspense fallback={<div style={{ padding: '16px', fontSize: '12px', color: 'var(--text3)' }}>Cargando visor…</div>}>
+                <VistaPreviaGcode key={archivoVista.name + archivoVista.size} archivo={archivoVista} onCerrar={() => setArchivoVista(null)} />
+              </Suspense>
+            )}
           </div>
         )}
 
