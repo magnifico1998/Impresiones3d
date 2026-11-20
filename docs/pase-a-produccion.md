@@ -96,3 +96,5 @@ Requisitos del repositorio: Actions habilitado, y la rama `main` **sin** protecc
 - **Después:** `git revert` del pase en `main` (y en develop) para que git quede alineado con lo que está publicado.
 - Si el pase incluyó cambios de reglas o functions, volver también a las reglas/functions anteriores con
   `firebase deploy --project prod` desde el commit viejo (con el OK).
+
+<!-- SIN_NOVEDADES_V23: la v23 suma la página de inicio pública, la calculadora y las preguntas frecuentes sin sesión; es para visitantes, no cambia nada para los suscriptores. -->

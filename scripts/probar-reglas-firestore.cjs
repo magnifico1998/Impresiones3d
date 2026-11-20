@@ -112,7 +112,7 @@ const mail = (uid) => `${uid}@gmail.com`.toLowerCase();
     caso('planes: lectura pública', 'ALLOW', 'get', 'planes/p1', null),
     caso('planes: un usuario común NO escribe', 'DENY', 'update', 'planes/p1', dueno, { datos: { precioMensual: 1 }, existente: { precioMensual: 2 }, mocks: [esAdmin(`${mail(UID)}`, false)] }),
     caso('planes: un admin SÍ escribe', 'ALLOW', 'update', 'planes/p1', admin, { datos: { precioMensual: 1 }, existente: { precioMensual: 2 }, mocks: [esAdmin(EMAIL_ADMIN, true)] }),
-    caso('faq: sin login NO lee', 'DENY', 'get', 'faq/f1', null),
+    caso('faq: sin login lee (pública, se ve en la página de inicio)', 'ALLOW', 'get', 'faq/f1', null),
     caso('faq: con login lee', 'ALLOW', 'get', 'faq/f1', dueno),
     caso('admins: cada uno lee su propio documento', 'ALLOW', 'get', `admins/${mail(UID)}`, dueno, { mocks: [esAdmin(`${mail(UID)}`, false)] }),
     caso('admins: NO se escribe desde la app', 'DENY', 'create', 'admins/nuevo@gmail.com', admin, { datos: { x: 1 }, mocks: [esAdmin(EMAIL_ADMIN, true)] }),
