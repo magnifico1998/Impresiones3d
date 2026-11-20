@@ -419,12 +419,11 @@ service cloud.firestore {
     }
 
     // ---- Preguntas frecuentes (contenido global, no por-cuenta) ----
-    // Visible para cualquier usuario con sesión iniciada (dueño o miembro
-    // invitado de cualquier cuenta) -- a diferencia de "planes" no es
-    // pública del todo, por eso exige request.auth != null en vez de
-    // "true". Sólo un admin general puede crear/editar/borrar preguntas.
+    // Pública, igual que "planes": se muestra también en la página de inicio,
+    // antes de iniciar sesión. Sólo un admin general puede
+    // crear/editar/borrar preguntas.
     match /faq/{faqId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if esAdmin();
     }
 

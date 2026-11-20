@@ -19,11 +19,13 @@ import { agruparContiguas, alternarOculta, combinarLayout, moverSeccion } from '
 //
 // Mientras la persona está personalizando, los cambios que lleguen de otro
 // dispositivo no le cambian nada por debajo; se guardan al terminar.
-export default function SeccionesPersonalizables({ pantalla, secciones, grupos = {}, encabezado = null }) {
+// `fijo`: pantalla pública (página de inicio, sin cuenta): orden original y sin
+// "Personalizar pantalla", que guardaría en una cuenta que no existe.
+export default function SeccionesPersonalizables({ pantalla, secciones, grupos = {}, encabezado = null, fijo = false }) {
   const { layoutDe, guardarLayout } = usePreferenciasUi();
   const ids = secciones.map((s) => s.id);
   const fijas = secciones.filter((s) => s.fija).map((s) => s.id);
-  const guardado = layoutDe(pantalla);
+  const guardado = fijo ? null : layoutDe(pantalla);
 
   const base = combinarLayout(ids, guardado, fijas);
 
@@ -99,7 +101,7 @@ export default function SeccionesPersonalizables({ pantalla, secciones, grupos =
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>{encabezado}</div>
-        {!editando && (
+        {!editando && !fijo && (
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setBorrador(base)} title="Acomodá las secciones de esta pantalla a tu gusto">
             ⚙ Personalizar pantalla
           </button>

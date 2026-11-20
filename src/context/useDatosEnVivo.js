@@ -203,13 +203,9 @@ export function useDatosEnVivo({ user, cuentaId, esMiembro, datosCargadosOk }) {
   // Listener en tiempo real para la colección global "faq". A diferencia
   // de las demás colecciones de acá abajo, no depende de cuentaId ni de
   // datosCargadosOk -- no es dato de una cuenta, sino contenido compartido
-  // que cualquier usuario logueado puede leer (ver firestore.rules).
+  // y público: se muestra en la página de inicio, antes de iniciar sesión
+  // (ver firestore.rules). Por eso escucha también sin usuario.
   useEffect(() => {
-    if (!user) {
-      setFaq([]);
-      return;
-    }
-
     const colRef = collection(db, "faq");
 
     const unsubscribe = onSnapshot(
@@ -223,7 +219,7 @@ export function useDatosEnVivo({ user, cuentaId, esMiembro, datosCargadosOk }) {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, []);
 
 
   // Listener en tiempo real para la subcolección de biblioteca (Fase 3).

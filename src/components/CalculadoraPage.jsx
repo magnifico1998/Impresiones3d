@@ -30,7 +30,10 @@ export default function CalculadoraPage({
   onOpenBibGuardar,
   onOpenAgregarPieza,
   onOpenPresupuesto,
-  resetTick
+  resetTick,
+  // Versión de la página de inicio (sin sesión): valores por defecto, todo a mano
+  // y un único botón que genera el PDF del presupuesto; no guarda nada.
+  publico = false
 }) {
   const { cfg, fmt } = useConfig();
   const { biblioteca } = useBiblioteca();
@@ -870,7 +873,7 @@ export default function CalculadoraPage({
   // que en modo lectura hay que cortarla acá a mano. Se excluye a los
   // admins, mismo criterio que el bloqueo de cuenta "suspendida" en
   // App.jsx, para no trabarse a sí mismos probando la app.
-  if (suscripcion?.estado === 'lectura' && !isAdmin) {
+  if (!publico && suscripcion?.estado === 'lectura' && !isAdmin) {
     return <AvisoModoLectura titulo="La Calculadora no está disponible en modo lectura" />;
   }
 
@@ -1540,8 +1543,21 @@ export default function CalculadoraPage({
           </div>
 
           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-            <button 
-              className="btn btn-primary" 
+            {publico ? (
+              <button
+                className="btn btn-primary"
+                style={{ flex: 1, justifyContent: 'center' }}
+                onClick={handleGenerarPresupuesto}
+              >
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M5 2h7l3 3v12a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z" />
+                  <path d="M12 2v3h3M7 11h6M7 14h4" />
+                </svg>
+                Generar presupuesto en PDF
+              </button>
+            ) : (<>
+            <button
+              className="btn btn-primary"
               style={{ flex: 1, justifyContent: 'center' }} 
               onClick={() => {
                 if (!calcOutput.currentPresupuesto || calcOutput.totalCost === 0) {
@@ -1578,10 +1594,13 @@ export default function CalculadoraPage({
               </svg>
               Agregar a presupuesto
             </button>
+            </>)}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text3)', textAlign: 'center', marginTop: '8px', lineHeight: 1.4 }}>
-            Guardar en biblioteca habilita versiones, colores y precio de venta editable por pieza. "Agregar a pedido" es para productos simples que no necesitás guardar.
-          </div>
+          {!publico && (
+            <div style={{ fontSize: '11px', color: 'var(--text3)', textAlign: 'center', marginTop: '8px', lineHeight: 1.4 }}>
+              Guardar en biblioteca habilita versiones, colores y precio de venta editable por pieza. "Agregar a pedido" es para productos simples que no necesitás guardar.
+            </div>
+          )}
         </div>
       )
     }
@@ -1593,7 +1612,8 @@ export default function CalculadoraPage({
         pantalla="calculadora"
         secciones={secciones}
         grupos={{ datos: 'grid3', resumen: 'grid2' }}
-        encabezado={(
+        fijo={publico}
+        encabezado={publico ? null : (
 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

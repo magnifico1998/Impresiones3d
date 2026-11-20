@@ -7,7 +7,7 @@ indica dónde vive en el código, para poder verificarla.
 > Este documento se mantiene al día con el código. Si cambiás una regla,
 > actualizá la sección correspondiente en el mismo commit (ver `CLAUDE.md`).
 
-Última revisión: 2026-11-18 (personalizar pantallas: orden y secciones ocultas por persona).
+Última revisión: 2026-11-19 (preguntas frecuentes públicas, para la página de inicio).
 
 ---
 
@@ -756,7 +756,8 @@ Código: `src/utils/registroSoporte.js`, `src/utils/formatoTicket.js`,
 
 - Los admins se definen en la colección `admins/{email}` y **se agregan a mano
   desde Firebase Console**. Desde la app no se pueden crear.
-- Las preguntas frecuentes (`faq`) y los planes (`planes`) los edita solo un
+- Las preguntas frecuentes (`faq`) y los planes (`planes`) son de lectura pública
+  (la página de inicio, sin sesión, muestra las preguntas) y los edita solo un
   admin.
 - **Plantillas de mail:** el admin edita el asunto y el cuerpo de cada mail en
   modo **visual** (escribiendo sobre el mail) o **HTML**. Las plantillas con una

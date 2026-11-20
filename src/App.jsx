@@ -3,6 +3,7 @@ import { confirmar } from './components/Dialogos';
 import { useCuenta, useUi } from './context/contextos';
 
 // Layout and views
+import PaginaInicio from './components/PaginaInicio';
 import Header from './components/Header';
 import AvisoActualizacion from './components/AvisoActualizacion';
 import Sidebar from './components/Sidebar';
@@ -122,6 +123,13 @@ function App() {
   // botón "Ingresar con email" y el input; emailLinkEnviado muestra el
   // cartel de confirmación con la leyenda de "mismo dispositivo".
   const [mostrarFormEmail, setMostrarFormEmail] = useState(false);
+
+  // Página de inicio pública: se ve primero, y "Ingresar" pasa a la pantalla
+  // de acceso. Si se llega desde el link de acceso por email (oobCode) se
+  // salta, para no frenar el ingreso que ya está en curso.
+  const [mostrarAcceso, setMostrarAcceso] = useState(
+    () => new URLSearchParams(window.location.search).has('oobCode')
+  );
   const [emailLinkInput, setEmailLinkInput] = useState('');
   const [emailLinkEnviando, setEmailLinkEnviando] = useState(false);
   const [emailLinkEnviado, setEmailLinkEnviado] = useState(false);
@@ -235,6 +243,11 @@ function App() {
     );
   }
 
+  // Sin sesión: primero la página de inicio, después la pantalla de acceso.
+  if (!user && !mostrarAcceso) {
+    return <PaginaInicio onIngresar={() => setMostrarAcceso(true)} />;
+  }
+
   // Not authenticated Google login screen
   if (!user) {
     return (
@@ -250,6 +263,13 @@ function App() {
         gap: '24px',
         padding: '20px'
       }}>
+        <button
+          onClick={() => setMostrarAcceso(false)}
+          className="btn"
+          style={{ position: 'absolute', top: '16px', left: '16px', background: 'transparent', color: 'var(--text2)', fontSize: '13px' }}
+        >
+          ← Volver al inicio
+        </button>
         <div className="header-logo" style={{
           width: '56px',
           height: '56px',

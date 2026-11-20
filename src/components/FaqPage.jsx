@@ -141,7 +141,9 @@ function renderBloqueTexto(texto) {
   });
 }
 
-export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
+// `publico`: se muestra en la página de inicio, sin sesión: sin título propio
+// ni recorrido guiado (que sólo existe dentro de la app).
+export default function FaqPage({ onOpenNuevo, onOpenEditar, publico = false }) {
   const { faq, removeFaq } = useFaq();
   const { isAdmin } = useCuenta();
   const { showToast } = useUi();
@@ -254,7 +256,7 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
 
   return (
     <div className="page active">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+      {!publico && <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span>Preguntas Frecuentes</span>
@@ -270,9 +272,9 @@ export default function FaqPage({ onOpenNuevo, onOpenEditar }) {
         <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('iniciar-recorrido'))} style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           🧭 Ver el recorrido guiado
         </button>
-      </div>
+      </div>}
 
-      {isAdmin && (
+      {isAdmin && !publico && (
         <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
 
           <button className="btn btn-primary btn-sm" onClick={() => onOpenNuevo?.()}>
