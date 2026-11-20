@@ -5,6 +5,7 @@ import { colorPermitido, combinacionPermitida, versionesSinColor } from '../util
 import { normalizarStock, repartirConStock, stockDeVariante, stockTotal } from '../utils/stock';
 
 import CampoNumero from '../components/CampoNumero';
+import { linkificar } from '../utils/linkificar';
 // Formato "tienda" del catálogo web (catalogoConfig.modo === 'tienda'): categorías arriba como desplegables con sus
 // subcategorías, grilla de productos con imagen grande y botón Comprar. Por defecto muestra lo que hay en stock
 // (se entrega al instante); "Todo el catálogo" suma los productos a pedido. Una compra puede mezclar las dos cosas:
@@ -423,7 +424,7 @@ function FichaProducto({ producto: p, inicial, soloStock, fmt, colores, coloresS
             {total > 0 ? `${total} en stock · entrega inmediata` : 'A pedido: lo fabricamos para vos'}
           </div>
           {p.desc && <div style={{ fontSize: '13px', color: 'var(--text2)', marginTop: '8px' }}>{p.desc}</div>}
-          {p.descLarga && <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '8px', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>{p.descLarga}</div>}
+          {p.descLarga && <div style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '8px', whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>{linkificar(p.descLarga)}</div>}
 
           <div style={{ background: 'var(--bg3)', border: '1px dashed var(--border2)', borderRadius: '12px', padding: '12px', marginTop: '14px' }}>
             {versiones.map((v) => (

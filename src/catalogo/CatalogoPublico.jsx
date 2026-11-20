@@ -6,6 +6,7 @@ import { httpsCallable } from 'firebase/functions';
 import { obtenerPais, motivoTelefonoInvalido, formatearMoneda } from '../utils/paises';
 import { ordenarCategorias } from '../utils/categoriaOrden';
 import VistaTienda, { ESTILOS_TIENDA } from './VistaTienda';
+import { linkificar } from '../utils/linkificar';
 import { nombreDeRuta } from '../utils/nombreCatalogo';
 import { repartirConStock } from '../utils/stock';
 import { colorPermitido, combinacionPermitida, versionesSinColor } from '../utils/coloresProducto';
@@ -30,26 +31,6 @@ function urlInstagram(valor) {
   if (!v) return null;
   if (/^https?:\/\//i.test(v)) return v;
   return `https://instagram.com/${v.replace(/^@/, '')}`;
-}
-
-// Detecta URLs sueltas dentro de un texto libre (ej. la descripción extendida
-// de un producto) y las convierte en <a> clickeables, dejando el resto del
-// texto tal cual. No cambia lo que el dueño escribió, sólo envuelve las
-// partes que matchean con un link.
-const URL_REGEX = /(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+)/gi;
-const ES_URL_REGEX = /^(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+)$/i;
-function linkificar(texto) {
-  if (!texto) return texto;
-  const partes = texto.split(URL_REGEX);
-  return partes.map((parte, i) => {
-    if (!ES_URL_REGEX.test(parte)) return parte;
-    const href = /^https?:\/\//i.test(parte) ? parte : `https://${parte}`;
-    return (
-      <a key={i} href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent)', textDecoration: 'underline', wordBreak: 'break-all' }}>
-        {parte}
-      </a>
-    );
-  });
 }
 
 // La paleta del catálogo (elegida en CatalogoAdminPage, independiente de la
